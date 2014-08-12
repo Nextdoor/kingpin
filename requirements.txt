@@ -1,0 +1,8 @@
+# General App Requirements
+tornado==3.1.1
+
+# Note: This is only installable directly from Github, but because
+# this file is parsed by setup.py, we cannot use the pip+github
+# syntax. Instead, the Makefile handles the installation of this
+# dependency.
+tornadomail
