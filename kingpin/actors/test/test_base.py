@@ -1,12 +1,11 @@
 import logging
-import mock
 import time
 
 from tornado import gen
 from tornado import testing
 from tornado.ioloop import IOLoop
 
-from deployer.actors import base
+from kingpin.actors import base
 
 
 log = logging.getLogger(__name__)

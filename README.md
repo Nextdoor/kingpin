@@ -18,7 +18,7 @@ TODO
 
 ### Class/Object Architecture
 
-    deployer.rb
+    kingpin.rb
     |
     +-- deployment.Deployer
         | Executes a deployment based on the supplied DSL.

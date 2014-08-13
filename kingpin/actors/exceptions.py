@@ -12,5 +12,6 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
+
 class InvalidOptions(Exception):
     """Invalid option arguments passed into the Actor object."""

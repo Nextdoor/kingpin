@@ -4,7 +4,7 @@ import logging
 from tornado import testing
 from tornado.testing import unittest
 
-from deployer import utils
+from kingpin import utils
 
 
 class TestUtils(unittest.TestCase):

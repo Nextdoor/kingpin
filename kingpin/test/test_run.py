@@ -1,10 +1,8 @@
-from StringIO import StringIO
-import mock
 import logging
 
 from tornado.testing import unittest
 
-from deployer import run
+from kingpin import run
 
 
 class TestRunserver(unittest.TestCase):

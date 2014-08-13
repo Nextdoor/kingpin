@@ -20,8 +20,8 @@ import time
 from tornado import gen
 from tornado import ioloop
 
-from deployer.actors import base
-from deployer.actors import exceptions
+from kingpin.actors import base
+from kingpin.actors import exceptions
 
 log = logging.getLogger(__name__)
 
@@ -42,12 +42,14 @@ class Sleep(base.ActorBase):
 
         raises: gen.Return(True)
         """
-        if not 'sleep' in options:
+        if 'sleep' not in options:
             raise exceptions.InvalidOptions('Missing "sleep" option.')
 
         sleep = options['sleep']
 
         log.debug('[%s] Sleeping for %s seconds...' % (desc, sleep))
-        yield gen.Task(ioloop.IOLoop.current().add_timeout, time.time() + sleep)
+        yield gen.Task(
+            ioloop.IOLoop.current().add_timeout,
+            time.time() + sleep)
 
         raise gen.Return(True)

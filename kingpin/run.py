@@ -18,12 +18,11 @@ Main entry-point script for zk_mnonitor.
 
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
-from tornado import ioloop
 import logging
 import optparse
 
-from deployer import utils
-from deployer.version import __version__ as VERSION
+from kingpin import utils
+from kingpin.version import __version__ as VERSION
 
 log = logging.getLogger(__name__)
 

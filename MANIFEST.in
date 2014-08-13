@@ -1,4 +1,4 @@
 include README.md
-include deployer.1
+include kingpin.1
 include requirements*
 recursive-include extras *

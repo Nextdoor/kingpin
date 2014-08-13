@@ -1,13 +1,10 @@
 import logging
-import mock
-import time
 
 from tornado import gen
 from tornado import testing
-from tornado.ioloop import IOLoop
 
-from deployer.actors import misc
-from deployer.actors import exceptions
+from kingpin.actors import misc
+from kingpin.actors import exceptions
 
 
 log = logging.getLogger(__name__)
@@ -34,7 +31,7 @@ class TestSleep(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute(self):
         # Call the executor and test it out
-        res = yield self.actor.execute('Unit Test Action', { 'sleep': 0.1 })
+        res = yield self.actor.execute('Unit Test Action', {'sleep': 0.1})
 
         # Make sure we fired off an alert.
         self.assertEquals(res, True)

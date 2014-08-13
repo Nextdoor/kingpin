@@ -24,7 +24,7 @@ from setuptools import Command
 from setuptools import setup
 from setuptools import find_packages
 
-PACKAGE = 'deployer'
+PACKAGE = 'kingpin'
 __version__ = None
 execfile(os.path.join(PACKAGE, 'version.py'))  # set __version__
 
@@ -143,7 +143,7 @@ setup(
     long_description=open('README.md').read(),
     author='Nextdoor Engineering',
     author_email='eng@nextdoor.com',
-    url='https://github.com/Nextdoor/deployer',
+    url='https://github.com/Nextdoor/kingpin',
     download_url='http://pypi.python.org/pypi/%s#downloads' % PACKAGE,
     license='Apache License, Version 2.0',
     keywords='apache',
@@ -157,7 +157,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'deployer = deployer.deployer:main'
+            'kingpin = kingpin.kingpin:main'
         ],
     },
     classifiers=[
