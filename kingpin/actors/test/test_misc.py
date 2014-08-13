@@ -11,27 +11,16 @@ log = logging.getLogger(__name__)
 
 
 class TestSleep(testing.AsyncTestCase):
-    @gen.coroutine
-    def setUp(self):
-        super(TestSleep, self).setUp()
-
-        # Create a Sleep object
-        self.actor = misc.Sleep()
-
     @testing.gen_test
-    def test_execute_missing_options(self):
-        # Call the executor and test it out
-        res = None
+    def test_init_missing_options(self):
         with self.assertRaises(exceptions.InvalidOptions):
-            res = yield self.actor.execute('Unit Test Action', {})
-
-        # Make sure we fired off an alert.
-        self.assertEquals(res, None)
+            misc.Sleep('Unit Test Action', {})
 
     @testing.gen_test
     def test_execute(self):
         # Call the executor and test it out
-        res = yield self.actor.execute('Unit Test Action', {'sleep': 0.1})
+        actor = misc.Sleep('Unit Test Action', {'sleep': 0.1})
+        res = yield actor.execute()
 
         # Make sure we fired off an alert.
         self.assertEquals(res, True)

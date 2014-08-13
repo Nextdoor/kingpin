@@ -25,21 +25,30 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 class ActorBase(object):
     """Abstract base class for Actor objects."""
-    def __init__(self):
-        """Initializes the Actor."""
-        log.debug('[%s] Actor initializing...' % self.__class__.__name__)
-
-    @gen.coroutine
-    def execute(self, desc, options):
-        """Executes an actor and yields the results when its finished.
+    def __init__(self, desc, options):
+        """Initializes the Actor.
 
         args:
             desc: String description of the action being executed.
             options: Dictionary of Key/Value pairs that have the options
                      for this action.
-
-        raises: gen.Return
         """
-        log.debug('[%s] Beginning execution...' % desc)
-        result = yield self._execute(desc, options)
+        self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
+        self._desc = desc
+        self._options = options
+        log.debug('[%s] %s Initialized' % (self._desc, self._type))
+
+    # TODO: Write an execution wrapper that logs the time it takes for
+    # steps to finish. Wrap execute() with it.
+
+    @gen.coroutine
+    def execute(self):
+        """Executes an actor and yields the results when its finished.
+
+        Raises:
+            gen.Return(result)
+        """
+        log.debug('[%s] Beginning execution' % self._desc)
+        result = yield self._execute()
+        log.debug('[%s] Returning result: %s' % (self._desc, result))
         raise gen.Return(result)

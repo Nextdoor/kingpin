@@ -31,25 +31,30 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 class Sleep(base.ActorBase):
     """Simple actor that just sleeps for an arbitrary amount of time."""
 
-    @gen.coroutine
-    def _execute(self, desc, options):
-        """Executes an actor and yields the results when its finished.
+    def __init__(self, *args, **kwargs):
+        """Initializes the Actor.
 
         args:
             desc: String description of the action being executed.
             options: Dictionary with the following settings:
               { 'sleep': <int of time to sleep> }
+        """
+        super(Sleep, self).__init__(*args, **kwargs)
+
+        if 'sleep' not in self._options:
+            raise exceptions.InvalidOptions('Missing "sleep" option.')
+
+        self._sleep = self._options['sleep']
+
+    @gen.coroutine
+    def _execute(self):
+        """Executes an actor and yields the results when its finished.
 
         raises: gen.Return(True)
         """
-        if 'sleep' not in options:
-            raise exceptions.InvalidOptions('Missing "sleep" option.')
-
-        sleep = options['sleep']
-
-        log.debug('[%s] Sleeping for %s seconds...' % (desc, sleep))
+        log.debug('[%s] Sleeping for %s seconds...' % (self._desc, self._sleep))
         yield gen.Task(
             ioloop.IOLoop.current().add_timeout,
-            time.time() + sleep)
+            time.time() + self._sleep)
 
         raise gen.Return(True)

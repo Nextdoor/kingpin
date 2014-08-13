@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 class TestActorBase(testing.AsyncTestCase):
     @gen.coroutine
-    def sleep(self, desc, options):
+    def sleep(self):
         # Basically a fake action that should take a few seconds to run for the
         # sake of the unit tests.
         yield gen.Task(IOLoop.current().add_timeout, time.time() + 0.1)
@@ -23,7 +23,7 @@ class TestActorBase(testing.AsyncTestCase):
         super(TestActorBase, self).setUp()
 
         # Create a ActorBase object
-        self.actor = base.ActorBase()
+        self.actor = base.ActorBase('Unit Test Action', {})
 
         # Mock out the actors ._execute() method so that we have something to
         # test
@@ -32,7 +32,7 @@ class TestActorBase(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute(self):
         # Call the executor and test it out
-        res = yield self.actor.execute('Unit Test Action', {})
+        res = yield self.actor.execute()
 
         # Make sure we fired off an alert.
         self.assertEquals(res, True)
