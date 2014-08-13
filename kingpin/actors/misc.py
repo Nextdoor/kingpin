@@ -52,7 +52,7 @@ class Sleep(base.ActorBase):
 
         raises: gen.Return(True)
         """
-        log.debug('[%s] Sleeping for %s seconds...' % (self._desc, self._sleep))
+        log.debug('[%s] Sleeping for %s seconds' % (self._desc, self._sleep))
         yield gen.Task(
             ioloop.IOLoop.current().add_timeout,
             time.time() + self._sleep)
