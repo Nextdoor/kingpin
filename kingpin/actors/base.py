@@ -52,3 +52,15 @@ class ActorBase(object):
         result = yield self._execute()
         log.debug('[%s] Returning result: %s' % (self._desc, result))
         raise gen.Return(result)
+
+
+class HTTPActorBase(ActorBase):
+    """Abstract base class for an HTTP-client based Actor object.
+
+    This class provides common methods for getting access to asynchronous
+    HTTP clients, wrapping the executions in appropriate try/except blocks,
+    timeouts, etc.
+
+    If you're writing an Actor that uses a remote REST API, this is the
+    base class you should subclass from.
+    """

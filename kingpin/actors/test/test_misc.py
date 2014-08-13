@@ -1,6 +1,5 @@
 import logging
 
-from tornado import gen
 from tornado import testing
 
 from kingpin.actors import misc
