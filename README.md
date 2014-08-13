@@ -1,4 +1,4 @@
-# TO-BE-NAMED: Deployment Automator
+# Kingpin: The Deployment Director
 
 Automated Deployment Engine
 
@@ -23,7 +23,7 @@ TODO
     +-- deployment.Deployer
         | Executes a deployment based on the supplied DSL.
         |
-        +-- actors.rightsacle
+        +-- actors.rightscale
         |   | RightScale Cloud Management Actor
         |
         +-- actors.aws

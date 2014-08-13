@@ -34,11 +34,11 @@ def strToClass(string):
     This is used to take the 'translator' config value from the
     Config object and convert it into a valid object.
 
-    args:
+    Args:
         cls: String name of the wanted class and package.
              eg: zk_monitor.foo.bar
 
-    returns:
+    Returns:
         A reference to the actual Class to be instantiated
     """
     # Split the string up. The last element is the Class, the rest is
@@ -61,7 +61,7 @@ def strToClass(string):
 def getRootPath():
     """Returns the fully qualified path to our root package path.
 
-    returns:
+    Returns:
         A string with the fully qualified path of the zk_monitor app
     """
     return os.path.abspath(os.path.dirname(__file__))
@@ -70,12 +70,12 @@ def getRootPath():
 def setupLogger(level=logging.WARNING, syslog=None):
     """Configures the root logger.
 
-    args:
+    Args:
         level: Logging.<LEVEL> object to set logging level
         syslog: String representing syslog facility to output to.
                 If empty, logs are written to console.
 
-    returns:
+    Returns:
         A root Logger object
     """
     # Get our logger

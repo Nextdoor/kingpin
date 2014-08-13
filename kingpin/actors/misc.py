@@ -12,7 +12,11 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""Misc Actor objects"""
+"""Misc Actor objects.
+
+These are common utility Actors that don't really need their own
+dedicated packages. Things like sleep timers, loggers, etc.
+"""
 
 import logging
 import time
@@ -28,13 +32,13 @@ log = logging.getLogger(__name__)
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
-class Sleep(base.ActorBase):
+class Sleep(base.BaseActor):
     """Simple actor that just sleeps for an arbitrary amount of time."""
 
     def __init__(self, *args, **kwargs):
         """Initializes the Actor.
 
-        args:
+        Args:
             desc: String description of the action being executed.
             options: Dictionary with the following settings:
               { 'sleep': <int of time to sleep> }
