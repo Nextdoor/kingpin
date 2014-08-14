@@ -15,3 +15,11 @@
 
 class InvalidOptions(Exception):
     """Invalid option arguments passed into the Actor object."""
+
+
+class InvalidCredentials(Exception):
+    """Invalid or missing credentials required for Actor object."""
+
+
+class UnparseableResponseFromEndpoint(Exception):
+    """Invalid response returned from a remote REST endpoint."""
