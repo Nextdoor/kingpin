@@ -1,6 +1,12 @@
 # General App Requirements
 tornado==3.1.1
 
+# Used to make-synchronous-tasks-asynchronous
+futures
+
+# Explicit version and source set in the setup.py
+python-rightscale
+
 # Note: This is only installable directly from Github, but because
 # this file is parsed by setup.py, we cannot use the pip+github
 # syntax. Instead, the Makefile handles the installation of this
