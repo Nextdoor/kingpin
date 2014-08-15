@@ -43,7 +43,7 @@ class RightScaleBaseActor(base.BaseActor):
             raise exceptions.InvalidCredentials(
                 'Missing the "RIGHTSCALE_TOKEN" environment variable.')
 
-        self._client = api.RightScale(token=TOKEN, api_endpoint=ENDPOINT)
+        self._client = api.RightScale(token=TOKEN, endpoint=ENDPOINT)
 
 #    @gen.coroutine
 #    def _fetch_wrapper(self, *args, **kwargs):

@@ -82,7 +82,7 @@ class ServerArrayException(Exception):
 
 
 class RightScale(object):
-    def __init__(self, token, api=DEFAULT_ENDPOINT):
+    def __init__(self, token, endpoint=DEFAULT_ENDPOINT):
         """Initializes the RightScaleOperator Object for a RightScale Account.
 
         Args:
@@ -90,11 +90,11 @@ class RightScale(object):
             api: API URL Endpoint
         """
         self._token = token
-        self._api = api
+        self._endpoint = endpoint
         self._client = rightscale.RightScale(refresh_token=self._token,
-                                             api_endpoint=self._api)
-        log.debug('%s initialized (token=<hidden>, api=%s)' %
-                  (self.__class__.__name__, api))
+                                             api_endpoint=self._endpoint)
+        log.debug('%s initialized (token=<hidden>, endpoint=%s)' %
+                  (self.__class__.__name__, endpoint))
 
     @gen.coroutine
     def login(self):
@@ -120,7 +120,7 @@ class RightScale(object):
         ret = yield thread_coroutine(rightscale_util.find_by_name,
             self._client.server_arrays, name, exact=exact)
 
-        if not ret:
+        if not ret and not self._dry:
             err = 'Could not find ServerArray matching name: %s' % name
             log.error(err)
             raise ServerArrayException(err)

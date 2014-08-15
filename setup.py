@@ -154,7 +154,7 @@ setup(
     install_requires=open('requirements.txt').readlines(),
     dependency_links = [
       'https://github.com/equeny/tornadomail/archive/e413b81450bf94b4db3cad1815affb8b2dce6b41.zip#egg=tornadomail-master',
-      'https://github.com/jordansissel/python-rightscale/archive/d25eecb279726d9ebbbfa9eb51f0c9fc60e76208.zip#egg=python-rightscale-master',
+      'https://github.com/brantai/python-rightscale/archive/ad4bd5bd9eeda663de75e5419119c6020029f35f.zip#egg=python-rightscale-master',
     ],
     entry_points={
         'console_scripts': [
