@@ -22,6 +22,13 @@ class TestRightScale(testing.AsyncTestCase):
         self.mock_client = mock.MagicMock()
         self.client._client = self.mock_client
 
+#    def test_get_res_id(self):
+        # TODO: Figure out how to test this?
+        #
+        #mocked_resource = mock.Magic
+        #ret = self.client._get_res_id(mocked_resource)
+        #self.assertEquals(ret, '12345')
+
     @testing.gen_test
     def test_login(self):
         # Regular successfull call

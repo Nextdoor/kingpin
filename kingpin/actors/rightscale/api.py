@@ -30,6 +30,7 @@ one-to-one mapping of the RightScale API, but rather a mapping of conceptual
 operations that the Actors need.
 """
 
+from os import path
 import logging
 import os
 
@@ -96,12 +97,22 @@ class RightScale(object):
         log.debug('%s initialized (token=<hidden>, endpoint=%s)' %
                   (self.__class__.__name__, endpoint))
 
+    def get_res_id(self, resource):
+        """Returns the Resource ID of a given RightScale Resource object.
+
+        Args:
+            rightscale.Resource object
+
+        Returns:
+            Integer of Resource ID
+        """
+        return int(path.split(resource.self.path)[-1])
+
     @gen.coroutine
     def login(self):
         ret = yield thread_coroutine(self._client.login)
         raise gen.Return(ret)
 
-    # TODO: Add 'dry' support here
     @gen.coroutine
     def find_server_arrays(self, name, exact=True):
         """Search for a list of RightScale Server Array by name and return the resources.
@@ -120,11 +131,33 @@ class RightScale(object):
         ret = yield thread_coroutine(rightscale_util.find_by_name,
             self._client.server_arrays, name, exact=exact)
 
-        if not ret and not self._dry:
+        if not ret:
             err = 'Could not find ServerArray matching name: %s' % name
             log.error(err)
             raise ServerArrayException(err)
 
         log.debug('Got ServerArray: %s' % ret)
+
+        raise gen.Return(ret)
+
+    @gen.coroutine
+    def clone_server_array(self, source_id, dest):
+        """Clone a Server Array.
+
+        Clones an existing Server Array into a new array. Requires the
+        source template array ID number, and the name of the new array.
+
+        Args:
+            source_id: Source ServerArray ID Number
+            dest: Destination ServerArray Name
+
+        Raises:
+            gen.Return(rightscale.Resource object)
+        """
+        log.debug('Cloning ServerArray (%s) to %s' % (source_id, dest))
+        ret = yield thread_coroutine(
+            self._client.server_arrays.clone, 
+            res_id=source_id)
+        log.debug('Returning new ServerArray: %s' % ret.soul['name'])
 
         raise gen.Return(ret)
