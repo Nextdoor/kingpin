@@ -63,4 +63,4 @@ class RightScaleBaseActor(base.BaseActor):
 #                raise
 #            raise
 #
-#        raise gen.Return(res)
+#  _      raise gen.Return(res)

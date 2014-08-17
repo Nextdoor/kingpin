@@ -21,4 +21,3 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         base.TOKEN = None
         with self.assertRaises(exceptions.InvalidCredentials):
             base.RightScaleBaseActor('Unit Test Action', {})
-

@@ -42,16 +42,17 @@ class Clone(base.RightScaleBaseActor):
         super(Clone, self).__init__(*args, **kwargs)
 
         if 'source' not in self._options:
-            raise exceptions.InvalidOptions('Missing "source" server array name.')
+            raise exceptions.InvalidOptions('Missing "source" array name.')
         if 'dest' not in self._options:
-            raise exceptions.InvalidOptions('Missing "dest" server array name.')
+            raise exceptions.InvalidOptions('Missing "dest" array name.')
 
         self._source = self._options['source']
         self._dest = self._options['dest']
 
     @gen.coroutine
     def _execute(self):
-        log.debug('[%s] Finding template Array: %s' % (self._desc, self._source))
+        log.debug('[%s] Finding template Array: %s' %
+                  (self._desc, self._source))
 
         # First, find the array we're copying from. If this fails, even in
         # dry-mode, we exit out because the template array needs to be there!
@@ -67,6 +68,7 @@ class Clone(base.RightScaleBaseActor):
         source_array_id = self._client.get_res_id(source_array)
 
         # Now, clone the array!
-        new_array = yield self._client.clone_server_array(source_array_id, 'foo')
+        new_array = yield self._client.clone_server_array(
+            source_array_id, 'foo')
 
         raise gen.Return(new_array)

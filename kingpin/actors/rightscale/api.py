@@ -47,8 +47,9 @@ log = logging.getLogger(__name__)
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
-DEFAULT_ENDPOINT='https://my.rightscale.com'
+DEFAULT_ENDPOINT = 'https://my.rightscale.com'
 THREADPOOL = futures.ThreadPoolExecutor(10)
+
 
 @gen.coroutine
 def thread_coroutine(func, *args, **kwargs):
@@ -115,7 +116,7 @@ class RightScale(object):
 
     @gen.coroutine
     def find_server_arrays(self, name, exact=True):
-        """Search for a list of RightScale Server Array by name and return the resources.
+        """Search for a list of ServerArray by name and return the resources.
 
         Args:
             name: RightScale ServerArray Name
@@ -128,7 +129,8 @@ class RightScale(object):
         log.debug('Searching for ServerArrays matching: %s (exact match: %s)' %
                   (name, exact))
 
-        ret = yield thread_coroutine(rightscale_util.find_by_name,
+        ret = yield thread_coroutine(
+            rightscale_util.find_by_name,
             self._client.server_arrays, name, exact=exact)
 
         if not ret:
@@ -156,7 +158,7 @@ class RightScale(object):
         """
         log.debug('Cloning ServerArray (%s) to %s' % (source_id, dest))
         ret = yield thread_coroutine(
-            self._client.server_arrays.clone, 
+            self._client.server_arrays.clone,
             res_id=source_id)
         log.debug('Returning new ServerArray: %s' % ret.soul['name'])
 
