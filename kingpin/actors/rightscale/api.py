@@ -32,12 +32,10 @@ operations that the Actors need.
 
 from os import path
 import logging
-import os
 
 from tornado import gen
 import futures
 
-from rightscale import commands
 from rightscale import util as rightscale_util
 import rightscale
 

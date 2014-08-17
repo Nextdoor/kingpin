@@ -1,8 +1,7 @@
 import logging
-import mock
+# import mock
 
 from tornado import testing
-import requests
 
 from kingpin.actors import exceptions
 from kingpin.actors.rightscale import base

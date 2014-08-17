@@ -17,8 +17,6 @@
 import logging
 
 from tornado import gen
-from tornado import ioloop
-
 from kingpin.actors import exceptions
 from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import base
@@ -61,7 +59,7 @@ class Clone(base.RightScaleBaseActor):
                 self._source, exact=True)
         except api.ServerArrayException as e:
             log.error('[%s] Error: Could not find server template to clone'
-                      ' from. Exiting operation.' % self._desc)
+                      ' from: %e' % (self._desc, e))
             raise
 
         # Next, get the resource ID number for the source array

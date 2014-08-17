@@ -17,7 +17,7 @@
 import logging
 import os
 
-from tornado import gen
+# from tornado import gen
 
 from kingpin.actors import base
 from kingpin.actors import exceptions

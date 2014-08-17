@@ -2,11 +2,8 @@ import logging
 import mock
 
 from tornado import testing
-from rightscale import util
 import requests
-import rightscale
 
-from kingpin.actors import exceptions
 from kingpin.actors.rightscale import api
 
 
@@ -46,7 +43,7 @@ class TestRightScale(testing.AsyncTestCase):
         error = requests.exceptions.HTTPError(msg)
         self.mock_client.login.side_effect = error
         with self.assertRaises(requests.exceptions.HTTPError):
-            ret = yield self.client.login()
+            yield self.client.login()
 
         self.mock_client.login.assert_called_once_with()
 
@@ -57,6 +54,7 @@ class TestRightScale(testing.AsyncTestCase):
             ret = yield self.client.find_server_arrays('test', exact=True)
             u_mock.assert_called_once_with(
                 self.mock_client.server_arrays, 'test', exact=True)
+            self.assertEquals([1, 2, 3], ret)
             u_mock.reset()
 
         with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
@@ -64,6 +62,7 @@ class TestRightScale(testing.AsyncTestCase):
             ret = yield self.client.find_server_arrays('test2', exact=False)
             u_mock.assert_called_once_with(
                 self.mock_client.server_arrays, 'test2', exact=False)
+            self.assertEquals([1, 2, 3], ret)
 
     @testing.gen_test
     def test_find_server_arrays_empty_result(self):
