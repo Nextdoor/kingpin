@@ -122,7 +122,6 @@ class RightScale(object):
 
         Raises:
             gen.Return(rightscale.Resource object(s))
-            ServerArrayException()
         """
         log.debug('Searching for ServerArrays matching: %s (exact match: %s)' %
                   (name, exact))
@@ -132,32 +131,49 @@ class RightScale(object):
             self._client.server_arrays, name, exact=exact)
 
         if not ret:
-            err = 'Could not find ServerArray matching name: %s' % name
-            log.error(err)
-            raise ServerArrayException(err)
+            msg = 'ServerArray matching name not found: %s' % name
+            log.debug(msg)
 
         log.debug('Got ServerArray: %s' % ret)
 
         raise gen.Return(ret)
 
     @gen.coroutine
-    def clone_server_array(self, source_id, dest):
+    def clone_server_array(self, source_id):
         """Clone a Server Array.
 
         Clones an existing Server Array into a new array. Requires the
-        source template array ID number, and the name of the new array.
+        source template array ID number. Returns the newly cloned array.
 
         Args:
             source_id: Source ServerArray ID Number
-            dest: Destination ServerArray Name
 
         Raises:
             gen.Return(rightscale.Resource object)
         """
-        log.debug('Cloning ServerArray (%s) to %s' % (source_id, dest))
+        log.debug('Cloning ServerArray %s' % source_id)
         ret = yield thread_coroutine(
-            self._client.server_arrays.clone,
-            res_id=source_id)
-        log.debug('Returning new ServerArray: %s' % ret.soul['name'])
+            self._client.server_arrays.clone, res_id=source_id)
 
+        log.debug('New ServerArray %s created!' % ret.soul['name'])
+        raise gen.Return(ret)
+
+    @gen.coroutine
+    def update_server_array(self, array, params):
+        """Updates a ServerArray with the supplied parameters.
+
+        Valid parameters can be found at the following URL:
+
+            http://reference.rightscale.com/api1.5/resources/
+            ResourceServerArrays.html#update
+
+        Args:
+            array: rightscale.Resource object to update.
+            params: The parameters to update. eg:
+                { 'server_array[name]': 'new name' }
+        """
+
+        log.debug('Patching ServerArray (%s) with new params: %s' %
+                  (array.soul['name'], params))
+        ret = yield thread_coroutine(array.self.update, params=params)
         raise gen.Return(ret)

@@ -15,6 +15,7 @@
 """RightScale Actors"""
 
 import logging
+import mock
 
 from tornado import gen
 from kingpin.actors import exceptions
@@ -49,24 +50,44 @@ class Clone(base.RightScaleBaseActor):
 
     @gen.coroutine
     def _execute(self):
-        log.debug('[%s] Finding template Array: %s' %
-                  (self._desc, self._source))
-
         # First, find the array we're copying from. If this fails, even in
         # dry-mode, we exit out because the template array needs to be there!
-        try:
-            source_array = yield self._client.find_server_arrays(
-                self._source, exact=True)
-        except api.ServerArrayException as e:
-            log.error('[%s] Error: Could not find server template to clone'
-                      ' from: %e' % (self._desc, e))
-            raise
+        self._log(logging.INFO, 'Finding template array "%s"' % self._source)
+        source_array = yield self._client.find_server_arrays(
+            self._source, exact=True)
+        if not source_array:
+            raise api.ServerArrayException(
+                'Could not find server template to clone.')
+
+        # Sanity-check -- make sure that the destination server array doesn't
+        # already exist. If it does, bail out!
+        self._log(logging.INFO, 'Verifying that new array "%s" does not '
+                  'already exist' % self._dest)
+        dest_array = yield self._client.find_server_arrays(
+            self._dest, exact=True)
+        if dest_array:
+            err = 'Dest array "%s" already exists! Exiting!' % dest_array
+            raise api.ServerArrayException(err)
 
         # Next, get the resource ID number for the source array
         source_array_id = self._client.get_res_id(source_array)
 
         # Now, clone the array!
-        new_array = yield self._client.clone_server_array(
-            source_array_id, 'foo')
+        if not self._dry:
+            # We're really doin this!
+            new_array = yield self._client.clone_server_array(source_array_id)
+        else:
+            # In dry run mode. Don't really clone the array, just return back
+            # 'True' as if the array-clone worked.
+            self._log(logging.WARNING,
+                      'Would have cloned array "%s" to new array "%s"' %
+                      (self._source, self._dest))
+            new_array = mock.MagicMock(name=self._dest)
 
-        raise gen.Return(new_array)
+        # Lastly, rename the array
+        params = {'server_array[name]': self._dest}
+        self._log(logging.INFO, 'Renaming array "%s" to "%s"' %
+                  (new_array.soul['name'], self._dest))
+        yield self._client.update_server_array(new_array, params)
+
+        raise gen.Return(True)

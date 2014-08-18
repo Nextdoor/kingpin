@@ -136,7 +136,7 @@ class Message(base.HTTPBaseActor):
         if 'success' in res:
             if res['success']['code'] == 202:
                 self._log(logging.INFO, 'API Token Validated: %s' %
-                         res['success']['message'])
+                          res['success']['message'])
 
         raise gen.Return(True)
 

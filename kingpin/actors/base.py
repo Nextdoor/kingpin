@@ -163,7 +163,7 @@ class HTTPBaseActor(BaseActor):
 
         # Generate the full request URL and log out what we're doing...
         self._log(logging.DEBUG, 'Making HTTP request to %s with data: %s' %
-                (url, post))
+                  (url, post))
 
         # Create the http_request object
         http_client = self._get_http_client()
