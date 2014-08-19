@@ -97,6 +97,12 @@ class RightScale(object):
         self._endpoint = endpoint
         self._client = rightscale.RightScale(refresh_token=self._token,
                                              api_endpoint=self._endpoint)
+
+        # Quiet down the urllib requests library, its noisy even in
+        # INFO mode and muddies up the logs.
+        r_log = logging.getLogger('requests.packages.urllib3.connectionpool')
+        r_log.setLevel(logging.WARNING)
+
         log.debug('%s initialized (token=<hidden>, endpoint=%s)' %
                   (self.__class__.__name__, endpoint))
 
