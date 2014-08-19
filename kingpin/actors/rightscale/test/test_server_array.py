@@ -4,7 +4,6 @@ import mock
 from tornado import testing
 from tornado import gen
 
-from kingpin.actors import exceptions
 from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import base
 from kingpin.actors.rightscale import server_array
@@ -31,14 +30,6 @@ class TestCloneActor(testing.AsyncTestCase):
         def login():
             raise gen.Return()
         self.client_mock.login.side_effect = login
-
-    @testing.gen_test
-    def test_init_without_proper_options(self):
-        with self.assertRaises(exceptions.InvalidOptions):
-            server_array.Clone('Unit Test Action', {'dest': 'foo'})
-
-        with self.assertRaises(exceptions.InvalidOptions):
-            server_array.Clone('Unit Test Action', {'source': 'foo'})
 
     @testing.gen_test
     def test_execute_with_missing_template(self):

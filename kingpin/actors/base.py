@@ -43,6 +43,9 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 class BaseActor(object):
     """Abstract base class for Actor objects."""
+
+    required_options = []
+
     def __init__(self, desc, options, dry=False):
         """Initializes the Actor.
 
@@ -56,6 +59,7 @@ class BaseActor(object):
         self._desc = desc
         self._options = options
         self._dry = dry
+        self._validate_options(options)
         self._log(logging.DEBUG, '%s Initialized' % self._type)
 
     def _log(self, level, message):
@@ -70,7 +74,27 @@ class BaseActor(object):
         msg = '[%s%s] %s' % (self._desc, dry_str, message)
         log.log(level, msg)
 
-    # TODO: Write an execution wrapper that logs the time it takes for
+    def _validate_options(self, options):
+        """Validate that all the required options were passed in.
+
+        Args:
+            options: A dictionary of options.
+
+        Raises:
+            exceptionsInvalidOptions
+        """
+        missing_options = []
+        for option in self.required_options:
+            if option not in options:
+                missing_options.append(option)
+
+        if not missing_options:
+            return
+
+        raise exceptions.InvalidOptions(
+            'Missing options: %s' % ' '.join(missing_options))
+
+    # TODa: Write an execution wrapper that logs the time it takes for
     # steps to finish. Wrap execute() with it.
 
     @gen.coroutine

@@ -18,7 +18,6 @@ import logging
 import mock
 
 from tornado import gen
-from kingpin.actors import exceptions
 from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import base
 
@@ -30,6 +29,8 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 class Clone(base.RightScaleBaseActor):
     """Clones a RightScale Server Array."""
 
+    required_options = ['source', 'dest']
+
     def __init__(self, *args, **kwargs):
         """Initializes the Actor.
 
@@ -39,11 +40,6 @@ class Clone(base.RightScaleBaseActor):
               { 'sleep': <int of time to sleep> }
         """
         super(Clone, self).__init__(*args, **kwargs)
-
-        if 'source' not in self._options:
-            raise exceptions.InvalidOptions('Missing "source" array name.')
-        if 'dest' not in self._options:
-            raise exceptions.InvalidOptions('Missing "dest" array name.')
 
         self._source = self._options['source']
         self._dest = self._options['dest']

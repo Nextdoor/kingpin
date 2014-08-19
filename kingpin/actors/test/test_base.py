@@ -46,6 +46,20 @@ class TestBaseActor(testing.AsyncTestCase):
         self.actor._execute = self.sleep
 
     @testing.gen_test
+    def test_validate_options(self):
+        self.actor.required_options = ['test']
+        with self.assertRaises(exceptions.InvalidOptions):
+            ret = self.actor._validate_options({'a': 'b'})
+
+        self.actor.required_options = ['test']
+        ret = self.actor._validate_options({'test': 'b'})
+        self.assertEquals(None, ret)
+
+        self.actor.required_options = ['test', 'test2']
+        ret = self.actor._validate_options({'test': 'b', 'test2': 'b'})
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
     def test_execute(self):
         # Call the executor and test it out
         res = yield self.actor.execute()
