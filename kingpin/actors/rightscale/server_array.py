@@ -81,10 +81,8 @@ class Clone(base.RightScaleBaseActor):
         else:
             # In dry run mode. Don't really clone the array, just return back
             # 'True' as if the array-clone worked.
-            self._log(logging.WARNING,
-                      'Would have cloned array "%s" to new array "%s"' %
-                      (self._source, self._dest))
             new_array = mock.MagicMock(name=self._dest)
+            new_array.soul = {'name': '<mocked clone of %s>' % self._source}
 
         # Lastly, rename the array
         params = {'server_array[name]': self._dest}
