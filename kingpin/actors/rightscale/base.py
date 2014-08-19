@@ -48,23 +48,3 @@ class RightScaleBaseActor(base.BaseActor):
                 'Missing the "RIGHTSCALE_TOKEN" environment variable.')
 
         self._client = api.RightScale(token=TOKEN, endpoint=ENDPOINT)
-
-#    @gen.coroutine
-#    def _fetch_wrapper(self, *args, **kwargs):
-#        """Wrap the superclass _fetch method to catch known Hipchat errors."""
-#        try:
-#            res = yield self._fetch(*args, **kwargs)
-#        except httpclient.HTTPError as e:
-#            if e.code == 401:
-#                # "The authentication you provided is invalid."
-#                raise exceptions.InvalidCredentials(
-#                    'The "HIPCHAT_TOKEN" supplied is invalid.')
-#            if e.code == 403:
-#                # "You have exceeded the rate limit"
-#                #
-#                # TODO: Build a retry mechanism in here with a sleep timer.
-#                log.error('Hit the HipChat API Rate Limit. Try again later.')
-#                raise
-#            raise
-#
-#  _      raise gen.Return(res)
