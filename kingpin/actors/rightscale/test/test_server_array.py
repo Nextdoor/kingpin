@@ -104,3 +104,87 @@ class TestCloneActor(testing.AsyncTestCase):
 
         ret = yield self.actor.execute()
         self.assertEquals(True, ret)
+
+
+class TestUpdateActor(testing.AsyncTestCase):
+    def setUp(self, *args, **kwargs):
+        super(TestUpdateActor, self).setUp()
+        base.TOKEN = 'unittest'
+
+        # Create the actor
+        self.actor = server_array.Update(
+            'Patch',
+            {'array': 'unittestarray',
+                'params': {'name': 'newunitarray'}})
+
+        # Patch the actor so that we use the client mock
+        self.client_mock = mock.MagicMock()
+        self.actor._client = self.client_mock
+
+        # Mock out the login method entirely
+        @gen.coroutine
+        def login():
+            raise gen.Return()
+        self.client_mock.login.side_effect = login
+
+    @testing.gen_test
+    def test_execute(self):
+        mocked_array = mock.MagicMock(name='unittestarray')
+        @gen.coroutine
+        def yield_array(self, *args, **kwargs):
+            raise gen.Return(mocked_array)
+        self.client_mock.find_server_arrays.side_effect = yield_array
+
+        def yield_update(self, *args, **kwargs):
+            raise gen.Return()
+        self.client_mock.update_server_array.side_effect = yield_update
+
+        ret = yield self.actor.execute()
+
+        self.client_mock.find_server_arrays.assert_called_once_with(
+            'unittestarray', exact=True)
+        self.client_mock.update_server_array.assert_called_once_with(
+            mocked_array, {'server_array[name]': 'newunitarray'})
+
+    @testing.gen_test
+    def test_execute_dry(self):
+        self.actor._dry = True
+        mocked_array = mock.MagicMock(name='unittestarray')
+        @gen.coroutine
+        def yield_array(self, *args, **kwargs):
+            raise gen.Return(mocked_array)
+        self.client_mock.find_server_arrays.side_effect = yield_array
+
+        ret = yield self.actor.execute()
+
+        self.client_mock.find_server_arrays.assert_called_once_with(
+            'unittestarray', exact=True)
+        self.assertEquals(True, ret)
+
+    @testing.gen_test
+    def test_execute_dry_with_missing_array(self):
+        self.actor._dry = True
+        @gen.coroutine
+        def yield_array(self, *args, **kwargs):
+            raise gen.Return(None)
+        self.client_mock.find_server_arrays.side_effect = yield_array
+
+        ret = yield self.actor.execute()
+
+        self.client_mock.find_server_arrays.assert_called_once_with(
+            'unittestarray', exact=True)
+        self.assertEquals(True, ret)
+
+    @testing.gen_test
+    def test_execute_missing_array(self):
+        self.actor._dry = False
+        @gen.coroutine
+        def yield_array(self, *args, **kwargs):
+            raise gen.Return(None)
+        self.client_mock.find_server_arrays.side_effect = yield_array
+
+        with self.assertRaises(api.ServerArrayException):
+            yield self.actor.execute()
+
+        self.client_mock.find_server_arrays.assert_called_once_with(
+            'unittestarray', exact=True)
