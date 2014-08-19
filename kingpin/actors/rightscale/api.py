@@ -118,8 +118,8 @@ class RightScale(object):
         This method is not strictly required -- but it helps asynchronously
         pre-populate the object attributes/methods.
         """
-        ret = yield thread_coroutine(self._client.login)
-        raise gen.Return(ret)
+        yield thread_coroutine(self._client.login)
+        raise gen.Return()
 
     @gen.coroutine
     def find_server_arrays(self, name, exact=True):
@@ -135,17 +135,17 @@ class RightScale(object):
         log.debug('Searching for ServerArrays matching: %s (exact match: %s)' %
                   (name, exact))
 
-        ret = yield thread_coroutine(
+        found_arrays = yield thread_coroutine(
             rightscale_util.find_by_name,
             self._client.server_arrays, name, exact=exact)
 
-        if not ret:
+        if not found_arrays:
             msg = 'ServerArray matching name not found: %s' % name
             log.debug(msg)
 
-        log.debug('Got ServerArray: %s' % ret)
+        log.debug('Got ServerArray: %s' % found_arrays)
 
-        raise gen.Return(ret)
+        raise gen.Return(found_arrays)
 
     @gen.coroutine
     def clone_server_array(self, source_id):
@@ -161,11 +161,11 @@ class RightScale(object):
             gen.Return(rightscale.Resource object)
         """
         log.debug('Cloning ServerArray %s' % source_id)
-        ret = yield thread_coroutine(
+        new_array = yield thread_coroutine(
             self._client.server_arrays.clone, res_id=source_id)
 
-        log.debug('New ServerArray %s created!' % ret.soul['name'])
-        raise gen.Return(ret)
+        log.debug('New ServerArray %s created!' % new_array.soul['name'])
+        raise gen.Return(new_array)
 
     @gen.coroutine
     def update_server_array(self, array, params):
@@ -184,5 +184,5 @@ class RightScale(object):
 
         log.debug('Patching ServerArray (%s) with new params: %s' %
                   (array.soul['name'], params))
-        ret = yield thread_coroutine(array.self.update, params=params)
-        raise gen.Return(ret)
+        yield thread_coroutine(array.self.update, params=params)
+        raise gen.Return()

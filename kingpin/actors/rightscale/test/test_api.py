@@ -32,7 +32,7 @@ class TestRightScale(testing.AsyncTestCase):
         self.mock_client.login.return_value = True
         ret = yield self.client.login()
         self.mock_client.login.assert_called_once_with()
-        self.assertEquals(True, ret)
+        self.assertEquals(None, ret)
 
     @testing.gen_test
     def test_login_400_error(self):
@@ -98,4 +98,4 @@ class TestRightScale(testing.AsyncTestCase):
         ret = yield self.client.update_server_array(sa_mock, params)
         sa_mock.self.update.assert_called_once_with(params=params)
 
-        self.assertEquals(ret, True)
+        self.assertEquals(ret, None)
