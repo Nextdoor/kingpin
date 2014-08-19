@@ -26,6 +26,12 @@ class TestCloneActor(testing.AsyncTestCase):
         self.client_mock = mock.MagicMock()
         self.actor._client = self.client_mock
 
+        # Mock out the login method entirely
+        @gen.coroutine
+        def login():
+            raise gen.Return()
+        self.client_mock.login.side_effect = login
+
     @testing.gen_test
     def test_init_without_proper_options(self):
         with self.assertRaises(exceptions.InvalidOptions):

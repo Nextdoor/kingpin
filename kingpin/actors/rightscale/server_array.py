@@ -50,6 +50,12 @@ class Clone(base.RightScaleBaseActor):
 
     @gen.coroutine
     def _execute(self):
+        # First things first, login to RightScale asynchronously to
+        # pre-populate the API attributes that are dynamically generated. This
+        # is a hack, and in the future should likely turn into a smart
+        # decorator.
+        yield self._client.login()
+
         # First, find the array we're copying from. If this fails, even in
         # dry-mode, we exit out because the template array needs to be there!
         self._log(logging.INFO, 'Finding template array "%s"' % self._source)
