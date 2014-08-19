@@ -37,6 +37,7 @@ from tornado import gen
 import futures
 
 from rightscale import util as rightscale_util
+import requests
 import rightscale
 
 
@@ -82,10 +83,12 @@ def thread_coroutine(func, *args, **kwargs):
 
 
 class ServerArrayException(Exception):
+
     """Raised when an operation on or looking for a ServerArray fails"""
 
 
 class RightScale(object):
+
     def __init__(self, token, endpoint=DEFAULT_ENDPOINT):
         """Initializes the RightScaleOperator Object for a RightScale Account.
 
@@ -190,5 +193,11 @@ class RightScale(object):
 
         log.debug('Patching ServerArray (%s) with new params: %s' %
                   (array.soul['name'], params))
-        yield thread_coroutine(array.self.update, params=params)
+        try:
+            yield thread_coroutine(array.self.update, params=params)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 422:
+                log.error('Invalid parameters supplied to RightScale. Please '
+                          'check your inputs.')
+                raise
         raise gen.Return()
