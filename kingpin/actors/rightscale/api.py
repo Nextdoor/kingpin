@@ -113,6 +113,11 @@ class RightScale(object):
 
     @gen.coroutine
     def login(self):
+        """Logs into RightScale and populates the object properties.
+
+        This method is not strictly required -- but it helps asynchronously
+        pre-populate the object attributes/methods.
+        """
         ret = yield thread_coroutine(self._client.login)
         raise gen.Return(ret)
 
