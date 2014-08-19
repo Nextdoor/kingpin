@@ -14,6 +14,7 @@
 
 """RightScale Actors"""
 
+import collections
 import logging
 import os
 
@@ -37,6 +38,7 @@ if not TOKEN:
 
 
 class RightScaleBaseActor(base.BaseActor):
+
     """Abstract class for creating RightScale cloud actors."""
 
     def __init__(self, *args, **kwargs):
@@ -48,3 +50,44 @@ class RightScaleBaseActor(base.BaseActor):
                 'Missing the "RIGHTSCALE_TOKEN" environment variable.')
 
         self._client = api.RightScale(token=TOKEN, endpoint=ENDPOINT)
+
+    def _generate_rightscale_params(self, prefix, params):
+        """Utility function for creating RightScale-style parameters.
+
+        RightScale takes inputs in the form of a hash of key/value pairs, but
+        these pairs are in a strange pseudo-dict form. This method takes a
+        standard hash and converts it into a rightscale-compatible form.
+
+        For example, take this dict:
+
+            {'name': 'unittest-name',
+             'bounds': { 'min_count': 3}
+
+        We return:
+
+            {'server_array[name]': 'unittest-name',
+             'server_array[bounds][min_count]': 3}
+
+        Args:
+            prefix: The key-prefix to use (ie, 'server_array')
+            params: The dictionary to squash
+
+        Returns:
+            A single-level dictionary of key/value pairs.
+        """
+        if not type(params) == dict:
+            raise exceptions.InvalidOptions(
+                'Parameters passed in must be in the form of a dict.')
+
+        # Nested loop that compresses a multi level dictinary into a flat
+        # dict of key/value pairs.
+        def flatten(d, parent_key=prefix, sep='_'):
+            items = []
+            for k, v in d.items():
+                new_key = parent_key + '[' + k + ']' if parent_key else k
+                if isinstance(v, collections.MutableMapping):
+                    items.extend(flatten(v, new_key).items())
+                else:
+                    items.append((new_key, v))
+            return dict(items)
+        return flatten(params)
