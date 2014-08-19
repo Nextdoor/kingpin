@@ -29,7 +29,56 @@ log = logging.getLogger(__name__)
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
-class Clone(base.RightScaleBaseActor):
+class ServerArrayBaseActor(base.RightScaleBaseActor):
+
+    """Abstract ServerArray Actor that provides some utility methods."""
+
+    @gen.coroutine
+    def _find_server_arrays(self, array_name,
+                            raise_on='notfound',
+                            allow_mock=True):
+        """Find a ServerArray by name and return it.
+
+        Args:
+            array_name: String name of the ServerArray to find.
+            raise_on: Either None, 'notfound' or 'found'
+            allow_mock: Boolean whether or not to allow a Mock object to be
+                        returned instead.
+
+        Raises:
+            gen.Return(<rightscale.Resource of Server Array>)
+            api.ServerArrayException()
+        """
+        if raise_on == 'notfound':
+            msg = 'Verifying that array "%s" exists' % array_name
+        elif raise_on == 'found':
+            msg = 'Verifying that array "%s" does not exist' % array_name
+        elif not raise_on:
+            msg = 'Searching for array named "%s"' % array_name
+        else:
+            raise api.ServerArrayException('Invalid "raise_on" setting.')
+
+        self._log(logging.INFO, msg)
+        array = yield self._client.find_server_arrays(array_name, exact=True)
+
+        if not array and self._dry and allow_mock:
+            self._log(logging.WARNING,
+                      'Array "%s" not found -- creating a mock.' % array_name)
+            array = mock.MagicMock(name=array_name)
+            array.soul = {'name': '<mocked array %s>' % array_name}
+
+        if array and raise_on == 'found':
+            raise api.ServerArrayException(
+                'Dest array "%s" already exists! Exiting!' % array_name)
+
+        if not array and raise_on == 'notfound':
+            raise api.ServerArrayException(
+                'Array "%s" not found! Exiting!' % array_name)
+
+        raise gen.Return(array)
+
+
+class Clone(ServerArrayBaseActor):
 
     """Clones a RightScale Server Array."""
 
@@ -56,24 +105,15 @@ class Clone(base.RightScaleBaseActor):
         # decorator.
         yield self._client.login()
 
-        # First, find the array we're copying from. If this fails, even in
-        # dry-mode, we exit out because the template array needs to be there!
-        self._log(logging.INFO, 'Finding template array "%s"' % self._source)
-        source_array = yield self._client.find_server_arrays(
-            self._source, exact=True)
-        if not source_array:
-            raise api.ServerArrayException(
-                'Could not find server template to clone.')
+        # First, find the array we're copying from.
+        source_array = yield self._find_server_arrays(self._source,
+                                                      allow_mock=False)
 
         # Sanity-check -- make sure that the destination server array doesn't
         # already exist. If it does, bail out!
-        self._log(logging.INFO, 'Verifying that new array "%s" does not '
-                  'already exist' % self._dest)
-        dest_array = yield self._client.find_server_arrays(
-            self._dest, exact=True)
-        if dest_array:
-            err = 'Dest array "%s" already exists! Exiting!' % dest_array
-            raise api.ServerArrayException(err)
+        yield self._find_server_arrays(self._dest,
+                                       raise_on='found',
+                                       allow_mock=False)
 
         # Next, get the resource ID number for the source array
         source_array_id = self._client.get_res_id(source_array)
@@ -100,7 +140,7 @@ class Clone(base.RightScaleBaseActor):
         raise gen.Return(True)
 
 
-class Update(base.RightScaleBaseActor):
+class Update(ServerArrayBaseActor):
 
     """Patch a RightScale Server Array."""
 
@@ -129,23 +169,8 @@ class Update(base.RightScaleBaseActor):
         # decorator.
         yield self._client.login()
 
-        # First, find the array we're going to be patching. If we're in dry
-        # mode, we pretend like we found the array in case its not there. We do
-        # throw a big warning though, because this may or may not be an
-        # expected behavior, depending on how you're using the actor.
-        self._log(logging.INFO, 'Finding template array "%s"' % self._array)
-        array = yield self._client.find_server_arrays(self._array, exact=True)
-
-        if not array and self._dry:
-            self._log(logging.WARNING,
-                      'Array "%s" not found -- creating a mock instead.' %
-                      self._array)
-            array = mock.MagicMock(name=self._array)
-            array.soul = {'name': '<mocked array %s>' % self._array}
-
-        if not array:
-            raise api.ServerArrayException(
-                'Could not find server template to update.')
+        # First, find the array we're going to be patching.
+        array = yield self._find_server_arrays(self._array)
 
         # Now, read through our supplied parameters and generate a
         # rightscale-compatible parameter dict.
