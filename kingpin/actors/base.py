@@ -65,7 +65,9 @@ class BaseActor(object):
             level: logging.LEVEL object indicating the log level
             message: String of the message to log
         """
-        msg = '[%s (DRY Mode: %s)] %s' % (self._desc, self._dry, message)
+        dry_str = ' (DRY Mode)' if self._dry else ''
+
+        msg = '[%s%s] %s' % (self._desc, dry_str, message)
         log.log(level, msg)
 
     # TODO: Write an execution wrapper that logs the time it takes for

@@ -54,10 +54,18 @@ class TestBaseActor(testing.AsyncTestCase):
         self.assertEquals(res, True)
 
     @mock.patch.object(base, 'log')
-    def test_log(self, mocked_log):
+    def test_log_dry(self, mocked_log):
+        self.actor._dry = True
         self.actor._log(logging.ERROR, 'unittest')
         mocked_log.log.assert_called_once_with(
-            40, '[Unit Test Action (DRY Mode: False)] unittest')
+            40, '[Unit Test Action (DRY Mode)] unittest')
+
+    @mock.patch.object(base, 'log')
+    def test_log(self, mocked_log):
+        self.actor._dry = False
+        self.actor._log(logging.ERROR, 'unittest')
+        mocked_log.log.assert_called_once_with(
+            40, '[Unit Test Action] unittest')
 
 
 class TestHTTPBaseActor(testing.AsyncTestCase):
