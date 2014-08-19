@@ -3,7 +3,9 @@ import mock
 
 from tornado import testing
 from tornado import gen
+import requests
 
+from kingpin.actors import exceptions
 from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import base
 from kingpin.actors.rightscale import server_array
@@ -131,6 +133,7 @@ class TestUpdateActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute(self):
+        self.actor._dry = False
         mocked_array = mock.MagicMock(name='unittestarray')
 
         @gen.coroutine
@@ -138,11 +141,37 @@ class TestUpdateActor(testing.AsyncTestCase):
             raise gen.Return(mocked_array)
         self.client_mock.find_server_arrays.side_effect = yield_array
 
+        @gen.coroutine
         def yield_update(self, *args, **kwargs):
             raise gen.Return()
         self.client_mock.update_server_array.side_effect = yield_update
 
-        yield self.actor.execute()
+        ret = yield self.actor.execute()
+
+        self.client_mock.find_server_arrays.assert_called_once_with(
+            'unittestarray', exact=True)
+        self.client_mock.update_server_array.assert_called_once_with(
+            mocked_array, {'server_array[name]': 'newunitarray'})
+
+        self.assertEquals(True, ret)
+
+    @testing.gen_test
+    def test_execute_422_error(self):
+        mocked_array = mock.MagicMock(name='unittestarray')
+
+        @gen.coroutine
+        def yield_array(self, *args, **kwargs):
+            raise gen.Return(mocked_array)
+        self.client_mock.find_server_arrays.side_effect = yield_array
+
+        msg = '422 Client Error: Unprocessable Entity'
+        mocked_response = mock.MagicMock(name='response')
+        mocked_response.status_code = 422
+        error = requests.exceptions.HTTPError(msg, response=mocked_response)
+        self.client_mock.update_server_array.side_effect = error
+
+        with self.assertRaises(exceptions.UnrecoverableActionFailure):
+            yield self.actor.execute()
 
         self.client_mock.find_server_arrays.assert_called_once_with(
             'unittestarray', exact=True)

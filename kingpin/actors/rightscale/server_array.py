@@ -18,6 +18,9 @@ import logging
 import mock
 
 from tornado import gen
+import requests
+
+from kingpin.actors import exceptions
 from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import base
 
@@ -27,6 +30,7 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
 class Clone(base.RightScaleBaseActor):
+
     """Clones a RightScale Server Array."""
 
     required_options = ['source', 'dest']
@@ -147,18 +151,23 @@ class Update(base.RightScaleBaseActor):
         params = self._generate_rightscale_params('server_array', self._params)
         self._log(logging.DEBUG, 'Generated RightScale params: %s' % params)
 
-        # Now, clone the array!
-        if not self._dry:
-            # We're really doin this!
-            msg = ('Updating array "%s" with params: %s' %
-                   (array.soul['name'], params))
-            self._log(logging.INFO, msg)
-            yield self._client.update_server_array(array, params)
-        else:
-            # In dry run, just comment that we would have made
-            # the change.
+        # In dry run, just comment that we would have made the change.
+        if self._dry:
             self._log(logging.WARNING,
                       'Would have updated "%s" with params: %s' %
                       (array.soul['name'], params))
+            raise gen.Return(True)
+
+        # We're really doin this!
+        msg = ('Updating array "%s" with params: %s' %
+               (array.soul['name'], params))
+        self._log(logging.INFO, msg)
+        try:
+            yield self._client.update_server_array(array, params)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 422:
+                msg = ('Invalid parameters supplied to patch array "%s"' %
+                       self._array)
+                raise exceptions.UnrecoverableActionFailure(msg)
 
         raise gen.Return(True)

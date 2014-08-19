@@ -37,7 +37,6 @@ from tornado import gen
 import futures
 
 from rightscale import util as rightscale_util
-import requests
 import rightscale
 
 
@@ -104,7 +103,7 @@ class RightScale(object):
         # Quiet down the urllib requests library, its noisy even in
         # INFO mode and muddies up the logs.
         r_log = logging.getLogger('requests.packages.urllib3.connectionpool')
-        r_log.setLevel(logging.DEBUG)
+        r_log.setLevel(logging.WARNING)
 
         log.debug('%s initialized (token=<hidden>, endpoint=%s)' %
                   (self.__class__.__name__, endpoint))
@@ -193,11 +192,5 @@ class RightScale(object):
 
         log.debug('Patching ServerArray (%s) with new params: %s' %
                   (array.soul['name'], params))
-        try:
-            yield thread_coroutine(array.self.update, params=params)
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 422:
-                log.error('Invalid parameters supplied to RightScale. Please '
-                          'check your inputs.')
-                raise
+        yield thread_coroutine(array.self.update, params=params)
         raise gen.Return()

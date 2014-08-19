@@ -100,22 +100,3 @@ class TestRightScale(testing.AsyncTestCase):
         sa_mock.self.update.assert_called_once_with(params=params)
 
         self.assertEquals(ret, None)
-
-    @testing.gen_test
-    def test_update_server_array_422_error(self):
-        # Create a mock and the params we're going to pass in
-        sa_mock = mock.MagicMock()
-        sa_mock.self.update.return_value = True
-        params = {'server_array[name]': 'new_name'}
-
-        msg = '422 Client Error: Unprocessable Entity'
-        response_mock = mock.MagicMock()
-        response_mock.status_code = 422
-        error = requests.exceptions.HTTPError(msg, response=response_mock)
-
-        sa_mock.self.update.side_effect = error
-
-        with self.assertRaises(requests.exceptions.HTTPError):
-            yield self.client.update_server_array(sa_mock, params)
-
-        sa_mock.self.update.assert_called_once_with(params=params)

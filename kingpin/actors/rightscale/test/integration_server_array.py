@@ -2,6 +2,7 @@
 
 from tornado import testing
 
+from kingpin.actors import exceptions
 from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import server_array
 
@@ -9,8 +10,9 @@ from kingpin.actors.rightscale import server_array
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
-class IntegrationServerArrayClone(testing.AsyncTestCase):
-    """High level RightScale Server Array Clone Actor Testing.
+class IntegrationServerArray(testing.AsyncTestCase):
+
+    """High level RightScale Server Array Actors Testing.
 
     These tests rely on you having a ServerArray in RightScale named
       'kingpin-integration-testing'
@@ -25,11 +27,22 @@ class IntegrationServerArrayClone(testing.AsyncTestCase):
     integration = True
 
     def setUp(self, *args, **kwargs):
-        super(IntegrationServerArrayClone, self).setUp(*args, **kwargs)
+        super(IntegrationServerArray, self).setUp(*args, **kwargs)
         self.template_array = 'kingpin-integration-testing'
 
+    @testing.gen_test(timeout=10)
+    def integration_update_with_invalid_params(self):
+        actor = server_array.Update(
+            'Update %s' % self.template_array,
+            {'array': self.template_array,
+             'params': {
+                 'elasticity_params': {
+                     'bounds': {'min_count': '5', 'max_count': '1'}}}})
+        with self.assertRaises(exceptions.UnrecoverableActionFailure):
+            yield actor.execute()
+
     @testing.gen_test(timeout=30)
-    def test_dry_clone(self):
+    def integration_dry_clone(self):
         actor = server_array.Clone('Clone %s' % self.template_array,
                                    {'source': self.template_array,
                                     'dest': '%s-clone' % self.template_array},
@@ -38,7 +51,7 @@ class IntegrationServerArrayClone(testing.AsyncTestCase):
         self.assertEquals(True, ret)
 
     @testing.gen_test(timeout=30)
-    def test_real_clone(self):
+    def integration_real_clone(self):
         actor = server_array.Clone('Clone %s' % self.template_array,
                                    {'source': self.template_array,
                                     'dest': '%s-clone' % self.template_array})
@@ -46,7 +59,7 @@ class IntegrationServerArrayClone(testing.AsyncTestCase):
         self.assertEquals(True, ret)
 
     @testing.gen_test(timeout=30)
-    def test_real_clone_with_duplicate_dest_array(self):
+    def integration_real_clone_with_duplicate_dest_array(self):
         actor1 = server_array.Clone(
             'Clone %s' % self.template_array,
             {'source': self.template_array,
