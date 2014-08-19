@@ -46,7 +46,11 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
 DEFAULT_ENDPOINT = 'https://my.rightscale.com'
-THREADPOOL = futures.ThreadPoolExecutor(10)
+
+# Allow up to 10 threads to be executed at once. This is arbitrary, but we
+# want to prvent the app from going thread-crazy.
+THREADPOOL_SIZE = 10
+THREADPOOL = futures.ThreadPoolExecutor(THREADPOOL_SIZE)
 
 
 @gen.coroutine
