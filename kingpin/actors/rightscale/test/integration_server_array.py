@@ -47,12 +47,14 @@ class IntegrationServerArrayClone(testing.AsyncTestCase):
 
     @testing.gen_test(timeout=30)
     def test_real_clone_with_duplicate_dest_array(self):
-        actor1 = server_array.Clone('Clone %s' % self.template_array,
-                                   {'source': self.template_array,
-                                    'dest': '%s-clone1' % self.template_array})
-        actor2 = server_array.Clone('Clone %s' % self.template_array,
-                                   {'source': self.template_array,
-                                    'dest': '%s-clone1' % self.template_array})
+        actor1 = server_array.Clone(
+            'Clone %s' % self.template_array,
+            {'source': self.template_array,
+             'dest': '%s-clone1' % self.template_array})
+        actor2 = server_array.Clone(
+            'Clone %s' % self.template_array,
+            {'source': self.template_array,
+             'dest': '%s-clone1' % self.template_array})
         with self.assertRaises(api.ServerArrayException):
             yield actor1.execute()
             yield actor2.execute()

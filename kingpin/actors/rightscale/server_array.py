@@ -96,9 +96,10 @@ class Clone(base.RightScaleBaseActor):
 
 
 class Update(base.RightScaleBaseActor):
+
     """Patch a RightScale Server Array."""
 
-    required_options = ['array','params']
+    required_options = ['array', 'params']
 
     def __init__(self, *args, **kwargs):
         """Initializes the Actor.
@@ -149,9 +150,9 @@ class Update(base.RightScaleBaseActor):
         # Now, clone the array!
         if not self._dry:
             # We're really doin this!
-            self._log(logging.INFO,
-                'Updating array "%s" with params: %s' % (array.soul['name'],
-                    params))
+            msg = ('Updating array "%s" with params: %s' %
+                   (array.soul['name'], params))
+            self._log(logging.INFO, msg)
             yield self._client.update_server_array(array, params)
         else:
             # In dry run, just comment that we would have made

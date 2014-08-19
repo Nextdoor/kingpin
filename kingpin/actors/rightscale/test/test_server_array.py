@@ -12,6 +12,7 @@ log = logging.getLogger(__name__)
 
 
 class TestCloneActor(testing.AsyncTestCase):
+
     def setUp(self, *args, **kwargs):
         super(TestCloneActor, self).setUp()
         base.TOKEN = 'unittest'
@@ -107,6 +108,7 @@ class TestCloneActor(testing.AsyncTestCase):
 
 
 class TestUpdateActor(testing.AsyncTestCase):
+
     def setUp(self, *args, **kwargs):
         super(TestUpdateActor, self).setUp()
         base.TOKEN = 'unittest'
@@ -130,6 +132,7 @@ class TestUpdateActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute(self):
         mocked_array = mock.MagicMock(name='unittestarray')
+
         @gen.coroutine
         def yield_array(self, *args, **kwargs):
             raise gen.Return(mocked_array)
@@ -139,7 +142,7 @@ class TestUpdateActor(testing.AsyncTestCase):
             raise gen.Return()
         self.client_mock.update_server_array.side_effect = yield_update
 
-        ret = yield self.actor.execute()
+        yield self.actor.execute()
 
         self.client_mock.find_server_arrays.assert_called_once_with(
             'unittestarray', exact=True)
@@ -150,6 +153,7 @@ class TestUpdateActor(testing.AsyncTestCase):
     def test_execute_dry(self):
         self.actor._dry = True
         mocked_array = mock.MagicMock(name='unittestarray')
+
         @gen.coroutine
         def yield_array(self, *args, **kwargs):
             raise gen.Return(mocked_array)
@@ -164,6 +168,7 @@ class TestUpdateActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute_dry_with_missing_array(self):
         self.actor._dry = True
+
         @gen.coroutine
         def yield_array(self, *args, **kwargs):
             raise gen.Return(None)
@@ -178,6 +183,7 @@ class TestUpdateActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute_missing_array(self):
         self.actor._dry = False
+
         @gen.coroutine
         def yield_array(self, *args, **kwargs):
             raise gen.Return(None)
