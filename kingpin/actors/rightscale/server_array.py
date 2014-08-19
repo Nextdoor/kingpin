@@ -91,7 +91,8 @@ class Clone(base.RightScaleBaseActor):
             new_array.soul = {'name': '<mocked clone of %s>' % self._source}
 
         # Lastly, rename the array
-        params = {'server_array[name]': self._dest}
+        params = self._generate_rightscale_params(
+            'server_array', {'name': self._dest})
         self._log(logging.INFO, 'Renaming array "%s" to "%s"' %
                   (new_array.soul['name'], self._dest))
         yield self._client.update_server_array(new_array, params)
