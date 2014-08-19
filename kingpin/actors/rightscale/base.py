@@ -31,6 +31,10 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 TOKEN = os.getenv('RIGHTSCALE_TOKEN', None)
 ENDPOINT = os.getenv('RIGHTSCALE_ENDPOINT', 'https://my.rightscale.com')
 
+if not TOKEN:
+    log.error('RightScale BaseActor imported but no RIGHTSCALE_TOKEN '
+              'environment variable provided.')
+
 
 class RightScaleBaseActor(base.BaseActor):
     """Abstract class for creating RightScale cloud actors."""
