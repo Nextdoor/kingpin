@@ -453,6 +453,7 @@ class Launch(ServerArrayBaseActor):
         # in-code. Instead, our 'launch clicking' here is just a way to get the
         # ball rolling as quickly as possible before rightscales
         # auto-array-scaling kicks in.
+        self._log(logging.INFO, 'Launching Array "%s" instances' % self._array)
         yield self._launch_min_instances(array)
 
         # Now, wait until the number of healthy instances in the array matches
