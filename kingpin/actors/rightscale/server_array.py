@@ -388,11 +388,6 @@ class Launch(ServerArrayBaseActor):
             self._log(logging.WARNING, 'Would have launched instances')
             raise gen.Return()
 
-        # Creating a list to hold our launch actions. We'll yield them all at
-        # once when we're done building them.
-        actions = []
-
-
         # NOTE: The smart thing to do here is to simultaneously click 'launch'
         # for every necessary instance so they all launch at once. These API
         # calls take 5-7 seconds to complete, so this would be much faster than
@@ -411,7 +406,7 @@ class Launch(ServerArrayBaseActor):
         for i in xrange(0, min):
             yield self._client.launch_server_array(array_id)
 
-        raise gen.Return(ret)
+        raise gen.Return()
 
     @gen.coroutine
     def _execute(self):

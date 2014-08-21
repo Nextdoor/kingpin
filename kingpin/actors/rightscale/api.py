@@ -36,11 +36,12 @@ import time
 
 from tornado import ioloop
 from tornado import gen
-import futures
 import requests
 
 from rightscale import util as rightscale_util
 import rightscale
+
+from kingpin import utils
 
 
 log = logging.getLogger(__name__)
@@ -49,80 +50,6 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
 DEFAULT_ENDPOINT = 'https://my.rightscale.com'
-
-# Allow up to 10 threads to be executed at once. This is arbitrary, but we
-# want to prvent the app from going thread-crazy.
-THREADPOOL_SIZE = 10
-THREADPOOL = futures.ThreadPoolExecutor(THREADPOOL_SIZE)
-
-
-# TODO: Move this into its own utils package and document.
-@gen.coroutine
-def thread_coroutine(func, *args, **kwargs):
-    """Simple ThreadPool executor for Tornado.
-
-    This method leverages the back-ported Python futures
-    package (https://pypi.python.org/pypi/futures) to spin up
-    a ThreadPool and then kick actions off in the thread pool.
-
-    This is a simple and relatively graceful way of handling
-    spawning off of synchronous API calls from the RightScale
-    client below without having to do a full re-write of anything.
-
-    This should not be used at high volume... but for the
-    use case below, its reasonable.
-
-    Example Usage:
-        >>> @gen.coroutine
-        ... def login(self):
-        ...     ret = yield thread_coroutine(self._client.login)
-        ...     raise gen.Return(ret)
-
-    Args:
-        func: Function reference
-    """
-    try:
-        ret = yield THREADPOOL.submit(func, *args, **kwargs)
-    except requests.exceptions.ConnectionError:
-        # The requests library can fail to fetch sometimes and its almost
-        # always OK to re-try the fetch at least once. If the fetch fails a
-        # second time, we allow it to be raised.
-        #
-        # This should be patched in the python-rightscale library so it
-        # auto-retries, but until then we have a patch here to at least allow
-        # one automatic retry.
-        log.debug('Fetch failed. Will retry one time.')
-        ret = yield THREADPOOL.submit(func, *args, **kwargs)
-
-    raise gen.Return(ret)
-
-
-# TODO: Move this into its own utils package and document.
-def retry(excs, retries=3):
-    def _retry_on_exc(f):
-        def wrapper(*args, **kwargs):
-            i = 1
-            while True:
-                try:
-                    log.debug('Try (%s/%s) of %s(%s, %s)' %
-                              (i, retries, f, args, kwargs))
-                    ret = yield gen.coroutine(f)(*args, **kwargs)
-                    log.debug('Result: %s' % ret)
-                    raise gen.Return(ret)
-                except excs as e:
-                    log.error('Exception raised on try %s: %s' % (i, e))
-
-                    if i >= retries:
-                        log.debug('Raising exception: %s' % e)
-                        raise e
-
-                    log.debug('Retrying in 0.25s..')
-                    i += 1
-                    yield gen.Task(ioloop.IOLoop.current().add_timeout,
-                                   time.time() + 0.25)
-                log.debug('Retrying..')
-        return wrapper
-    return _retry_on_exc
 
 
 class ServerArrayException(Exception):
@@ -171,7 +98,7 @@ class RightScale(object):
         This method is not strictly required -- but it helps asynchronously
         pre-populate the object attributes/methods.
         """
-        yield thread_coroutine(self._client.login)
+        yield utils.thread_coroutine(self._client.login)
         raise gen.Return()
 
     @gen.coroutine
@@ -188,7 +115,7 @@ class RightScale(object):
         log.debug('Searching for ServerArrays matching: %s (exact match: %s)' %
                   (name, exact))
 
-        found_arrays = yield thread_coroutine(
+        found_arrays = yield utils.thread_coroutine(
             rightscale_util.find_by_name,
             self._client.server_arrays, name, exact=exact)
 
@@ -214,7 +141,7 @@ class RightScale(object):
             gen.Return(rightscale.Resource object)
         """
         log.debug('Cloning ServerArray %s' % source_id)
-        new_array = yield thread_coroutine(
+        new_array = yield utils.thread_coroutine(
             self._client.server_arrays.clone, res_id=source_id)
 
         log.debug('New ServerArray %s created!' % new_array.soul['name'])
@@ -233,7 +160,7 @@ class RightScale(object):
             array_id: ServerArray ID number
         """
         log.debug('Destroying ServerArray %s' % array_id)
-        yield thread_coroutine(
+        yield utils.thread_coroutine(
             self._client.server_arrays.destroy, res_id=array_id)
         log.debug('Array Destroyed')
         raise gen.Return()
@@ -258,12 +185,12 @@ class RightScale(object):
 
         log.debug('Patching ServerArray (%s) with new params: %s' %
                   (array.soul['name'], params))
-        yield thread_coroutine(array.self.update, params=params)
-        updated_array = yield thread_coroutine(array.self.show)
+        yield utils.thread_coroutine(array.self.update, params=params)
+        updated_array = yield utils.thread_coroutine(array.self.show)
         raise gen.Return(updated_array)
 
     @gen.coroutine
-    @retry(excs=requests.exceptions.HTTPError, retries=3)
+    @utils.retry(excs=requests.exceptions.HTTPError, retries=3)
     def launch_server_array(self, array_id):
         """Launches an instance of a ServerArray..
 
@@ -272,6 +199,12 @@ class RightScale(object):
             http://reference.rightscale.com/api1.5/resources/
             ResourceServerArrays.html#launch
 
+        Note: Repeated simultaneous calls to this method on the same array will
+        return 422 errors from RightScale. It is advised that you make this
+        call synchronously on a particular array as many times as you need.
+        This method is wrapped in a retry block though to help handle these
+        errors anyways.
+
         Args:
             array_id: ServerArray ID number
 
@@ -279,7 +212,7 @@ class RightScale(object):
             gen.Return(<rightscale.Resource of the newly launched instance>)
         """
         log.debug('Launching a new instance of ServerArray %s' % array_id)
-        ret = yield thread_coroutine(
+        ret = yield utils.thread_coroutine(
             self._client.server_arrays.launch, res_id=array_id)
         raise gen.Return(ret)
 
@@ -303,7 +236,7 @@ class RightScale(object):
         log.debug('Searching for current instances of ServerArray (%s)' %
                   array.soul['name'])
         params = {'filter[]': [filter]}
-        current_instances = yield thread_coroutine(
+        current_instances = yield utils.thread_coroutine(
             array.current_instances.index, params=params)
         raise gen.Return(current_instances)
 
@@ -328,7 +261,7 @@ class RightScale(object):
         """
         log.debug('Terminating all instances of ServerArray (%s)' % array_id)
         try:
-            task = yield thread_coroutine(
+            task = yield utils.thread_coroutine(
                 self._client.server_arrays.multi_terminate, res_id=array_id)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 422:
@@ -360,15 +293,11 @@ class RightScale(object):
         """
         while True:
             # Get the task status
-            output = yield thread_coroutine(task.self.show)
+            output = yield utils.thread_coroutine(task.self.show)
             summary = output.soul['summary']
             log.debug('Got updated task: %s' % output.soul)
 
-            if 'success' in summary:
-                status = True
-                break
-
-            if 'completed' in summary:
+            if 'success' in summary or 'completed' in summary:
                 status = True
                 break
 
@@ -384,6 +313,7 @@ class RightScale(object):
             yield gen.Task(ioloop.IOLoop.current().add_timeout,
                            time.time() + sleep)
 
-        log.debug('Task finished successfully: %s' % status)
+        log.debug('Task finished, return value: %s, summary: %s' %
+                  (status, summary))
 
         raise gen.Return(status)
