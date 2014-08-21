@@ -130,7 +130,7 @@ class TestCloneActor(testing.AsyncTestCase):
         def find_server_arrays(name, *args, **kwargs):
             if name == 'unittestarray':
                 source_array = mock.MagicMock(name='unittestarray')
-                source_array.soul.path = '/fo/bar/123'
+                source_array.self.path = '/fo/bar/123'
                 raise gen.Return(source_array)
             if name == 'newunitarray':
                 raise gen.Return(None)
@@ -139,7 +139,7 @@ class TestCloneActor(testing.AsyncTestCase):
         @gen.coroutine
         def clone_server_array(array):
             new_array = mock.MagicMock(name='unittestarray v1')
-            new_array.soul.path = '/foo/bar/124'
+            new_array.self.path = '/foo/bar/124'
             raise gen.Return(new_array)
         self.client_mock.clone_server_array.side_effect = clone_server_array
 
@@ -159,7 +159,7 @@ class TestCloneActor(testing.AsyncTestCase):
         def find_server_arrays(name, *args, **kwargs):
             if name == 'unittestarray':
                 source_array = mock.MagicMock(name='unittestarray')
-                source_array.soul.path = '/fo/bar/123'
+                source_array.self.path = '/fo/bar/123'
                 raise gen.Return(source_array)
             if name == 'newunitarray':
                 raise gen.Return(None)
@@ -267,3 +267,36 @@ class TestUpdateActor(testing.AsyncTestCase):
         ret = yield self.actor.execute()
 
         self.assertEquals(True, ret)
+
+
+class TestDestroyActor(testing.AsyncTestCase):
+
+    def setUp(self, *args, **kwargs):
+        super(TestUpdateActor, self).setUp()
+        base.TOKEN = 'unittest'
+
+        # Create the actor
+        self.actor = server_array.Update(
+            'Destroy',
+            {'array': 'unittestarray',
+             'params': {'terminate': True}})
+
+        # Patch the actor so that we use the client mock
+        self.client_mock = mock.MagicMock()
+        self.actor._client = self.client_mock
+
+        # Mock out the login method entirely
+        @gen.coroutine
+        def login():
+            raise gen.Return()
+        self.client_mock.login.side_effect = login
+
+    @testing.gen_test
+    def test_execute(self):
+        self.actor._dry = False
+        mocked_array = mock.MagicMock(name='unittestarray')
+
+        @gen.coroutine
+        def yield_array(self, *args, **kwargs):
+            raise gen.Return(mocked_array)
+        self.actor._find_server_arrays = yield_array

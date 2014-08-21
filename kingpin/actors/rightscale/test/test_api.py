@@ -81,19 +81,33 @@ class TestRightScale(testing.AsyncTestCase):
         sa_rsr_mock = mock.MagicMock()
         self.mock_client.server_arrays = sa_rsr_mock
 
+        # Mock the input template array
+        source_mock = mock.MagicMock(name='source_template')
+        source_mock.soul = {'name': 'Mocked ServerArray'}
+        source_mock.self.path = '/a/b/1234'
+
         # Next, create the returned server array resource mock
-        sa_mock = mock.MagicMock()
-        sa_mock.soul = {'name': 'Mocked ServerArray'}
-        sa_rsr_mock.clone.return_value = sa_mock
+        clone_mock = mock.MagicMock()
+        clone_mock.soul = {'name': 'Mocked ServerArray'}
+        sa_rsr_mock.clone.return_value = clone_mock
 
         # Clone the array
-        ret = yield self.client.clone_server_array('source_array_id')
-        self.assertEquals(ret, sa_mock)
+        ret = yield self.client.clone_server_array(source_mock)
+        self.mock_client.server_arrays.clone.assert_called_once_with(
+            res_id=1234)
+        self.assertEquals(ret, clone_mock)
 
     @testing.gen_test
     def test_destroy_server_array(self):
+        array_mock = mock.MagicMock(name='unittest_array')
+        array_mock.soul = {'name': 'Mocked ServerArray'}
+        array_mock.self.path = '/a/b/1234'
+
         self.mock_client.server_arrays.destroy.return_value = True
-        ret = yield self.client.destroy_server_array(123)
+        ret = yield self.client.destroy_server_array(array_mock)
+        self.mock_client.server_arrays.destroy.assert_called_once_with(
+            res_id=1234)
+
         self.assertEquals(None, ret)
 
     @testing.gen_test
@@ -122,16 +136,25 @@ class TestRightScale(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_launch_server_array(self):
+        array_mock = mock.MagicMock(name='fake_array')
+        array_mock.soul = {'name': 'fake array to launch'}
+        array_mock.self.path = '/a/b/1234'
         instance_mock = mock.MagicMock(name='fake_instance')
-        sa_rsr_mock = mock.MagicMock(name='sa_resource_mock')
-        sa_rsr_mock.launch.return_value = instance_mock
-        self.mock_client.server_arrays = sa_rsr_mock
+#        sa_rsr_mock = mock.MagicMock(name='sa_resource_mock')
+#        sa_rsr_mock.launch.return_value = instance_mock
+        self.mock_client.server_arrays.launch.return_value = instance_mock
 
-        ret = yield self.client.launch_server_array(123)
+        ret = yield self.client.launch_server_array(array_mock)
+        self.mock_client.server_arrays.launch.assert_called_once_with(
+            res_id=1234)
         self.assertEquals(ret, instance_mock)
 
     @testing.gen_test
     def test_terminate_server_array_instances(self):
+        array_mock = mock.MagicMock(name='fake array')
+        array_mock.soul = {'name': 'fake array'}
+        array_mock.self.path = '/a/b/1234'
+
         # Mock out the multi_terminate command and the task it returns
         mock_task = mock.MagicMock(name='fake task')
 
@@ -146,18 +169,26 @@ class TestRightScale(testing.AsyncTestCase):
         # Mock out the wait_for_task method to return quickly
         with mock.patch.object(self.client, 'wait_for_task') as mock_wait:
             mock_wait.side_effect = fake_wait
-            ret = yield self.client.terminate_server_array_instances(123)
+            ret = yield self.client.terminate_server_array_instances(
+                array_mock)
+        self.mock_client.server_arrays.multi_terminate.assert_called_once_with(
+            res_id=1234)
         self.assertEquals(None, ret)
 
     @testing.gen_test
     def test_terminate_server_array_instances_422_error(self):
+        array_mock = mock.MagicMock(name='fake array')
+        array_mock.soul = {'name': 'fake array'}
+        array_mock.self.path = '/a/b/1234'
+
+        # Mock out the multi_terminate command and the task it returns
         def action(*args, **kwargs):
             response = mock.MagicMock()
             response.status_code = 422
             raise requests.exceptions.HTTPError(response=response)
         self.mock_client.server_arrays.multi_terminate.side_effect = action
 
-        ret = yield self.client.terminate_server_array_instances(123)
+        ret = yield self.client.terminate_server_array_instances(array_mock)
         self.assertEquals(None, ret)
 
     @testing.gen_test

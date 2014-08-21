@@ -19,6 +19,9 @@ This package provides access to the RightScale API via Tornado-style
 for threads that are being fired off in the background to make the API
 calls.
 
+
+## Async vs Threads
+
 In the future, this will get re-factored to use a native Tornado
 AsyncHTTPClient object. The methods themselves will stay the same, but the
 underlying private methods will change.
@@ -28,6 +31,16 @@ operations that the RightScale Actor objects need to do. Operations like
 'find server array', 'launch server array', etc. This is not meant as a pure
 one-to-one mapping of the RightScale API, but rather a mapping of conceptual
 operations that the Actors need.
+
+## Method Design Note
+
+RightScale mixes and matches their API calls... some of them you pass in a
+major method and then supply a resource ID to act on. Others you pass in the
+resource_id and get back a list of methods that you can execute.
+
+For consistency in our programming model, this class relies o you passing in
+rightscale.Resource objects everywhere, and it does the resource->ID
+translation.
 """
 
 from os import path
@@ -128,27 +141,27 @@ class RightScale(object):
         raise gen.Return(found_arrays)
 
     @gen.coroutine
-    def clone_server_array(self, source_id):
+    def clone_server_array(self, array):
         """Clone a Server Array.
 
         Clones an existing Server Array into a new array. Requires the
         source template array ID number. Returns the newly cloned array.
 
         Args:
-            source_id: Source ServerArray ID Number
+            array: Source ServerArray Resource Object
 
         Raises:
             gen.Return(rightscale.Resource object)
         """
-        log.debug('Cloning ServerArray %s' % source_id)
+        log.debug('Cloning ServerArray %s' % array.soul['name'])
+        source_id = self.get_res_id(array)
         new_array = yield utils.thread_coroutine(
             self._client.server_arrays.clone, res_id=source_id)
-
         log.debug('New ServerArray %s created!' % new_array.soul['name'])
         raise gen.Return(new_array)
 
     @gen.coroutine
-    def destroy_server_array(self, array_id):
+    def destroy_server_array(self, array):
         """Destroys a Server Array.
 
         Makes this API Call:
@@ -157,9 +170,10 @@ class RightScale(object):
             ResourceServerArrays.html#destroy
 
         Args:
-            array_id: ServerArray ID number
+            array: ServerArray Resource Object
         """
-        log.debug('Destroying ServerArray %s' % array_id)
+        log.debug('Destroying ServerArray %s' % array.soul['name'])
+        array_id = self.get_res_id(array)
         yield utils.thread_coroutine(
             self._client.server_arrays.destroy, res_id=array_id)
         log.debug('Array Destroyed')
@@ -191,7 +205,7 @@ class RightScale(object):
 
     @gen.coroutine
     @utils.retry(excs=requests.exceptions.HTTPError, retries=3)
-    def launch_server_array(self, array_id):
+    def launch_server_array(self, array):
         """Launches an instance of a ServerArray..
 
         Makes this API Call:
@@ -206,12 +220,14 @@ class RightScale(object):
         errors anyways.
 
         Args:
-            array_id: ServerArray ID number
+            array: ServerArray Resource Object
 
         Raises:
             gen.Return(<rightscale.Resource of the newly launched instance>)
         """
-        log.debug('Launching a new instance of ServerArray %s' % array_id)
+        log.debug('Launching a new instance of ServerArray %s' %
+                  array.soul['name'])
+        array_id = self.get_res_id(array)
         ret = yield utils.thread_coroutine(
             self._client.server_arrays.launch, res_id=array_id)
         raise gen.Return(ret)
@@ -241,7 +257,7 @@ class RightScale(object):
         raise gen.Return(current_instances)
 
     @gen.coroutine
-    def terminate_server_array_instances(self, array_id):
+    def terminate_server_array_instances(self, array):
         """Executes a terminate on all of the current running instances.
 
         Makes this API Call:
@@ -254,12 +270,14 @@ class RightScale(object):
         that they are actually terminated yet.
 
         Args:
-            array_id: ServerArray ID Number
+            array: ServerArray Resource Object
 
         Raises:
             gen.Return(<action execution resource>)
         """
-        log.debug('Terminating all instances of ServerArray (%s)' % array_id)
+        log.debug('Terminating all instances of ServerArray (%s)' %
+                  array.soul['name'])
+        array_id = self.get_res_id(array)
         try:
             task = yield utils.thread_coroutine(
                 self._client.server_arrays.multi_terminate, res_id=array_id)

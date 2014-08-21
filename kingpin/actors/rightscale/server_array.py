@@ -119,15 +119,12 @@ class Clone(ServerArrayBaseActor):
                                        raise_on='found',
                                        allow_mock=False)
 
-        # Next, get the resource ID number for the source array
-        source_array_id = self._client.get_res_id(source_array)
-
         # Now, clone the array!
         self._log(logging.INFO, 'Cloning array "%s"' %
                   source_array.soul['name'])
         if not self._dry:
             # We're really doin this!
-            new_array = yield self._client.clone_server_array(source_array_id)
+            new_array = yield self._client.clone_server_array(source_array)
         else:
             # In dry run mode. Don't really clone the array, just return back
             # 'True' as if the array-clone worked.
@@ -229,20 +226,21 @@ class Destroy(ServerArrayBaseActor):
         self._terminate = self._options['terminate']
 
     @gen.coroutine
-    def _terminate_all_instances(self, array_id):
+    def _terminate_all_instances(self, array):
         if not self._terminate:
             self._log(logging.DEBUG, 'Not terminating instances')
             raise gen.Return()
 
         if self._dry:
             self._log(logging.WARNING,
-                      'Would have terminated all array %s instances.' %
-                      array_id)
+                      'Would have terminated all array "%s" instances.' %
+                      array.soul['name'])
             raise gen.Return()
 
         self._log(logging.INFO,
-                  'Terminating all instances in array %s' % array_id)
-        yield self._client.terminate_server_array_instances(array_id)
+                  'Terminating all instances in array "%s"' %
+                  array.soul['name'])
+        yield self._client.terminate_server_array_instances(array)
         raise gen.Return()
 
     @gen.coroutine
@@ -279,17 +277,17 @@ class Destroy(ServerArrayBaseActor):
                            time.time() + sleep)
 
     @gen.coroutine
-    def _destroy_array(self, array_id):
+    def _destroy_array(self, array):
         """
         TODO: Handle exceptions if the array is not terminatable.
         """
         if self._dry:
             self._log(logging.WARNING,
-                      'Pretending to destroy array ID %s' % array_id)
+                      'Pretending to destroy array "%s"' % array.soul['name'])
             raise gen.Return()
 
-        self._log(logging.INFO, 'Destroying array ID %s' % array_id)
-        yield self._client.destroy_server_array(array_id)
+        self._log(logging.INFO, 'Destroying array "%s"' % array.soul['name'])
+        yield self._client.destroy_server_array(array)
         raise gen.Return()
 
     @gen.coroutine
@@ -302,7 +300,6 @@ class Destroy(ServerArrayBaseActor):
 
         # First, find the array we're going to be terminating.
         array = yield self._find_server_arrays(self._array)
-        array_id = self._client.get_res_id(array)
 
         # Disable the array so that no new instances launch
         self._log(logging.INFO, 'Disabling Array "%s"' % self._array)
@@ -311,13 +308,13 @@ class Destroy(ServerArrayBaseActor):
         yield self._client.update_server_array(array, params)
 
         # Optionally terminate all of the instances in the array first.
-        yield self._terminate_all_instances(array_id)
+        yield self._terminate_all_instances(array)
 
         # Wait...
         yield self._wait_until_empty(array)
 
         # Wait for al lthe instances to die, and destroy the array
-        yield self._destroy_array(array_id)
+        yield self._destroy_array(array)
 
         raise gen.Return(True)
 
@@ -379,32 +376,52 @@ class Launch(ServerArrayBaseActor):
             yield gen.Task(ioloop.IOLoop.current().add_timeout,
                            time.time() + sleep)
 
+#    @gen.coroutine
+#    def _async_launch_min_instances(self, array):
+#        """Asynchronously launch all the instances in an array.
+#
+#        **DO NOT USE THIS METHOD**
+#
+#        NOTE: The smart thing to do here is to simultaneously click 'launch'
+#        for every necessary instance so they all launch at once. These API
+#        calls take 5-7 seconds to complete, so this would be much faster than
+#        doing these calls synchronously.
+#
+#        Unfortunately, RightScales ServerArray API only allows a single call
+#        to /launch at any time on a single ServerArray. This means that these
+#        calls must be synchronous for now.
+#        """
+#
+#        if self._dry:
+#            self._log(logging.WARNING, 'Would have launched instances')
+#            raise gen.Return()
+#
+#        # Get the current min_count setting from the ServerArray object
+#        min = int(array.soul['elasticity_params']['bounds']['min_count'])
+#
+#        actions = []
+#        for i in xrange(0, min):
+#            actions.append(self._client.launch_server_array(array))
+#
+#        # Yield them all
+#        ret = yield actions
+#
+#        raise gen.Return(ret)
+
     @gen.coroutine
-    def _launch_min_instances(self, array, array_id):
+    def _launch_min_instances(self, array):
         # Get the current min_count setting from the ServerArray object
         min = int(array.soul['elasticity_params']['bounds']['min_count'])
 
         if self._dry:
-            self._log(logging.WARNING, 'Would have launched instances')
+            self._log(logging.WARNING,
+                      'Would have launched instances of array %s' %
+                      array.soul['name'])
             raise gen.Return()
-
-        # NOTE: The smart thing to do here is to simultaneously click 'launch'
-        # for every necessary instance so they all launch at once. These API
-        # calls take 5-7 seconds to complete, so this would be much faster than
-        # doing these calls synchronously.
-        #
-        # Unfortunately, RightScales ServerArray API only allows a single call
-        # to /launch at any time on a single ServerArray. This means that these
-        # calls must be synchronous for now.
-        #
-        # for i in xrange(0, min):
-        #     actions.append(self._client.launch_server_array(array_id))
-        # # Yield them all
-        # ret = yield actions
 
         # Build 'min' number of launch clicks
         for i in xrange(0, min):
-            yield self._client.launch_server_array(array_id)
+            yield self._client.launch_server_array(array)
 
         raise gen.Return()
 
@@ -418,7 +435,6 @@ class Launch(ServerArrayBaseActor):
 
         # First, find the array we're going to be launching....
         array = yield self._find_server_arrays(self._array)
-        array_id = self._client.get_res_id(array)
 
         # Enable the array right away. This means that RightScale will
         # auto-scale-up the array as soon as their next scheduled auto-scale
@@ -435,7 +451,7 @@ class Launch(ServerArrayBaseActor):
         # in-code. Instead, our 'launch clicking' here is just a way to get the
         # ball rolling as quickly as possible before rightscales
         # auto-array-scaling kicks in.
-        yield self._launch_min_instances(array, array_id)
+        yield self._launch_min_instances(array)
 
         # Now, wait until the number of healthy instances in the array matches
         # the min_count (or is greater than) of that array.
