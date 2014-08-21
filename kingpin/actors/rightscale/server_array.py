@@ -14,10 +14,13 @@
 
 """RightScale Actors"""
 
+from random import randint
 import logging
 import mock
+import time
 
 from tornado import gen
+from tornado import ioloop
 import requests
 
 from kingpin.actors import exceptions
@@ -66,6 +69,7 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
                       'Array "%s" not found -- creating a mock.' % array_name)
             array = mock.MagicMock(name=array_name)
             array.soul = {'name': '<mocked array %s>' % array_name}
+            array.self.path = '/fake/array/%s' % randint(10000, 20000)
 
         if array and raise_on == 'found':
             raise api.ServerArrayException(
@@ -195,5 +199,124 @@ class Update(ServerArrayBaseActor):
                 msg = ('Invalid parameters supplied to patch array "%s"' %
                        self._array)
                 raise exceptions.UnrecoverableActionFailure(msg)
+
+        raise gen.Return(True)
+
+
+class Destroy(ServerArrayBaseActor):
+
+    """Destroy a RightScale Server Array."""
+
+    required_options = ['array', 'terminate']
+
+    def __init__(self, *args, **kwargs):
+        """Initializes the Actor.
+
+        # TODO: Add a 'wait timer' that allows the execution to fail if it
+        # takes too long to terminate the instances.
+
+        Args:
+            desc: String description of the action being executed.
+            options: Dictionary with the following example settings:
+              { 'array': <server array name>,
+                'terminate': <boolean, whether or not to terminate all running
+                instances first. If false, and instances are running, this
+                action will fail.> }
+        """
+        super(Destroy, self).__init__(*args, **kwargs)
+
+        self._array = self._options['array']
+        self._terminate = self._options['terminate']
+
+    @gen.coroutine
+    def _terminate_all_instances(self, array_id):
+        if not self._terminate:
+            self._log(logging.DEBUG, 'Not terminating instances')
+            raise gen.Return()
+
+        if self._dry:
+            self._log(logging.WARNING,
+                      'Would have terminated all array %s instances.' %
+                      array_id)
+            raise gen.Return()
+
+        self._log(logging.INFO,
+                  'Terminating all instances in array %s' % array_id)
+        yield self._client.terminate_server_array_instances(array_id)
+        raise gen.Return()
+
+    @gen.coroutine
+    def _wait_until_empty(self, array, sleep=60):
+        """Sleep until all array instances are terminated.
+
+        This loop monitors the server array for its current live instance count
+        and waits until the count hits zero before progressing.
+
+        TODO: Add a timeout setting.
+
+        Args:
+            array: rightscale.Resource array object
+            sleep: Integer time to sleep between checks (def: 60)
+        """
+        if self._dry:
+                self._log(logging.WARNING,
+                          'Pretending that array %s instances are terminated.'
+                          % array.soul['name'])
+                raise gen.Return()
+
+        while True:
+            instances = yield self._client.get_server_array_current_instances(
+                array)
+            count = len(instances)
+            self._log(logging.INFO, '%s instances found' % count)
+
+            if count < 1:
+                raise gen.Return()
+
+            # At this point, sleep
+            self._log(logging.DEBUG, 'Sleeping..')
+            yield gen.Task(ioloop.IOLoop.current().add_timeout,
+                           time.time() + sleep)
+
+    @gen.coroutine
+    def _destroy_array(self, array_id):
+        """
+        TODO: Handle exceptions if the array is not terminatable.
+        """
+        if self._dry:
+            self._log(logging.WARNING,
+                      'Pretending to destroy array ID %s' % array_id)
+            raise gen.Return()
+
+        self._log(logging.INFO, 'Destroying array ID %s' % array_id)
+        yield self._client.destroy_server_array(array_id)
+        raise gen.Return()
+
+    @gen.coroutine
+    def _execute(self):
+        # First things first, login to RightScale asynchronously to
+        # pre-populate the API attributes that are dynamically generated. This
+        # is a hack, and in the future should likely turn into a smart
+        # decorator.
+        yield self._client.login()
+
+        # First, find the array we're going to be terminating.
+        array = yield self._find_server_arrays(self._array)
+        array_id = self._client.get_res_id(array)
+
+        # Disable the array so that no new instances launch
+        self._log(logging.INFO, 'Disabling Array "%s"' % self._array)
+        params = self._generate_rightscale_params(
+            'server_array', {'state': 'disabled'})
+        yield self._client.update_server_array(array, params)
+
+        # Optionally terminate all of the instances in the array first.
+        yield self._terminate_all_instances(array_id)
+
+        # Wait...
+        yield self._wait_until_empty(array)
+
+        # Wait for al lthe instances to die, and destroy the array
+        yield self._destroy_array(array_id)
 
         raise gen.Return(True)

@@ -29,6 +29,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
     def setUp(self, *args, **kwargs):
         super(IntegrationServerArray, self).setUp(*args, **kwargs)
         self.template_array = 'kingpin-integration-testing'
+        self.clone_name = 'kingpin-integratin-testing-clone'
 
     @testing.gen_test(timeout=10)
     def integration_update_with_invalid_params(self):
@@ -45,16 +46,24 @@ class IntegrationServerArray(testing.AsyncTestCase):
     def integration_dry_clone(self):
         actor = server_array.Clone('Clone %s' % self.template_array,
                                    {'source': self.template_array,
-                                    'dest': '%s-clone' % self.template_array},
+                                    'dest': self.clone_name},
                                    dry=True)
         ret = yield actor.execute()
         self.assertEquals(True, ret)
 
     @testing.gen_test(timeout=30)
     def integration_real_clone(self):
+        # Clone the array first
         actor = server_array.Clone('Clone %s' % self.template_array,
                                    {'source': self.template_array,
-                                    'dest': '%s-clone' % self.template_array})
+                                    'dest': self.clone_name})
+        ret = yield actor.execute()
+        self.assertEquals(True, ret)
+
+        # Now destroy it
+        actor = server_array.Destroy('Destroy %s' % self.template_array,
+                                     {'array': self.clone_name,
+                                      'terminate': True})
         ret = yield actor.execute()
         self.assertEquals(True, ret)
 
@@ -63,11 +72,18 @@ class IntegrationServerArray(testing.AsyncTestCase):
         actor1 = server_array.Clone(
             'Clone %s' % self.template_array,
             {'source': self.template_array,
-             'dest': '%s-clone1' % self.template_array})
+             'dest': self.clone_name})
         actor2 = server_array.Clone(
             'Clone %s' % self.template_array,
             {'source': self.template_array,
-             'dest': '%s-clone1' % self.template_array})
+             'dest': self.clone_name})
         with self.assertRaises(api.ServerArrayException):
             yield actor1.execute()
             yield actor2.execute()
+
+        # Now destroy it
+        actor = server_array.Destroy('Destroy %s' % self.template_array,
+                                     {'array': self.clone_name,
+                                      'terminate': True})
+        ret = yield actor.execute()
+        self.assertEquals(ret, True)

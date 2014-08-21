@@ -1,6 +1,7 @@
 import logging
 import mock
 
+from tornado import gen
 from tornado import testing
 import requests
 
@@ -90,6 +91,12 @@ class TestRightScale(testing.AsyncTestCase):
         self.assertEquals(ret, sa_mock)
 
     @testing.gen_test
+    def test_destroy_server_array(self):
+        self.mock_client.server_arrays.destroy.return_value = True
+        ret = yield self.client.destroy_server_array(123)
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
     def test_update_server_array(self):
         # Create a mock and the params we're going to pass in
         sa_mock = mock.MagicMock()
@@ -100,3 +107,110 @@ class TestRightScale(testing.AsyncTestCase):
         sa_mock.self.update.assert_called_once_with(params=params)
 
         self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_get_server_array_current_instances(self):
+        # Next, create the list of resources returned by the mock
+        fake_instances = [mock.MagicMock(), mock.MagicMock()]
+        array_mock = mock.MagicMock()
+        array_mock.soul = {'name': 'fake array'}
+        array_mock.current_instances.index.return_value = fake_instances
+
+        ret = yield self.client.get_server_array_current_instances(array_mock)
+        self.assertEquals(fake_instances, ret)
+
+    @testing.gen_test
+    def test_terminate_server_array_instances(self):
+        # Mock out the multi_terminate command and the task it returns
+        mock_task = mock.MagicMock(name='fake task')
+
+        def action(*args, **kwargs):
+            return mock_task
+        self.mock_client.server_arrays.multi_terminate.side_effect = action
+
+        @gen.coroutine
+        def fake_wait(*args, **kwargs):
+            return gen.Return()
+
+        # Mock out the wait_for_task method to return quickly
+        with mock.patch.object(self.client, 'wait_for_task') as mock_wait:
+            mock_wait.side_effect = fake_wait
+            ret = yield self.client.terminate_server_array_instances(123)
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
+    def test_terminate_server_array_instances_422_error(self):
+        def action(*args, **kwargs):
+            response = mock.MagicMock()
+            response.status_code = 422
+            raise requests.exceptions.HTTPError(response=response)
+        self.mock_client.server_arrays.multi_terminate.side_effect = action
+
+        ret = yield self.client.terminate_server_array_instances(123)
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
+    def test_wait_for_task(self):
+        # Create some fake task outputs
+        queued = mock.MagicMock(name='mock_output_queued')
+        queued.soul = {'name': 'fake_task',
+                       'summary': 'queued: still going'}
+
+        success = mock.MagicMock(name='mock_output_success')
+        success.soul = {'name': 'fake_task',
+                        'summary': 'success: done'}
+
+        failed = mock.MagicMock(name='mock_output_failed')
+        failed.soul = {'name': 'fake_task',
+                       'summary': 'failed: crap'}
+
+        in_process = mock.MagicMock(name='mock_output_failed')
+        in_process.soul = {'name': 'fake_task',
+                           'summary': '30%: in process'}
+
+        # Test 1... task succeeds
+        mock_task = mock.MagicMock(name='fake task')
+        mock_task.self.show.side_effect = [queued, in_process, success]
+        ret = yield self.client.wait_for_task(mock_task, sleep=0.1)
+        self.assertEquals(ret, True)
+        mock_task.assert_has_calls(
+            [mock.call.self.show(), mock.call.self.show(),
+             mock.call.self.show()])
+
+        # Test 2... task fails
+        mock_task = mock.MagicMock(name='fake task')
+        mock_task.self.show.side_effect = [queued, in_process, failed]
+        ret = yield self.client.wait_for_task(mock_task, sleep=0.1)
+        self.assertEquals(ret, False)
+        mock_task.assert_has_calls(
+            [mock.call.self.show(), mock.call.self.show(),
+             mock.call.self.show()])
+
+    @testing.gen_test
+    def test_thread_coroutine(self):
+        # Create a method that we'll call and have it return
+        mock_thing = mock.MagicMock()
+        mock_thing.action.return_value = True
+
+        ret = yield api.thread_coroutine(mock_thing.action)
+        self.assertEquals(ret, True)
+        mock_thing.action.assert_called_once_with()
+
+        # Now, lets have the function actually fail with a requests exception
+        mock_thing = mock.MagicMock()
+        mock_thing.action.side_effect = [
+            requests.exceptions.ConnectionError('doh'), True]
+
+        ret = yield api.thread_coroutine(mock_thing.action)
+        self.assertEquals(ret, True)
+        mock_thing.action.assert_called_twice_with()
+
+        # Finally, make it fail twice..
+        mock_thing = mock.MagicMock()
+        mock_thing.action.side_effect = [
+            requests.exceptions.ConnectionError('doh'),
+            requests.exceptions.ConnectionError('really_doh')]
+
+        with self.assertRaises(requests.exceptions.ConnectionError):
+            yield api.thread_coroutine(mock_thing.action)
+        mock_thing.action.assert_called_twice_with()

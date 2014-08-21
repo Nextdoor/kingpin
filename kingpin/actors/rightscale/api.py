@@ -32,9 +32,12 @@ operations that the Actors need.
 
 from os import path
 import logging
+import time
 
+from tornado import ioloop
 from tornado import gen
 import futures
+import requests
 
 from rightscale import util as rightscale_util
 import rightscale
@@ -77,7 +80,19 @@ def thread_coroutine(func, *args, **kwargs):
     Args:
         func: Function reference
     """
-    ret = yield THREADPOOL.submit(func, *args, **kwargs)
+    try:
+        ret = yield THREADPOOL.submit(func, *args, **kwargs)
+    except requests.exceptions.ConnectionError:
+        # The requests library can fail to fetch sometimes and its almost
+        # always OK to re-try the fetch at least once. If the fetch fails a
+        # second time, we allow it to be raised.
+        #
+        # This should be patched in the python-rightscale library so it
+        # auto-retries, but until then we have a patch here to at least allow
+        # one automatic retry.
+        log.debug('Fetch failed. Will retry one time.')
+        ret = yield THREADPOOL.submit(func, *args, **kwargs)
+
     raise gen.Return(ret)
 
 
@@ -176,6 +191,23 @@ class RightScale(object):
         raise gen.Return(new_array)
 
     @gen.coroutine
+    def destroy_server_array(self, array_id):
+        """Destroys a Server Array.
+
+        Executes this API call:
+            http://reference.rightscale.com/api1.5/resources/
+            ResourceServerArrays.html#update
+
+        Args:
+            array_id: ServerArray ID number
+        """
+        log.debug('Destroying ServerArray %s' % array_id)
+        yield thread_coroutine(
+            self._client.server_arrays.destroy, res_id=array_id)
+        log.debug('Array Destroyed')
+        raise gen.Return()
+
+    @gen.coroutine
     def update_server_array(self, array, params):
         """Updates a ServerArray with the supplied parameters.
 
@@ -194,3 +226,98 @@ class RightScale(object):
                   (array.soul['name'], params))
         yield thread_coroutine(array.self.update, params=params)
         raise gen.Return()
+
+    @gen.coroutine
+    def get_server_array_current_instances(self, array):
+        """Returns a list of ServerArray current running instances.
+
+        Makes this API Call:
+
+            http://reference.rightscale.com/api1.5/resources/
+            ResourceServerArrays.html#current_instances
+
+        Args:
+            array: rightscale.Resource object to count
+
+        Raises:
+            gen.Return([<list of rightscale.Resource objects>])
+        """
+        log.debug('Searching for current instances of ServerArray (%s)' %
+                  array.soul['name'])
+        params = {'filter[]': ['state!=terminated']}
+        current_instances = yield thread_coroutine(
+            array.current_instances.index, params=params)
+        raise gen.Return(current_instances)
+
+    @gen.coroutine
+    def terminate_server_array_instances(self, array_id):
+        """Executes a terminate on all of the current running instances.
+
+        Makes this API Call:
+
+            http://reference.rightscale.com/api1.5/resources/
+            ResourceServerArrays.html#multi_terminate
+
+        Returns as soon as RightScale claims that the operation is completed --
+        but this only means that the servers have been 'told' to shut down, not
+        that they are actually terminated yet.
+
+        Args:
+            array_id: ServerArray ID Number
+
+        Raises:
+            gen.Return(<action execution resource>)
+        """
+        log.debug('Terminating all instances of ServerArray (%s)' % array_id)
+        try:
+            task = yield thread_coroutine(
+                self._client.server_arrays.multi_terminate, res_id=array_id)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 422:
+                # There are no instances to terminate.
+                raise gen.Return()
+
+        # We don't care if it succeeded -- the multi-terminate job fails
+        # all the time when there are hosts still in a 'terminated state'
+        # when this call is made. Just wait for it to finish.
+        yield self.wait_for_task(task)
+
+        raise gen.Return()
+
+    @gen.coroutine
+    def wait_for_task(self, task, sleep=5):
+        """Monitors a RightScale task for completion.
+
+        RightScale tasks are provided as URLs that we can query for the
+        run-status of the task. This method repeatedly queries a task for
+        completion (every 5 seconds), and returns when the task has finished.
+
+        TODO: Add a task-timeout option.
+
+        Args:
+            sleep: Integer of time to wait between status checks
+
+        Raises:
+            gen.Return(<booelan>)
+        """
+        while True:
+            # Get the task status
+            output = yield thread_coroutine(task.self.show)
+            summary = output.soul['summary']
+            log.debug('Got updated task: %s' % output.soul)
+
+            if 'success' in summary:
+                status = True
+                break
+
+            if 'failed' in summary:
+                status = False
+                break
+
+            log.debug('Task waiting: %s' % output.soul['summary'])
+            yield gen.Task(ioloop.IOLoop.current().add_timeout,
+                           time.time() + sleep)
+
+        log.debug('Task finished successfully: %s' % status)
+
+        raise gen.Return(status)
