@@ -272,14 +272,14 @@ class TestUpdateActor(testing.AsyncTestCase):
 class TestDestroyActor(testing.AsyncTestCase):
 
     def setUp(self, *args, **kwargs):
-        super(TestUpdateActor, self).setUp()
+        super(TestDestroyActor, self).setUp()
         base.TOKEN = 'unittest'
 
         # Create the actor
-        self.actor = server_array.Update(
+        self.actor = server_array.Destroy(
             'Destroy',
             {'array': 'unittestarray',
-             'params': {'terminate': True}})
+             'terminate': True})
 
         # Patch the actor so that we use the client mock
         self.client_mock = mock.MagicMock()
@@ -292,11 +292,158 @@ class TestDestroyActor(testing.AsyncTestCase):
         self.client_mock.login.side_effect = login
 
     @testing.gen_test
+    def test_terminate_all_instances(self):
+        array_mock = mock.MagicMock(name='unittest')
+        array_mock.soul = {'name': 'unittest'}
+        array_mock.self.path = '/a/b/1234'
+
+        @gen.coroutine
+        def term(self, *args, **kwargs):
+            raise gen.Return()
+        self.client_mock.terminate_server_array_instances.side_effect = term
+
+        ret = yield self.actor._terminate_all_instances(array_mock)
+        self.assertEquals(ret, None)
+        (self.client_mock.terminate_server_array_instances.
+            assert_has_calls([mock.call(array_mock)]))
+
+    @testing.gen_test
+    def test_terminate_all_instances_dry(self):
+        self.actor._dry = True
+        array_mock = mock.MagicMock(name='unittest')
+        array_mock.soul = {'name': 'unittest'}
+        array_mock.self.path = '/a/b/1234'
+
+        @gen.coroutine
+        def term(self, *args, **kwargs):
+            raise gen.Return()
+        self.client_mock.terminate_server_array_instances.side_effect = term
+
+        ret = yield self.actor._terminate_all_instances(array_mock)
+        self.assertEquals(ret, None)
+        (self.client_mock.terminate_server_array_instances.
+            assert_has_calls([]))
+
+    @testing.gen_test
+    def test_terminate_all_instances_no_terminate(self):
+        self.actor._terminate = False
+        array_mock = mock.MagicMock(name='unittest')
+        array_mock.soul = {'name': 'unittest'}
+        array_mock.self.path = '/a/b/1234'
+
+        @gen.coroutine
+        def term(self, *args, **kwargs):
+            raise gen.Return()
+        self.client_mock.terminate_server_array_instances.side_effect = term
+
+        ret = yield self.actor._terminate_all_instances(array_mock)
+        self.assertEquals(ret, None)
+        (self.client_mock.terminate_server_array_instances.
+            assert_has_calls([]))
+
+    @testing.gen_test
+    def test_wait_until_empty(self):
+        array_mock = mock.MagicMock(name='unittest')
+        array_mock.soul = {'name': 'unittest'}
+        array_mock.self.path = '/a/b/1234'
+
+        fake_servers = ['a', 'b', 'c', 'd']
+        mock_tracker = mock.MagicMock()
+
+        @gen.coroutine
+        def get(self, *args, **kwargs):
+            fake_servers.pop()
+            mock_tracker.track_me()
+            raise gen.Return(fake_servers)
+
+        self.client_mock.get_server_array_current_instances = get
+
+        ret = yield self.actor._wait_until_empty(array_mock, sleep=0.1)
+        mock_tracker.assert_has_calls([
+            mock.call.track_me(), mock.call.track_me(),
+            mock.call.track_me(), mock.call.track_me()])
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_wait_until_empty_dry(self):
+        self.actor._dry = True
+        array_mock = mock.MagicMock(name='unittest')
+        array_mock.soul = {'name': 'unittest'}
+        array_mock.self.path = '/a/b/1234'
+        ret = yield self.actor._wait_until_empty(array_mock)
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_destroy_array(self):
+        array_mock = mock.MagicMock(name='unittest')
+        array_mock.soul = {'name': 'unittest'}
+        array_mock.self.path = '/a/b/1234'
+
+        @gen.coroutine
+        def destroy(self, *args, **kwargs):
+            raise gen.Return()
+        self.client_mock.destroy_server_array.side_effect = destroy
+
+        ret = yield self.actor._destroy_array(array_mock)
+        self.client_mock.assert_has_calls(
+            [mock.call.destroy_server_array(array_mock)])
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_destroy_array_dry(self):
+        self.actor._dry = True
+        array_mock = mock.MagicMock(name='unittest')
+        array_mock.soul = {'name': 'unittest'}
+        array_mock.self.path = '/a/b/1234'
+        ret = yield self.actor._destroy_array(array_mock)
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
     def test_execute(self):
         self.actor._dry = False
-        mocked_array = mock.MagicMock(name='unittestarray')
+        initial_array = mock.MagicMock(name='unittestarray')
+        updated_array = mock.MagicMock(name='unittestarray-updated')
 
         @gen.coroutine
         def yield_array(self, *args, **kwargs):
-            raise gen.Return(mocked_array)
+            raise gen.Return(initial_array)
         self.actor._find_server_arrays = yield_array
+
+        @gen.coroutine
+        def update_array(array, params):
+            array.updated(params)
+            raise gen.Return(updated_array)
+        self.client_mock.update_server_array.side_effect = update_array
+
+        @gen.coroutine
+        def term_array(array):
+            array.terminated()
+            raise gen.Return()
+        self.actor._terminate_all_instances = term_array
+
+        @gen.coroutine
+        def wait(array):
+            array.waited()
+            raise gen.Return()
+        self.actor._wait_until_empty = wait
+
+        @gen.coroutine
+        def destroy(array):
+            array.destroyed()
+            raise gen.Return()
+        self.actor._destroy_array = destroy
+
+        ret = yield self.actor._execute()
+
+        # Verify that the array object would have been patched
+        self.client_mock.update_server_array.assert_called_once_with(
+            initial_array,  {'server_array[state]': 'disabled'})
+        initial_array.updated.assert_called_once_with(
+            {'server_array[state]': 'disabled'})
+
+        # Now verify that each of the steps (terminate, wait, destroyed) were
+        # all called.
+        initial_array.terminated.assert_called_once_with()
+        initial_array.waited.assert_called_once_with()
+        initial_array.destroyed.assert_called_once_with()
+        self.assertEquals(ret, True)

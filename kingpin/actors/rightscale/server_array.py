@@ -301,7 +301,9 @@ class Destroy(ServerArrayBaseActor):
         # First, find the array we're going to be terminating.
         array = yield self._find_server_arrays(self._array)
 
-        # Disable the array so that no new instances launch
+        # Disable the array so that no new instances launch. Ignore the result
+        # of this opertaion -- as long as it succeeds, we're happy. No need to
+        # store the returned server array object.
         self._log(logging.INFO, 'Disabling Array "%s"' % self._array)
         params = self._generate_rightscale_params(
             'server_array', {'state': 'disabled'})
