@@ -241,6 +241,11 @@ class RightScale(object):
             http://reference.rightscale.com/api1.5/resources/
             ResourceServerArrays.html#current_instances
 
+        Valid Filters:
+
+            http://reference.rightscale.com/api1.5/resources/
+            ResourceInstances.html#index_filters
+
         Args:
             array: rightscale.Resource object to count
             filter: Filter string to use to find instances.
