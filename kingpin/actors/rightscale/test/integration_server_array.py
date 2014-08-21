@@ -29,7 +29,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
     def setUp(self, *args, **kwargs):
         super(IntegrationServerArray, self).setUp(*args, **kwargs)
         self.template_array = 'kingpin-integration-testing'
-        self.clone_name = 'kingpin-integratin-testing-clone'
+        self.clone_name = 'kingpin-integration-testing-clone'
 
     @testing.gen_test(timeout=10)
     def integration_update_with_invalid_params(self):
