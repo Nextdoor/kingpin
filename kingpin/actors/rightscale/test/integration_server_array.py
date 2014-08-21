@@ -51,12 +51,38 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(True, ret)
 
-    @testing.gen_test(timeout=30)
+    @testing.gen_test(timeout=1800)
     def integration_real_clone(self):
         # Clone the array first
         actor = server_array.Clone('Clone %s' % self.template_array,
                                    {'source': self.template_array,
                                     'dest': self.clone_name})
+        ret = yield actor.execute()
+        self.assertEquals(True, ret)
+
+        # Patch the array with some new min_instance settings, then launch it
+        actor = server_array.Update(
+            'Update %s' % self.clone_name,
+            {'array': self.clone_name,
+                'params': {
+                    'elasticity_params': {
+                        'bounds': {
+                            'min_count': '2',
+                            'max_count': '2'
+                        }
+                    },
+                    'status': 'enabled',
+                    'description': 'This is pretty nifty'
+                }
+             }
+        )
+        ret = yield actor.execute()
+        self.assertEquals(True, ret)
+
+        # Launch the machines and wait until they boot
+        actor = server_array.Launch(
+            'Launch %s' % self.clone_name,
+            {'array': self.clone_name})
         ret = yield actor.execute()
         self.assertEquals(True, ret)
 
