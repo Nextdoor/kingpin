@@ -94,7 +94,7 @@ class BaseActor(object):
         raise exceptions.InvalidOptions(
             'Missing options: %s' % ' '.join(missing_options))
 
-    # TODa: Write an execution wrapper that logs the time it takes for
+    # TODO: Write an execution wrapper that logs the time it takes for
     # steps to finish. Wrap execute() with it.
 
     @gen.coroutine
