@@ -115,6 +115,7 @@ class IntegrationTestCommand(UnitTestCommand):
 
 
 class CleanHook(clean):
+
     def run(self):
         clean.run(self)
 
@@ -126,6 +127,7 @@ class CleanHook(clean):
 
 
 class SourceDistHook(sdist):
+
     def run(self):
         with open('version.rst', 'w') as f:
             f.write(':Version: %s\n' % __version__)
@@ -152,8 +154,9 @@ setup(
     tests_require=open('requirements.test.txt').readlines(),
     setup_requires=open('requirements.txt').readlines(),
     install_requires=open('requirements.txt').readlines(),
-    dependency_links = [
-      'https://github.com/equeny/tornadomail/archive/e413b81450bf94b4db3cad1815affb8b2dce6b41.zip#egg=tornadomail-master',
+    dependency_links=[
+        'https://github.com/equeny/tornadomail/archive/e413b81450bf94b4db3cad1815affb8b2dce6b41.zip#egg=tornadomail',
+        'https://github.com/diranged/python-rightscale-1/archive/fix_reponse_to_202s.zip#egg=python-rightscale',
     ],
     entry_points={
         'console_scripts': [

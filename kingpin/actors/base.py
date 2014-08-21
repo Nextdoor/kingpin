@@ -43,6 +43,9 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 class BaseActor(object):
     """Abstract base class for Actor objects."""
+
+    required_options = []
+
     def __init__(self, desc, options, dry=False):
         """Initializes the Actor.
 
@@ -56,7 +59,40 @@ class BaseActor(object):
         self._desc = desc
         self._options = options
         self._dry = dry
-        log.debug('[%s] %s Initialized' % (self._desc, self._type))
+        self._validate_options(options)
+        self._log(logging.DEBUG, '%s Initialized' % self._type)
+
+    def _log(self, level, message):
+        """Wrapper that provides consistent logging between actors.
+
+        Args:
+            level: logging.LEVEL object indicating the log level
+            message: String of the message to log
+        """
+        dry_str = ' (DRY Mode)' if self._dry else ''
+
+        msg = '[%s%s] %s' % (self._desc, dry_str, message)
+        log.log(level, msg)
+
+    def _validate_options(self, options):
+        """Validate that all the required options were passed in.
+
+        Args:
+            options: A dictionary of options.
+
+        Raises:
+            exceptionsInvalidOptions
+        """
+        missing_options = []
+        for option in self.required_options:
+            if option not in options:
+                missing_options.append(option)
+
+        if not missing_options:
+            return
+
+        raise exceptions.InvalidOptions(
+            'Missing options: %s' % ' '.join(missing_options))
 
     # TODO: Write an execution wrapper that logs the time it takes for
     # steps to finish. Wrap execute() with it.
@@ -68,9 +104,9 @@ class BaseActor(object):
         Raises:
             gen.Return(result)
         """
-        log.debug('[%s] Beginning execution' % self._desc)
+        self._log(logging.DEBUG, 'Beginning execution')
         result = yield self._execute()
-        log.debug('[%s] Returning result: %s' % (self._desc, result))
+        self._log(logging.DEBUG, 'Returning result: %s' % result)
         raise gen.Return(result)
 
 
@@ -135,7 +171,7 @@ class HTTPBaseActor(BaseActor):
 
         # Now generate the URL
         full_url = httputil.url_concat(url, args)
-        log.debug('[%s] Generated URL: %s' % (self._desc, full_url))
+        self._log(logging.DEBUG, 'Generated URL: %s' % full_url)
 
         return full_url
 
@@ -152,8 +188,8 @@ class HTTPBaseActor(BaseActor):
         """
 
         # Generate the full request URL and log out what we're doing...
-        log.debug('[%s] Making HTTP request to %s with data: %s' %
-                  (self._desc, url, post))
+        self._log(logging.DEBUG, 'Making HTTP request to %s with data: %s' %
+                  (url, post))
 
         # Create the http_request object
         http_client = self._get_http_client()

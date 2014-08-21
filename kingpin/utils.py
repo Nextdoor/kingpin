@@ -21,11 +21,22 @@ __author__ = 'Matt Wise (matt@nextdoor.com)'
 from logging import handlers
 import os
 import logging
+import time
+
+from tornado import gen
+from tornado import ioloop
+import futures
+import requests
 
 log = logging.getLogger(__name__)
 
 # Constants for some of the utilities below
 STATIC_PATH_NAME = 'static'
+
+# Allow up to 10 threads to be executed at once. This is arbitrary, but we
+# want to prvent the app from going thread-crazy.
+THREADPOOL_SIZE = 10
+THREADPOOL = futures.ThreadPoolExecutor(THREADPOOL_SIZE)
 
 
 def strToClass(string):
@@ -107,3 +118,87 @@ def setupLogger(level=logging.WARNING, syslog=None):
     logger.addHandler(handler)
 
     return logger
+
+
+@gen.coroutine
+def thread_coroutine(func, *args, **kwargs):
+    """Simple ThreadPool executor for Tornado.
+
+    This method leverages the back-ported Python futures
+    package (https://pypi.python.org/pypi/futures) to spin up
+    a ThreadPool and then kick actions off in the thread pool.
+
+    This is a simple and relatively graceful way of handling
+    spawning off of synchronous API calls from the RightScale
+    client below without having to do a full re-write of anything.
+
+    This should not be used at high volume... but for the
+    use case below, its reasonable.
+
+    Example Usage:
+        >>> @gen.coroutine
+        ... def login(self):
+        ...     ret = yield thread_coroutine(self._client.login)
+        ...     raise gen.Return(ret)
+
+    Args:
+        func: Function reference
+    """
+    try:
+        ret = yield THREADPOOL.submit(func, *args, **kwargs)
+    except requests.exceptions.ConnectionError:
+        # The requests library can fail to fetch sometimes and its almost
+        # always OK to re-try the fetch at least once. If the fetch fails a
+        # second time, we allow it to be raised.
+        #
+        # This should be patched in the python-rightscale library so it
+        # auto-retries, but until then we have a patch here to at least allow
+        # one automatic retry.
+        log.debug('Fetch failed. Will retry one time.')
+        ret = yield THREADPOOL.submit(func, *args, **kwargs)
+
+    raise gen.Return(ret)
+
+
+def retry(excs, retries=3):
+    """Coroutine-compatible Retry Decorator.
+
+    This decorator provides a simple retry mechanism that looks for a
+    particular set of exceptions and retries async tasks in the event that
+    those exceptions were caught.
+
+    Example usage:
+        >>> @gen.coroutine
+        ... @retry(excs=(requests.exceptions.HTTPError), retries=3)
+        ... def login(self):
+        ...     yield thread_coroutine(self._client.login)
+        ...     raise gen.Return()
+
+    Args:
+        excs: A single (or tuple) exception type to catch.
+        retries: The number of times to try the operation in total.
+    """
+    def _retry_on_exc(f):
+        def wrapper(*args, **kwargs):
+            i = 1
+            while True:
+                try:
+                    log.debug('Try (%s/%s) of %s(%s, %s)' %
+                              (i, retries, f, args, kwargs))
+                    ret = yield gen.coroutine(f)(*args, **kwargs)
+                    log.debug('Result: %s' % ret)
+                    raise gen.Return(ret)
+                except excs as e:
+                    log.error('Exception raised on try %s: %s' % (i, e))
+
+                    if i >= retries:
+                        log.debug('Raising exception: %s' % e)
+                        raise e
+
+                    log.debug('Retrying in 0.25s..')
+                    i += 1
+                    yield gen.Task(ioloop.IOLoop.current().add_timeout,
+                                   time.time() + 0.25)
+                log.debug('Retrying..')
+        return wrapper
+    return _retry_on_exc

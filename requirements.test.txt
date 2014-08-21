@@ -3,3 +3,9 @@ mock
 pep8
 pyflakes
 coverage
+
+# Hack to get the 'requests' module installed before running
+# the setup.py install command -- for some reason this command
+# is not currently pulling in the 'requests' dependency from the
+# python-rightscale module.
+requests

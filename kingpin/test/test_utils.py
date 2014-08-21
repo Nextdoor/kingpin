@@ -1,13 +1,17 @@
 import os
 import logging
+import mock
 
+from tornado import gen
 from tornado import testing
 from tornado.testing import unittest
+import requests
 
 from kingpin import utils
 
 
 class TestUtils(unittest.TestCase):
+
     def testStrToClass(self):
         class_string_name = 'tornado.testing.AsyncTestCase'
         returned_class = utils.strToClass(class_string_name)
@@ -20,6 +24,7 @@ class TestUtils(unittest.TestCase):
 
 
 class TestSetupLoggerUtils(unittest.TestCase):
+
     def setUp(self):
         utils.setupLogger()
 
@@ -55,3 +60,56 @@ class TestSetupLoggerUtils(unittest.TestCase):
         self.assertEquals(type(logger.handlers[0]),
                           logging.handlers.SysLogHandler)
         self.assertEquals(logger.handlers[0].facility, 'local0')
+
+
+class TestCoroutineHelpers(testing.AsyncTestCase):
+
+    @testing.gen_test
+    def test_thread_coroutine(self):
+        # Create a method that we'll call and have it return
+        mock_thing = mock.MagicMock()
+        mock_thing.action.return_value = True
+
+        ret = yield utils.thread_coroutine(mock_thing.action)
+        self.assertEquals(ret, True)
+        mock_thing.action.assert_called_once_with()
+
+        # Now, lets have the function actually fail with a requests exception
+        mock_thing = mock.MagicMock()
+        mock_thing.action.side_effect = [
+            requests.exceptions.ConnectionError('doh'), True]
+
+        ret = yield utils.thread_coroutine(mock_thing.action)
+        self.assertEquals(ret, True)
+        mock_thing.action.assert_called_twice_with()
+
+        # Finally, make it fail twice..
+        mock_thing = mock.MagicMock()
+        mock_thing.action.side_effect = [
+            requests.exceptions.ConnectionError('doh'),
+            requests.exceptions.ConnectionError('really_doh')]
+
+        with self.assertRaises(requests.exceptions.ConnectionError):
+            yield utils.thread_coroutine(mock_thing.action)
+        mock_thing.action.assert_called_twice_with()
+
+    @testing.gen_test
+    def test_retry_with_backoff(self):
+
+        # Define a method that will fail every time
+        @gen.coroutine
+        @utils.retry(excs=(requests.exceptions.HTTPError), retries=3)
+        def raise_exception():
+            raise requests.exceptions.HTTPError('Failed')
+
+        with self.assertRaises(requests.exceptions.HTTPError):
+            yield raise_exception()
+
+        # Now a method that works
+        @gen.coroutine
+        @utils.retry(excs=(requests.exceptions.HTTPError), retries=3)
+        def work():
+            raise gen.Return(True)
+
+        ret = yield work()
+        self.assertEquals(ret, True)
