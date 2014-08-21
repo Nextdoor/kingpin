@@ -25,7 +25,6 @@ from tornado import gen
 from tornado import ioloop
 
 from kingpin.actors import base
-from kingpin.actors import exceptions
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +33,8 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 class Sleep(base.BaseActor):
     """Simple actor that just sleeps for an arbitrary amount of time."""
+
+    required_options = ['sleep']
 
     def __init__(self, *args, **kwargs):
         """Initializes the Actor.
@@ -44,9 +45,6 @@ class Sleep(base.BaseActor):
               { 'sleep': <int of time to sleep> }
         """
         super(Sleep, self).__init__(*args, **kwargs)
-
-        if 'sleep' not in self._options:
-            raise exceptions.InvalidOptions('Missing "sleep" option.')
 
         self._sleep = self._options['sleep']
 

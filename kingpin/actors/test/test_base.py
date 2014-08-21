@@ -2,6 +2,7 @@
 import json
 import time
 import mock
+import logging
 import StringIO
 
 from tornado import gen
@@ -45,12 +46,40 @@ class TestBaseActor(testing.AsyncTestCase):
         self.actor._execute = self.sleep
 
     @testing.gen_test
+    def test_validate_options(self):
+        self.actor.required_options = ['test']
+        with self.assertRaises(exceptions.InvalidOptions):
+            ret = self.actor._validate_options({'a': 'b'})
+
+        self.actor.required_options = ['test']
+        ret = self.actor._validate_options({'test': 'b'})
+        self.assertEquals(None, ret)
+
+        self.actor.required_options = ['test', 'test2']
+        ret = self.actor._validate_options({'test': 'b', 'test2': 'b'})
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
     def test_execute(self):
         # Call the executor and test it out
         res = yield self.actor.execute()
 
         # Make sure we fired off an alert.
         self.assertEquals(res, True)
+
+    @mock.patch.object(base, 'log')
+    def test_log_dry(self, mocked_log):
+        self.actor._dry = True
+        self.actor._log(logging.ERROR, 'unittest')
+        mocked_log.log.assert_called_once_with(
+            40, '[Unit Test Action (DRY Mode)] unittest')
+
+    @mock.patch.object(base, 'log')
+    def test_log(self, mocked_log):
+        self.actor._dry = False
+        self.actor._log(logging.ERROR, 'unittest')
+        mocked_log.log.assert_called_once_with(
+            40, '[Unit Test Action] unittest')
 
 
 class TestHTTPBaseActor(testing.AsyncTestCase):
