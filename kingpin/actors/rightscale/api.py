@@ -56,6 +56,7 @@ THREADPOOL_SIZE = 10
 THREADPOOL = futures.ThreadPoolExecutor(THREADPOOL_SIZE)
 
 
+# TODO: Move this into its own utils package and document.
 @gen.coroutine
 def thread_coroutine(func, *args, **kwargs):
     """Simple ThreadPool executor for Tornado.
@@ -96,6 +97,34 @@ def thread_coroutine(func, *args, **kwargs):
     raise gen.Return(ret)
 
 
+# TODO: Move this into its own utils package and document.
+def retry(excs, retries=3):
+    def _retry_on_exc(f):
+        def wrapper(*args, **kwargs):
+            i = 1
+            while True:
+                try:
+                    log.debug('Try (%s/%s) of %s(%s, %s)' %
+                              (i, retries, f, args, kwargs))
+                    ret = yield gen.coroutine(f)(*args, **kwargs)
+                    log.debug('Result: %s' % ret)
+                    raise gen.Return(ret)
+                except excs as e:
+                    log.error('Exception raised on try %s: %s' % (i, e))
+
+                    if i >= retries:
+                        log.debug('Raising exception: %s' % e)
+                        raise e
+
+                    log.debug('Retrying in 0.25s..')
+                    i += 1
+                    yield gen.Task(ioloop.IOLoop.current().add_timeout,
+                                   time.time() + 0.25)
+                log.debug('Retrying..')
+        return wrapper
+    return _retry_on_exc
+
+
 class ServerArrayException(Exception):
 
     """Raised when an operation on or looking for a ServerArray fails"""
@@ -118,6 +147,7 @@ class RightScale(object):
         # Quiet down the urllib requests library, its noisy even in
         # INFO mode and muddies up the logs.
         r_log = logging.getLogger('requests.packages.urllib3.connectionpool')
+#        r_log.setLevel(logging.DEBUG)
         r_log.setLevel(logging.WARNING)
 
         log.debug('%s initialized (token=<hidden>, endpoint=%s)' %
@@ -194,9 +224,10 @@ class RightScale(object):
     def destroy_server_array(self, array_id):
         """Destroys a Server Array.
 
-        Executes this API call:
+        Makes this API Call:
+
             http://reference.rightscale.com/api1.5/resources/
-            ResourceServerArrays.html#update
+            ResourceServerArrays.html#destroy
 
         Args:
             array_id: ServerArray ID number
@@ -220,15 +251,41 @@ class RightScale(object):
             array: rightscale.Resource object to update.
             params: The parameters to update. eg:
                 { 'server_array[name]': 'new name' }
+
+        Raises:
+            gen.Return(<updated rightscale array object>)
         """
 
         log.debug('Patching ServerArray (%s) with new params: %s' %
                   (array.soul['name'], params))
         yield thread_coroutine(array.self.update, params=params)
-        raise gen.Return()
+        updated_array = yield thread_coroutine(array.self.show)
+        raise gen.Return(updated_array)
 
     @gen.coroutine
-    def get_server_array_current_instances(self, array):
+    @retry(excs=requests.exceptions.HTTPError, retries=3)
+    def launch_server_array(self, array_id):
+        """Launches an instance of a ServerArray..
+
+        Makes this API Call:
+
+            http://reference.rightscale.com/api1.5/resources/
+            ResourceServerArrays.html#launch
+
+        Args:
+            array_id: ServerArray ID number
+
+        Raises:
+            gen.Return(<rightscale.Resource of the newly launched instance>)
+        """
+        log.debug('Launching a new instance of ServerArray %s' % array_id)
+        ret = yield thread_coroutine(
+            self._client.server_arrays.launch, res_id=array_id)
+        raise gen.Return(ret)
+
+    @gen.coroutine
+    def get_server_array_current_instances(
+            self, array, filter='state!=terminated'):
         """Returns a list of ServerArray current running instances.
 
         Makes this API Call:
@@ -238,13 +295,14 @@ class RightScale(object):
 
         Args:
             array: rightscale.Resource object to count
+            filter: Filter string to use to find instances.
 
         Raises:
             gen.Return([<list of rightscale.Resource objects>])
         """
         log.debug('Searching for current instances of ServerArray (%s)' %
                   array.soul['name'])
-        params = {'filter[]': ['state!=terminated']}
+        params = {'filter[]': [filter]}
         current_instances = yield thread_coroutine(
             array.current_instances.index, params=params)
         raise gen.Return(current_instances)
@@ -310,7 +368,15 @@ class RightScale(object):
                 status = True
                 break
 
+            if 'completed' in summary:
+                status = True
+                break
+
             if 'failed' in summary:
+                status = False
+                break
+
+            if 'queued' not in summary and '%' not in summary:
                 status = False
                 break
 

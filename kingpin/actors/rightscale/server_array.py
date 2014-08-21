@@ -320,3 +320,130 @@ class Destroy(ServerArrayBaseActor):
         yield self._destroy_array(array_id)
 
         raise gen.Return(True)
+
+
+class Launch(ServerArrayBaseActor):
+
+    """Launches the min_instances in a RightScale Server Array."""
+
+    required_options = ['array']
+
+    def __init__(self, *args, **kwargs):
+        """Initializes the Actor.
+
+        # TODO: Add a 'wait timer' that allows the execution to fail if it
+        # takes too long to launch the instances.
+
+        Args:
+            desc: String description of the action being executed.
+            options: Dictionary with the following example settings:
+              { 'array': <server array name> }
+        """
+        super(Launch, self).__init__(*args, **kwargs)
+
+        self._array = self._options['array']
+
+    @gen.coroutine
+    def _wait_until_healthy(self, array, sleep=60):
+        """Sleep until a server array has its min_count servers running.
+
+        This loop monitors the server array for its current live instance count
+        and waits until the count hits zero before progressing.
+
+        TODO: Add a timeout setting.
+
+        Args:
+            array: rightscale.Resource array object
+            sleep: Integer time to sleep between checks (def: 60)
+        """
+        if self._dry:
+            self._log(logging.WARNING,
+                      'Pretending that array %s instances are launched.'
+                      % array.soul['name'])
+            raise gen.Return()
+
+        # Get the current min_count setting from the ServerArray object
+        min = int(array.soul['elasticity_params']['bounds']['min_count'])
+
+        while True:
+            instances = yield self._client.get_server_array_current_instances(
+                array, filter='state==operational')
+            count = len(instances)
+            self._log(logging.INFO, '%s instances found' % count)
+
+            if min <= count:
+                raise gen.Return()
+
+            # At this point, sleep
+            self._log(logging.DEBUG, 'Sleeping..')
+            yield gen.Task(ioloop.IOLoop.current().add_timeout,
+                           time.time() + sleep)
+
+    @gen.coroutine
+    def _launch_min_instances(self, array, array_id):
+        # Get the current min_count setting from the ServerArray object
+        min = int(array.soul['elasticity_params']['bounds']['min_count'])
+
+        if self._dry:
+            self._log(logging.WARNING, 'Would have launched instances')
+            raise gen.Return()
+
+        # Creating a list to hold our launch actions. We'll yield them all at
+        # once when we're done building them.
+        actions = []
+
+
+        # NOTE: The smart thing to do here is to simultaneously click 'launch'
+        # for every necessary instance so they all launch at once. These API
+        # calls take 5-7 seconds to complete, so this would be much faster than
+        # doing these calls synchronously.
+        #
+        # Unfortunately, RightScales ServerArray API only allows a single call
+        # to /launch at any time on a single ServerArray. This means that these
+        # calls must be synchronous for now.
+        #
+        # for i in xrange(0, min):
+        #     actions.append(self._client.launch_server_array(array_id))
+        # # Yield them all
+        # ret = yield actions
+
+        # Build 'min' number of launch clicks
+        for i in xrange(0, min):
+            yield self._client.launch_server_array(array_id)
+
+        raise gen.Return(ret)
+
+    @gen.coroutine
+    def _execute(self):
+        # First things first, login to RightScale asynchronously to
+        # pre-populate the API attributes that are dynamically generated. This
+        # is a hack, and in the future should likely turn into a smart
+        # decorator.
+        yield self._client.login()
+
+        # First, find the array we're going to be launching....
+        array = yield self._find_server_arrays(self._array)
+        array_id = self._client.get_res_id(array)
+
+        # Enable the array right away. This means that RightScale will
+        # auto-scale-up the array as soon as their next scheduled auto-scale
+        # run hits (usually 60s). Store the newly updated array.
+        self._log(logging.INFO, 'Enabling Array "%s"' % self._array)
+        params = self._generate_rightscale_params(
+            'server_array', {'state': 'enabled'})
+        array = yield self._client.update_server_array(array, params)
+
+        # Launch all of the instances we want as quickly as we can. Note, we
+        # don't actually store the result here because we don't care about the
+        # returned instances themselves. If we launch 10, and 1 fails, we will
+        # rely on RightScale to re-launch that 1 host, rather than handing it
+        # in-code. Instead, our 'launch clicking' here is just a way to get the
+        # ball rolling as quickly as possible before rightscales
+        # auto-array-scaling kicks in.
+        yield self._launch_min_instances(array, array_id)
+
+        # Now, wait until the number of healthy instances in the array matches
+        # the min_count (or is greater than) of that array.
+        yield self._wait_until_healthy(array)
+
+        raise gen.Return(True)

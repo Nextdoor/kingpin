@@ -101,12 +101,13 @@ class TestRightScale(testing.AsyncTestCase):
         # Create a mock and the params we're going to pass in
         sa_mock = mock.MagicMock()
         sa_mock.self.update.return_value = True
+        sa_mock.self.show.return_value = 'test'
         params = {'server_array[name]': 'new_name'}
 
         ret = yield self.client.update_server_array(sa_mock, params)
         sa_mock.self.update.assert_called_once_with(params=params)
 
-        self.assertEquals(ret, None)
+        self.assertEquals(ret, 'test')
 
     @testing.gen_test
     def test_get_server_array_current_instances(self):
@@ -214,3 +215,24 @@ class TestRightScale(testing.AsyncTestCase):
         with self.assertRaises(requests.exceptions.ConnectionError):
             yield api.thread_coroutine(mock_thing.action)
         mock_thing.action.assert_called_twice_with()
+
+    @testing.gen_test
+    def test_retry_with_backoff(self):
+
+        # Define a method that will fail every time
+        @gen.coroutine
+        @api.retry(excs=(requests.exceptions.HTTPError), retries=3)
+        def raise_exception():
+            raise requests.exceptions.HTTPError('Failed')
+
+        with self.assertRaises(requests.exceptions.HTTPError):
+            yield raise_exception()
+
+        # Now a method that works
+        @gen.coroutine
+        @api.retry(excs=(requests.exceptions.HTTPError), retries=3)
+        def work():
+            raise gen.Return(True)
+
+        ret = yield work()
+        self.assertEquals(ret, True)
