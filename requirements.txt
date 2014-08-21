@@ -14,3 +14,5 @@ python-rightscale
 # syntax. Instead, the Makefile handles the installation of this
 # dependency.
 tornadomail
+
+boto
