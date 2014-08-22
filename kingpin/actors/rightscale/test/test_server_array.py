@@ -617,7 +617,7 @@ class TestExecuteActor(testing.AsyncTestCase):
 
         @gen.coroutine
         def wait(*args, **kwargs):
-            raise gen.Return()
+            raise gen.Return(True)
         self.client_mock.wait_for_task.side_effect = wait
 
         ret = yield self.actor._execute()

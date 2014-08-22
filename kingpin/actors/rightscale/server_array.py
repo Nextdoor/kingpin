@@ -524,6 +524,6 @@ class Execute(ServerArrayBaseActor):
             actions.append(self._client.wait_for_task(task))
         self._log(logging.INFO,
                   'Waiting for %s tasks to finish.' % len(tasks))
-        yield actions
+        ret = yield actions
 
-        raise gen.Return(True)
+        raise gen.Return(all(ret))
