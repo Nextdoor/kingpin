@@ -1,7 +1,10 @@
+simplejson
+
 # General App Requirements
 tornado==3.1.1
+boto
 
-# Used to make-synchronous-tasks-asynchronous
+# Used to make synchronous tasks asynchronous
 futures
 
 # Explicit version and source set in the setup.py
@@ -14,5 +17,3 @@ python-rightscale
 # syntax. Instead, the Makefile handles the installation of this
 # dependency.
 tornadomail
-
-boto
