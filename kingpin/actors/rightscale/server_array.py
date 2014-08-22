@@ -487,66 +487,6 @@ class Execute(ServerArrayBaseActor):
         self._inputs = self._options['inputs']
 
     @gen.coroutine
-    def _run_script_on_array(self, array):
-        """Directly executes the multi_run_executable call on a Server Array.
-
-        This method bypasses the 'smart' objects in the RightScale object
-        because that object balks if the API returns non-JSON (like an empty
-        string). This follows the pattern in
-        rightscale.commands.run_script_on_server().
-
-        args:
-            arrays: A list of rightscale.Resource objects containing ServerArrays
-            script: The script name to execute (or recipe)
-            inputs: Custom inputs to pass to the script (or recipe)
-
-        returns:
-            A dictionary containing the execution status 'url' for each
-            script that was executed over each node of each array.
-
-            eg.
-
-            { 'array1': {
-                'instanceA': {
-                    'status': True,
-                    'status_path': '/some_status_url_to_check',
-                },
-                'instanceB': {
-                    'status': False,
-                }
-            }
-        """
-        # Figure out if we're running a recipe or a rightscale script. If its
-        # a RightScript, we have to go find its URL HREF.
-        if '::' in script_name:
-            script_name = script_name
-            params = {'recipe_name': script_name}
-        else:
-            script = self._find_right_script(script_name)
-            script_name = script.soul['name']
-            params = {'right_script_href': script.href}
-
-        # For every array passed in, iterate over the instances
-        results = []
-        for array in arrays:
-            log.debug('Executing %s on %s' % (script_name, array.soul['name']))
-            # For every instance in the array, execute the script
-            for i in array.current_instances.index():
-                log.debug('Executing %s on %s' % (script_name, i.soul['name']))
-                url = '%s/run_executable' % i.links['self']
-                try:
-                    response = self._api.client.post(url, data=params)
-                    results.append(response.headers['location'])
-                except requests.exceptions.HTTPError:
-                    pass
-
-        # Return a raw list of the result URLs
-        return results
-
-
-
-
-    @gen.coroutine
     def _execute(self):
         # First things first, login to RightScale asynchronously to
         # pre-populate the API attributes that are dynamically generated. This
@@ -556,12 +496,34 @@ class Execute(ServerArrayBaseActor):
 
         # First, find the array we're going to be launching....
         array = yield self._find_server_arrays(self._array)
+        instances = yield self._client.get_server_array_current_instances(
+            array)
+
+        # Munge our inputs into something that RightScale likes
+        inputs = self._generate_rightscale_params('inputs', self._inputs)
+
+        # At this point, if we're in dry mode we need to exit. Theres no way to
+        # 'test' the actual execution of the rightscale scripts.
+        if self._dry:
+            self._log(logging.WARNING,
+                      'Would have executed "%s" with inputs "%s" on "%s".' %
+                      (self._script, inputs, array.soul['name']))
+            raise gen.Return(True)
 
         # Execute the script on all of the servers in the array and store the
         # task status resource records.
-        tasks = yield self._run_script_on_array(array)
+        self._log(logging.INFO,
+                  'Executing "%s" on %s instances in the array "%s"' %
+                  (self._script, len(instances), array.soul['name']))
+        tasks = yield self._client.run_executable_on_instances(
+            self._script, inputs, instances)
 
         # Finally, monitor all of the tasks for completion.
-        yield self._monitor_tasks(tasks)
+        actions = []
+        for task in tasks:
+            actions.append(self._client.wait_for_task(task))
+        self._log(logging.INFO,
+                  'Waiting for %s tasks to finish.' % len(tasks))
+        yield actions
 
         raise gen.Return(True)

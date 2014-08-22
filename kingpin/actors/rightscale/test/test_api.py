@@ -1,5 +1,6 @@
 import logging
 import mock
+import simplejson
 
 from tornado import gen
 from tornado import testing
@@ -264,10 +265,97 @@ class TestRightScale(testing.AsyncTestCase):
             [mock.call.self.show(), mock.call.self.show(),
              mock.call.self.show()])
 
-        # untknown return value
-        mock_task = mock.MagicMock(name='fake task')
-        mock_task.self.show.side_effect = [queued, unknown]
-        ret = yield self.client.wait_for_task(mock_task, sleep=0.1)
-        self.assertEquals(ret, False)
-        mock_task.assert_has_calls(
-            [mock.call.self.show(), mock.call.self.show()])
+    @testing.gen_test
+    def test_run_executable_on_instances(self):
+        mock_instance = mock.MagicMock(name='unittest-instance')
+        mock_instance.soul = {'name': 'unittest-instance'}
+        mock_instance.links = {'self': '/foo/bar'}
+        mock_instance.self.path = '/a/b/1234'
+
+        mock_tracker = mock.MagicMock(name='tracker')
+
+        @gen.coroutine
+        def fake_web_request(url, post):
+            mock_tracker.web_request(url, post)
+            raise gen.Return(True)
+        self.client.make_generic_request = fake_web_request
+
+        @gen.coroutine
+        def fake_find_right_script(name):
+            mock_tracker.right_script(name)
+            fake_script = mock.MagicMock()
+            fake_script.href = '/fake'
+            raise gen.Return(fake_script)
+        self.client.find_right_script = fake_find_right_script
+
+        inputs = {'inputs[ELB_NAME]': 'something'}
+
+        # Initial test with a simple recipe
+        yield self.client.run_executable_on_instances(
+            'my::recipe', inputs, [mock_instance])
+        mock_tracker.web_request.assert_called_once_with(
+            '/foo/bar/run_executable',
+            {'inputs[ELB_NAME]': 'something', 'recipe': 'my::recipe'})
+
+        # Test with a RightScript instead
+        mock_tracker.web_request.reset_mock()
+        yield self.client.run_executable_on_instances(
+            'my_script', inputs, [mock_instance])
+        mock_tracker.web_request.assert_called_once_with(
+            '/foo/bar/run_executable',
+            {'inputs[ELB_NAME]': 'something', 'right_script_href': '/fake'})
+        mock_tracker.right_script.assert_called_once_with('my_script')
+
+    @testing.gen_test
+    def test_make_generic_request(self):
+        # Mock out the requests library client that the rightscale object
+        # thinks its using.
+        requests_mock_client = mock.MagicMock(name='rightscale.client mock')
+        self.mock_client.client = requests_mock_client
+
+        response_mock = mock.MagicMock(name='response mock')
+        response_mock.headers = {}
+        requests_mock_client.post.return_value = response_mock
+        requests_mock_client.get.return_value = response_mock
+
+        # Test: Simple POST that returns JSON
+        response_mock.json.return_value = "{'name': 'fake soul'}"
+        requests_mock_client.reset_mock()
+        with mock.patch('rightscale.rightscale.Resource') as r_mock:
+            resource_mock = mock.MagicMock(name='resource_mock')
+            r_mock.return_value = resource_mock
+            ret = yield self.client.make_generic_request(
+                '/foo', post={'a': 'b'})
+            self.assertEquals(resource_mock, ret)
+            requests_mock_client.post.assert_called_once_with(
+                '/foo', data={'a': 'b'})
+
+        # Test 2: Simple GET that returns JSON
+        response_mock.json.return_value = "{'name': 'fake soul'}"
+        requests_mock_client.reset_mock()
+        with mock.patch('rightscale.rightscale.Resource') as r_mock:
+            resource_mock = mock.MagicMock(name='resource_mock')
+            r_mock.return_value = resource_mock
+            ret = yield self.client.make_generic_request('/foo')
+            self.assertEquals(resource_mock, ret)
+            requests_mock_client.get.assert_called_once_with('/foo')
+
+        # Test 3: Simple POST that returns a location header
+        response_mock.headers = {'location': '/foobar'}
+        response_mock.json.return_value = "{'name': 'fake soul'}"
+        requests_mock_client.reset_mock()
+        with mock.patch('rightscale.rightscale.Resource') as r_mock:
+            resource_mock = mock.MagicMock(name='resource_mock')
+            r_mock.return_value = resource_mock
+            ret = yield self.client.make_generic_request(
+                '/foo', post={'a': 'b'})
+            self.assertEquals(resource_mock, ret)
+            requests_mock_client.post.assert_called_once_with(
+                '/foo', data={'a': 'b'})
+            requests_mock_client.get.assert_called_once_with('/foobar')
+
+        # Test 4: Simple GET that returns no JSON
+        response_mock.json.side_effect = simplejson.scanner.JSONDecodeError(
+            'a', 'b', 0)
+        ret = yield self.client.make_generic_request('/foo')
+        self.assertEquals(None, ret)

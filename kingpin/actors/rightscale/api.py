@@ -50,6 +50,7 @@ import time
 from tornado import ioloop
 from tornado import gen
 import requests
+import simplejson
 
 from rightscale import util as rightscale_util
 import rightscale
@@ -340,7 +341,6 @@ class RightScale(object):
             # Get the task status
             output = yield utils.thread_coroutine(task.self.show)
             summary = output.soul['summary']
-            log.debug('Got updated task: %s' % output.soul)
 
             if 'success' in summary or 'completed' in summary:
                 status = True
@@ -350,11 +350,8 @@ class RightScale(object):
                 status = False
                 break
 
-            if 'queued' not in summary and '%' not in summary:
-                status = False
-                break
-
-            log.debug('Task waiting: %s' % output.soul['summary'])
+            log.debug('Task (%s) status: %s' %
+                      (output.path, output.soul['summary']))
             yield gen.Task(ioloop.IOLoop.current().add_timeout,
                            time.time() + sleep)
 
@@ -362,3 +359,113 @@ class RightScale(object):
                   (status, summary))
 
         raise gen.Return(status)
+
+    @gen.coroutine
+    def run_executable_on_instances(self, name, inputs, instances):
+        """Execute a script on a set of RightScale Instances.
+
+        This method bypasses the python-rightscale native properties and
+        callable methods because they are broken with regards to running
+        individual API calls against instances. See this bug:
+
+            https://github.com/brantai/python-rightscale/issues/6
+
+        Instead, we take in a list of rightscale.Resource objects that point to
+        instances. For each instance we iterate over and directly call the
+        <instance_path>/run_executable URL. This is done below in the
+        make_generic_request() method for us.
+
+        Note, the inputs dictionary should look like this:
+            { '' }
+
+        Args:
+            name: Recipe or RightScript String Name
+            inputs: Dict of Key/Value Input Pairs
+            instances: A list of rightscale.Resource instances objects.
+
+        Raises:
+            gen.Return(<list of rightscale.Resource task objects>)
+        """
+        # Create a new copy of the inputs that were passed in so that we can
+        # modify them correctly and safely.
+        params = dict(inputs)
+
+        # Determine whether we're looking for a recipe or a rightscript. If its
+        # the latter, we have to go and find its href identifier first.
+        if '::' in name:
+            script_type = 'Recipe'
+            params['recipe'] = name
+        else:
+            script_type = 'RightScript'
+            script = yield self.find_right_script(name)
+            params['right_script_href'] = script.href
+
+        log.debug('Executing %s with params: %s' % (script_type, params))
+
+        # Generate all the tasks and store them in a list so that we can yield
+        # them all at once (thus, making it asynchronous)
+        tasks = []
+        for i in instances:
+            log.debug('Executing %s on %s' % (name, i.soul['name']))
+            url = '%s/run_executable' % i.links['self']
+            tasks.append(self.make_generic_request(url, post=params))
+        ret = yield tasks
+
+        raise gen.Return(ret)
+
+    @gen.coroutine
+    def make_generic_request(self, url, post=None):
+        """Make a generic API call and return a Resource Object.
+
+        This method is a bit hacky. It manually executes a REST call against
+        the RightScale API and then attempts to build a custom
+        rightscale.Resource object based on those return results. This allows
+        us to support API calls that the current python-rightscale library does
+        not currently support (like running an executable on an instance of an
+        array).
+
+        Args:
+            url: String of the URL to call
+            post: Optional POST Body Data
+
+        Raises:
+            gen.Return(<rightscale.Resource object>)
+        """
+        # Make the initial web call
+        log.debug('Making generic API call: %s (%s)' % (url, post))
+
+        # Here we're reaching into the rightscale client library and getting
+        # access directly to its requests client object.
+        if post:
+            response = yield utils.thread_coroutine(
+                self._client.client.post, url, data=post)
+        else:
+            response = yield utils.thread_coroutine(
+                self._client.client.get, url)
+
+        # Now, if a location tag was returned to us, follow it and get the
+        # newly returned response data
+        loc = response.headers.get('location', None)
+        if loc:
+            response = yield utils.thread_coroutine(
+                self._client.client.get, loc)
+            url = loc
+
+        # Try to parse the JSON body. If no body was returned, this fails and
+        # thats OK sometimes.
+        try:
+            soul = response.json()
+            print "soiul: %s" % soul
+        except simplejson.scanner.JSONDecodeError:
+            log.debug('No JSON found. Returning None')
+            raise gen.Return(None)
+
+        # Now dig deep into the python rightscale library itself and create our
+        # own Resource object by hand.
+        resource = rightscale.rightscale.Resource(
+            path=url,
+            response=response,
+            soul=soul,
+            client=self._client.client)
+
+        raise gen.Return(resource)
