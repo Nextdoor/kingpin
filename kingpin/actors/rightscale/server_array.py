@@ -461,3 +461,107 @@ class Launch(ServerArrayBaseActor):
         yield self._wait_until_healthy(array)
 
         raise gen.Return(True)
+
+
+class Execute(ServerArrayBaseActor):
+
+    """Executes a RightScript or Recipe on a ServerArray."""
+
+    required_options = ['array', 'script', 'inputs']
+
+    def __init__(self, *args, **kwargs):
+        """Initializes the Actor.
+
+        # TODO: Add a 'wait timer' that allows the execution to fail if it
+        # takes too long to launch the instances.
+
+        Args:
+            desc: String description of the action being executed.
+            options: Dictionary with the following example settings:
+              { 'array': <server array name> }
+        """
+        super(Execute, self).__init__(*args, **kwargs)
+
+        self._array = self._options['array']
+        self._script = self._options['script']
+        self._inputs = self._options['inputs']
+
+    @gen.coroutine
+    def _run_script_on_array(self, array):
+        """Directly executes the multi_run_executable call on a Server Array.
+
+        This method bypasses the 'smart' objects in the RightScale object
+        because that object balks if the API returns non-JSON (like an empty
+        string). This follows the pattern in
+        rightscale.commands.run_script_on_server().
+
+        args:
+            arrays: A list of rightscale.Resource objects containing ServerArrays
+            script: The script name to execute (or recipe)
+            inputs: Custom inputs to pass to the script (or recipe)
+
+        returns:
+            A dictionary containing the execution status 'url' for each
+            script that was executed over each node of each array.
+
+            eg.
+
+            { 'array1': {
+                'instanceA': {
+                    'status': True,
+                    'status_path': '/some_status_url_to_check',
+                },
+                'instanceB': {
+                    'status': False,
+                }
+            }
+        """
+        # Figure out if we're running a recipe or a rightscale script. If its
+        # a RightScript, we have to go find its URL HREF.
+        if '::' in script_name:
+            script_name = script_name
+            params = {'recipe_name': script_name}
+        else:
+            script = self._find_right_script(script_name)
+            script_name = script.soul['name']
+            params = {'right_script_href': script.href}
+
+        # For every array passed in, iterate over the instances
+        results = []
+        for array in arrays:
+            log.debug('Executing %s on %s' % (script_name, array.soul['name']))
+            # For every instance in the array, execute the script
+            for i in array.current_instances.index():
+                log.debug('Executing %s on %s' % (script_name, i.soul['name']))
+                url = '%s/run_executable' % i.links['self']
+                try:
+                    response = self._api.client.post(url, data=params)
+                    results.append(response.headers['location'])
+                except requests.exceptions.HTTPError:
+                    pass
+
+        # Return a raw list of the result URLs
+        return results
+
+
+
+
+    @gen.coroutine
+    def _execute(self):
+        # First things first, login to RightScale asynchronously to
+        # pre-populate the API attributes that are dynamically generated. This
+        # is a hack, and in the future should likely turn into a smart
+        # decorator.
+        yield self._client.login()
+
+        # First, find the array we're going to be launching....
+        array = yield self._find_server_arrays(self._array)
+
+        # Execute the script on all of the servers in the array and store the
+        # task status resource records.
+        tasks = yield self._run_script_on_array(array)
+
+        # Finally, monitor all of the tasks for completion.
+        yield self._monitor_tasks(tasks)
+
+        raise gen.Return(True)
