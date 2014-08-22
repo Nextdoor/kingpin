@@ -42,6 +42,7 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
 class BaseActor(object):
+
     """Abstract base class for Actor objects."""
 
     required_options = []
@@ -104,13 +105,14 @@ class BaseActor(object):
         Raises:
             gen.Return(result)
         """
-        self._log(logging.DEBUG, 'Beginning execution')
+        self._log(logging.INFO, 'Beginning execution')
         result = yield self._execute()
-        self._log(logging.DEBUG, 'Returning result: %s' % result)
+        self._log(logging.INFO, 'Finished, success? %s' % result)
         raise gen.Return(result)
 
 
 class HTTPBaseActor(BaseActor):
+
     """Abstract base class for an HTTP-client based Actor object.
 
     This class provides common methods for getting access to asynchronous
