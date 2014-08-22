@@ -455,7 +455,6 @@ class RightScale(object):
         # thats OK sometimes.
         try:
             soul = response.json()
-            print "soiul: %s" % soul
         except simplejson.scanner.JSONDecodeError:
             log.debug('No JSON found. Returning None')
             raise gen.Return(None)
