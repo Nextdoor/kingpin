@@ -132,12 +132,35 @@ class RightScale(object):
             self._client.server_arrays, name, exact=exact)
 
         if not found_arrays:
-            msg = 'ServerArray matching name not found: %s' % name
-            log.debug(msg)
+            log.debug('ServerArray matching "%s" not found' % name)
+            raise gen.Return()
 
         log.debug('Got ServerArray: %s' % found_arrays)
 
         raise gen.Return(found_arrays)
+
+    @gen.coroutine
+    def find_right_script(self, name):
+        """Search for a RightScript by-name and return the resource.
+
+        Args:
+            name: RightScale RightScript Name
+
+        Raises:
+            gen.Return(rightscale.Resource object)
+        """
+        log.debug('Searching for RightScript matching: %s' % name)
+        found_script = yield utils.thread_coroutine(
+            rightscale_util.find_by_name,
+            self._client.right_scripts, name, exact=True)
+
+        if not found_script:
+            log.debug('RightScript matching "%s" could not be found.' % name)
+            raise gen.Return()
+
+        log.debug('Got RightScript: %s' % found_script)
+
+        raise gen.Return(found_script)
 
     @gen.coroutine
     def clone_server_array(self, array):

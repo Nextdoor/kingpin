@@ -76,6 +76,25 @@ class TestRightScale(testing.AsyncTestCase):
             self.assertEquals(None, ret)
 
     @testing.gen_test
+    def test_find_right_script(self):
+        with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
+            u_mock.return_value = 1
+            ret = yield self.client.find_right_script('test')
+            u_mock.assert_called_once_with(
+                self.mock_client.right_scripts, 'test', exact=True)
+            self.assertEquals(1, ret)
+            u_mock.reset()
+
+    @testing.gen_test
+    def test_find_right_script_empty_result(self):
+        with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
+            u_mock.return_value = None
+            ret = yield self.client.find_right_script('test')
+            u_mock.assert_called_once_with(
+                self.mock_client.right_scripts, 'test', exact=True)
+            self.assertEquals(None, ret)
+
+    @testing.gen_test
     def test_clone_server_array(self):
         # First, create the rightscale.server_array api mock
         sa_rsr_mock = mock.MagicMock()
