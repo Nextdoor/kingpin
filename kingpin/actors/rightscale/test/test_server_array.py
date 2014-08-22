@@ -569,3 +569,91 @@ class TestLaunchActor(testing.AsyncTestCase):
         updated_array.launched.assert_called_once_with()
         updated_array.waited.assert_called_once_with()
         self.assertEquals(ret, True)
+
+
+class TestExecuteActor(testing.AsyncTestCase):
+
+    def setUp(self, *args, **kwargs):
+        super(TestExecuteActor, self).setUp()
+        base.TOKEN = 'unittest'
+
+        # Create the actor
+        self.actor = server_array.Execute(
+            'Execute',
+            {'array': 'unittestarray',
+             'script': 'test_script',
+             'inputs': {'foo': 'text:bar'}})
+
+        # Patch the actor so that we use the client mock
+        self.client_mock = mock.MagicMock()
+        self.actor._client = self.client_mock
+
+        # Mock out the login method entirely
+        @gen.coroutine
+        def login():
+            raise gen.Return()
+        self.client_mock.login.side_effect = login
+
+    @testing.gen_test
+    def test_execute(self):
+        mock_array = mock.MagicMock(name='array')
+        mock_instance = mock.MagicMock(name='mock_instance')
+        mock_task = mock.MagicMock(name='mock_task')
+
+        @gen.coroutine
+        def yield_array(self, *args, **kwargs):
+            raise gen.Return(mock_array)
+        self.actor._find_server_arrays = yield_array
+
+        @gen.coroutine
+        def yi(*args, **kwargs):
+            raise gen.Return([mock_instance])
+        self.client_mock.get_server_array_current_instances.side_effect = yi
+
+        @gen.coroutine
+        def run_e(*args, **kwargs):
+            raise gen.Return([mock_task])
+        self.client_mock.run_executable_on_instances.side_effect = run_e
+
+        @gen.coroutine
+        def wait(*args, **kwargs):
+            raise gen.Return()
+        self.client_mock.wait_for_task.side_effect = wait
+
+        ret = yield self.actor._execute()
+
+        # Now verify that each of the steps (terminate, wait, destroyed) were
+        # all called.
+        (self.client_mock.get_server_array_current_instances
+            .assert_called_once_with(mock_array))
+        (self.client_mock.run_executable_on_instances
+            .assert_called_once_with(
+                'test_script',
+                {'inputs[foo]': 'text:bar'},
+                [mock_instance]))
+        (self.client_mock.wait_for_task
+            .assert_called_once_with(mock_task))
+
+        self.assertEquals(ret, True)
+
+    @testing.gen_test
+    def test_execute_dry(self):
+        self.actor._dry = True
+        mock_array = mock.MagicMock(name='array')
+        mock_instance = mock.MagicMock(name='mock_instance')
+
+        @gen.coroutine
+        def yield_array(self, *args, **kwargs):
+            raise gen.Return(mock_array)
+        self.actor._find_server_arrays = yield_array
+
+        @gen.coroutine
+        def yi(*args, **kwargs):
+            raise gen.Return([mock_instance])
+        self.client_mock.get_server_array_current_instances.side_effect = yi
+
+        ret = yield self.actor._execute()
+
+        # Now verify that each of the steps (terminate, wait, destroyed) were
+        # all called.
+        self.assertEquals(ret, True)
