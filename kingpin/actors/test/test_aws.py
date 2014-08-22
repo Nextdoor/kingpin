@@ -105,3 +105,49 @@ class TestDeleteSQSQueueActor(testing.AsyncTestCase):
                 yield self.actor.execute()
 
         self.assertTrue(sqsc.return_value.delete_queue.called)
+
+class TestWaitUntilQueueEmptyActor(testing.AsyncTestCase):
+
+    @testing.gen_test
+    def test_execute(self):
+        self.actor = sqs.WaitUntilEmpty('UTA!',
+                                        {'name': 'unit-test-queue'})
+
+        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
+            sqsc().get_queue().count.return_value = 0
+            yield self.actor.execute()
+
+    @testing.gen_test
+    def test_wrong_queuename(self):
+        self.actor = sqs.WaitUntilEmpty('UTA!',
+                                        {'name': 'unit-test-queue'})
+
+        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
+            sqsc().get_queue.return_value = None
+            with self.assertRaises(Exception):
+                yield self.actor.execute()
+
+    @testing.gen_test
+    def test_dry_run(self):
+        self.actor = sqs.WaitUntilEmpty('UTA!',
+                                        {'name': 'unit-test-queue'},
+                                        dry=True)
+
+        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
+            sqsc().get_queue().count.return_value = 10  # Note this is NOT zero
+            yield self.actor.execute()  # If dry-run fails, this will hang forever.
+
+            self.assertFalse(sqsc().get_queue().count.called)
+
+
+    @testing.gen_test
+    def test_sleep_and_retry(self):
+        self.actor = sqs.WaitUntilEmpty('UTA!',
+                                        {'name': 'unit-test-queue'})
+
+        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
+            sqsc().get_queue().count.side_effect = [3,2,1,0]
+            yield self.actor._wait(sleep=0)
+
+            self.assertEquals(sqsc().get_queue().count.call_count, 4)
+

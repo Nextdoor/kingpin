@@ -24,7 +24,7 @@ import mock
 
 from kingpin.actors import base
 from kingpin.actors import exceptions
-from kingpin.utils import thread_coroutine
+from kingpin import utils
 
 log = logging.getLogger(__name__)
 
@@ -54,14 +54,14 @@ class Create(base.HTTPBaseActor):
     @gen.coroutine
     def _create_queue(self):
         # boto pools connections
-        conn = yield thread_coroutine(
+        conn = yield utils.thread_coroutine(
             boto.sqs.connection.SQSConnection,
             AWS_SECRET_ACCESS_KEY,
             AWS_ACCESS_KEY_ID)
 
         if not self._dry:
             self._log(logging.INFO, 'Creating a new queue: %s' % self._queue_name)
-            new_queue = yield thread_coroutine(conn.create_queue, self._queue_name)
+            new_queue = yield utils.thread_coroutine(conn.create_queue, self._queue_name)
         else:
             self._log(logging.INFO, 'Would create a new queue: %s' % self._queue_name)
             new_queue = mock.Mock(name=self._queue_name)
@@ -112,12 +112,12 @@ class Delete(base.HTTPBaseActor):
     @gen.coroutine
     def _delete_queue(self):
         # boto pools connections
-        conn = yield thread_coroutine(
+        conn = yield utils.thread_coroutine(
             boto.sqs.connection.SQSConnection,
             AWS_SECRET_ACCESS_KEY,
             AWS_ACCESS_KEY_ID)
 
-        q = yield thread_coroutine(
+        q = yield utils.thread_coroutine(
             conn.get_queue,
             self._queue_name)
         if not q:
@@ -126,7 +126,7 @@ class Delete(base.HTTPBaseActor):
 
         if not self._dry:
             self._log(logging.INFO, 'Deleting Queue: %s...' % q.url)
-            success = yield thread_coroutine(conn.delete_queue, q)
+            success = yield utils.thread_coroutine(conn.delete_queue, q)
         else:
             self._log(logging.INFO, 'Would have deleted the queue: %s' % q.url)
             success = True
@@ -148,4 +148,66 @@ class Delete(base.HTTPBaseActor):
                   'Deleting SQS Queue "%s"' %
                   self._queue_name)
         result = yield self._delete_queue() 
+        raise gen.Return(result)
+
+
+class WaitUntilEmpty(base.HTTPBaseActor):
+    """Waits for an SQS Queue to become empty."""
+
+    required_options = ['name']
+
+    def __init__(self, *args, **kwargs):
+        """Initializes the Actor.
+
+        Args:
+            desc: String description of the action being executed.
+            options: Dictionary with the following settings:
+              { 'name': queue name }
+        """
+        super(WaitUntilEmpty, self).__init__(*args, **kwargs)
+
+        self._queue_name = self._options['name']
+
+    @gen.coroutine
+    def _wait(self, sleep=3):
+        # boto pools connections
+        conn = yield utils.thread_coroutine(
+            boto.sqs.connection.SQSConnection,
+            AWS_SECRET_ACCESS_KEY,
+            AWS_ACCESS_KEY_ID)
+
+        q = yield utils.thread_coroutine(
+            conn.get_queue,
+            self._queue_name)
+        if not q:
+            raise exceptions.UnrecoverableActionFailure(
+                'Queue not found: %s' % self._queue_name)
+
+        count = 1
+        while count > 0:
+            if not self._dry:
+                self._log(logging.INFO, 'Counting %s' % q.url)
+                count = yield utils.thread_coroutine(q.count)
+            else:
+                self._log(logging.INFO, 'Pretending that count is 0 for %s' % q.url)
+                count = 0
+
+            self._log(logging.INFO, 'Queue has %s messages in it.' % count)
+            if count > 0:
+                self._log(logging.INFO, 'Waiting for the queue to become empty...')
+                yield utils.tornado_sleep(sleep)
+
+        raise gen.Return(True)
+
+    @gen.coroutine
+    def _execute(self):
+        """Executes an actor and yields the results when its finished.
+
+        raises: gen.Return(True)
+        """
+        self._log(logging.INFO,
+                  'Waiting for queue "%s" to become empty.' %
+                  self._queue_name)
+        result = yield self._wait()
+
         raise gen.Return(result)

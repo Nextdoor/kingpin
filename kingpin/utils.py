@@ -202,3 +202,13 @@ def retry(excs, retries=3):
                 log.debug('Retrying..')
         return wrapper
     return _retry_on_exc
+
+@gen.coroutine
+def tornado_sleep(seconds=1.0):
+    """Async method equivalent to sleeping.
+
+    Args:
+        seconds: Float seconds. Default 1.0
+    """
+    yield gen.Task(ioloop.IOLoop.current().add_timeout,
+                   time.time() + seconds)
