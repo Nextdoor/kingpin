@@ -15,11 +15,12 @@
 """Misc Actor objects"""
 
 import logging
-import os
+import math
 
 from tornado import gen
 from boto.ec2 import elb
 
+from kingpin.actors.aws import settings as aws_settings
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin import utils
@@ -28,9 +29,6 @@ log = logging.getLogger(__name__)
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', None)
-AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', None)
-
 
 # Helper function
 def p2f(string):
@@ -38,10 +36,10 @@ def p2f(string):
 
     Converts string like '78.9%' into 0.789
     """
-    return float(x.strip('%'))/100
+    return float(string.strip('%'))/100
 
 
-class WaitTillNHealthy(base.HTTPBaseActor):
+class WaitTillNHealthy(base.BaseActor):
     """Waits till a specified number of instances are "InService"."""
 
     required_options = ['name', 'count']
@@ -64,8 +62,8 @@ class WaitTillNHealthy(base.HTTPBaseActor):
         # boto pools connections
         conn = yield utils.thread_coroutine(
             elb.ELBConnection,
-            AWS_SECRET_ACCESS_KEY,
-            AWS_ACCESS_KEY_ID)
+            aws_settings.AWS_SECRET_ACCESS_KEY,
+            aws_settings.AWS_ACCESS_KEY_ID)
 
         self._log(logging.INFO, 'Searching for ELB "%s"' % self._elb_name)
         found_elb = yield utils.thread_coroutine(
@@ -77,8 +75,7 @@ class WaitTillNHealthy(base.HTTPBaseActor):
                 'Could not find an ELB to operate on "%s"' % self._elb_name)
 
 
-        recount = True
-        while recount:
+        while True:
             self._log(logging.INFO, 'Counting ELB InService instances for : %s' % self._elb_name)
             # Get all instances for this ELB
             instance_list = yield utils.thread_coroutine(found_elb.get_instance_health)
@@ -89,29 +86,28 @@ class WaitTillNHealthy(base.HTTPBaseActor):
                 in_service_count = [i.state for i in instance_list].count('InService')
             else:
                 self._log(logging.INFO, ('Assuming that %s instances in %s are healthy.' %
-                                         (self._count, self._elb_name)))
+                                         (self._options['count'], self._options['elb'])))
                 in_service_count = total_count
 
-            if '%' in self._count:
-                # Expecting a percentage of healthy instances.
-                healthy_ratio = in_service_count / total_count
-                expected_ratio = p2f(self._count)
 
-                healthy_enough = healthy_ratio >= expected_ratio
-                if not healthy_enough:
-                    reason = 'Health ratio %s is below required %s' % (
-                             healthy_ratio, expected_ratio)
-            else:
-                healthy_enough = in_service_count >= self._count
+            # Since the count can be provided as a number, or percentage
+            # figure out the expected count here.
+            expected_count = self._options['count']
+            if '%' in self._options['count']:
+                expected_count = math.ceil(total_count * p2f(self._options['count']))
 
-                if not healthy_enough:
-                    reason = 'Health count %s is below required %s' % (
-                             in_service_count, self._count)
+            healthy_enough = in_service_count >= expected_count
+
+            if not healthy_enough:
+                reason = 'Health count %s is below the required %s' % (
+                         in_service_count, expected_count)
 
             if not healthy_enough:
                 self._log(logging.INFO, reason)
                 self._log(logging.INFO, 'Retrying in 3 seconds.')
-                utils.tornado_sleep(seconds=3)
+                yield utils.tornado_sleep(seconds=3)
+            else:
+                break  # healthy enough! Break out of the forever loop.
 
         raise gen.Return(True)
 

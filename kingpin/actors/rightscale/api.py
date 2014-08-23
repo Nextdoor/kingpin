@@ -45,9 +45,7 @@ translation.
 
 from os import path
 import logging
-import time
 
-from tornado import ioloop
 from tornado import gen
 import requests
 import simplejson
@@ -383,8 +381,11 @@ class RightScale(object):
 
             log.debug('Task (%s) status: %s' %
                       (output.path, output.soul['summary']))
-            yield gen.Task(ioloop.IOLoop.current().add_timeout,
-                           time.time() + sleep)
+            if 'queued' not in summary and '%' not in summary:
+                status = False
+                break
+
+            yield utils.tornado_sleep(sleep)
 
         log.debug('Task finished, return value: %s, summary: %s' %
                   (status, summary))

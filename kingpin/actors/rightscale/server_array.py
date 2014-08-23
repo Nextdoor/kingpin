@@ -17,12 +17,11 @@
 from random import randint
 import logging
 import mock
-import time
 
 from tornado import gen
-from tornado import ioloop
 import requests
 
+from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import base
@@ -291,8 +290,7 @@ class Destroy(ServerArrayBaseActor):
 
             # At this point, sleep
             self._log(logging.DEBUG, 'Sleeping..')
-            yield gen.Task(ioloop.IOLoop.current().add_timeout,
-                           time.time() + sleep)
+            yield utils.tornado_sleep(sleep)
 
     @gen.coroutine
     def _destroy_array(self, array):
@@ -393,8 +391,7 @@ class Launch(ServerArrayBaseActor):
 
             # At this point, sleep
             self._log(logging.DEBUG, 'Sleeping..')
-            yield gen.Task(ioloop.IOLoop.current().add_timeout,
-                           time.time() + sleep)
+            yield utils.tornado_sleep(sleep)
 
 #    @gen.coroutine
 #    def _async_launch_min_instances(self, array):
