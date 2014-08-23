@@ -157,7 +157,7 @@ class TestRightScale(testing.AsyncTestCase):
         self.assertEquals(ret, None)
         sa_mock.next_instance.show.assert_called_once_with()
         ni_mock.assert_has_calls([
-            mock.call().inputs.multi_update(params=inputs)
+            mock.call.inputs.multi_update(params=inputs)
         ])
 
     @testing.gen_test

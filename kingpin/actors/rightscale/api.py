@@ -251,7 +251,7 @@ class RightScale(object):
         log.debug('Patching ServerArray (%s) with new inputs: %s' %
                   (array.soul['name'], inputs))
 
-        next_inst = yield utils.thread_coroutine(array.next_instance.show())
+        next_inst = yield utils.thread_coroutine(array.next_instance.show)
 
         yield utils.thread_coroutine(
             next_inst.inputs.multi_update, params=inputs)
