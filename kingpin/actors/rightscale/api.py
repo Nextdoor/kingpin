@@ -227,6 +227,37 @@ class RightScale(object):
         raise gen.Return(updated_array)
 
     @gen.coroutine
+    def update_server_array_inputs(self, array, inputs):
+        """Updates a ServerArray 'Next Instance' with the supplied inputs.
+
+        Valid parameters can be found at the following URL:
+
+            http://reference.rightscale.com/api1.5/resources/
+            ResourceInputs.html#multi_update
+
+        Note: Its impossible to tell whether the update has succeeded because
+        the RightScale API always returns a '204 No Content' message on the
+        multi_update() call. Therefore, we simply execute the command return.
+
+        Args:
+            array: rightscale.Resource object to update.
+            inputs: The parameters to update. eg:
+                { 'inputs[ELB_NAME]': 'text:foobar' }
+
+        Raises:
+            gen.Return()
+        """
+
+        log.debug('Patching ServerArray (%s) with new inputs: %s' %
+                  (array.soul['name'], inputs))
+
+        next_inst = yield utils.thread_coroutine(array.next_instance.show())
+
+        yield utils.thread_coroutine(
+            next_inst.inputs.multi_update, params=inputs)
+        raise gen.Return()
+
+    @gen.coroutine
     @utils.retry(excs=requests.exceptions.HTTPError, retries=3)
     def launch_server_array(self, array):
         """Launches an instance of a ServerArray..
