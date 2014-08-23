@@ -185,15 +185,13 @@ class Update(ServerArrayBaseActor):
         # First, find the array we're going to be patching.
         array = yield self._find_server_arrays(self._array)
 
-        # Now, read through our supplied parameters and generate a
-        # rightscale-compatible parameter dict.
-        if self._params:
-            self._log(logging.INFO, 'New params: %s' % self._params)
-        if self._inputs:
-            self._log(logging.INFO, 'New inputs: %s' % self._inputs)
-
         # In dry run, just comment that we would have made the change.
         if self._dry:
+            if self._params:
+                self._log(logging.INFO, 'New params: %s' % self._params)
+            if self._inputs:
+                self._log(logging.INFO, 'New inputs: %s' % self._inputs)
+
             self._log(logging.WARNING, 'Not making any changes.')
             raise gen.Return(True)
 
