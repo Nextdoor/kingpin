@@ -60,10 +60,13 @@ class Create(base.HTTPBaseActor):
             AWS_ACCESS_KEY_ID)
 
         if not self._dry:
-            self._log(logging.INFO, 'Creating a new queue: %s' % self._queue_name)
-            new_queue = yield utils.thread_coroutine(conn.create_queue, self._queue_name)
+            self._log(logging.INFO,
+                      'Creating a new queue: %s' % self._queue_name)
+            new_queue = yield utils.thread_coroutine(
+                conn.create_queue, self._queue_name)
         else:
-            self._log(logging.INFO, 'Would create a new queue: %s' % self._queue_name)
+            self._log(logging.INFO,
+                      'Would create a new queue: %s' % self._queue_name)
             new_queue = mock.Mock(name=self._queue_name)
 
         self._log(logging.INFO, 'Returning queue object: %s' % new_queue)
@@ -131,8 +134,9 @@ class Delete(base.HTTPBaseActor):
             self._log(logging.INFO, 'Would have deleted the queue: %s' % q.url)
             success = True
 
-        self._log(logging.INFO, 'Deleting Queue: %s success: %s' % (q.url, success))
-        if success != True:
+        self._log(logging.INFO,
+                  'Deleting Queue: %s success: %s' % (q.url, success))
+        if not success:
             raise exceptions.UnrecoverableActionFailure(
                 'Failed to delete queue: %s' % self._queue_name)
 
@@ -147,7 +151,7 @@ class Delete(base.HTTPBaseActor):
         self._log(logging.INFO,
                   'Deleting SQS Queue "%s"' %
                   self._queue_name)
-        result = yield self._delete_queue() 
+        result = yield self._delete_queue()
         raise gen.Return(result)
 
 
@@ -189,12 +193,14 @@ class WaitUntilEmpty(base.HTTPBaseActor):
                 self._log(logging.INFO, 'Counting %s' % q.url)
                 count = yield utils.thread_coroutine(q.count)
             else:
-                self._log(logging.INFO, 'Pretending that count is 0 for %s' % q.url)
+                self._log(logging.INFO,
+                          'Pretending that count is 0 for %s' % q.url)
                 count = 0
 
             self._log(logging.INFO, 'Queue has %s messages in it.' % count)
             if count > 0:
-                self._log(logging.INFO, 'Waiting for the queue to become empty...')
+                self._log(logging.INFO,
+                          'Waiting for the queue to become empty...')
                 yield utils.tornado_sleep(sleep)
 
         raise gen.Return(True)

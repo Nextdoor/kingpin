@@ -195,13 +195,13 @@ def retry(excs, retries=3):
                         log.debug('Raising exception: %s' % e)
                         raise e
 
-                    log.debug('Retrying in 0.25s..')
                     i += 1
-                    yield gen.Task(ioloop.IOLoop.current().add_timeout,
-                                   time.time() + 0.25)
+                    log.debug('Retrying in 0.25s..')
+                    yield tornado_sleep(0.25)
                 log.debug('Retrying..')
         return wrapper
     return _retry_on_exc
+
 
 @gen.coroutine
 def tornado_sleep(seconds=1.0):

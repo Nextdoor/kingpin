@@ -39,23 +39,10 @@ def p2f(string):
     return float(string.strip('%'))/100
 
 
-class WaitTillNHealthy(base.BaseActor):
+class WaitUntilHealthy(base.BaseActor):
     """Waits till a specified number of instances are "InService"."""
 
     required_options = ['name', 'count']
-
-    def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
-
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following settings:
-              { 'name': ELB name,
-                'count': Integer count, or string like '80%' }
-        """
-        super(WaitTillNHealthy, self).__init__(*args, **kwargs)
-
-        self._elb_name = self._options['name']
 
     @gen.coroutine
     def _wait(self):
@@ -65,36 +52,50 @@ class WaitTillNHealthy(base.BaseActor):
             aws_settings.AWS_SECRET_ACCESS_KEY,
             aws_settings.AWS_ACCESS_KEY_ID)
 
-        self._log(logging.INFO, 'Searching for ELB "%s"' % self._elb_name)
+        self._log(logging.INFO,
+                  'Searching for ELB "%s"' % self._options['name'])
         found_elb = yield utils.thread_coroutine(
-            conn.get_all_loadbalancer(load_balancer_names=self._elb_name))
+            conn.get_all_loadbalancer,
+            load_balancer_names=self._options['name'])
         self._log(logging.INFO, 'ELBs found: %s' % found_elb)
 
         if not found_elb:
             raise exceptions.UnrecoverableActionFailure(
-                'Could not find an ELB to operate on "%s"' % self._elb_name)
-
+                ('Could not find an ELB to operate on "%s"' %
+                 self._options['name']))
 
         while True:
-            self._log(logging.INFO, 'Counting ELB InService instances for : %s' % self._elb_name)
+            self._log(logging.INFO,
+                      ('Counting ELB InService instances for : %s' %
+                       self._options['name']))
             # Get all instances for this ELB
-            instance_list = yield utils.thread_coroutine(found_elb.get_instance_health)
+            instance_list = yield utils.thread_coroutine(
+                found_elb.get_instance_health)
             total_count = len(instance_list)
 
+            log.debug('All instances: %s' % instance_list)
             if not self._dry:
                 # Count ones with "state" = "InService"
-                in_service_count = [i.state for i in instance_list].count('InService')
+                in_service_count = [
+                    i.state for i in instance_list].count('InService')
             else:
-                self._log(logging.INFO, ('Assuming that %s instances in %s are healthy.' %
-                                         (self._options['count'], self._options['elb'])))
+                self._log(logging.INFO, (
+                    'Assuming that %s instances in %s are healthy.' %
+                    (self._options['count'], self._options['name'])))
                 in_service_count = total_count
-
 
             # Since the count can be provided as a number, or percentage
             # figure out the expected count here.
-            expected_count = self._options['count']
-            if '%' in self._options['count']:
-                expected_count = math.ceil(total_count * p2f(self._options['count']))
+            count = self._options['count']
+            if isinstance(count, int):
+                expected_count = self._options['count']
+            elif '%' in count:
+                self._log(logging.INFO, '%s%% of ')
+                expected_count = math.ceil(
+                    total_count * p2f(self._options['count']))
+            else:
+                raise exceptions.InvalidOptions(
+                    '`count` should be an integer or a string with % in it.')
 
             healthy_enough = in_service_count >= expected_count
 
@@ -102,7 +103,7 @@ class WaitTillNHealthy(base.BaseActor):
                 reason = 'Health count %s is below the required %s' % (
                          in_service_count, expected_count)
 
-            if not healthy_enough:
+            if not healthy_enough and not self._dry:
                 self._log(logging.INFO, reason)
                 self._log(logging.INFO, 'Retrying in 3 seconds.')
                 yield utils.tornado_sleep(seconds=3)
