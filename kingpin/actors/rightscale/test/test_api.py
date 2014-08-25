@@ -144,6 +144,23 @@ class TestRightScale(testing.AsyncTestCase):
         self.assertEquals(ret, 'test')
 
     @testing.gen_test
+    def test_update_server_array_inputs(self):
+        ni_mock = mock.MagicMock(name='next_instance')
+        ni_mock.inputs.multi_update.return_value = None
+        sa_mock = mock.MagicMock(name='server_array')
+        sa_mock.next_instance.show.return_value = ni_mock
+
+        inputs = {'inputs[ELB_NAME]': 'text:foobar'}
+
+        ret = yield self.client.update_server_array_inputs(
+            sa_mock, inputs=inputs)
+        self.assertEquals(ret, None)
+        sa_mock.next_instance.show.assert_called_once_with()
+        ni_mock.assert_has_calls([
+            mock.call.inputs.multi_update(params=inputs)
+        ])
+
+    @testing.gen_test
     def test_get_server_array_current_instances(self):
         # Next, create the list of resources returned by the mock
         fake_instances = [mock.MagicMock(), mock.MagicMock()]

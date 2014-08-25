@@ -184,7 +184,8 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.actor = server_array.Update(
             'Patch',
             {'array': 'unittestarray',
-                'params': {'name': 'newunitarray'}})
+                'params': {'name': 'newunitarray'},
+                'inputs': {'test': 'text:test'}})
 
         # Patch the actor so that we use the client mock
         self.client_mock = mock.MagicMock()
@@ -211,10 +212,17 @@ class TestUpdateActor(testing.AsyncTestCase):
             raise gen.Return()
         self.client_mock.update_server_array.side_effect = yield_update
 
+        @gen.coroutine
+        def yield_inputs(self, *args, **kwargs):
+            raise gen.Return()
+        self.client_mock.update_server_array_inputs.side_effect = yield_inputs
+
         ret = yield self.actor.execute()
 
         self.client_mock.update_server_array.assert_called_once_with(
             mocked_array, {'server_array[name]': 'newunitarray'})
+        self.client_mock.update_server_array_inputs.assert_called_once_with(
+            mocked_array, {'inputs[test]': 'text:test'})
 
         self.assertEquals(True, ret)
 

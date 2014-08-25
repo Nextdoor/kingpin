@@ -145,22 +145,34 @@ class Update(ServerArrayBaseActor):
 
     """Patch a RightScale Server Array."""
 
-    required_options = ['array', 'params']
+    required_options = ['array']
 
     def __init__(self, *args, **kwargs):
         """Initializes the Actor.
+
+        Note, the Array name is required. The params and inputs options are
+        optional -- but if you want the actor to actually make any changes, you
+        need to supply one of these.
 
         Args:
             desc: String description of the action being executed.
             options: Dictionary with the following example settings:
               { 'array': <server array name>,
                 'params': { 'description': 'foo bar',
-                            'state': 'enabled' } }
+                            'state': 'enabled' },
+                'inputs': { 'ELB_NAME': 'foo bar' } }
         """
         super(Update, self).__init__(*args, **kwargs)
 
         self._array = self._options['array']
-        self._params = self._options['params']
+        self._params = None
+        self._inputs = None
+        if 'params' in self._options:
+            self._params = self._generate_rightscale_params(
+                'server_array', self._options['params'])
+        if 'inputs' in self._options:
+            self._inputs = self._generate_rightscale_params(
+                'inputs', self._options['inputs'])
 
     @gen.coroutine
     def _execute(self):
@@ -173,29 +185,35 @@ class Update(ServerArrayBaseActor):
         # First, find the array we're going to be patching.
         array = yield self._find_server_arrays(self._array)
 
-        # Now, read through our supplied parameters and generate a
-        # rightscale-compatible parameter dict.
-        params = self._generate_rightscale_params('server_array', self._params)
-        self._log(logging.DEBUG, 'Generated RightScale params: %s' % params)
-
         # In dry run, just comment that we would have made the change.
         if self._dry:
-            self._log(logging.WARNING,
-                      'Would have updated "%s" with params: %s' %
-                      (array.soul['name'], params))
+            if self._params:
+                self._log(logging.INFO, 'New params: %s' % self._params)
+            if self._inputs:
+                self._log(logging.INFO, 'New inputs: %s' % self._inputs)
+
+            self._log(logging.WARNING, 'Not making any changes.')
             raise gen.Return(True)
 
-        # We're really doin this!
-        msg = ('Updating array "%s" with params: %s' %
-               (array.soul['name'], params))
-        self._log(logging.INFO, msg)
-        try:
-            yield self._client.update_server_array(array, params)
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 422:
-                msg = ('Invalid parameters supplied to patch array "%s"' %
-                       self._array)
-                raise exceptions.UnrecoverableActionFailure(msg)
+        # Update the ServerArray Parameters
+        if self._params:
+            msg = ('Updating array "%s" with params: %s' %
+                   (array.soul['name'], self._params))
+            self._log(logging.INFO, msg)
+            try:
+                yield self._client.update_server_array(array, self._params)
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 422:
+                    msg = ('Invalid parameters supplied to patch array "%s"' %
+                           self._array)
+                    raise exceptions.UnrecoverableActionFailure(msg)
+
+        # Update the ServerArray Next-Instane Inputs
+        if self._inputs:
+            msg = ('Updating array "%s" with inputs: %s' %
+                   (array.soul['name'], self._inputs))
+            self._log(logging.INFO, msg)
+            yield self._client.update_server_array_inputs(array, self._inputs)
 
         raise gen.Return(True)
 
