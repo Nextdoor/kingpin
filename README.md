@@ -40,7 +40,7 @@ Sends a message to a room in HipChat
 
 Examples
 
-  { 'room': 'Operations', 'message': 'Beginning Deploy: v1.2' }
+    { 'room': 'Operations', 'message': 'Beginning Deploy: v1.2' }
 
 **Dry Mode**
 
