@@ -146,7 +146,7 @@ def thread_coroutine(func, *args, **kwargs):
     """
     try:
         ret = yield THREADPOOL.submit(func, *args, **kwargs)
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
         # The requests library can fail to fetch sometimes and its almost
         # always OK to re-try the fetch at least once. If the fetch fails a
         # second time, we allow it to be raised.
@@ -154,7 +154,7 @@ def thread_coroutine(func, *args, **kwargs):
         # This should be patched in the python-rightscale library so it
         # auto-retries, but until then we have a patch here to at least allow
         # one automatic retry.
-        log.debug('Fetch failed. Will retry one time.')
+        log.debug('Fetch failed. Will retry one time: %s' % e)
         ret = yield THREADPOOL.submit(func, *args, **kwargs)
 
     raise gen.Return(ret)

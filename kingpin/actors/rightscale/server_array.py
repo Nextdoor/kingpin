@@ -461,3 +461,69 @@ class Launch(ServerArrayBaseActor):
         yield self._wait_until_healthy(array)
 
         raise gen.Return(True)
+
+
+class Execute(ServerArrayBaseActor):
+
+    """Executes a RightScript or Recipe on a ServerArray."""
+
+    required_options = ['array', 'script', 'inputs']
+
+    def __init__(self, *args, **kwargs):
+        """Initializes the Actor.
+
+        # TODO: Add a 'wait timer' that allows the execution to fail if it
+        # takes too long to launch the instances.
+
+        Args:
+            desc: String description of the action being executed.
+            options: Dictionary with the following example settings:
+              { 'array': <server array name> }
+        """
+        super(Execute, self).__init__(*args, **kwargs)
+
+        self._array = self._options['array']
+        self._script = self._options['script']
+        self._inputs = self._options['inputs']
+
+    @gen.coroutine
+    def _execute(self):
+        # First things first, login to RightScale asynchronously to
+        # pre-populate the API attributes that are dynamically generated. This
+        # is a hack, and in the future should likely turn into a smart
+        # decorator.
+        yield self._client.login()
+
+        # First, find the array we're going to be launching....
+        array = yield self._find_server_arrays(self._array)
+        instances = yield self._client.get_server_array_current_instances(
+            array)
+
+        # Munge our inputs into something that RightScale likes
+        inputs = self._generate_rightscale_params('inputs', self._inputs)
+
+        # At this point, if we're in dry mode we need to exit. Theres no way to
+        # 'test' the actual execution of the rightscale scripts.
+        if self._dry:
+            self._log(logging.WARNING,
+                      'Would have executed "%s" with inputs "%s" on "%s".' %
+                      (self._script, inputs, array.soul['name']))
+            raise gen.Return(True)
+
+        # Execute the script on all of the servers in the array and store the
+        # task status resource records.
+        self._log(logging.INFO,
+                  'Executing "%s" on %s instances in the array "%s"' %
+                  (self._script, len(instances), array.soul['name']))
+        tasks = yield self._client.run_executable_on_instances(
+            self._script, inputs, instances)
+
+        # Finally, monitor all of the tasks for completion.
+        actions = []
+        for task in tasks:
+            actions.append(self._client.wait_for_task(task))
+        self._log(logging.INFO,
+                  'Waiting for %s tasks to finish.' % len(tasks))
+        ret = yield actions
+
+        raise gen.Return(all(ret))
