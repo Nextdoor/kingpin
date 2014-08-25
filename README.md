@@ -16,6 +16,38 @@ TODO
 
 ### Actors
 
+#### HipChat
+
+The Hipchat Actors allow you to send messages to a HipChat room during
+as stages during your job execution. The actor supports dry mode by validating
+that the configured API Token has access to execute the methods, without
+actually sending the messages.
+
+**Required Environment Variables**
+
+  * `HIPCHAT_TOKEN` - HipChat API Token
+  * `HIPCHAT_NAME` - HipChat `message from` name
+    (defaults to `Kingpin`)
+
+##### hipchat.Message
+
+Sends a message to a room in HipChat
+
+**Options**
+
+  * `room` - The string-name (or ID) of the room to send a message to
+  * `message` - String of the message to send
+
+Examples
+
+  { 'room': 'Operations', 'message': 'Beginning Deploy: v1.2' }
+
+**Dry Mode**
+
+Fully supported -- does not actually send messages to a room, but validates
+that the API credentials would have access to send the message using the
+HipChat `auth_test` optional API argument.
+
 #### RightScale
 
 The RightScale Actors allow you to interact with resources inside your
