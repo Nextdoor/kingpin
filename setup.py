@@ -111,7 +111,8 @@ class IntegrationTestCommand(UnitTestCommand):
             '--with-coverage',
             '--cover-package=%s' % PACKAGE,
             '-v',
-            '--include=integration']
+            '--include=integration',
+            '--attr=integration']
 
 
 class CleanHook(clean):
