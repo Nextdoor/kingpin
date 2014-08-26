@@ -305,6 +305,10 @@ class TestRightScale(testing.AsyncTestCase):
             raise gen.Return(fake_script)
         self.client.find_right_script = fake_find_right_script
 
+        @gen.coroutine
+        def fake_find_right_script_return_none(name):
+            raise gen.Return()
+
         inputs = {'inputs[ELB_NAME]': 'something'}
 
         # Initial test with a simple recipe
@@ -322,6 +326,13 @@ class TestRightScale(testing.AsyncTestCase):
             '/foo/bar/run_executable',
             {'inputs[ELB_NAME]': 'something', 'right_script_href': '/fake'})
         mock_tracker.right_script.assert_called_once_with('my_script')
+
+        # Test with a missing RightScript
+        mock_tracker.web_request.reset_mock()
+        self.client.find_right_script = fake_find_right_script_return_none
+        with self.assertRaises(api.ServerArrayException):
+            yield self.client.run_executable_on_instances(
+                'my_script', inputs, [mock_instance])
 
     @testing.gen_test
     def test_make_generic_request(self):

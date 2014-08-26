@@ -429,6 +429,10 @@ class RightScale(object):
         else:
             script_type = 'RightScript'
             script = yield self.find_right_script(name)
+
+            if not script:
+                raise ServerArrayException('RightScript Not Found')
+
             params['right_script_href'] = script.href
 
         log.debug('Executing %s with params: %s' % (script_type, params))
