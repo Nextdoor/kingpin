@@ -444,7 +444,11 @@ class RightScale(object):
             log.debug('Executing %s on %s' % (name, i.soul['name']))
             url = '%s/run_executable' % i.links['self']
             tasks.append(self.make_generic_request(url, post=params))
-        ret = yield tasks
+
+        try:
+            ret = yield tasks
+        except requests.exceptions.HTTPError as e:
+            raise ServerArrayException('Script Execution Error: %s' % e)
 
         raise gen.Return(ret)
 

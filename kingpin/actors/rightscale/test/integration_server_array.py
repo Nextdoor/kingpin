@@ -217,6 +217,28 @@ class IntegrationServerArray(testing.AsyncTestCase):
         self.assertEquals(True, ret)
 
     @attr('integration')
+    @testing.gen_test(timeout=120)
+    def integration_06c_execute_missing_script(self):
+        actor = server_array.Execute(
+            'Execute %s' % self.clone_name,
+            {'array': self.clone_name,
+             'script': 'bogus script',
+             'inputs': {'SLEEP': 'text:15'}})
+        with self.assertRaises(api.ServerArrayException):
+            yield actor.execute()
+
+    @attr('integration')
+    @testing.gen_test(timeout=120)
+    def integration_06d_execute_incorrect_inputs(self):
+        actor = server_array.Execute(
+            'Execute %s' % self.clone_name,
+            {'array': self.clone_name,
+             'script': self.template_script,
+             'inputs': {'SLEEP': 'bogus field'}})
+        with self.assertRaises(api.ServerArrayException):
+            yield actor.execute()
+
+    @attr('integration')
     @testing.gen_test(timeout=300)
     def integration_07a_destroy_dry(self):
         actor = server_array.Destroy(

@@ -328,11 +328,29 @@ class TestRightScale(testing.AsyncTestCase):
         mock_tracker.right_script.assert_called_once_with('my_script')
 
         # Test with a missing RightScript
-        mock_tracker.web_request.reset_mock()
         self.client.find_right_script = fake_find_right_script_return_none
         with self.assertRaises(api.ServerArrayException):
             yield self.client.run_executable_on_instances(
                 'my_script', inputs, [mock_instance])
+
+    @testing.gen_test
+    def test_run_executable_on_instances_raise_exceptions(self):
+        mock_instance = mock.MagicMock(name='unittest-instance')
+        mock_instance.soul = {'name': 'unittest-instance'}
+        mock_instance.links = {'self': '/foo/bar'}
+        mock_instance.self.path = '/a/b/1234'
+
+        @gen.coroutine
+        def fake_web_request(url, post):
+            msg = '422 Client Error: Unprocessable Entity'
+            raise requests.exceptions.HTTPError(msg)
+        self.client.make_generic_request = fake_web_request
+
+        # Test with invalid inputs raising a 422 error
+        self.client.make_generic_request = fake_web_request
+        with self.assertRaises(api.ServerArrayException):
+            yield self.client.run_executable_on_instances(
+                'my::recipe', {}, [mock_instance])
 
     @testing.gen_test
     def test_make_generic_request(self):
