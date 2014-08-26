@@ -12,7 +12,7 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""Misc Actor objects"""
+"""AWS.ELB Actors"""
 
 import logging
 import math

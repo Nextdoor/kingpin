@@ -12,7 +12,7 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""Misc Actor objects"""
+"""Common settings for AWS Actors"""
 
 import logging
 import os
@@ -25,6 +25,6 @@ AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', None)
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', None)
 
 if not (AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY):
-    log.warning('AWS settings imported but not all credentials are supplied.'
+    log.warning('AWS settings imported but not all credentials are supplied. '
                 'AWS_ACCESS_KEY_ID: %s, AWS_SECRET_ACCESS_KEY: %s' %
                 (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY))
