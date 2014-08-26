@@ -1,4 +1,4 @@
-# Kingpin: The Deployment Director
+# Kingpin: the chief element of any system, plan, or the like.
 
 Automated Deployment Engine
 
@@ -282,9 +282,10 @@ Example _dry_ output:
         |   |
         |   +-- server_array
         |       +-- Clone
-        |       +-- Update
-        |       +-- Launch
         |       +-- Destroy
+        |       +-- Execute
+        |       +-- Launch
+        |       +-- Update
         |
         +-- actors.aws
         |   | Amazon Web Services Actor
@@ -294,9 +295,11 @@ Example _dry_ output:
         |
         +-- actors.hipchat
         |   | Hipchat Actor
+        |   |
+        |   +-- Message
         |
-        +-- actors.librator
-            | Librator Metric Actor
+        +-- actors.librato
+            | Librato Metric Actor
 
 
 ### Setup
