@@ -11,19 +11,28 @@ import boto.sqs.connection
 import boto.sqs.queue
 
 
-class TestCreateSQSQueueActor(testing.AsyncTestCase):
+class SQSTestCase(testing.AsyncTestCase):
+    """hi"""
+    
+    @mock.patch.object(boto.sqs.connection, 'SQSConnection')
+    def run(self, result, sqsc):
+        self.conn = sqsc
+        super(SQSTestCase, self).run(result=result)
+
+
+
+class TestCreateSQSQueueActor(SQSTestCase):
 
     @testing.gen_test
     def test_execute(self):
         self.actor = sqs.Create('Unit Test Action',
                                 {'name': 'unit-test-queue'})
 
-        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
-            sqsc().create_queue.return_value = boto.sqs.queue.Queue()
+        self.conn().create_queue.return_value = boto.sqs.queue.Queue()
 
-            yield self.actor.execute()
+        yield self.actor.execute()
 
-        sqsc().create_queue.assert_called_once_with('unit-test-queue')
+        self.conn().create_queue.assert_called_once_with('unit-test-queue')
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -31,39 +40,36 @@ class TestCreateSQSQueueActor(testing.AsyncTestCase):
                                 {'name': 'unit-test-queue'},
                                 dry=True)
 
-        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
-            sqsc().create_queue.return_value = boto.sqs.queue.Queue()
+        self.conn().create_queue.return_value = boto.sqs.queue.Queue()
 
-            yield self.actor.execute()
+        yield self.actor.execute()
 
-        self.assertFalse(sqsc().create_queue.called)
+        self.assertFalse(self.conn().create_queue.called)
 
     @testing.gen_test
     def test_execute_with_error(self):
         self.actor = sqs.Create('Unit Test Action',
                                 {'name': 'unit-test-queue'})
 
-        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
-            sqsc().create_queue.return_value = False
-            with self.assertRaises(Exception):
-                yield self.actor.execute()
+        self.conn().create_queue.return_value = False
+        with self.assertRaises(Exception):
+            yield self.actor.execute()
 
-        sqsc().create_queue.assert_called_once_with('unit-test-queue')
+        self.conn().create_queue.assert_called_once_with('unit-test-queue')
 
 
-class TestDeleteSQSQueueActor(testing.AsyncTestCase):
+class TestDeleteSQSQueueActor(SQSTestCase):
 
     @testing.gen_test
     def test_execute(self):
         self.actor = sqs.Delete('Unit Test Action',
                                 {'name': 'unit-test-queue'})
 
-        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
-            sqsc().delete_queue.return_value = True
-            yield self.actor.execute()
+        self.conn().delete_queue.return_value = True
+        yield self.actor.execute()
 
-        self.assertTrue(sqsc.return_value.get_queue.called)
-        self.assertTrue(sqsc.return_value.delete_queue.called)
+        self.assertTrue(self.conn.return_value.get_queue.called)
+        self.assertTrue(self.conn.return_value.delete_queue.called)
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -71,62 +77,57 @@ class TestDeleteSQSQueueActor(testing.AsyncTestCase):
                                 {'name': 'unit-test-queue'},
                                 dry=True)
 
-        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
-            sqsc().delete_queue.return_value = True
-            yield self.actor.execute()
+        self.conn().delete_queue.return_value = True
+        yield self.actor.execute()
 
-        self.assertTrue(sqsc.return_value.get_queue.called)
-        self.assertFalse(sqsc.return_value.delete_queue.called)
+        self.assertTrue(self.conn.return_value.get_queue.called)
+        self.assertFalse(self.conn.return_value.delete_queue.called)
 
     @testing.gen_test
     def test_execute_with_error(self):
         self.actor = sqs.Delete('Unit Test Action',
                                 {'name': 'unit-test-queue'})
 
-        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
 
-            sqsc().get_queue.return_value = None
+        self.conn().get_queue.return_value = None
 
-            with self.assertRaises(Exception):
-                yield self.actor.execute()
+        with self.assertRaises(Exception):
+            yield self.actor.execute()
 
-        self.assertFalse(sqsc.return_value.delete_queue.called)
+        self.assertFalse(self.conn.return_value.delete_queue.called)
 
     @testing.gen_test
     def test_execute_with_failure(self):
         self.actor = sqs.Delete('Unit Test Action',
                                 {'name': 'unit-test-queue'})
 
-        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
 
-            sqsc().delete_queue.return_value = False
+        self.conn().delete_queue.return_value = False
 
-            with self.assertRaises(Exception):
-                yield self.actor.execute()
+        with self.assertRaises(Exception):
+            yield self.actor.execute()
 
-        self.assertTrue(sqsc.return_value.delete_queue.called)
+        self.assertTrue(self.conn.return_value.delete_queue.called)
 
 
-class TestWaitUntilQueueEmptyActor(testing.AsyncTestCase):
+class TestWaitUntilQueueEmptyActor(SQSTestCase):
 
     @testing.gen_test
     def test_execute(self):
         self.actor = sqs.WaitUntilEmpty('UTA!',
                                         {'name': 'unit-test-queue'})
 
-        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
-            sqsc().get_queue().count.return_value = 0
-            yield self.actor.execute()
+        self.conn().get_queue().count.return_value = 0
+        yield self.actor.execute()
 
     @testing.gen_test
     def test_wrong_queuename(self):
         self.actor = sqs.WaitUntilEmpty('UTA!',
                                         {'name': 'unit-test-queue'})
 
-        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
-            sqsc().get_queue.return_value = None
-            with self.assertRaises(Exception):
-                yield self.actor.execute()
+        self.conn().get_queue.return_value = None
+        with self.assertRaises(Exception):
+            yield self.actor.execute()
 
     @testing.gen_test
     def test_dry_run(self):
@@ -134,19 +135,17 @@ class TestWaitUntilQueueEmptyActor(testing.AsyncTestCase):
                                         {'name': 'unit-test-queue'},
                                         dry=True)
 
-        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
-            sqsc().get_queue().count.return_value = 10  # Note this is NOT zero
-            yield self.actor.execute()
+        self.conn().get_queue().count.return_value = 10  # Note this is NOT zero
+        yield self.actor.execute()
 
-            self.assertFalse(sqsc().get_queue().count.called)
+        self.assertFalse(self.conn().get_queue().count.called)
 
     @testing.gen_test
     def test_sleep_and_retry(self):
         self.actor = sqs.WaitUntilEmpty('UTA!',
                                         {'name': 'unit-test-queue'})
 
-        with mock.patch.object(boto.sqs.connection, 'SQSConnection') as sqsc:
-            sqsc().get_queue().count.side_effect = [3, 2, 1, 0]
-            yield self.actor._wait(sleep=0)
+        self.conn().get_queue().count.side_effect = [3, 2, 1, 0]
+        yield self.actor._wait('unit-name', sleep=0)
 
-            self.assertEquals(sqsc().get_queue().count.call_count, 4)
+        self.assertEquals(self.conn().get_queue().count.call_count, 4)

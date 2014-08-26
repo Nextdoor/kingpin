@@ -15,13 +15,13 @@
 """AWS SQS Actors"""
 
 import logging
-import os
 
 from tornado import gen
 import boto.sqs.connection
 import boto.sqs.queue
 import mock
 
+from kingpin.actors.aws import settings as aws_settings
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin import utils
@@ -30,44 +30,33 @@ log = logging.getLogger(__name__)
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', None)
-AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', None)
+
+class SQSBaseActor(base.BaseActor):
+    def __init__(self, *args, **kwargs):
+        """Create the connection object."""
+        super(SQSBaseActor, self).__init__(*args, **kwargs)
+
+        self.conn = boto.sqs.connection.SQSConnection(
+            aws_settings.AWS_SECRET_ACCESS_KEY,
+            aws_settings.AWS_ACCESS_KEY_ID)
 
 
-class Create(base.HTTPBaseActor):
+class Create(SQSBaseActor):
     """Creates a new SQS Queue."""
 
     required_options = ['name']
 
-    def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
-
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following settings:
-              { 'name': queue name }
-        """
-        super(Create, self).__init__(*args, **kwargs)
-
-        self._queue_name = self._options['name']
-
     @gen.coroutine
-    def _create_queue(self):
-        # boto pools connections
-        conn = yield utils.thread_coroutine(
-            boto.sqs.connection.SQSConnection,
-            AWS_SECRET_ACCESS_KEY,
-            AWS_ACCESS_KEY_ID)
-
+    def _create_queue(self, name):
         if not self._dry:
             self._log(logging.INFO,
-                      'Creating a new queue: %s' % self._queue_name)
+                      'Creating a new queue: %s' % name)
             new_queue = yield utils.thread_coroutine(
-                conn.create_queue, self._queue_name)
+                self.conn.create_queue, name)
         else:
             self._log(logging.INFO,
-                      'Would create a new queue: %s' % self._queue_name)
-            new_queue = mock.Mock(name=self._queue_name)
+                      'Would create a new queue: %s' % name)
+            new_queue = mock.Mock(name=name)
 
         self._log(logging.INFO, 'Returning queue object: %s' % new_queue)
         raise gen.Return(new_queue)
@@ -80,8 +69,8 @@ class Create(base.HTTPBaseActor):
         """
         self._log(logging.INFO,
                   'Creating a new SQS Queue "%s"' %
-                  self._queue_name)
-        q = yield self._create_queue()
+                  self._options['name'])
+        q = yield self._create_queue(name=self._options['name'])
 
         if q.__class__ == boto.sqs.queue.Queue:
             self._log(logging.INFO, 'Queue Created: %s' % q.url)
@@ -93,43 +82,22 @@ class Create(base.HTTPBaseActor):
         raise gen.Return(True)
 
 
-class Delete(base.HTTPBaseActor):
+class Delete(SQSBaseActor):
     """Deletes an existing SQS Queue."""
 
     required_options = ['name']
 
-    def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
-
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following settings:
-              { 'name': queue name,
-                'delete_non_empty': False }
-        """
-        super(Delete, self).__init__(*args, **kwargs)
-
-        self._queue_name = self._options['name']
-        self._delete_non_empty = self._options.get('delete_non_empty', False)
-
     @gen.coroutine
-    def _delete_queue(self):
-        # boto pools connections
-        conn = yield utils.thread_coroutine(
-            boto.sqs.connection.SQSConnection,
-            AWS_SECRET_ACCESS_KEY,
-            AWS_ACCESS_KEY_ID)
+    def _delete_queue(self, name):
+        q = yield utils.thread_coroutine(self.conn.get_queue, name)
 
-        q = yield utils.thread_coroutine(
-            conn.get_queue,
-            self._queue_name)
         if not q:
             raise exceptions.UnrecoverableActionFailure(
-                'Queue not found for deletion: %s' % self._queue_name)
+                'Queue not found for deletion: %s' % name)
 
         if not self._dry:
             self._log(logging.INFO, 'Deleting Queue: %s...' % q.url)
-            success = yield utils.thread_coroutine(conn.delete_queue, q)
+            success = yield utils.thread_coroutine(self.conn.delete_queue, q)
         else:
             self._log(logging.INFO, 'Would have deleted the queue: %s' % q.url)
             success = True
@@ -138,7 +106,7 @@ class Delete(base.HTTPBaseActor):
                   'Deleting Queue: %s success: %s' % (q.url, success))
         if not success:
             raise exceptions.UnrecoverableActionFailure(
-                'Failed to delete queue: %s' % self._queue_name)
+                'Failed to delete queue: %s' % name)
 
         raise gen.Return(success)
 
@@ -150,42 +118,27 @@ class Delete(base.HTTPBaseActor):
         """
         self._log(logging.INFO,
                   'Deleting SQS Queue "%s"' %
-                  self._queue_name)
-        result = yield self._delete_queue()
+                  self._options['name'])
+
+        result = yield self._delete_queue(
+            name=self._options['name'])
+
         raise gen.Return(result)
 
 
-class WaitUntilEmpty(base.HTTPBaseActor):
+class WaitUntilEmpty(SQSBaseActor):
     """Waits for an SQS Queue to become empty."""
 
     required_options = ['name']
 
-    def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
-
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following settings:
-              { 'name': queue name }
-        """
-        super(WaitUntilEmpty, self).__init__(*args, **kwargs)
-
-        self._queue_name = self._options['name']
-
     @gen.coroutine
-    def _wait(self, sleep=3):
-        # boto pools connections
-        conn = yield utils.thread_coroutine(
-            boto.sqs.connection.SQSConnection,
-            AWS_SECRET_ACCESS_KEY,
-            AWS_ACCESS_KEY_ID)
-
+    def _wait(self, name, sleep=3):
         q = yield utils.thread_coroutine(
-            conn.get_queue,
-            self._queue_name)
+            self.conn.get_queue,
+            name)
         if not q:
             raise exceptions.UnrecoverableActionFailure(
-                'Queue not found: %s' % self._queue_name)
+                'Queue not found: %s' % name)
 
         count = 1
         while count > 0:
@@ -213,7 +166,7 @@ class WaitUntilEmpty(base.HTTPBaseActor):
         """
         self._log(logging.INFO,
                   'Waiting for queue "%s" to become empty.' %
-                  self._queue_name)
-        result = yield self._wait()
+                  self._options['name'])
+        result = yield self._wait(name=self._options['name'])
 
         raise gen.Return(result)
