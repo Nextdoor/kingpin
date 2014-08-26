@@ -341,7 +341,7 @@ RightScale ServerTemplate.
 
   * ServerArray: _kingpin-integration-testing_
     Any ServerArray that launches a server in your environment.
-  * RightScript: _kingpin-integratino-testing-script_
+  * RightScript: _kingpin-integration-testing-script_
     Should be a script that sleeps for a specified amount of time.
     **Requires `SLEEP` input**
 
