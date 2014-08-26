@@ -18,7 +18,7 @@ import logging
 import math
 
 from tornado import gen
-from boto.ec2 import elb
+from boto.ec2 import elb as aws_elb
 
 from kingpin.actors.aws import settings as aws_settings
 from kingpin.actors import base
@@ -42,75 +42,72 @@ def p2f(string):
 class WaitUntilHealthy(base.BaseActor):
     """Waits till a specified number of instances are "InService"."""
 
-    required_options = ['name', 'count']
+    def __init__(self, *args, **kwargs):
+        """Set up connection object."""
 
-    @gen.coroutine
-    def _wait(self):
+        super(WaitUntilHealthy, self).__init__(*args, **kwargs)
+
         # boto pools connections
-        conn = yield utils.thread_coroutine(
-            elb.ELBConnection,
+        self.conn = aws_elb.ELBConnection(
             aws_settings.AWS_SECRET_ACCESS_KEY,
             aws_settings.AWS_ACCESS_KEY_ID)
 
-        self._log(logging.INFO,
-                  'Searching for ELB "%s"' % self._options['name'])
-        found_elb = yield utils.thread_coroutine(
-            conn.get_all_loadbalancer,
-            load_balancer_names=self._options['name'])
-        self._log(logging.INFO, 'ELBs found: %s' % found_elb)
+    required_options = ['name', 'count']
 
-        if not found_elb:
+    @gen.coroutine
+    def _find_elb(self, name):
+        self._log(logging.INFO, 'Searching for ELB "%s"' % name)
+
+        elbs = yield utils.thread_coroutine(
+            self.conn.get_all_load_balancers,
+            load_balancer_names=name)
+        self._log(logging.INFO, 'ELBs found: %s' % elbs)
+
+        if len(elbs) != 1:
             raise exceptions.UnrecoverableActionFailure(
-                ('Could not find an ELB to operate on "%s"' %
-                 self._options['name']))
+                ('Expected to find exactly 1 ELB. Found %s: %s' %
+                 (len(elbs), elbs)))
 
-        while True:
-            self._log(logging.INFO,
-                      ('Counting ELB InService instances for : %s' %
-                       self._options['name']))
-            # Get all instances for this ELB
-            instance_list = yield utils.thread_coroutine(
-                found_elb.get_instance_health)
-            total_count = len(instance_list)
+        raise gen.Return(elbs[0])
 
-            log.debug('All instances: %s' % instance_list)
-            if not self._dry:
-                # Count ones with "state" = "InService"
-                in_service_count = [
-                    i.state for i in instance_list].count('InService')
-            else:
-                self._log(logging.INFO, (
-                    'Assuming that %s instances in %s are healthy.' %
-                    (self._options['count'], self._options['name'])))
-                in_service_count = total_count
+    def _get_expected_count(self, count, total_count):
+        """Calculate the expected count for a given percentage.
 
-            # Since the count can be provided as a number, or percentage
-            # figure out the expected count here.
-            count = self._options['count']
-            if isinstance(count, int):
-                expected_count = self._options['count']
-            elif '%' in count:
-                self._log(logging.INFO, '%s%% of ')
-                expected_count = math.ceil(
-                    total_count * p2f(self._options['count']))
-            else:
-                raise exceptions.InvalidOptions(
-                    '`count` should be an integer or a string with % in it.')
+        Either returns the passed count if it's an integer, or
+        calculates the count given an expected percentage."""
 
-            healthy_enough = in_service_count >= expected_count
+        if isinstance(count, int):
+            expected_count = count
+        elif '%' in count:
+            expected_count = math.ceil(total_count * p2f(count))
 
-            if not healthy_enough:
-                reason = 'Health count %s is below the required %s' % (
-                         in_service_count, expected_count)
+        return expected_count
 
-            if not healthy_enough and not self._dry:
-                self._log(logging.INFO, reason)
-                self._log(logging.INFO, 'Retrying in 3 seconds.')
-                yield utils.tornado_sleep(seconds=3)
-            else:
-                break  # healthy enough! Break out of the forever loop.
+    @gen.coroutine
+    def _is_healthy(self, elb, count):
+        """Checking if the number of"""
+        name = elb.name
 
-        raise gen.Return(True)
+        self._log(logging.INFO,
+                  ('Counting ELB InService instances for : %s' % name))
+
+        # Get all instances for this ELB
+        instance_list = yield utils.thread_coroutine(
+            elb.get_instance_health)
+        total_count = len(instance_list)
+
+        log.debug('All instances: %s' % instance_list)
+        in_service_count = [
+            i.state for i in instance_list].count('InService')
+
+        expected_count = self._get_expected_count(count, total_count)
+
+        healthy = in_service_count >= expected_count
+        self._log(logging.INFO, 'ELB "%s" healthy: %s' % (elb.name, healthy))
+        self._log(logging.INFO, 'InService vs expected: %s / %s' % (
+                                in_service_count, expected_count))
+
+        raise gen.Return(healthy)
 
     @gen.coroutine
     def _execute(self):
@@ -119,6 +116,22 @@ class WaitUntilHealthy(base.BaseActor):
         raises: gen.Return(True)
         """
 
-        yield self._wait()
+        elb = yield self._find_elb(name=self._options['name'])
+
+        while True:
+            healthy = yield self._is_healthy(elb, count=self._options['count'])
+
+            if healthy is True:
+                self._log(logging.INFO, 'ELB is healthy. Exiting.')
+                break
+
+            # Not healthy :( continue looping
+
+            if self._dry:
+                self._log(logging.INFO, 'Pretending that ELB is healthy.')
+                break
+
+            self._log(logging.INFO, 'Retrying in 3 seconds.')
+            yield utils.tornado_sleep(3)
 
         raise gen.Return(True)

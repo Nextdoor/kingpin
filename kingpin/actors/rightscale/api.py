@@ -381,9 +381,6 @@ class RightScale(object):
 
             log.debug('Task (%s) status: %s' %
                       (output.path, output.soul['summary']))
-            if 'queued' not in summary and '%' not in summary:
-                status = False
-                break
 
             yield utils.tornado_sleep(sleep)
 
