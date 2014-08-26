@@ -46,7 +46,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
 
     @attr('integration')
     @testing.gen_test(timeout=60)
-    def integration_01_clone_dry(self):
+    def integration_01a_clone_dry(self):
         actor = server_array.Clone(
             'Clone %s' % self.template_array,
             {'source': self.template_array,
@@ -54,6 +54,17 @@ class IntegrationServerArray(testing.AsyncTestCase):
             dry=True)
         ret = yield actor.execute()
         self.assertEquals(True, ret)
+
+    @attr('integration')
+    @testing.gen_test(timeout=60)
+    def integration_01b_clone_dry_with_missing_template(self):
+        actor = server_array.Clone(
+            'Clone %s' % self.template_array,
+            {'source': 'unit-test-fake-array',
+             'dest': self.clone_name},
+            dry=True)
+        with self.assertRaises(api.ServerArrayException):
+            yield actor.execute()
 
     @attr('integration')
     @testing.gen_test(timeout=60)
@@ -68,38 +79,73 @@ class IntegrationServerArray(testing.AsyncTestCase):
     @attr('integration')
     @testing.gen_test(timeout=30)
     def integration_02b_clone_with_duplicate_array(self):
-        actor2 = server_array.Clone(
+        actor = server_array.Clone(
             'Clone %s' % self.template_array,
             {'source': self.template_array,
              'dest': self.clone_name})
         with self.assertRaises(api.ServerArrayException):
-            yield actor2.execute()
+            yield actor.execute()
+
+    @attr('integration')
+    @testing.gen_test(timeout=30)
+    def integration_02c_clone_with_missing_template(self):
+        actor = server_array.Clone(
+            'Clone missing array',
+            {'source': 'unit-test-fake-array',
+             'dest': self.clone_name})
+        with self.assertRaises(api.ServerArrayException):
+            yield actor.execute()
 
     @attr('integration')
     @testing.gen_test(timeout=60)
-    def integration_03a_update_params(self):
+    def integration_03a_update_dry(self):
+        actor = server_array.Update(
+            'Update %s' % self.clone_name,
+            {'array': self.clone_name}, dry=True)
+        ret = yield actor.execute()
+        self.assertEquals(True, ret)
+
+    @attr('integration')
+    @testing.gen_test(timeout=60)
+    def integration_03b_update_dry_missing_array(self):
+        actor = server_array.Update(
+            'Update missing array',
+            {'array': 'unit-test-fake-array',
+             'params': {}, 'inputs': {}}, dry=True)
+        ret = yield actor.execute()
+        self.assertEquals(True, ret)
+
+    @attr('integration')
+    @testing.gen_test(timeout=60)
+    def integration_04a_update_params(self):
         # Patch the array with some new min_instance settings, then launch it
         actor = server_array.Update(
             'Update %s' % self.clone_name,
             {'array': self.clone_name,
-                'params': {
-                    'elasticity_params': {
-                        'bounds': {
-                            'min_count': '1',
-                            'max_count': '2'
-                        }
-                    },
-                    'status': 'enabled',
-                    'description': 'Unit Tests: %s' % UUID,
-                }
-             }
-        )
+             'params': {'elasticity_params': {'bounds': {
+                        'min_count': '1', 'max_count': '2'}},
+                        'status': 'enabled',
+                        'description': 'Unit Tests: %s' % UUID}})
+        ret = yield actor.execute()
+        self.assertEquals(True, ret)
+
+    @attr('integration')
+    @testing.gen_test(timeout=60)
+    def integration_04b_update_inputs(self):
+        # There is no way to validate that the actual inputs were set right,
+        # nor can we expect the end user to have the exact same server template
+        # inputs that we want here. We can still execute the code though and
+        # make sure it doesnt error out.
+        actor = server_array.Update(
+            'Update %s' % self.clone_name,
+            {'array': self.clone_name,
+             'inputs': {'TEST_INPUT': 'text:TEST_VALUE'}})
         ret = yield actor.execute()
         self.assertEquals(True, ret)
 
     @attr('integration')
     @testing.gen_test(timeout=10)
-    def integration_03b_update_with_invalid_params(self):
+    def integration_04c_update_with_invalid_params(self):
         actor = server_array.Update(
             'Update %s' % self.template_array,
             {'array': self.template_array,
@@ -109,12 +155,36 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(exceptions.UnrecoverableActionFailure):
             yield actor.execute()
 
+    @attr('integration')
+    @testing.gen_test(timeout=60)
+    def integration_04d_update_missing_array(self):
+        # Patch the array with some new min_instance settings, then launch it
+        actor = server_array.Update(
+            'Update %s' % self.clone_name,
+            {'array': self.clone_name,
+             'params': {'elasticity_params': {'bounds': {
+                        'min_count': '1', 'max_count': '2'}},
+                        'status': 'enabled',
+                        'description': 'Unit Tests: %s' % UUID}})
+        ret = yield actor.execute()
+        self.assertEquals(True, ret)
+
+    @attr('integration')
+    @testing.gen_test(timeout=30)
+    def integration_05a_launch_dry(self):
+        # Launch the machines and wait until they boot
+        actor = server_array.Launch(
+            'Launch %s' % self.clone_name,
+            {'array': self.clone_name}, dry=True)
+        ret = yield actor.execute()
+        self.assertEquals(True, ret)
+
     # Note: These tests can run super slow -- the server boot time
     # itself may take 5-10 minutes, and sometimes Amazon and RightScale
     # slowdown. Give this test up to 30m to execute before we bail out.
     @attr('integration')
     @testing.gen_test(timeout=1800)
-    def integration_04_launch(self):
+    def integration_05b_launch(self):
         # Launch the machines and wait until they boot
         actor = server_array.Launch(
             'Launch %s' % self.clone_name,
@@ -124,11 +194,19 @@ class IntegrationServerArray(testing.AsyncTestCase):
 
     @attr('integration')
     @testing.gen_test(timeout=300)
-    def integration_05_destroy(self):
+    def integration_06a_destroy_dry(self):
+        actor = server_array.Destroy(
+            'Destroy %s' % self.template_array,
+            {'array': self.clone_name, 'terminate': True},
+            dry=True)
+        ret = yield actor.execute()
+        self.assertEquals(True, ret)
+
+    @attr('integration')
+    @testing.gen_test(timeout=300)
+    def integration_06b_destroy(self):
         actor = server_array.Destroy(
             'Destroy %s' % self.template_array,
             {'array': self.clone_name, 'terminate': True})
         ret = yield actor.execute()
         self.assertEquals(True, ret)
-
-        self.assertEquals(ret, True)
