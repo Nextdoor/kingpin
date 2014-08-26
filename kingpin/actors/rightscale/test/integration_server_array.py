@@ -42,6 +42,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
     def setUp(self, *args, **kwargs):
         super(IntegrationServerArray, self).setUp(*args, **kwargs)
         self.template_array = 'kingpin-integration-testing'
+        self.template_script = 'kingpin-integration-testing-script'
         self.clone_name = 'kingpin-%s' % UUID
 
     @attr('integration')
@@ -193,8 +194,31 @@ class IntegrationServerArray(testing.AsyncTestCase):
         self.assertEquals(True, ret)
 
     @attr('integration')
+    @testing.gen_test(timeout=120)
+    def integration_06a_execute_dry(self):
+        actor = server_array.Execute(
+            'Execute %s' % self.clone_name,
+            {'array': self.clone_name,
+             'script': self.template_script,
+             'inputs': {'SLEEP': 'text:15'}},
+            dry=True)
+        ret = yield actor.execute()
+        self.assertEquals(True, ret)
+
+    @attr('integration')
+    @testing.gen_test(timeout=120)
+    def integration_06b_execute(self):
+        actor = server_array.Execute(
+            'Execute %s' % self.clone_name,
+            {'array': self.clone_name,
+             'script': self.template_script,
+             'inputs': {'SLEEP': 'text:15'}})
+        ret = yield actor.execute()
+        self.assertEquals(True, ret)
+
+    @attr('integration')
     @testing.gen_test(timeout=300)
-    def integration_06a_destroy_dry(self):
+    def integration_07a_destroy_dry(self):
         actor = server_array.Destroy(
             'Destroy %s' % self.template_array,
             {'array': self.clone_name, 'terminate': True},
@@ -204,7 +228,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
 
     @attr('integration')
     @testing.gen_test(timeout=300)
-    def integration_06b_destroy(self):
+    def integration_07b_destroy(self):
         actor = server_array.Destroy(
             'Destroy %s' % self.template_array,
             {'array': self.clone_name, 'terminate': True})

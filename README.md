@@ -340,6 +340,10 @@ RightScale ServerTemplate.
 **Required RightScale Resources**
 
   * ServerArray: _kingpin-integration-testing_
+    Any ServerArray that launches a server in your environment.
+  * RightScript: _kingpin-integratino-testing-script_
+    Should be a script that sleeps for a specified amount of time.
+    **Requires `SLEEP` input**
 
 ### Class/Object Architecture
 
