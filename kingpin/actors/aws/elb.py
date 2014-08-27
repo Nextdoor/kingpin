@@ -42,20 +42,43 @@ def p2f(string):
 class WaitUntilHealthy(base.BaseActor):
     """Waits till a specified number of instances are "InService"."""
 
+    required_options = ['name', 'count', 'region']
+
     def __init__(self, *args, **kwargs):
-        """Set up connection object."""
+        """Set up connection object.
+
+        Option Arguments:
+            name: string - name of the ELB
+            count: int, or string with %. (i.e. 4, or '80%')
+            region: string - AWS region name, like us-west-2.
+        """
 
         super(WaitUntilHealthy, self).__init__(*args, **kwargs)
 
-        # boto pools connections
+        region = self._get_region(self._options['region'])
+
         self.conn = aws_elb.ELBConnection(
             aws_settings.AWS_SECRET_ACCESS_KEY,
-            aws_settings.AWS_ACCESS_KEY_ID)
+            aws_settings.AWS_ACCESS_KEY_ID,
+            region=region)
 
-    required_options = ['name', 'count']
+    def _get_region(self, region):
+        """Return a RegionInfo object from boto.ec2.elb"""
+
+        all_regions = aws_elb.regions()
+        match = [r for r in all_regions if r.name == region]
+        if len(match) != 1:
+            raise exceptions.UnrecoverableActionFailure((
+                'Expected to find exactly 1 region named %s. '
+                'Found: %s') % (region, match))
+
+        return match[0]
 
     @gen.coroutine
     def _find_elb(self, name):
+        """Return an ELB with the matching name.
+
+        Must find exactly 1 match. Zones are limited by the AWS credentials"""
         self._log(logging.INFO, 'Searching for ELB "%s"' % name)
 
         elbs = yield utils.thread_coroutine(
@@ -85,7 +108,11 @@ class WaitUntilHealthy(base.BaseActor):
 
     @gen.coroutine
     def _is_healthy(self, elb, count):
-        """Checking if the number of"""
+        """Check if there are `count` InService instances for a given elb.
+
+        Args:
+            count: integer, or string with % in it.
+                   for more information read _get_expected_count()"""
         name = elb.name
 
         self._log(logging.INFO,

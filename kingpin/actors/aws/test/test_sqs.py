@@ -12,13 +12,11 @@ import boto.sqs.queue
 
 
 class SQSTestCase(testing.AsyncTestCase):
-    """hi"""
-    
+
     @mock.patch.object(boto.sqs.connection, 'SQSConnection')
     def run(self, result, sqsc):
         self.conn = sqsc
         super(SQSTestCase, self).run(result=result)
-
 
 
 class TestCreateSQSQueueActor(SQSTestCase):
@@ -88,7 +86,6 @@ class TestDeleteSQSQueueActor(SQSTestCase):
         self.actor = sqs.Delete('Unit Test Action',
                                 {'name': 'unit-test-queue'})
 
-
         self.conn().get_queue.return_value = None
 
         with self.assertRaises(Exception):
@@ -100,7 +97,6 @@ class TestDeleteSQSQueueActor(SQSTestCase):
     def test_execute_with_failure(self):
         self.actor = sqs.Delete('Unit Test Action',
                                 {'name': 'unit-test-queue'})
-
 
         self.conn().delete_queue.return_value = False
 
@@ -135,9 +131,10 @@ class TestWaitUntilQueueEmptyActor(SQSTestCase):
                                         {'name': 'unit-test-queue'},
                                         dry=True)
 
-        self.conn().get_queue().count.return_value = 10  # Note this is NOT zero
+        self.conn().get_queue().count.return_value = 10  # Note: NOT zero
         yield self.actor.execute()
 
+        # Dry run means count should not be called.
         self.assertFalse(self.conn().get_queue().count.called)
 
     @testing.gen_test

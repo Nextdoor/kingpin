@@ -23,6 +23,7 @@ class TestELBActor(testing.AsyncTestCase):
 
         actor = elb_actor.WaitUntilHealthy(
             'Unit Test Action', {'name': 'unit-test-queue',
+                                 'region': 'us-west-2',
                                  'count': 3})
 
         actor._find_elb = mock.Mock(return_value=tornado_value())
@@ -38,6 +39,7 @@ class TestELBActor(testing.AsyncTestCase):
 
         actor = elb_actor.WaitUntilHealthy(
             'Unit Test Action', {'name': 'unit-test-queue',
+                                 'region': 'us-west-2',
                                  'count': 3})
 
         actor._find_elb = mock.Mock(return_value=tornado_value())
@@ -60,6 +62,7 @@ class TestELBActor(testing.AsyncTestCase):
 
         actor = elb_actor.WaitUntilHealthy(
             'Unit Test Action', {'name': 'unit-test-queue',
+                                 'region': 'us-west-2',
                                  'count': 3},
             dry=True)
 
@@ -72,10 +75,29 @@ class TestELBActor(testing.AsyncTestCase):
         self.assertEquals(actor._is_healthy.call_count, 1)
         self.assertTrue(val)
 
+    def test_get_region(self):
+        actor = elb_actor.WaitUntilHealthy(
+            'Unit Test Action', {'name': 'unit-test-queue',
+                                 'region': 'us-west-2',
+                                 'count': 3})
+
+        reg = actor._get_region('us-west-2')
+        self.assertEquals(reg.name, 'us-west-2')
+
+    def test_get_region_fail(self):
+        actor = elb_actor.WaitUntilHealthy(
+            'Unit Test Action', {'name': 'unit-test-queue',
+                                 'region': 'us-west-2',
+                                 'count': 3})
+
+        with self.assertRaises(Exception):
+            actor._get_region('non-existent')
+
     @testing.gen_test
     def test_find_elb(self):
         actor = elb_actor.WaitUntilHealthy(
             'Unit Test Action', {'name': 'unit-test-queue',
+                                 'region': 'us-west-2',
                                  'count': 3})
 
         actor.conn = mock.Mock()
@@ -93,6 +115,7 @@ class TestELBActor(testing.AsyncTestCase):
     def test_find_elb_error(self):
         actor = elb_actor.WaitUntilHealthy(
             'Unit Test Action', {'name': 'unit-test-queue',
+                                 'region': 'us-west-2',
                                  'count': 3})
 
         actor.conn = mock.Mock()
@@ -105,6 +128,7 @@ class TestELBActor(testing.AsyncTestCase):
     def test_get_expected_count(self):
         actor = elb_actor.WaitUntilHealthy(
             'Unit Test Action', {'name': 'unit-test-queue',
+                                 'region': 'us-west-2',
                                  'count': 3})
 
         self.assertEquals(actor._get_expected_count(5, 1), 5)
@@ -114,6 +138,7 @@ class TestELBActor(testing.AsyncTestCase):
     def test_is_healthy(self):
         actor = elb_actor.WaitUntilHealthy(
             'Unit Test Action', {'name': 'unit-test-queue',
+                                 'region': 'us-west-2',
                                  'count': 3})
 
         elb = mock.Mock()
