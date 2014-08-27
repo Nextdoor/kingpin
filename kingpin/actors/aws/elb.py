@@ -17,13 +17,13 @@
 import logging
 import math
 
-from tornado import gen
 from boto.ec2 import elb as aws_elb
+from tornado import gen
 
-from kingpin.actors.aws import settings as aws_settings
+from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
-from kingpin import utils
+from kingpin.actors.aws import settings as aws_settings
 
 log = logging.getLogger(__name__)
 

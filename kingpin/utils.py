@@ -19,8 +19,8 @@ Common package for utility functions.
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
 from logging import handlers
-import os
 import logging
+import os
 import time
 
 from tornado import gen

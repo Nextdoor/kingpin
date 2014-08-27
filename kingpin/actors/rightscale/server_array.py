@@ -16,9 +16,9 @@
 
 from random import randint
 import logging
-import mock
 
 from tornado import gen
+import mock
 import requests
 
 from kingpin import utils

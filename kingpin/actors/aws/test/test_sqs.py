@@ -1,14 +1,13 @@
 import logging
-import mock
 
 from tornado import testing
+import boto.sqs.connection
+import boto.sqs.queue
+import mock
 
 from kingpin.actors.aws import sqs
 
 log = logging.getLogger(__name__)
-
-import boto.sqs.connection
-import boto.sqs.queue
 
 
 class SQSTestCase(testing.AsyncTestCase):

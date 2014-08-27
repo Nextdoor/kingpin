@@ -1,8 +1,8 @@
 import logging
-import mock
 
-from tornado import testing
 from tornado import gen
+from tornado import testing
+import mock
 
 from kingpin import utils
 from kingpin.actors.aws import elb as elb_actor

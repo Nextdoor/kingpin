@@ -21,10 +21,10 @@ import boto.sqs.connection
 import boto.sqs.queue
 import mock
 
-from kingpin.actors.aws import settings as aws_settings
+from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
-from kingpin import utils
+from kingpin.actors.aws import settings as aws_settings
 
 log = logging.getLogger(__name__)
 

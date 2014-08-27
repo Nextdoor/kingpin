@@ -1,13 +1,13 @@
 """Tests for the actors.base package."""
-import json
-import mock
-import logging
 import StringIO
+import json
+import logging
 
 from tornado import gen
-from tornado import simple_httpclient
 from tornado import httpclient
+from tornado import simple_httpclient
 from tornado import testing
+import mock
 
 from kingpin import utils
 from kingpin.actors import base

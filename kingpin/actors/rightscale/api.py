@@ -46,15 +46,13 @@ translation.
 from os import path
 import logging
 
+from rightscale import util as rightscale_util
 from tornado import gen
 import requests
+import rightscale
 import simplejson
 
-from rightscale import util as rightscale_util
-import rightscale
-
 from kingpin import utils
-
 
 log = logging.getLogger(__name__)
 

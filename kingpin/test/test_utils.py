@@ -1,13 +1,12 @@
-import os
 import logging
+import os
 import time
-
-import mock
-import requests
 
 from tornado import gen
 from tornado import testing
 from tornado.testing import unittest
+import mock
+import requests
 
 from kingpin import utils
 
