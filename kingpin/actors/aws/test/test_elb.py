@@ -1,8 +1,6 @@
 import logging
 import mock
 
-import boto.ec2.elb
-
 from tornado import testing
 from tornado import gen
 
@@ -18,14 +16,7 @@ def tornado_value(*args):
     raise gen.Return(*args)
 
 
-class ELBTestCase(testing.AsyncTestCase):
-
-    @mock.patch.object(boto.ec2, 'elb')
-    def run(self, result, elbc):
-        elbc.ELBConnection = mock.Mock()
-        super(ELBTestCase, self).run(result=result)
-
-class TestELBActor(ELBTestCase):
+class TestELBActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute(self):
