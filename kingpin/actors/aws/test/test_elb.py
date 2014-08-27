@@ -85,13 +85,11 @@ class TestELBActor(testing.AsyncTestCase):
         self.assertEquals(reg.name, 'us-west-2')
 
     def test_get_region_fail(self):
-        actor = elb_actor.WaitUntilHealthy(
-            'Unit Test Action', {'name': 'unit-test-queue',
-                                 'region': 'us-west-2',
-                                 'count': 3})
-
         with self.assertRaises(Exception):
-            actor._get_region('non-existent')
+            elb_actor.WaitUntilHealthy(
+                'Unit Test Action', {'name': 'unit-test-queue',
+                                     'region': 'non-existent',  # Should fail
+                                     'count': 3})
 
     @testing.gen_test
     def test_find_elb(self):

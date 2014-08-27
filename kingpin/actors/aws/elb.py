@@ -63,10 +63,17 @@ class WaitUntilHealthy(base.BaseActor):
             region=region)
 
     def _get_region(self, region):
-        """Return a RegionInfo object from boto.ec2.elb"""
+        """Return 'region' object used in ELBConnection
+        
+        Args:
+            region: string - AWS region name, like us-west-2
+        Returns:
+            RegionInfo object from boto.ec2.elb
+        """
 
         all_regions = aws_elb.regions()
         match = [r for r in all_regions if r.name == region]
+
         if len(match) != 1:
             raise exceptions.UnrecoverableActionFailure((
                 'Expected to find exactly 1 region named %s. '
