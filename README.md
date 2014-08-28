@@ -12,9 +12,19 @@ TODO
 
 ### DSL
 
-TODO
+#### The Script
 
-### Actors
+*The blueprint or roadmap that outlines a movie story through visual
+descriptions, actions of characters and their dialogue. The term "script" also
+applies to stageplays as well.*
+
+### Acts
+*A large division of a full-length play, separated from the other act or acts
+by an intermission.*
+
+
+### The Actors
+
 
 #### HipChat
 
