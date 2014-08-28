@@ -4,6 +4,9 @@ tornado==3.1.1
 # Used to make-synchronous-tasks-asynchronous
 futures
 
+# Used to parse out the JSON and validate its format.
+jsonschema
+
 # Explicit version and source set in the setup.py
 simplejson
 requests
