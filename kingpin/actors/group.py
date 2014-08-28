@@ -63,7 +63,7 @@ class BaseGroupActor(base.BaseActor):
 
         self._log(logging.DEBUG,
                   'Building Actor "%s" with args: %s' % (actor_string, config))
-        return utils.get_actor_class(actor_string)(**config)
+        return utils.get_actor_class(actor_string)(dry=self._dry, **config)
 
     def _build_actions(self):
         """Build up all of the actors we need to execute.
