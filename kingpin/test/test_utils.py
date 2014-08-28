@@ -23,6 +23,22 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(os.path.exists(path))
         self.assertTrue(os.path.exists('%s/test' % path))
 
+    def test_populate_with_env(self):
+        os.environ['UNIT_TEST'] = 'FOOBAR'
+        string = 'Unit %UNIT_TEST% Test %NOTFOUNDVARIABLE%'
+        expect = 'Unit FOOBAR Test %NOTFOUNDVARIABLE%'
+        result = utils.populate_with_env(string)
+
+        self.assertEquals(result, expect)
+
+    @mock.patch.object(utils, 'populate_with_env')
+    def test_populate_json_with_env(self, mocked_pwe):
+        result = utils.populate_json_with_env({
+            'key': '%UNIT_TEST%'})
+        # TODO: FIXME
+
+        pass
+
 
 class TestSetupLoggerUtils(unittest.TestCase):
 

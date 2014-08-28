@@ -212,3 +212,48 @@ def tornado_sleep(seconds=1.0):
     """
     yield gen.Task(ioloop.IOLoop.current().add_timeout,
                    time.time() + seconds)
+
+def populate_with_env(string):
+    """Insert env variables into the string.
+
+    Will match any environment key wrapped in '%'s and replace it with the
+    value of that env var.
+
+    Example:
+        export ME=biz
+
+        string='foo %ME% %bar%'
+        populate_with_env(string)  # 'foo biz %bar%'
+    """
+
+    for k, v in os.environ.iteritems():
+        string = string.replace(('%%%s%%' % k), v)
+    return string
+
+def populate_obj_with_env(obj):
+    """Recursively populate `obj` with env variables.
+
+    Apply 'populate_with_env' to each value of dictionary or a list.
+
+    Args:
+        obj - list or dictionary, or primitive types.
+    Returns:
+        copy of obj with string substitution for values.
+    """
+
+    if isinstance(obj, str):
+        return populate_with_env(obj)
+    elif type(obj) in [bool, int, float]:
+        # Primitive types -- no replacement needed
+        return obj
+    elif isinstance(obj, list):
+        # Apply same function on each item in the list.
+        copy = [populate_with_env(value) for value in obj]
+        return copy
+    elif isinstance(obj, dict):
+        # Only apply this function on value, not key of the dictionary
+        copy = dict((
+            (key, populate_with_env(value)) for key,value in obj.iteritems()))
+        return copy
+
+    raise Exception('Received an unexpected object %s.')
