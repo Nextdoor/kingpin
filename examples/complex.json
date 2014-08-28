@@ -1,50 +1,52 @@
 { "desc": "Main",
-  "options": { "async":false },
-  "acts": [
+  "actor": "group.Sync",
+  "options": {
+    "acts": [
+      { "desc": "Hipchat: Notify Oncall Room", "actor": "hipchat.Message", "options": { "message": "Hey, I'm doing a release", "room": "Oncall" } },
 
-    { "desc": "Hipchat: Notify Oncall Room", "actor": "hipchat.Message", "options": { "message": "Hey, I'm doing a release", "room": "Oncall" } },
+      { "desc": "Clone and Patch Arrays",
+        "actor": "group.Sync",
+        "options": { "acts": [
 
-    { "desc": "Clone and Patch Arrays",
-      "options": { "async":false },
-      "acts": [
-        { "desc": "Clone Arrays",
-          "options": { "async": true},
-          "acts": [
-            { "desc": "Clone Tools", "actor": "rightscale.server_array.Clone", "options": { "dest": "prod-tools-%RELEASE%", "source": "prod-tools-template" } },
-            { "desc": "Clone Photos", "actor": "rightscale.server_array.Clone", "options": { "dest": "prod-photos-%RELEASE%", "source": "prod-photos-template" } },
-            { "desc": "Clone Tasks", "actor": "rightscale.server_array.Clone", "options": { "dest": "prod-task-%RELEASE%", "source": "prod-task-template" } }
-          ]
-        },
+          { "desc": "Clone Arrays",
+            "actor": "group.Async",
+            "options": { "acts": [
+              { "desc": "Clone Tools", "actor": "rightscale.server_array.Clone", "options": { "dest": "prod-tools-%RELEASE%", "source": "prod-tools-template" } },
+              { "desc": "Clone Photos", "actor": "rightscale.server_array.Clone", "options": { "dest": "prod-photos-%RELEASE%", "source": "prod-photos-template" } },
+              { "desc": "Clone Tasks", "actor": "rightscale.server_array.Clone", "options": { "dest": "prod-task-%RELEASE%", "source": "prod-task-template" } }
+            ] }
+          },
 
-        { "desc": "Patch Arrays",
-          "options": { "async": true},
-          "acts": [
-            { "desc": "Patch Tools", "actor": "rightscale.server_array.Update", "options": { "array": "prod-tools-%RELEASE%", "puppet_facts": "tools=%RELEASE%" } },
-            { "desc": "Patch Photos", "actor": "rightscale.server_array.Update", "options": { "array": "prod-photos-%RELEASE%", "puppet_facts": "photos=%RELEASE%" } },
-            { "desc": "Patch Tasks", "actor": "rightscale.server_array.Update", "options": { "array": "prod-task-%RELEASE%", "puppet_facts": "task=%RELEASE%" } }
-          ]
-        }
-      ] 
-    },
+          { "desc": "Patch Arrays",
+            "actor": "group.Async",
+            "options": { "acts": [
+              { "desc": "Patch Tools", "actor": "rightscale.server_array.Update", "options": { "array": "prod-tools-%RELEASE%", "puppet_facts": "tools=%RELEASE%" } },
+              { "desc": "Patch Photos", "actor": "rightscale.server_array.Update", "options": { "array": "prod-photos-%RELEASE%", "puppet_facts": "photos=%RELEASE%" } },
+              { "desc": "Patch Tasks", "actor": "rightscale.server_array.Update", "options": { "array": "prod-task-%RELEASE%", "puppet_facts": "task=%RELEASE%" } }
+            ] }
+          }
+        ] }
+      },
     
-    { "desc": "Join New Arrays to ELB",
-      "options": { "async": true},
-      "acts": [
-        { "desc": "Join Tools", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-tools-%OLD_RELEASE%", "script": "Connect to ELB", "inputs": { "ELB_NAME": "prod-tools" } } },
-        { "desc": "Join Photos", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-photos-%OLD_RELEASE%", "script": "Connect to ELB", "inputs": { "ELB_NAME": "prod-photos" } } }
-      ]
-    },
+      { "desc": "Join New Arrays to ELB",
+        "actor": "group.Async",
+        "options": { "acts": [
+          { "desc": "Join Tools", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-tools-%OLD_RELEASE%", "script": "Connect to ELB", "inputs": { "ELB_NAME": "prod-tools" } } },
+          { "desc": "Join Photos", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-photos-%OLD_RELEASE%", "script": "Connect to ELB", "inputs": { "ELB_NAME": "prod-photos" } } }
+        ] }
+      },
 
-    { "desc": "Wait for traffic to settle",
-      "actor": "sleep",
-      "options": { "time": 60 } },
-
-    { "desc": "Remove Old Arrays from ELB",
-      "options": { "async": true},
-      "acts": [
-        { "desc": "Remove Old Tools", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-tools-%OLD_RELEASE%", "script": "Disconnect from ELB", "inputs": { "ELB_NAME": "prod-tools" } } },
-        { "desc": "Remove Old Photos", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-photos-%OLD_RELEASE%", "script": "Disconnect from ELB", "inputs": { "ELB_NAME": "prod-photos" } } }
-      ]
-    }
-  ]
+      { "desc": "Wait for traffic to settle",
+        "actor": "misc.Sleep",
+        "options": { "time": 60 } },
+  
+      { "desc": "Remove Old Arrays from ELB",
+        "actor": "group.Async",
+        "options": { "acts": [
+          { "desc": "Remove Old Tools", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-tools-%OLD_RELEASE%", "script": "Disconnect from ELB", "inputs": { "ELB_NAME": "prod-tools" } } },
+          { "desc": "Remove Old Photos", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-photos-%OLD_RELEASE%", "script": "Disconnect from ELB", "inputs": { "ELB_NAME": "prod-photos" } } }
+        ] }
+      }
+    ]
+  }
 }

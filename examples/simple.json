@@ -1,17 +1,24 @@
 { "desc": "main stage",
   "actor": "group.Sync",
-  "options" : { "acts": [
+  "options" : {
+    "acts": [
 
-    { "desc": "stage 1", "actor": "group.Sync", "options": { "acts": [
-      { "desc": "copy serverA", "actor": "copy", "options": { "source": "template", "dest": "serverA" } }
-    ] } },
+      { "desc": "stage 1", "actor": "group.Sync", "options": { "acts": [
+          { "desc": "copy serverA", "actor": "copy", "options": { "source": "template", "dest": "serverA" } },
+        { "desc": "copy serverB", "actor": "copy", "options": { "source": "template", "dest": "serverB" } },
+        { "desc": "copy serverC", "actor": "copy", "options": { "source": "template", "dest": "serverC" } }
+      ] } },
 
-    { "desc": "stage 2", "actor": "group.Sync", "options": { "acts": [
-      { "desc": "copy serverB", "actor": "copy", "options": { "source": "template", "dest": "serverB" } }
-    ] } },
+      { "desc": "stage 2", "actor": "group.Sync", "options": { "acts": [
+        { "desc": "launch serverA", "actor": "launch", "options": { "source": "template", "dest": "serverA" } },
+        { "desc": "launch serverB", "actor": "launch", "options": { "source": "template", "dest": "serverB" } },
+        { "desc": "launch serverC", "actor": "launch", "options": { "source": "template", "dest": "serverC" } }
+      ] } },
 
-    { "desc": "stage 3", "actor": "group.Sync", "options": { "acts": [
-      { "desc": "copy serverC", "actor": "copy", "options": { "source": "template", "dest": "serverC" } }
-    ] } },
-  ]
+      { "desc": "stage 3", "actor": "group.Sync", "options": { "acts": [
+        { "desc": "copy serverC", "actor": "copy", "options": { "source": "template", "dest": "serverC" } }
+      ] } }
+
+    ]
+  }
 }
