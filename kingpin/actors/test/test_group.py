@@ -49,6 +49,39 @@ class TestBaseGroupActor(testing.AsyncTestCase):
         ret = actor._build_actions()
         self.assertEquals(4, len(ret))
 
+    @testing.gen_test
+    def test_execute_success(self):
+        actor = group.BaseGroupActor(
+            'Unit Test Action',
+            {'acts': [dict(self.actor_return_true),
+                      dict(self.actor_return_true),
+                      dict(self.actor_return_true),
+                      dict(self.actor_return_true)]})
+
+        @gen.coroutine
+        def run_actions_true(*args, **kwargs):
+            raise gen.Return([True, True])
+        actor._run_actions = run_actions_true
+
+        ret = yield actor._execute()
+        self.assertEquals(True, ret)
+
+    def test_execute_failure(self):
+        actor = group.BaseGroupActor(
+            'Unit Test Action',
+            {'acts': [dict(self.actor_return_true),
+                      dict(self.actor_return_true),
+                      dict(self.actor_return_false),
+                      dict(self.actor_return_true)]})
+
+        @gen.coroutine
+        def run_actions_true(*args, **kwargs):
+            raise gen.Return([True, True])
+        actor._run_actions = run_actions_true
+
+        ret = yield actor._execute()
+        self.assertEquals(False, ret)
+
 
 class TestSyncGroupActor(testing.AsyncTestCase):
 
@@ -64,26 +97,26 @@ class TestSyncGroupActor(testing.AsyncTestCase):
             'options': {'return_value': False}}
 
     @testing.gen_test
-    def test_execute_with_no_acts(self):
+    def test_run_actions_with_no_acts(self):
         # Call the executor and test it out
         actor = group.Sync(
             'Unit Test Action', {'acts': []})
 
-        res = yield actor.execute()
-        self.assertEquals(res, True)
+        res = yield actor._run_actions()
+        self.assertEquals(res, [])
 
     @testing.gen_test
-    def test_execute_with_one_act(self):
+    def test_run_actions_with_one_act(self):
         # Call the executor and test it out
         actor = group.Sync(
             'Unit Test Action',
             {'acts': [dict(self.actor_return_true)]})
 
-        res = yield actor.execute()
-        self.assertEquals(res, True)
+        res = yield actor._run_actions()
+        self.assertEquals(res, [True])
 
     @testing.gen_test
-    def test_execute_with_two_acts(self):
+    def test_run_actions_with_two_acts(self):
         # Call the executor and test it out
         actor = group.Sync(
             'Unit Test Action',
@@ -91,11 +124,11 @@ class TestSyncGroupActor(testing.AsyncTestCase):
                 dict(self.actor_return_true),
                 dict(self.actor_return_true)]})
 
-        res = yield actor.execute()
-        self.assertEquals(res, True)
+        res = yield actor._run_actions()
+        self.assertEquals(res, [True, True])
 
     @testing.gen_test
-    def test_execute_with_two_acts_one_fails(self):
+    def test_run_actions_with_two_acts_one_fails(self):
         # Call the executor and test it out
         actor = group.Sync(
             'Unit Test Action',
@@ -103,8 +136,8 @@ class TestSyncGroupActor(testing.AsyncTestCase):
                 dict(self.actor_return_true),
                 dict(self.actor_return_false)]})
 
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        res = yield actor._run_actions()
+        self.assertEquals(res, [True, False])
 
 
 class TestAsyncGroupActor(testing.AsyncTestCase):
@@ -121,26 +154,26 @@ class TestAsyncGroupActor(testing.AsyncTestCase):
             'options': {'return_value': False}}
 
     @testing.gen_test
-    def test_execute_with_no_acts(self):
+    def test_run_actions_with_no_acts(self):
         # Call the executor and test it out
         actor = group.Async(
             'Unit Test Action', {'acts': []})
 
-        res = yield actor.execute()
-        self.assertEquals(res, True)
+        res = yield actor._run_actions()
+        self.assertEquals(res, [])
 
     @testing.gen_test
-    def test_execute_with_one_act(self):
+    def test_run_actions_with_one_act(self):
         # Call the executor and test it out
         actor = group.Async(
             'Unit Test Action',
             {'acts': [dict(self.actor_return_true)]})
 
-        res = yield actor.execute()
-        self.assertEquals(res, True)
+        res = yield actor._run_actions()
+        self.assertEquals(res, [True])
 
     @testing.gen_test
-    def test_execute_with_two_acts(self):
+    def test_run_actions_with_two_acts(self):
         # Call the executor and test it out
         actor = group.Async(
             'Unit Test Action',
@@ -148,11 +181,11 @@ class TestAsyncGroupActor(testing.AsyncTestCase):
                 dict(self.actor_return_true),
                 dict(self.actor_return_true)]})
 
-        res = yield actor.execute()
-        self.assertEquals(res, True)
+        res = yield actor._run_actions()
+        self.assertEquals(res, [True, True])
 
     @testing.gen_test
-    def test_execute_with_two_acts_one_fails(self):
+    def test_run_actions_with_two_acts_one_fails(self):
         # Call the executor and test it out
         actor = group.Async(
             'Unit Test Action',
@@ -160,5 +193,5 @@ class TestAsyncGroupActor(testing.AsyncTestCase):
                 dict(self.actor_return_true),
                 dict(self.actor_return_false)]})
 
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        res = yield actor._run_actions()
+        self.assertEquals(res, [True, False])

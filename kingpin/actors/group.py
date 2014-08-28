@@ -91,7 +91,6 @@ class BaseGroupActor(base.BaseActor):
         finished successfully.
         """
         ret = yield self._run_actions()
-        print "FUCK: %s" % ret
         raise gen.Return(all(ret))
 
 
