@@ -1,10 +1,11 @@
-import os
 import logging
-import mock
+import os
+import time
 
 from tornado import gen
 from tornado import testing
 from tornado.testing import unittest
+import mock
 import requests
 
 from kingpin import utils
@@ -113,3 +114,10 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
 
         ret = yield work()
         self.assertEquals(ret, True)
+
+    @testing.gen_test
+    def testTornadoSleep(self):
+        start = time.time()
+        yield utils.tornado_sleep(0.1)
+        stop = time.time()
+        self.assertTrue(stop - start > 0.1)

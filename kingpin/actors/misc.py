@@ -19,11 +19,10 @@ dedicated packages. Things like sleep timers, loggers, etc.
 """
 
 import logging
-import time
 
 from tornado import gen
-from tornado import ioloop
 
+from kingpin import utils
 from kingpin.actors import base
 
 log = logging.getLogger(__name__)
@@ -55,8 +54,6 @@ class Sleep(base.BaseActor):
         raises: gen.Return(True)
         """
         log.debug('[%s] Sleeping for %s seconds' % (self._desc, self._sleep))
-        yield gen.Task(
-            ioloop.IOLoop.current().add_timeout,
-            time.time() + self._sleep)
+        yield utils.tornado_sleep(seconds=self._sleep)
 
         raise gen.Return(True)
