@@ -58,8 +58,8 @@ class WaitUntilHealthy(base.BaseActor):
         region = self._get_region(self._options['region'])
 
         self.conn = aws_elb.ELBConnection(
-            aws_settings.AWS_SECRET_ACCESS_KEY,
             aws_settings.AWS_ACCESS_KEY_ID,
+            aws_settings.AWS_SECRET_ACCESS_KEY,
             region=region)
 
     def _get_region(self, region):

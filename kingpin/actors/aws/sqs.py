@@ -38,8 +38,8 @@ class SQSBaseActor(base.BaseActor):
         super(SQSBaseActor, self).__init__(*args, **kwargs)
 
         self.conn = boto.sqs.connection.SQSConnection(
-            aws_settings.AWS_SECRET_ACCESS_KEY,
-            aws_settings.AWS_ACCESS_KEY_ID)
+            aws_settings.AWS_ACCESS_KEY_ID,
+            aws_settings.AWS_SECRET_ACCESS_KEY)
 
 
 class Create(SQSBaseActor):
@@ -166,7 +166,7 @@ class WaitUntilEmpty(SQSBaseActor):
             raise exceptions.UnrecoverableActionFailure(
                 'Queue not found: %s' % name)
 
-        count = 0
+        count = 'unknown'
         while True:
             if not self._dry:
                 self._log(logging.INFO, 'Counting %s' % q.url)
