@@ -22,12 +22,11 @@ SCHEMA_1_0 = {
                 # actor and option key)
                 'acts': {
                     'type': 'array',
-                    'items': {'oneOf': [
-                        # This is a reference to 'self' ... in other words,
-                        # this array can only contain other SCHEMA_1_0 type
-                        # objets.
-                        {'$ref': '#'},
-                    ]},
+
+                    # This is a reference to 'self' ... in other words,
+                    # this array can only contain other SCHEMA_1_0 type
+                    # objets.
+                    'items': {'$ref': '#'},
                 },
             },
         },

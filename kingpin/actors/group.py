@@ -29,19 +29,13 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 class BaseGroupActor(base.BaseActor):
 
-    """Group together a series of other Actors"""
+    """Group together a series of other Actors
+
+    'acts' option: [ <list of sub-actors to execute> ]
+
+    """
 
     required_options = ['acts']
-
-    def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
-
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following settings:
-              { 'acts': [ <list of sub-actors to execute> ] }
-        """
-        super(BaseGroupActor, self).__init__(*args, **kwargs)
 
     def _get_actor(self, config):
         """Returns an initialized Actor object.
