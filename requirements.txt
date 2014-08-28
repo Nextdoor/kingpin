@@ -1,7 +1,10 @@
+simplejson
+
 # General App Requirements
 tornado==3.1.1
+boto==2.32.1
 
-# Used to make-synchronous-tasks-asynchronous
+# Used to make synchronous tasks asynchronous
 futures
 
 # Used to parse out the JSON and validate its format.

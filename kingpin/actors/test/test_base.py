@@ -1,16 +1,15 @@
 """Tests for the actors.base package."""
-import json
-import time
-import mock
-import logging
 import StringIO
+import json
+import logging
 
 from tornado import gen
-from tornado import simple_httpclient
 from tornado import httpclient
+from tornado import simple_httpclient
 from tornado import testing
-from tornado.ioloop import IOLoop
+import mock
 
+from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
 
@@ -32,7 +31,7 @@ class TestBaseActor(testing.AsyncTestCase):
     def sleep(self):
         # Basically a fake action that should take a few seconds to run for the
         # sake of the unit tests.
-        yield gen.Task(IOLoop.current().add_timeout, time.time() + 0.1)
+        yield utils.tornado_sleep(0.1)
         raise gen.Return(True)
 
     def setUp(self):
