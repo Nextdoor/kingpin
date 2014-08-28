@@ -59,50 +59,40 @@ class TestDeleteSQSQueueActor(SQSTestCase):
 
     @testing.gen_test
     def test_execute(self):
-        self.actor = sqs.Delete('Unit Test Action',
-                                {'name': 'unit-test-queue'})
+        actor = sqs.Delete('Unit Test Action',
+                           {'name': 'unit-test-queue'})
 
+        q = mock.Mock()
+        q.name = 'unit-test-queue'
+        self.conn().get_all_queues = mock.Mock(return_value=[q])
         self.conn().delete_queue.return_value = True
-        yield self.actor.execute()
+        yield actor.execute()
 
-        self.assertTrue(self.conn.return_value.get_queue.called)
-        self.assertTrue(self.conn.return_value.delete_queue.called)
+        self.assertTrue(self.conn().get_all_queues.called)
+        self.assertTrue(self.conn().delete_queue.called)
 
     @testing.gen_test
     def test_execute_dry(self):
-        self.actor = sqs.Delete('Unit Test Action',
-                                {'name': 'unit-test-queue'},
-                                dry=True)
+        actor = sqs.Delete('Unit Test Action',
+                           {'name': 'unit-test-queue'},
+                           dry=True)
 
+        q = mock.Mock()
+        q.name = 'unit-test-queue'
+        self.conn().get_all_queues = mock.Mock(return_value=[q])
         self.conn().delete_queue.return_value = True
-        yield self.actor.execute()
+        yield actor.execute()
 
-        self.assertTrue(self.conn.return_value.get_queue.called)
-        self.assertFalse(self.conn.return_value.delete_queue.called)
-
-    @testing.gen_test
-    def test_execute_with_error(self):
-        self.actor = sqs.Delete('Unit Test Action',
-                                {'name': 'unit-test-queue'})
-
-        self.conn().get_queue.return_value = None
-
-        with self.assertRaises(Exception):
-            yield self.actor.execute()
-
-        self.assertFalse(self.conn.return_value.delete_queue.called)
+        self.assertTrue(self.conn().get_all_queues.called)
+        self.assertFalse(self.conn().delete_queue.called)
 
     @testing.gen_test
     def test_execute_with_failure(self):
-        self.actor = sqs.Delete('Unit Test Action',
-                                {'name': 'unit-test-queue'})
-
-        self.conn().delete_queue.return_value = False
+        actor = sqs.Delete('Unit Test Action',
+                           {'name': 'non-existent-queue'})
 
         with self.assertRaises(Exception):
-            yield self.actor.execute()
-
-        self.assertTrue(self.conn.return_value.delete_queue.called)
+            yield actor.execute()
 
 
 class TestWaitUntilQueueEmptyActor(SQSTestCase):

@@ -64,7 +64,7 @@ class WaitUntilHealthy(base.BaseActor):
 
     def _get_region(self, region):
         """Return 'region' object used in ELBConnection
-        
+
         Args:
             region: string - AWS region name, like us-west-2
         Returns:
