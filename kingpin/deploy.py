@@ -75,7 +75,8 @@ def main():
 
     # TODO: Method-ize-this
     actor = config.pop('actor')
-    initial_actor = actor_utils.get_actor_class(actor)(dry=options.dry, **config)
+    initial_actor = actor_utils.get_actor_class(actor)(
+        dry=options.dry, **config)
     yield initial_actor.execute()
 
 if __name__ == '__main__':
