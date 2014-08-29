@@ -64,11 +64,19 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
         array = yield self._client.find_server_arrays(array_name, exact=True)
 
         if not array and self._dry and allow_mock:
+            # Create a fake ServerArray object thats mocked up to help with
+            # execution of the rest of the code.
             self._log(logging.INFO,
                       'Array "%s" not found -- creating a mock.' % array_name)
             array = mock.MagicMock(name=array_name)
-            array.soul = {'name': '<mocked array %s>' % array_name}
+            # Give the mock a real identity and give it valid elasticity
+            # parameters so the Launch() actor can behave properly.
+            array.soul = {
+                'name': '<mocked array %s>' % array_name,
+                'elasticity_params': {'bounds': {'min_count': 4}}
+            }
             array.self.path = '/fake/array/%s' % randint(10000, 20000)
+            array.self.show.return_value = array
 
         if array and raise_on == 'found':
             raise api.ServerArrayException(
