@@ -160,7 +160,7 @@ def thread_coroutine(func, *args, **kwargs):
     raise gen.Return(ret)
 
 
-def retry(excs, retries=3):
+def retry(excs, retries=3, delay=0.25):
     """Coroutine-compatible Retry Decorator.
 
     This decorator provides a simple retry mechanism that looks for a
@@ -177,6 +177,7 @@ def retry(excs, retries=3):
     Args:
         excs: A single (or tuple) exception type to catch.
         retries: The number of times to try the operation in total.
+        delay: Time (in seconds) to wait between retries
     """
     def _retry_on_exc(f):
         def wrapper(*args, **kwargs):
@@ -196,8 +197,8 @@ def retry(excs, retries=3):
                         raise e
 
                     i += 1
-                    log.debug('Retrying in 0.25s..')
-                    yield tornado_sleep(0.25)
+                    log.debug('Retrying in %s...' % delay)
+                    yield tornado_sleep(delay)
                 log.debug('Retrying..')
         return wrapper
     return _retry_on_exc

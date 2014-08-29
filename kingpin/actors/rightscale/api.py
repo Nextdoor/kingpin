@@ -350,7 +350,7 @@ class RightScale(object):
 
     @gen.coroutine
     @utils.retry(excs=requests.packages.urllib3.exceptions.HTTPError,
-                 retries=3)
+                 retries=3, delay=5)
     def wait_for_task(self, task, sleep=5):
         """Monitors a RightScale task for completion.
 
