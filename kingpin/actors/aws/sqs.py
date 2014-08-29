@@ -166,7 +166,7 @@ class WaitUntilEmpty(SQSBaseActor):
             raise exceptions.UnrecoverableActionFailure(
                 'Queue not found: %s' % name)
 
-        count = 'unknown'
+        count = 0
         while True:
             if not self._dry:
                 self._log(logging.INFO, 'Counting %s' % q.url)

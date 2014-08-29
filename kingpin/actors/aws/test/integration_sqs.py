@@ -19,25 +19,25 @@ logging.getLogger('boto').setLevel(logging.INFO)
 
 
 class IntegrationSQS(testing.AsyncTestCase):
-    """High level RightScale Server Array Actors Testing.
+    """High level SQS Actor testing.
 
-    These tests rely on you having a ServerArray in RightScale named
-      'kingpin-integration-testing'
-    that can be cloned, launched, terminated, etc.
+    This suite of tests performs the following actions:
+    * Create a queue with a randomized name
+    * Add a few messages to the queue
+    * Start the WaitUntilEmpty task
+    * Check that this task is not exiting while there are messages
+    * Remove all the messages from the queue
+    * Check that the WaitUntilEmpty notices, and returns success
+    * Delete the temporary queue
 
     Note, these tests must be run in-order. The order is defined by
     their definition order in this file. Nose follows this order according
     to its documentation:
 
         http://nose.readthedocs.org/en/latest/writing_tests.html
-
-
-    NOTE: At this point, you need to self-clean-up after yourself
-          once you've run these tests. Future tests and features will
-          allow for these tests to self-clean-up.
     """
 
-    #integration = True
+    integration = True
 
     queue_name = 'integration-test-%s' % UUID
 
@@ -83,7 +83,7 @@ class IntegrationSQS(testing.AsyncTestCase):
         # Since messages are still in the queue the task should not be done
         self.assertFalse(wait_task.done())
 
-        # Drain the queue
+        log.debug('Draining the queue...')
         messages = True
         while messages:
             messages = queue.get_messages(10)
@@ -94,7 +94,8 @@ class IntegrationSQS(testing.AsyncTestCase):
         yield utils.tornado_sleep(5)
         self.assertTrue(wait_task.done())  # Should be done!
 
-        yield wait_task  # Should be instant since it's done already.
+        done = yield wait_task  # Should be instant since it's done already.
+        self.assertTrue(done)
 
     @attr('integration')
     @testing.gen_test(timeout=60)
@@ -103,5 +104,5 @@ class IntegrationSQS(testing.AsyncTestCase):
         actor = sqs.Delete('Delete %s' % self.queue_name,
             {'name': self.queue_name})
 
-        yield actor.execute()
-        pass
+        done = yield actor.execute()
+        self.assertTrue(done)
