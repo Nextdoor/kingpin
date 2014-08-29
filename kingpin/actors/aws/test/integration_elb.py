@@ -17,6 +17,17 @@ logging.getLogger('boto').setLevel(logging.INFO)
 class IntegrationSQS(testing.AsyncTestCase):
     """High level ELB Actor testing.
 
+    These tests will check two things:
+    * Connection to ELB works, and instance count is correct
+    * The actor continues waiting if instance count is less than expected
+
+    Requirements:
+        You have to create an ELB named kingpin-integration-test and place it
+        in the specified region (default us-east-1).
+        As with other tests, environment variables AWS_ACCESS_KEY_ID and
+        AWS_SECRET_ACCESS_KEY are expected, and the key should have
+        permissions to read ELB status.
+
     Note, these tests must be run in-order. The order is defined by
     their definition order in this file. Nose follows this order according
     to its documentation:
@@ -26,7 +37,8 @@ class IntegrationSQS(testing.AsyncTestCase):
 
     integration = True
 
-    elb_name = 'kingpin-integration-test-useast1'
+    elb_name = 'kingpin-integration-test'
+    region = 'us-east-1'
 
     @attr('integration')
     @testing.gen_test(timeout=60)
@@ -35,7 +47,7 @@ class IntegrationSQS(testing.AsyncTestCase):
             'Test',
             {'name': self.elb_name,
              'count': 0,
-             'region': 'us-east-1'})
+             'region': self.region})
 
         yield utils.tornado_sleep(0.01)  # Prevents IOError close() errors
         done = yield actor.execute()
@@ -50,7 +62,7 @@ class IntegrationSQS(testing.AsyncTestCase):
             'Test',
             {'name': self.elb_name,
              'count': 1,
-             'region': 'us-east-1'})
+             'region': self.region})
 
         wait_task = actor.execute()
         yield utils.tornado_sleep(1)
