@@ -1,0 +1,19 @@
+{ "desc": "main stage",
+  "options" : { "async":false },
+
+  "acts": [
+
+    { "desc": "stage 1", "options": { "async":true }, "acts": [
+      { "desc": "copy serverA", "actor": "copy", "options": { "source": "template", "dest": "serverA" } }
+    ] },
+
+    { "desc": "stage 2", "options": { "async":true }, "acts": [
+      { "desc": "copy serverA", "actor": "copy", "options": { "source": "template", "dest": "serverA" } }
+    ] },
+
+    { "desc": "stage 3", "options": { "async":true }, "acts": [
+      { "desc": "copy serverA", "actor": "copy", "options": { "source": "template", "dest": "serverA" } }
+    ] }
+
+  ]
+}

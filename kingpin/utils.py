@@ -39,15 +39,15 @@ THREADPOOL_SIZE = 10
 THREADPOOL = futures.ThreadPoolExecutor(THREADPOOL_SIZE)
 
 
-def strToClass(string):
+def str_to_class(string):
     """Method that converts a string name into a usable Class name
 
-    This is used to take the 'translator' config value from the
-    Config object and convert it into a valid object.
+    This is used to take the 'actor' value from the JSON object and convert it
+    into a valid object reference.
 
     Args:
         cls: String name of the wanted class and package.
-             eg: zk_monitor.foo.bar
+             eg: kingpin.actor.foo.bar
 
     Returns:
         A reference to the actual Class to be instantiated
