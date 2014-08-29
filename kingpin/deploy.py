@@ -40,12 +40,14 @@ parser = optparse.OptionParser(usage=usage, version=VERSION,
                                add_help_option=True)
 parser.set_defaults(verbose=True)
 
-# JSON Configuration
+# Job Configuration
 parser.add_option('-j', '--json', dest='json',
                   help='Path to JSON Deployment File')
+parser.add_option('-d', '--dry', dest='dry', action='store_true',
+                  help='Executes a DRY run.')
 
 # Logging Configuration
-parser.add_option('-l', '--level', dest="level", default='warn',
+parser.add_option('-l', '--level', dest="level", default='info',
                   help='Set logging level (INFO|WARN|DEBUG|ERROR)')
 parser.add_option('-s', '--syslog', dest='syslog',
                   default=None,
@@ -73,7 +75,7 @@ def main():
 
     # TODO: Method-ize-this
     actor = config.pop('actor')
-    initial_actor = actor_utils.get_actor_class(actor)(dry=True, **config)
+    initial_actor = actor_utils.get_actor_class(actor)(dry=options.dry, **config)
     yield initial_actor.execute()
 
 if __name__ == '__main__':

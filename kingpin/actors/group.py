@@ -115,10 +115,10 @@ class Sync(BaseGroupActor):
         """Synchronously executes all of the Actor.execute() methods."""
         returns = []
         for act in self._actions:
-            self._log(logging.INFO,
+            self._log(logging.DEBUG,
                       'Beginning "%s"..' % act._desc)
             ret = yield act.execute()
-            self._log(logging.INFO,
+            self._log(logging.DEBUG,
                       'Finished "%s", success?.. %s' % (act._desc, ret))
             returns.append(ret)
         raise gen.Return(returns)

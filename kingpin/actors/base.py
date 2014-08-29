@@ -105,7 +105,7 @@ class BaseActor(object):
         Raises:
             gen.Return(result)
         """
-        self._log(logging.INFO, 'Beginning execution')
+        self._log(logging.INFO, 'Beginning')
         result = yield self._execute()
         self._log(logging.INFO, 'Finished, success? %s' % result)
         raise gen.Return(result)
