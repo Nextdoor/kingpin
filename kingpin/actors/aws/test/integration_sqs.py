@@ -58,8 +58,7 @@ class IntegrationSQS(testing.AsyncTestCase):
         test_message_count = 100
 
         actor = sqs.WaitUntilEmpty('Wait until empty',
-            {'name': self.queue_name})
-
+                                   {'name': self.queue_name})
 
         log.debug('New queue should be empty')
         queue = actor.conn.get_queue(self.queue_name)
@@ -102,7 +101,7 @@ class IntegrationSQS(testing.AsyncTestCase):
     def integration_03_delete_queue(self):
 
         actor = sqs.Delete('Delete %s' % self.queue_name,
-            {'name': self.queue_name})
+                           {'name': self.queue_name})
 
         done = yield actor.execute()
         self.assertTrue(done)
