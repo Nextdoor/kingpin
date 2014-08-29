@@ -34,3 +34,8 @@ class TestUtils(testing.AsyncTestCase):
         actor_string = 'kingpin.actors.test.test_utils.FakeActor'
         ret = utils.get_actor_class(actor_string)
         self.assertEquals(type(FakeActor), type(ret))
+
+    def test_get_actor_class_bogus_actor(self):
+        actor_string = 'bogus.actor'
+        with self.assertRaises(utils.InvalidActorException):
+            utils.get_actor_class(actor_string)

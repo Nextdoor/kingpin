@@ -24,6 +24,11 @@ log = logging.getLogger(__name__)
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
+class InvalidActorException(Exception):
+
+    """Raised when an invalid Actor name was supplied."""
+
+
 def get_actor_class(actor):
     """Returns a Class Reference to an Actor by string name.
 
@@ -39,6 +44,10 @@ def get_actor_class(actor):
         full_actor = 'kingpin.actors.%s' % actor
         ref = utils.str_to_class(full_actor)
     except ImportError:
-        ref = utils.str_to_class(actor)
+        try:
+            ref = utils.str_to_class(actor)
+        except ImportError:
+            msg = 'Unable to convert "%s" to a valid Actor class name.' % actor
+            raise InvalidActorException(msg)
 
     return ref
