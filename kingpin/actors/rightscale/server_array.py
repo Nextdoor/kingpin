@@ -64,11 +64,19 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
         array = yield self._client.find_server_arrays(array_name, exact=True)
 
         if not array and self._dry and allow_mock:
-            self._log(logging.WARNING,
+            # Create a fake ServerArray object thats mocked up to help with
+            # execution of the rest of the code.
+            self._log(logging.INFO,
                       'Array "%s" not found -- creating a mock.' % array_name)
             array = mock.MagicMock(name=array_name)
-            array.soul = {'name': '<mocked array %s>' % array_name}
+            # Give the mock a real identity and give it valid elasticity
+            # parameters so the Launch() actor can behave properly.
+            array.soul = {
+                'name': '<mocked array %s>' % array_name,
+                'elasticity_params': {'bounds': {'min_count': 4}}
+            }
             array.self.path = '/fake/array/%s' % randint(10000, 20000)
+            array.self.show.return_value = array
 
         if array and raise_on == 'found':
             raise api.ServerArrayException(
@@ -191,7 +199,7 @@ class Update(ServerArrayBaseActor):
             if self._inputs:
                 self._log(logging.INFO, 'New inputs: %s' % self._inputs)
 
-            self._log(logging.WARNING, 'Not making any changes.')
+            self._log(logging.INFO, 'Not making any changes.')
             raise gen.Return(True)
 
         # Update the ServerArray Parameters
@@ -249,7 +257,7 @@ class Destroy(ServerArrayBaseActor):
             raise gen.Return()
 
         if self._dry:
-            self._log(logging.WARNING,
+            self._log(logging.INFO,
                       'Would have terminated all array "%s" instances.' %
                       array.soul['name'])
             raise gen.Return()
@@ -274,7 +282,7 @@ class Destroy(ServerArrayBaseActor):
             sleep: Integer time to sleep between checks (def: 60)
         """
         if self._dry:
-                self._log(logging.WARNING,
+                self._log(logging.INFO,
                           'Pretending that array %s instances are terminated.'
                           % array.soul['name'])
                 raise gen.Return()
@@ -298,7 +306,7 @@ class Destroy(ServerArrayBaseActor):
         TODO: Handle exceptions if the array is not terminatable.
         """
         if self._dry:
-            self._log(logging.WARNING,
+            self._log(logging.INFO,
                       'Pretending to destroy array "%s"' % array.soul['name'])
             raise gen.Return()
 
@@ -372,7 +380,7 @@ class Launch(ServerArrayBaseActor):
             sleep: Integer time to sleep between checks (def: 60)
         """
         if self._dry:
-            self._log(logging.WARNING,
+            self._log(logging.INFO,
                       'Pretending that array %s instances are launched.'
                       % array.soul['name'])
             raise gen.Return()
@@ -410,7 +418,7 @@ class Launch(ServerArrayBaseActor):
 #        """
 #
 #        if self._dry:
-#            self._log(logging.WARNING, 'Would have launched instances')
+#            self._log(logging.INFO, 'Would have launched instances')
 #            raise gen.Return()
 #
 #        # Get the current min_count setting from the ServerArray object
@@ -431,7 +439,7 @@ class Launch(ServerArrayBaseActor):
         min = int(array.soul['elasticity_params']['bounds']['min_count'])
 
         if self._dry:
-            self._log(logging.WARNING,
+            self._log(logging.INFO,
                       'Would have launched instances of array %s' %
                       array.soul['name'])
             raise gen.Return()
@@ -456,7 +464,7 @@ class Launch(ServerArrayBaseActor):
         # Enable the array right away. This means that RightScale will
         # auto-scale-up the array as soon as their next scheduled auto-scale
         # run hits (usually 60s). Store the newly updated array.
-        self._log(logging.INFO, 'Enabling Array "%s"' % self._array)
+        self._log(logging.INFO, 'Enabling Array "%s"' % array.soul['name'])
         params = self._generate_rightscale_params(
             'server_array', {'state': 'enabled'})
         array = yield self._client.update_server_array(array, params)
@@ -520,7 +528,7 @@ class Execute(ServerArrayBaseActor):
         # At this point, if we're in dry mode we need to exit. Theres no way to
         # 'test' the actual execution of the rightscale scripts.
         if self._dry:
-            self._log(logging.WARNING,
+            self._log(logging.INFO,
                       'Would have executed "%s" with inputs "%s" on "%s".' %
                       (self._script, inputs, array.soul['name']))
             raise gen.Return(True)

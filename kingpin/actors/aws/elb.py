@@ -58,8 +58,8 @@ class WaitUntilHealthy(base.BaseActor):
         region = self._get_region(self._options['region'])
 
         self.conn = aws_elb.ELBConnection(
-            aws_settings.AWS_SECRET_ACCESS_KEY,
             aws_settings.AWS_ACCESS_KEY_ID,
+            aws_settings.AWS_SECRET_ACCESS_KEY,
             region=region)
 
     def _get_region(self, region):
@@ -106,10 +106,10 @@ class WaitUntilHealthy(base.BaseActor):
         Either returns the passed count if it's an integer, or
         calculates the count given an expected percentage."""
 
-        if isinstance(count, int):
-            expected_count = count
-        elif '%' in count:
+        if '%' in str(count):
             expected_count = math.ceil(total_count * p2f(count))
+        else:
+            expected_count = int(count)
 
         return expected_count
 
@@ -130,13 +130,13 @@ class WaitUntilHealthy(base.BaseActor):
             elb.get_instance_health)
         total_count = len(instance_list)
 
-        log.debug('All instances: %s' % instance_list)
+        self._log(logging.DEBUG, 'All instances: %s' % instance_list)
         in_service_count = [
             i.state for i in instance_list].count('InService')
 
         expected_count = self._get_expected_count(count, total_count)
 
-        healthy = in_service_count >= expected_count
+        healthy = (in_service_count >= expected_count)
         self._log(logging.INFO, 'ELB "%s" healthy: %s' % (elb.name, healthy))
         self._log(logging.INFO, 'InService vs expected: %s / %s' % (
                                 in_service_count, expected_count))

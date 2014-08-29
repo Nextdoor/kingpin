@@ -15,7 +15,7 @@ class TestUtils(unittest.TestCase):
 
     def testStrToClass(self):
         class_string_name = 'tornado.testing.AsyncTestCase'
-        returned_class = utils.strToClass(class_string_name)
+        returned_class = utils.str_to_class(class_string_name)
         self.assertEquals(testing.AsyncTestCase, returned_class)
 
     def testGetRootPath(self):
