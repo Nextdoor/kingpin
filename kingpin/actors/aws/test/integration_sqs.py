@@ -68,7 +68,13 @@ class IntegrationSQS(testing.AsyncTestCase):
         for i in xrange(test_message_count):
             yield utils.thread_coroutine(
                 queue.write, queue.new_message('unit-testing'))
-        self.assertTrue(queue.count() > 0)
+
+        runaway = 0
+        while not queue.count():  # Wait for "approx" count to update
+            runaway += 1
+            if runaway > 10:
+                raise Exception('Queue count is not updating.')
+            yield utils.tornado_sleep(10)
 
         log.debug('Creating the coroutined WaitUntilEmpty task.')
         # Not waiting for it to finish because it'll never finish.
@@ -89,8 +95,17 @@ class IntegrationSQS(testing.AsyncTestCase):
             if messages:
                 queue.delete_message_batch(messages)
 
-        # Give our task a few more loops to notice that the queue is empty
-        yield utils.tornado_sleep(5)
+        # Give our wait task a few more loops to notice that the queue is empty
+        yield utils.tornado_sleep(10)
+
+        # If the approximate queue hasn't updated yet - wait a little bit.
+        runaway = 0
+        while queue.count():
+            runaway += 1
+            if runaway > 10:
+                raise Exception('Queue count is not updating.')
+            yield utils.tornado_sleep(10)
+
         self.assertTrue(wait_task.done())  # Should be done!
 
         done = yield wait_task  # Should be instant since it's done already.
