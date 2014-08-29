@@ -37,6 +37,21 @@ class BaseGroupActor(base.BaseActor):
 
     required_options = ['acts']
 
+    def __init__(self, *args, **kwargs):
+        """Initializes all of the sub actors.
+
+        By actually initializing all of the Actors supplied to us during the
+        __init__, we effectively do a full instantiation of every Actor defined
+        in the supplied JSON all at once and upfront long before we try to
+        execute any code. This greatly increases our chances of catching JSON
+        errors because every single object is pre-initialized before we ever
+        begin executing any of our steps.
+        """
+        super(BaseGroupActor, self).__init__(*args, **kwargs)
+
+        # Pre-initialize all of our actions!
+        self._actions = self._build_actions()
+
     def _get_actor(self, config):
         """Returns an initialized Actor object.
 
@@ -51,6 +66,9 @@ class BaseGroupActor(base.BaseActor):
         Returns:
             <actor object>
         """
+        # Copy the supplied dict before we modify it below
+        config = dict(config)
+
         # Get the name of the actor, and pull it out of the config because its
         # not a valid kwarg for an Actor object.
         actor_string = config.pop('actor')
@@ -95,9 +113,8 @@ class Sync(BaseGroupActor):
     @gen.coroutine
     def _run_actions(self):
         """Synchronously executes all of the Actor.execute() methods."""
-        actions = self._build_actions()
         returns = []
-        for act in actions:
+        for act in self._actions:
             self._log(logging.INFO,
                       'Beginning "%s"..' % act._desc)
             ret = yield act.execute()
@@ -114,9 +131,8 @@ class Async(BaseGroupActor):
     @gen.coroutine
     def _run_actions(self):
         """Asynchronously executes all of the Actor.execute() methods."""
-        actions = self._build_actions()
         executions = []
-        for act in actions:
+        for act in self._actions:
             executions.append(act.execute())
         ret = yield executions
         raise gen.Return(ret)
