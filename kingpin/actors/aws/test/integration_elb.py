@@ -64,6 +64,9 @@ class IntegrationSQS(testing.AsyncTestCase):
              'count': 1,
              'region': self.region})
 
+        # NOTE: We are not "yielding" the execution here, but the task
+        # goes on top of the IOLoop. The sleep statement below allows
+        # the wait_task's actions to get executed by tornado's loop.
         wait_task = actor.execute()
         yield utils.tornado_sleep(1)
 
