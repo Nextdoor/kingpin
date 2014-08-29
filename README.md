@@ -12,9 +12,33 @@ TODO
 
 ### DSL
 
-TODO
+#### The Script
+Definition: _The blueprint or roadmap that outlines a movie story through
+visual descriptions, actions of characters and their dialogue. The term
+"script" also applies to stageplays as well._
 
-### Actors
+Every Kingpin _script_ is a chunk of JSON-encoded data that contains _actors_.
+Each _actor_ configuration includes the same three parameters: _actor_, _desc_
+and _options_.
+
+The simplest script will have a single configuration that executes a single
+_actor_. More complex scripts can be created with our _group.Sync_ and
+_group.Async_ actors which can be used to group together multiple _actors_ and
+execute them in a predictable order.
+
+### The Actors
+Definition: _a participant in an action or process._
+
+#### Base Actors
+
+Kingpin provides several internal actors that can be used to create complex
+and reliable groups of actions to be executed.
+
+**Actor-specific Documentation**
+
+  * [misc.Sleep](docs/actors/misc.Sleep.md)
+  * [group.Sync](docs/actors/group.Sync.md)
+  * [group.Async](docs/actors/group.Async.md)
 
 #### HipChat
 
