@@ -55,8 +55,6 @@ class IntegrationSQS(testing.AsyncTestCase):
     @testing.gen_test(timeout=60)
     def integration_02_monitor_queue(self):
 
-        test_message_count = 100
-
         actor = sqs.WaitUntilEmpty('Wait until empty',
                                    {'name': self.queue_name})
 
@@ -64,52 +62,10 @@ class IntegrationSQS(testing.AsyncTestCase):
         queue = actor.conn.get_queue(self.queue_name)
         self.assertEquals(queue.count(), 0)
 
-        log.debug('Inserting a message')
-        for i in xrange(test_message_count):
-            yield utils.thread_coroutine(
-                queue.write, queue.new_message('unit-testing'))
+        success = yield actor.execute()
+        yield utils.tornado_sleep()
 
-        runaway = 0
-        while not queue.count():  # Wait for "approx" count to update
-            runaway += 1
-            if runaway > 10:
-                raise Exception('Queue count is not updating.')
-            yield utils.tornado_sleep(10)
-
-        log.debug('Creating the coroutined WaitUntilEmpty task.')
-        # Not waiting for it to finish because it'll never finish.
-        wait_task = actor.execute()
-
-        # Sanity check -- the async task is not finished.
-        self.assertFalse(wait_task.done())
-        # This tornado-sleep guarantees that the task will have a few loops
-        yield utils.tornado_sleep(5)
-
-        # Since messages are still in the queue the task should not be done
-        self.assertFalse(wait_task.done())
-
-        log.debug('Draining the queue...')
-        messages = True
-        while messages:
-            messages = queue.get_messages(10)
-            if messages:
-                queue.delete_message_batch(messages)
-
-        # Give our wait task a few more loops to notice that the queue is empty
-        yield utils.tornado_sleep(10)
-
-        # If the approximate queue hasn't updated yet - wait a little bit.
-        runaway = 0
-        while queue.count():
-            runaway += 1
-            if runaway > 10:
-                raise Exception('Queue count is not updating.')
-            yield utils.tornado_sleep(10)
-
-        self.assertTrue(wait_task.done())  # Should be done!
-
-        done = yield wait_task  # Should be instant since it's done already.
-        self.assertTrue(done)
+        self.assertTrue(success)
 
     @attr('integration')
     @testing.gen_test(timeout=60)
@@ -117,6 +73,10 @@ class IntegrationSQS(testing.AsyncTestCase):
 
         actor = sqs.Delete('Delete %s' % self.queue_name,
                            {'name': self.queue_name})
+
+        # Previous tests may've executed too quickly.
+        # Sleeping will make sure the delete can find the queue.
+        yield utils.tornado_sleep(30)
 
         done = yield actor.execute()
         self.assertTrue(done)
