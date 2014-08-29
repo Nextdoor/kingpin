@@ -13,7 +13,7 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""Meta-Actors"""
+"""Group Actors Together into Stages"""
 
 import logging
 
