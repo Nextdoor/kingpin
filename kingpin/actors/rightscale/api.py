@@ -349,6 +349,7 @@ class RightScale(object):
         raise gen.Return()
 
     @gen.coroutine
+    @utils.retry(excs=requests.packages.urllib3.exceptions.HTTPError, retries=3)
     def wait_for_task(self, task, sleep=5):
         """Monitors a RightScale task for completion.
 
@@ -357,6 +358,13 @@ class RightScale(object):
         completion (every 5 seconds), and returns when the task has finished.
 
         TODO: Add a task-timeout option.
+
+        Note: This is a completely retryable operation in the event that an
+        intermittent network connection causes any kind of a connection
+        failure.
+
+        Args:
+            array: ServerArray Resource Object
 
         Args:
             sleep: Integer of time to wait between status checks
