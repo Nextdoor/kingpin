@@ -31,6 +31,7 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
 class Sleep(base.BaseActor):
+
     """Simple actor that just sleeps for an arbitrary amount of time."""
 
     required_options = ['sleep']
@@ -54,6 +55,7 @@ class Sleep(base.BaseActor):
         raises: gen.Return(True)
         """
         log.debug('[%s] Sleeping for %s seconds' % (self._desc, self._sleep))
-        yield utils.tornado_sleep(seconds=self._sleep)
+        if not self._dry:
+            yield utils.tornado_sleep(seconds=self._sleep)
 
         raise gen.Return(True)

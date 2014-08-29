@@ -69,8 +69,12 @@ def get_root_logger(level, syslog):
 
 @gen.coroutine
 def main():
-    # TODO: Method-ize-this
-    config = json.loads(open(options.json).read())
+    # Run the JSON dictionary through our environment parser and return back
+    # a dictionary with all of the %XX%% keys swapped out with environment
+    # variables.
+    config = utils.convert_json_to_dict(options.json)
+
+    # Run the dict through our schema validator quickly
     schema.validate(config)
 
     # TODO: Method-ize-this

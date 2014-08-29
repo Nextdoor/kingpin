@@ -19,6 +19,7 @@ Common package for utility functions.
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
 from logging import handlers
+import commentjson as json
 import logging
 import os
 import time
@@ -214,6 +215,7 @@ def tornado_sleep(seconds=1.0):
     yield gen.Task(ioloop.IOLoop.current().add_timeout,
                    time.time() + seconds)
 
+
 def populate_with_env(string):
     """Insert env variables into the string.
 
@@ -231,30 +233,19 @@ def populate_with_env(string):
         string = string.replace(('%%%s%%' % k), v)
     return string
 
-def populate_obj_with_env(obj):
-    """Recursively populate `obj` with env variables.
 
-    Apply 'populate_with_env' to each value of dictionary or a list.
+def convert_json_to_dict(json_file):
+    """Converts a JSON file to a config dict.
+
+    Reads in a JSON file, swaps out any environment variables that
+    have been used inside the JSON, and then returns a dictionary.
 
     Args:
-        obj - list or dictionary, or primitive types.
+        json_file: Path to the JSON file to import
+
     Returns:
-        copy of obj with string substitution for values.
+        <Dictonary of Config Data>
     """
-
-    if isinstance(obj, str):
-        return populate_with_env(obj)
-    elif type(obj) in [bool, int, float]:
-        # Primitive types -- no replacement needed
-        return obj
-    elif isinstance(obj, list):
-        # Apply same function on each item in the list.
-        copy = [populate_with_env(value) for value in obj]
-        return copy
-    elif isinstance(obj, dict):
-        # Only apply this function on value, not key of the dictionary
-        copy = dict((
-            (key, populate_with_env(value)) for key,value in obj.iteritems()))
-        return copy
-
-    raise Exception('Received an unexpected object %s.')
+    raw = open(json_file).read()
+    parsed = populate_with_env(raw)
+    return json.loads(parsed)

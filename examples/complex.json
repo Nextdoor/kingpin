@@ -2,7 +2,7 @@
   "actor": "group.Sync",
   "options": {
     "acts": [
-      { "desc": "Hipchat: Notify Oncall Room", "actor": "hipchat.Message", "options": { "message": "Hey, I'm doing a release", "room": "Oncall" } },
+      { "desc": "Hipchat: Notify Oncall Room", "actor": "hipchat.Message", "options": { "message": "Beginning release %RELEASE%", "room": "Oncall" } },
 
       { "desc": "Clone and Patch Arrays",
         "actor": "group.Sync",
@@ -11,9 +11,9 @@
           { "desc": "Clone Arrays",
             "actor": "group.Async",
             "options": { "acts": [
-              { "desc": "Clone Tools", "actor": "rightscale.server_array.Clone", "options": { "dest": "prod-tools-%RELEASE%", "source": "prod-tools-template" } },
-              { "desc": "Clone Photos", "actor": "rightscale.server_array.Clone", "options": { "dest": "prod-photos-%RELEASE%", "source": "prod-photos-template" } },
-              { "desc": "Clone Tasks", "actor": "rightscale.server_array.Clone", "options": { "dest": "prod-task-%RELEASE%", "source": "prod-task-template" } }
+              { "desc": "Clone Tools", "actor": "rightscale.server_array.Clone", "options": { "dest": "prod-tools-%RELEASE%", "source": "kingpin-integration-testing" } },
+              { "desc": "Clone Photos", "actor": "rightscale.server_array.Clone", "options": { "dest": "prod-photos-%RELEASE%", "source": "kingpin-integration-testing" } },
+              { "desc": "Clone Tasks", "actor": "rightscale.server_array.Clone", "options": { "dest": "prod-task-%RELEASE%", "source": "kingpin-integration-testing" } }
             ] }
           },
 
@@ -38,7 +38,7 @@
 
       { "desc": "Wait for traffic to settle",
         "actor": "misc.Sleep",
-        "options": { "time": 60 } },
+        "options": { "sleep": 60 } },
   
       { "desc": "Remove Old Arrays from ELB",
         "actor": "group.Async",
