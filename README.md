@@ -1,5 +1,7 @@
 # Kingpin: the chief element of any system, plan, or the like.
 
+[![Build Status](https://travis-ci.org/Nextdoor/kingpin.svg?branch=master)](https://travis-ci.org/Nextdoor/kingpin)
+
 Automated Deployment Engine
 
 ## Basic Use
