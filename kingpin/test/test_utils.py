@@ -31,14 +31,6 @@ class TestUtils(unittest.TestCase):
 
         self.assertEquals(result, expect)
 
-    @mock.patch.object(utils, 'populate_with_env')
-    def test_populate_json_with_env(self, mocked_pwe):
-        result = utils.populate_json_with_env({
-            'key': '%UNIT_TEST%'})
-        # TODO: FIXME
-
-        pass
-
 
 class TestSetupLoggerUtils(unittest.TestCase):
 
