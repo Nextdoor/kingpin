@@ -147,7 +147,7 @@ class TestELBActor(testing.AsyncTestCase):
             mock.Mock(state='InService'),
             mock.Mock(state='OutOfService'),
             mock.Mock(state='OutOfService'),
-            ]
+        ]
         val = yield actor._is_healthy(elb, 3)
 
         self.assertTrue(val)
