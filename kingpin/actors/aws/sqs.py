@@ -32,6 +32,14 @@ log = logging.getLogger(__name__)
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
 
+class SQSActorException(Exception):
+    """Raised by SQS Actor for any exception."""
+
+
+class SQSQueueNotFoundException(SQSActorException):
+    """Raised by SQS Actor when a needed queue is not found."""
+
+
 class SQSBaseActor(base.BaseActor):
     def __init__(self, *args, **kwargs):
         """Create the connection object."""
@@ -130,6 +138,7 @@ class Delete(SQSBaseActor):
         raise gen.Return(ok)
 
     @gen.coroutine
+    @utils.retry(SQSQueueNotFoundException, delay=aws_settings.SQSRETRYDELAY)
     def _execute(self):
         """Executes an actor and yields the results when its finished.
 
@@ -139,7 +148,7 @@ class Delete(SQSBaseActor):
         matched_queues = yield self._fetch_queues(pattern=pattern)
 
         if not matched_queues:
-            raise exceptions.UnrecoverableActionFailure(
+            raise SQSQueueNotFoundException(
                 'No queues with pattern "%s" found.' % pattern)
 
         self._log(logging.INFO, 'Deleting SQS Queues "%s"' % matched_queues)

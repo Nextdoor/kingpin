@@ -31,3 +31,5 @@ if not (AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY):
     log.warning('AWS settings imported but not all credentials are supplied. '
                 'AWS_ACCESS_KEY_ID: %s, AWS_SECRET_ACCESS_KEY: %s' %
                 (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY))
+
+SQSRETRYDELAY = 30

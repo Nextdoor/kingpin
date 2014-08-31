@@ -6,6 +6,7 @@ import boto.sqs.queue
 import mock
 
 from kingpin.actors.aws import sqs
+from kingpin.actors.aws import settings
 
 log = logging.getLogger(__name__)
 
@@ -88,6 +89,8 @@ class TestDeleteSQSQueueActor(SQSTestCase):
 
     @testing.gen_test
     def test_execute_with_failure(self):
+        settings.SQSRETRYDELAY = 0
+        reload(sqs)
         actor = sqs.Delete('Unit Test Action',
                            {'name': 'non-existent-queue'})
 
