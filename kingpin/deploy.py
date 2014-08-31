@@ -50,9 +50,6 @@ parser.add_option('-d', '--dry', dest='dry', action='store_true',
 # Logging Configuration
 parser.add_option('-l', '--level', dest="level", default='info',
                   help='Set logging level (INFO|WARN|DEBUG|ERROR)')
-parser.add_option('-s', '--syslog', dest='syslog',
-                  default=None,
-                  help='Log to syslog. Supply facility name. (ie "local0")')
 
 (options, args) = parser.parse_args()
 
@@ -70,17 +67,15 @@ def main():
         log.error('Invalid Configuration Detected: %s' % e)
         sys.exit(1)
 
-    # TODO: Method-ize-this
-    actor = config.pop('actor')
-    initial_actor = actor_utils.get_actor_class(actor)(
-        dry=options.dry, **config)
+    # Instantiate the first actor and execute it. It should handle everything
+    # from there on out.
+    initial_actor = actor_utils.get_actor(config, dry=options.dry)
     yield initial_actor.execute()
 
 
 if __name__ == '__main__':
-    # Set up logging
-    utils.setup_root_logger(level=options.level, syslog=options.syslog)
-    logging.getLogger('nd_service_registry.shims').setLevel(logging.WARNING)
+    # Set up logging before we do anything else
+    utils.setup_root_logger(level=options.level)
 
     try:
         ioloop.IOLoop.instance().run_sync(main)

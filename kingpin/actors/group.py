@@ -52,31 +52,6 @@ class BaseGroupActor(base.BaseActor):
         # Pre-initialize all of our actions!
         self._actions = self._build_actions()
 
-    def _get_actor(self, config):
-        """Returns an initialized Actor object.
-
-        Args:
-            config: A dictionary of configuration data that conforms to our v1
-                    schema in kingpin.schema. Looks like this:
-
-                    {'actor': <string name of actor>
-                     'options': <dict of options to pass to actor>
-                     'desc': <string description of actor>}
-
-        Returns:
-            <actor object>
-        """
-        # Copy the supplied dict before we modify it below
-        config = dict(config)
-
-        # Get the name of the actor, and pull it out of the config because its
-        # not a valid kwarg for an Actor object.
-        actor_string = config.pop('actor')
-
-        self._log(logging.DEBUG,
-                  'Building Actor "%s" with args: %s' % (actor_string, config))
-        return utils.get_actor_class(actor_string)(dry=self._dry, **config)
-
     def _build_actions(self):
         """Build up all of the actors we need to execute.
 
@@ -89,7 +64,7 @@ class BaseGroupActor(base.BaseActor):
         """
         actions = []
         for act in self._options['acts']:
-            actions.append(self._get_actor(act))
+            actions.append(utils.get_actor(act, dry=self._dry))
         return actions
 
     @gen.coroutine

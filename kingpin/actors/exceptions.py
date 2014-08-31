@@ -20,6 +20,11 @@ class ActorException(exceptions.KingpinException):
     """Base Kingpin Actor Exception"""
 
 
+class InvalidActor(ActorException):
+
+    """Raised when an invalid Actor name was supplied"""
+
+
 class InvalidOptions(ActorException):
 
     """Invalid option arguments passed into the Actor object."""
