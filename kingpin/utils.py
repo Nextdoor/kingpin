@@ -154,8 +154,8 @@ def thread_coroutine(func, *args, **kwargs):
             # second time, we allow it to be raised.
             #
             # This should be patched in the python-rightscale library so it
-            # auto-retries, but until then we have a patch here to at least allow
-            # one automatic retry.
+            # auto-retries, but until then we have a patch here to at least
+            # allow one automatic retry.
             log.debug('Fetch failed. Will retry one time: %s' % e)
             ret = yield tp.submit(func, *args, **kwargs)
 
