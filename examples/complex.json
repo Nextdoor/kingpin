@@ -22,7 +22,7 @@
             "options": { "acts": [
               { "desc": "Patch Tools", "actor": "rightscale.server_array.Update", "options": { "array": "prod-tools-%RELEASE%", "puppet_facts": "tools=%RELEASE%" } },
               { "desc": "Patch Photos", "actor": "rightscale.server_array.Update", "options": { "array": "prod-photos-%RELEASE%", "puppet_facts": "photos=%RELEASE%" } },
-              { "desc": "Patch Tasks", "actor": "rightscale.server_array.Update", "option": { "array": "prod-task-%RELEASE%", "puppet_facts": "task=%RELEASE%" } }
+              { "desc": "Patch Tasks", "actor": "rightscale.server_array.Update", "options": { "array": "prod-task-%RELEASE%", "puppet_facts": "task=%RELEASE%" } }
             ] }
           }
         ] }

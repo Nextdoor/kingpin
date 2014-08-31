@@ -67,6 +67,10 @@ def main():
     except exceptions.InvalidEnvironment as e:
         log.error('Invalid Configuration Detected: %s' % e)
         sys.exit(1)
+    except exceptions.InvalidJSON as e:
+        log.error('Invalid JSON Detected')
+        log.error(e)
+        sys.exit(1)
 
     # Instantiate the first actor and execute it. It should handle everything
     # from there on out.

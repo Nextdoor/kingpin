@@ -14,6 +14,8 @@
 
 import jsonschema
 
+from kingpin import exceptions
+
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
@@ -65,4 +67,7 @@ def validate(config):
     Raises:
         Execption if something went wrong.
     """
-    return jsonschema.validate(config, SCHEMA_1_0)
+    try:
+        return jsonschema.validate(config, SCHEMA_1_0)
+    except jsonschema.exceptions.ValidationError as e:
+        raise exceptions.InvalidJSON(e)
