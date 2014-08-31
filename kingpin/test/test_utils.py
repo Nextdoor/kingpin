@@ -14,7 +14,7 @@ from kingpin import utils
 
 class TestUtils(unittest.TestCase):
 
-    def testStrToClass(self):
+    def test_str_to_class(self):
         class_string_name = 'tornado.testing.AsyncTestCase'
         returned_class = utils.str_to_class(class_string_name)
         self.assertEquals(testing.AsyncTestCase, returned_class)
@@ -31,6 +31,13 @@ class TestUtils(unittest.TestCase):
         string = 'Unit %UNIT_TEST% Test %NOTFOUNDVARIABLE%'
         with self.assertRaises(exceptions.InvalidEnvironment):
             utils.populate_with_env(string)
+
+    def test_convert_json_to_dict(self):
+        dirname, filename = os.path.split(os.path.abspath(__file__))
+        examples = '%s/../../examples' % dirname
+        simple = '%s/simple.json' % examples
+        ret = utils.convert_json_to_dict(simple)
+        self.assertEquals(type(ret), dict)
 
 
 class TestSetupRootLoggerUtils(unittest.TestCase):
