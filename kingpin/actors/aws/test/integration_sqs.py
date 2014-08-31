@@ -48,7 +48,6 @@ class IntegrationSQS(testing.AsyncTestCase):
             'Create %s' % self.queue_name,
             {'name': self.queue_name})
         done = yield actor.execute()
-        yield utils.tornado_sleep(0.1)  # Prevents IOError close() errors
         self.assertTrue(done)
 
     @attr('integration')

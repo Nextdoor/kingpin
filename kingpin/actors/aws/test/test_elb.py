@@ -102,7 +102,6 @@ class TestELBActor(testing.AsyncTestCase):
         actor.conn.get_all_load_balancers = mock.Mock(return_value=['test'])
 
         elb = yield actor._find_elb('')
-        yield utils.tornado_sleep(0.1)  # Prevents IOError for close()
 
         self.assertEquals(elb, 'test')
         self.assertEquals(actor.conn.get_all_load_balancers.call_count, 1)
@@ -147,7 +146,7 @@ class TestELBActor(testing.AsyncTestCase):
             mock.Mock(state='InService'),
             mock.Mock(state='OutOfService'),
             mock.Mock(state='OutOfService'),
-            ]
+        ]
         val = yield actor._is_healthy(elb, 3)
 
         self.assertTrue(val)
