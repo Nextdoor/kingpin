@@ -33,10 +33,14 @@ log = logging.getLogger(__name__)
 # Constants for some of the utilities below
 STATIC_PATH_NAME = 'static'
 
-# Allow up to 10 threads to be executed at once. This is arbitrary, but we
-# want to prvent the app from going thread-crazy.
-THREADPOOL_SIZE = 10
-THREADPOOL = futures.ThreadPoolExecutor(THREADPOOL_SIZE)
+# Disable the global threadpool defined here to try to narrow down the random
+# unit test failures regarding the IOError. Instead, instantiating a new
+# threadpool object for every thread using the 'with' context below.
+#
+# # Allow up to 10 threads to be executed at once. This is arbitrary, but we
+# # want to prvent the app from going thread-crazy.
+# THREADPOOL_SIZE = 10
+# THREADPOOL = futures.ThreadPoolExecutor(THREADPOOL_SIZE)
 
 
 def str_to_class(string):
@@ -144,18 +148,19 @@ def thread_coroutine(func, *args, **kwargs):
     Args:
         func: Function reference
     """
-    try:
-        ret = yield THREADPOOL.submit(func, *args, **kwargs)
-    except requests.exceptions.ConnectionError as e:
-        # The requests library can fail to fetch sometimes and its almost
-        # always OK to re-try the fetch at least once. If the fetch fails a
-        # second time, we allow it to be raised.
-        #
-        # This should be patched in the python-rightscale library so it
-        # auto-retries, but until then we have a patch here to at least allow
-        # one automatic retry.
-        log.debug('Fetch failed. Will retry one time: %s' % e)
-        ret = yield THREADPOOL.submit(func, *args, **kwargs)
+    with futures.ThreadPoolExecutor(1) as tp:
+        try:
+            ret = yield tp.submit(func, *args, **kwargs)
+        except requests.exceptions.ConnectionError as e:
+            # The requests library can fail to fetch sometimes and its almost
+            # always OK to re-try the fetch at least once. If the fetch fails a
+            # second time, we allow it to be raised.
+            #
+            # This should be patched in the python-rightscale library so it
+            # auto-retries, but until then we have a patch here to at least
+            # allow one automatic retry.
+            log.debug('Fetch failed. Will retry one time: %s' % e)
+            ret = yield tp.submit(func, *args, **kwargs)
 
     raise gen.Return(ret)
 
