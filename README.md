@@ -42,6 +42,22 @@ and reliable groups of actions to be executed.
   * [group.Sync](docs/actors/group.Sync.md)
   * [group.Async](docs/actors/group.Async.md)
 
+#### AWS
+
+The AWS Actors allow you to interact with the resources (such as SQS and ELB) inside your Amazon AWS account. These actors all support dry runs properly, but each actor has its own caveats with `dry=True`. Please read the instructions below for using each actor.
+
+**Required Environment Variables**
+
+  * `AWS_ACCESS_KEY_ID` - Your AWS access key
+  * `AWS_SECRET_ACCESS_KEY` - Your AWS secret
+
+**Actor-specific Documentation**
+
+  * [aws.elb.WaitUntilHealthy](docs/actors/aws.elb.WaitUntilHealthy.md)
+  * [aws.sqs.Create](docs/actors/aws.sqs.Create.md)
+  * [aws.sqs.WaitUntilEmpty](docs/actors/aws.sqs.WaitUntilEmpty.md)
+  * [aws.sqs.Delete](docs/actors/aws.sqs.Delete.md)
+
 #### HipChat
 
 The Hipchat Actors allow you to send messages to a HipChat room during
@@ -70,7 +86,7 @@ below for using each actor.
 
   * `RIGHTSCALE_TOKEN` - RightScale API Refresh Token
      (from the _Account Settings/API Credentials_ page)
-  * `RIGHTSCALE_ENDPOINT` - You're account-specific API Endpoint
+  * `RIGHTSCALE_ENDPOINT` - Your account-specific API Endpoint
      (defaults to `https://my.rightscale.com`)
 
 **Actor-specific Documentation**

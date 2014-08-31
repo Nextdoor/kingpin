@@ -5,11 +5,8 @@ from tornado import testing
 import mock
 
 from kingpin import utils
-from kingpin.actors.aws import settings
-settings.AWS_ACCESS_KEY_ID = 'unit-test'
-settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
-
 from kingpin.actors.aws import elb as elb_actor
+from kingpin.actors.aws import settings
 
 log = logging.getLogger(__name__)
 
@@ -21,6 +18,21 @@ def tornado_value(*args):
 
 
 class TestELBActor(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestELBActor, self).setUp()
+        settings.AWS_ACCESS_KEY_ID = 'unit-test'
+        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+
+    @testing.gen_test
+    def test_require_env(self):
+
+        settings.AWS_ACCESS_KEY_ID = ''
+        with self.assertRaises(Exception):
+            elb_actor.WaitUntilHealthy('Unit Test Action', {
+                'name': 'unit-test-queue',
+                'region': 'us-west-2',
+                'count': 3})
 
     @testing.gen_test
     def test_execute(self):
