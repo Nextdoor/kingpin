@@ -65,7 +65,7 @@ def get_root_logger(level, syslog):
     level_constant = utils.str_to_class(level_string)
 
     # Set up the logger now
-    return utils.setupLogger(level=level_constant, syslog=syslog)
+    return utils.setup_root_logger(level=level_constant, syslog=syslog)
 
 
 @gen.coroutine
@@ -86,6 +86,7 @@ def main():
     initial_actor = actor_utils.get_actor_class(actor)(
         dry=options.dry, **config)
     yield initial_actor.execute()
+
 
 if __name__ == '__main__':
     # Set up logging

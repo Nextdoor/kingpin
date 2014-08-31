@@ -38,40 +38,40 @@ class TestUtils(unittest.TestCase):
             utils.populate_with_env(string)
 
 
-class TestSetupLoggerUtils(unittest.TestCase):
+class TestSetupRootLoggerUtils(unittest.TestCase):
 
     def setUp(self):
-        utils.setupLogger()
+        utils.setup_root_logger()
 
-    def testSetupLogger(self):
+    def test_setup_root_logger(self):
         # Since we're really checking if loggers get created properly,
         # make sure to wipe out any existing logging handlers on the Root
         # logger object.
         log = logging.getLogger()
         log.handlers = []
 
-        logger = utils.setupLogger()
+        logger = utils.setup_root_logger()
         self.assertEquals(type(logger.handlers[0]), logging.StreamHandler)
         self.assertEquals(logger.level, logging.WARNING)
 
-    def testSetupLoggerWithLevel(self):
+    def test_setup_root_logger_with_level(self):
         # Since we're really checking if loggers get created properly,
         # make sure to wipe out any existing logging handlers on the Root
         # logger object.
         log = logging.getLogger()
         log.handlers = []
 
-        logger = utils.setupLogger(level=logging.DEBUG)
+        logger = utils.setup_root_logger(level=logging.DEBUG)
         self.assertEquals(logger.level, logging.DEBUG)
 
-    def testSetupLoggerWithSyslog(self):
+    def test_setup_root_logger_with_syslog(self):
         # Since we're really checking if loggers get created properly,
         # make sure to wipe out any existing logging handlers on the Root
         # logger object.
         log = logging.getLogger()
         log.handlers = []
 
-        logger = utils.setupLogger(syslog='local0')
+        logger = utils.setup_root_logger(syslog='local0')
         self.assertEquals(type(logger.handlers[0]),
                           logging.handlers.SysLogHandler)
         self.assertEquals(logger.handlers[0].facility, 'local0')

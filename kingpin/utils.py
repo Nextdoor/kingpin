@@ -82,7 +82,7 @@ def getRootPath():
     return os.path.abspath(os.path.dirname(__file__))
 
 
-def setupLogger(level=logging.WARNING, syslog=None):
+def setup_root_logger(level=logging.WARNING, syslog=None):
     """Configures the root logger.
 
     Args:
