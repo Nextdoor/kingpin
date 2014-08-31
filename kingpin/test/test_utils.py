@@ -19,11 +19,6 @@ class TestUtils(unittest.TestCase):
         returned_class = utils.str_to_class(class_string_name)
         self.assertEquals(testing.AsyncTestCase, returned_class)
 
-    def testGetRootPath(self):
-        path = utils.getRootPath()
-        self.assertTrue(os.path.exists(path))
-        self.assertTrue(os.path.exists('%s/test' % path))
-
     def test_populate_with_env(self):
         os.environ['UNIT_TEST'] = 'FOOBAR'
         string = 'Unit %UNIT_TEST% Test'
