@@ -92,6 +92,10 @@ class BaseActor(object):
         if not missing_options:
             return
 
+        self._log(
+            logging.ERROR, 'Unable to configure Actor with options: %s'
+            % options)
+
         raise exceptions.InvalidOptions(
             'Missing options: %s' % ' '.join(missing_options))
 
