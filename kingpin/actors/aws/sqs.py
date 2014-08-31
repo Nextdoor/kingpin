@@ -64,6 +64,14 @@ class SQSBaseActor(base.BaseActor):
         """Create the connection object."""
         super(SQSBaseActor, self).__init__(*args, **kwargs)
 
+        if not (aws_settings.AWS_ACCESS_KEY_ID and
+                aws_settings.AWS_SECRET_ACCESS_KEY):
+            raise exceptions.InvalidCredentials(
+                'AWS settings imported but not all credentials are supplied. '
+                'AWS_ACCESS_KEY_ID: %s, AWS_SECRET_ACCESS_KEY: %s' % (
+                    aws_settings.AWS_ACCESS_KEY_ID,
+                    aws_settings.AWS_SECRET_ACCESS_KEY))
+
         self.conn = boto.sqs.connection.SQSConnection(
             aws_settings.AWS_ACCESS_KEY_ID,
             aws_settings.AWS_SECRET_ACCESS_KEY)
