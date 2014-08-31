@@ -43,7 +43,7 @@
       { "desc": "Remove Old Arrays from ELB",
         "actor": "group.Async",
         "options": { "acts": [
-          { "desc": "Remove Old Tools", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-tools-%OLD_RELEASE%", "script": "Disconnect from ELB", "inputs": { "ELB_NAME": "prod-tools" } } },
+          { "desc": "Remove Old Tools", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-tools-%OLD_RELEASE%", "script": "Disconnect from ELB", "inputs": { "ELB_NAME": 'prod-tools' } } },
           { "desc": "Remove Old Photos", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-photos-%OLD_RELEASE%", "script": "Disconnect from ELB", "inputs": { "ELB_NAME": "prod-photos" } } }
         ] }
       }

@@ -10,7 +10,6 @@ futures
 # Used to parse out the JSON and validate its format.
 jsonschema
 commentjson
-demjson
 
 # Explicit version and source set in the setup.py
 simplejson
