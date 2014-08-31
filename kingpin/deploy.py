@@ -29,6 +29,7 @@ from tornado import gen
 from kingpin import exceptions
 from kingpin import schema
 from kingpin import utils
+from kingpin.actors import exceptions as actor_exceptions
 from kingpin.actors import utils as actor_utils
 from kingpin.version import __version__ as VERSION
 
@@ -69,7 +70,13 @@ def main():
 
     # Instantiate the first actor and execute it. It should handle everything
     # from there on out.
-    initial_actor = actor_utils.get_actor(config, dry=options.dry)
+    try:
+        initial_actor = actor_utils.get_actor(config, dry=options.dry)
+    except actor_exceptions.ActorException as e:
+        log.error('Invalid Actor Configuration Detected: %s' % e)
+        sys.exit(1)
+
+    # Begin doing real stuff!
     yield initial_actor.execute()
 
 

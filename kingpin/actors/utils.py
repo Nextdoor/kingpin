@@ -60,15 +60,17 @@ def get_actor_class(actor):
     Returns:
         <Class Ref to Actor>
     """
+    expected_exceptions = (AttributeError, ImportError, TypeError)
+
     try:
         # Try to load our local actors up first. Assume that the
         # 'kingpin.actors.' prefix was not included in the name.
         full_actor = 'kingpin.actors.%s' % actor
         ref = utils.str_to_class(full_actor)
-    except (ImportError, TypeError):
+    except expected_exceptions:
         try:
             ref = utils.str_to_class(actor)
-        except (AttributeError, ImportError, TypeError):
+        except expected_exceptions:
             msg = 'Unable to convert "%s" to a valid Actor class name.' % actor
             raise exceptions.InvalidActor(msg)
 
