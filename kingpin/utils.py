@@ -24,6 +24,8 @@ import logging
 import os
 import re
 import time
+import traceback
+import functools
 
 from tornado import gen
 from tornado import ioloop
@@ -121,45 +123,17 @@ def setup_root_logger(level='warn', syslog=None):
     return logger
 
 
-@gen.coroutine
-def thread_coroutine(func, *args, **kwargs):
-    """Simple ThreadPool executor for Tornado.
-
-    This method leverages the back-ported Python futures
-    package (https://pypi.python.org/pypi/futures) to spin up
-    a ThreadPool and then kick actions off in the thread pool.
-
-    This is a simple and relatively graceful way of handling
-    spawning off of synchronous API calls from the RightScale
-    client below without having to do a full re-write of anything.
-
-    This should not be used at high volume... but for the
-    use case below, its reasonable.
-
-    Example Usage:
-        >>> @gen.coroutine
-        ... def login(self):
-        ...     ret = yield thread_coroutine(self._client.login)
-        ...     raise gen.Return(ret)
-
-    Args:
-        func: Function reference
-    """
-    with futures.ThreadPoolExecutor(1) as tp:
+def exception_logger(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
         try:
-            ret = yield tp.submit(func, *args, **kwargs)
-        except requests.exceptions.ConnectionError as e:
-            # The requests library can fail to fetch sometimes and its almost
-            # always OK to re-try the fetch at least once. If the fetch fails a
-            # second time, we allow it to be raised.
-            #
-            # This should be patched in the python-rightscale library so it
-            # auto-retries, but until then we have a patch here to at least
-            # allow one automatic retry.
-            log.debug('Fetch failed. Will retry one time: %s' % e)
-            ret = yield tp.submit(func, *args, **kwargs)
-
-    raise gen.Return(ret)
+            return func(*args, **kwargs)
+        except Exception as e:
+            log.error('Exception caught in %s(%s, %s): %s' %
+                      (func, args, kwargs, e))
+            log.error(traceback.format_exc())
+            raise
+    return wrapper
 
 
 def retry(excs, retries=3, delay=0.25):
@@ -204,6 +178,45 @@ def retry(excs, retries=3, delay=0.25):
                 log.debug('Retrying..')
         return wrapper
     return _retry_on_exc
+
+
+@gen.coroutine
+@retry(excs=requests.exceptions.ConnectionError, retries=3, delay=0.5)
+def thread_coroutine(func, *args, **kwargs):
+    """Simple ThreadPool executor for Tornado.
+
+    This method leverages the back-ported Python futures
+    package (https://pypi.python.org/pypi/futures) to spin up
+    a ThreadPool and then kick actions off in the thread pool.
+
+    This is a simple and relatively graceful way of handling
+    spawning off of synchronous API calls from the RightScale
+    client below without having to do a full re-write of anything.
+
+    This should not be used at high volume... but for the
+    use case below, its reasonable.
+
+    Example Usage:
+        >>> @gen.coroutine
+        ... def login(self):
+        ...     ret = yield thread_coroutine(self._client.login)
+        ...     raise gen.Return(ret)
+
+    NOTE:
+        The requests library can fail to fetch sometimes and its almost always
+        OK to re-try the fetch at least once. If the fetch fails a second time,
+        we allow it to be raised.
+
+        This should be patched in the python-rightscale library so it
+        auto-retries, but until then we have a patch here to at least allow one
+        automatic retry.
+
+    Args:
+        func: Function reference
+    """
+    with futures.ThreadPoolExecutor(1) as tp:
+        ret = yield tp.submit(func, *args, **kwargs)
+    raise gen.Return(ret)
 
 
 @gen.coroutine

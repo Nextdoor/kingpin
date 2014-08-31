@@ -44,10 +44,16 @@ translation.
 """
 
 from os import path
+import datetime
 import logging
+import time
 
+from concurrent import futures
+from retrying import retry as sync_retry
 from rightscale import util as rightscale_util
+from tornado import concurrent
 from tornado import gen
+from tornado import ioloop
 import requests
 import rightscale
 import simplejson
@@ -69,6 +75,10 @@ class ServerArrayException(Exception):
 
 class RightScale(object):
 
+    # Get a reference to the main IOLoop for the
+    # tornado.concurrent.run_on_executor() decorator.
+    ioloop = ioloop.IOLoop.current()
+
     def __init__(self, token, endpoint=DEFAULT_ENDPOINT):
         """Initializes the RightScaleOperator Object for a RightScale Account.
 
@@ -76,6 +86,12 @@ class RightScale(object):
             token: A RightScale RefreshToken
             api: API URL Endpoint
         """
+        # This executor is used by the tornado.concurrent.run_on_executor()
+        # decorator. We would like this to be a class variable so its shared
+        # across RightScale objects, but we see testing IO errors when we
+        # do this.
+        self.executor = futures.ThreadPoolExecutor(10)
+
         self._token = token
         self._endpoint = endpoint
         self._client = rightscale.RightScale(refresh_token=self._token,
@@ -100,17 +116,16 @@ class RightScale(object):
         """
         return int(path.split(resource.self.path)[-1])
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def login(self):
         """Logs into RightScale and populates the object properties.
 
         This method is not strictly required -- but it helps asynchronously
         pre-populate the object attributes/methods.
         """
-        yield utils.thread_coroutine(self._client.login)
-        raise gen.Return()
+        self._client.login()
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def find_server_arrays(self, name, exact=True):
         """Search for a list of ServerArray by name and return the resources.
 
@@ -124,19 +139,18 @@ class RightScale(object):
         log.debug('Searching for ServerArrays matching: %s (exact match: %s)' %
                   (name, exact))
 
-        found_arrays = yield utils.thread_coroutine(
-            rightscale_util.find_by_name,
+        found_arrays = rightscale_util.find_by_name(
             self._client.server_arrays, name, exact=exact)
 
         if not found_arrays:
             log.debug('ServerArray matching "%s" not found' % name)
-            raise gen.Return()
+            return
 
         log.debug('Got ServerArray: %s' % found_arrays)
 
-        raise gen.Return(found_arrays)
+        return found_arrays
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def find_right_script(self, name):
         """Search for a RightScript by-name and return the resource.
 
@@ -147,19 +161,18 @@ class RightScale(object):
             gen.Return(rightscale.Resource object)
         """
         log.debug('Searching for RightScript matching: %s' % name)
-        found_script = yield utils.thread_coroutine(
-            rightscale_util.find_by_name,
+        found_script = rightscale_util.find_by_name(
             self._client.right_scripts, name, exact=True)
 
         if not found_script:
             log.debug('RightScript matching "%s" could not be found.' % name)
-            raise gen.Return()
+            return
 
         log.debug('Got RightScript: %s' % found_script)
 
-        raise gen.Return(found_script)
+        return found_script
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def clone_server_array(self, array):
         """Clone a Server Array.
 
@@ -174,12 +187,11 @@ class RightScale(object):
         """
         log.debug('Cloning ServerArray %s' % array.soul['name'])
         source_id = self.get_res_id(array)
-        new_array = yield utils.thread_coroutine(
-            self._client.server_arrays.clone, res_id=source_id)
+        new_array = self._client.server_arrays.clone(res_id=source_id)
         log.debug('New ServerArray %s created!' % new_array.soul['name'])
-        raise gen.Return(new_array)
+        return new_array
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def destroy_server_array(self, array):
         """Destroys a Server Array.
 
@@ -193,12 +205,11 @@ class RightScale(object):
         """
         log.debug('Destroying ServerArray %s' % array.soul['name'])
         array_id = self.get_res_id(array)
-        yield utils.thread_coroutine(
-            self._client.server_arrays.destroy, res_id=array_id)
+        self._client.server_arrays.destroy(res_id=array_id)
         log.debug('Array Destroyed')
-        raise gen.Return()
+        return
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def update_server_array(self, array, params):
         """Updates a ServerArray with the supplied parameters.
 
@@ -218,11 +229,11 @@ class RightScale(object):
 
         log.debug('Patching ServerArray (%s) with new params: %s' %
                   (array.soul['name'], params))
-        yield utils.thread_coroutine(array.self.update, params=params)
-        updated_array = yield utils.thread_coroutine(array.self.show)
-        raise gen.Return(updated_array)
+        array.self.update(params=params)
+        updated_array = array.self.show()
+        return updated_array
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def update_server_array_inputs(self, array, inputs):
         """Updates a ServerArray 'Next Instance' with the supplied inputs.
 
@@ -247,14 +258,13 @@ class RightScale(object):
         log.debug('Patching ServerArray (%s) with new inputs: %s' %
                   (array.soul['name'], inputs))
 
-        next_inst = yield utils.thread_coroutine(array.next_instance.show)
+        next_inst = array.next_instance.show()
+        next_inst.inputs.multi_update(params=inputs)
+        return
 
-        yield utils.thread_coroutine(
-            next_inst.inputs.multi_update, params=inputs)
-        raise gen.Return()
-
-    @gen.coroutine
-    @utils.retry(excs=requests.exceptions.HTTPError, retries=3)
+    @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=3)
+    @utils.exception_logger
     def launch_server_array(self, array):
         """Launches an instance of a ServerArray..
 
@@ -278,11 +288,9 @@ class RightScale(object):
         log.debug('Launching a new instance of ServerArray %s' %
                   array.soul['name'])
         array_id = self.get_res_id(array)
-        ret = yield utils.thread_coroutine(
-            self._client.server_arrays.launch, res_id=array_id)
-        raise gen.Return(ret)
+        return self._client.server_arrays.launch(res_id=array_id)
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def get_server_array_current_instances(
             self, array, filter='state!=terminated'):
         """Returns a list of ServerArray current running instances.
@@ -307,11 +315,9 @@ class RightScale(object):
         log.debug('Searching for current instances of ServerArray (%s)' %
                   array.soul['name'])
         params = {'filter[]': [filter]}
-        current_instances = yield utils.thread_coroutine(
-            array.current_instances.index, params=params)
-        raise gen.Return(current_instances)
+        return array.current_instances.index(params=params)
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def terminate_server_array_instances(self, array):
         """Executes a terminate on all of the current running instances.
 
@@ -334,23 +340,22 @@ class RightScale(object):
                   array.soul['name'])
         array_id = self.get_res_id(array)
         try:
-            task = yield utils.thread_coroutine(
-                self._client.server_arrays.multi_terminate, res_id=array_id)
+            task = self._client.server_arrays.multi_terminate(res_id=array_id)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 422:
                 # There are no instances to terminate.
-                raise gen.Return()
+                return
 
         # We don't care if it succeeded -- the multi-terminate job fails
         # all the time when there are hosts still in a 'terminated state'
         # when this call is made. Just wait for it to finish.
-        yield self.wait_for_task(task)
+        self.wait_for_task(task)
 
-        raise gen.Return()
-
-    @gen.coroutine
-    @utils.retry(excs=requests.packages.urllib3.exceptions.HTTPError,
-                 retries=3, delay=5)
+    @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=20,
+                wait_exponential_multiplier=1000,
+                wait_exponential_max=10000)
+    @utils.exception_logger
     def wait_for_task(self, task, sleep=5):
         """Monitors a RightScale task for completion.
 
@@ -375,8 +380,9 @@ class RightScale(object):
         """
         while True:
             # Get the task status
-            output = yield utils.thread_coroutine(task.self.show)
+            output = task.self.show()
             summary = output.soul['summary']
+            stamp = datetime.datetime.now()
 
             if 'success' in summary or 'completed' in summary:
                 status = True
@@ -386,15 +392,15 @@ class RightScale(object):
                 status = False
                 break
 
-            log.debug('Task (%s) status: %s' %
-                      (output.path, output.soul['summary']))
+            log.debug('Task (%s) status: %s (updated at: %s)' %
+                      (output.path, output.soul['summary'], stamp))
 
-            yield utils.tornado_sleep(sleep)
+            time.sleep(sleep)
 
         log.debug('Task finished, return value: %s, summary: %s' %
                   (status, summary))
 
-        raise gen.Return(status)
+        return status
 
     @gen.coroutine
     def run_executable_on_instances(self, name, inputs, instances):
@@ -457,7 +463,7 @@ class RightScale(object):
 
         raise gen.Return(ret)
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def make_generic_request(self, url, post=None):
         """Make a generic API call and return a Resource Object.
 
@@ -481,18 +487,15 @@ class RightScale(object):
         # Here we're reaching into the rightscale client library and getting
         # access directly to its requests client object.
         if post:
-            response = yield utils.thread_coroutine(
-                self._client.client.post, url, data=post)
+            response = self._client.client.post(url, data=post)
         else:
-            response = yield utils.thread_coroutine(
-                self._client.client.get, url)
+            response = self._client.client.get(url)
 
         # Now, if a location tag was returned to us, follow it and get the
         # newly returned response data
         loc = response.headers.get('location', None)
         if loc:
-            response = yield utils.thread_coroutine(
-                self._client.client.get, loc)
+            response = self._client.client.get(loc)
             url = loc
 
         # Try to parse the JSON body. If no body was returned, this fails and
@@ -501,7 +504,7 @@ class RightScale(object):
             soul = response.json()
         except simplejson.scanner.JSONDecodeError:
             log.debug('No JSON found. Returning None')
-            raise gen.Return(None)
+            return
 
         # Now dig deep into the python rightscale library itself and create our
         # own Resource object by hand.
@@ -511,4 +514,4 @@ class RightScale(object):
             soul=soul,
             client=self._client.client)
 
-        raise gen.Return(resource)
+        return resource
