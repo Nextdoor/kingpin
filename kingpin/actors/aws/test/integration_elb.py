@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 logging.getLogger('boto').setLevel(logging.INFO)
 
 
-class IntegrationSQS(testing.AsyncTestCase):
+class IntegrationELB(testing.AsyncTestCase):
     """High level ELB Actor testing.
 
     These tests will check two things:
@@ -49,15 +49,13 @@ class IntegrationSQS(testing.AsyncTestCase):
              'count': 0,
              'region': self.region})
 
-        yield utils.tornado_sleep(0.01)  # Prevents IOError close() errors
         done = yield actor.execute()
-        yield utils.tornado_sleep(0.01)  # Prevents IOError close() errors
 
         self.assertTrue(done)
 
     @attr('integration')
     @testing.gen_test(timeout=60)
-    def integration_01_wait_for_elb_health(self):
+    def integration_02_wait_for_elb_health(self):
         actor = elb.WaitUntilHealthy(
             'Test',
             {'name': self.elb_name,
