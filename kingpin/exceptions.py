@@ -12,29 +12,12 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-from kingpin import exceptions
+
+class KingpinException(Exception):
+
+    """Base Exception """
 
 
-class ActorException(exceptions.KingpinException):
+class InvalidEnvironment(KingpinException):
 
-    """Base Kingpin Actor Exception"""
-
-
-class InvalidOptions(ActorException):
-
-    """Invalid option arguments passed into the Actor object."""
-
-
-class InvalidCredentials(ActorException):
-
-    """Invalid or missing credentials required for Actor object."""
-
-
-class UnparseableResponseFromEndpoint(ActorException):
-
-    """Invalid response returned from a remote REST endpoint."""
-
-
-class UnrecoverableActionFailure(ActorException):
-
-    """An action failed, and is unrecoverable or retryable."""
+    """Raised when something is wrong with the environment variables"""

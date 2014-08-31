@@ -22,12 +22,15 @@ from logging import handlers
 import commentjson as json
 import logging
 import os
+import re
 import time
 
 from tornado import gen
 from tornado import ioloop
 import futures
 import requests
+
+from kingpin import exceptions
 
 log = logging.getLogger(__name__)
 
@@ -229,8 +232,17 @@ def populate_with_env(string):
         populate_with_env(string)  # 'foo biz %bar%'
     """
 
+    # First things first, swap out all instances of %<str>% with any matching
+    # environment variables found in os.environ.
     for k, v in os.environ.iteritems():
         string = string.replace(('%%%s%%' % k), v)
+
+    # Now, see if we missed anything. If we did, raise an exception and fail.
+    missed_tokens = list(set(re.findall(r'%[\w]+%*', string)))
+    if missed_tokens:
+        raise exceptions.InvalidEnvironment(
+            'Found un-matched tokens in JSON string: %s' % missed_tokens)
+
     return string
 
 

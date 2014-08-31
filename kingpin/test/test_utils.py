@@ -8,6 +8,7 @@ from tornado.testing import unittest
 import mock
 import requests
 
+from kingpin import exceptions
 from kingpin import utils
 
 
@@ -25,11 +26,16 @@ class TestUtils(unittest.TestCase):
 
     def test_populate_with_env(self):
         os.environ['UNIT_TEST'] = 'FOOBAR'
-        string = 'Unit %UNIT_TEST% Test %NOTFOUNDVARIABLE%'
-        expect = 'Unit FOOBAR Test %NOTFOUNDVARIABLE%'
+        string = 'Unit %UNIT_TEST% Test'
+        expect = 'Unit FOOBAR Test'
         result = utils.populate_with_env(string)
-
         self.assertEquals(result, expect)
+
+    def test_populate_with_env_with_missing_variables(self):
+        os.environ['UNIT_TEST'] = 'FOOBAR'
+        string = 'Unit %UNIT_TEST% Test %NOTFOUNDVARIABLE%'
+        with self.assertRaises(exceptions.InvalidEnvironment):
+            utils.populate_with_env(string)
 
 
 class TestSetupLoggerUtils(unittest.TestCase):

@@ -20,12 +20,13 @@
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
 from tornado import ioloop
-import commentjson as json
 import logging
 import optparse
+import sys
 
 from tornado import gen
 
+from kingpin import exceptions
 from kingpin import schema
 from kingpin import utils
 from kingpin.actors import utils as actor_utils
@@ -69,13 +70,16 @@ def get_root_logger(level, syslog):
 
 @gen.coroutine
 def main():
-    # Run the JSON dictionary through our environment parser and return back
-    # a dictionary with all of the %XX%% keys swapped out with environment
-    # variables.
-    config = utils.convert_json_to_dict(options.json)
-
-    # Run the dict through our schema validator quickly
-    schema.validate(config)
+    try:
+        # Run the JSON dictionary through our environment parser and return
+        # back a dictionary with all of the %XX%% keys swapped out with
+        # environment variables.
+        config = utils.convert_json_to_dict(options.json)
+        # Run the dict through our schema validator quickly
+        schema.validate(config)
+    except exceptions.InvalidEnvironment as e:
+        log.error('Invalid Configuration Detected: %s' % e)
+        sys.exit(1)
 
     # TODO: Method-ize-this
     actor = config.pop('actor')
