@@ -58,46 +58,39 @@ def str_to_class(string):
     """
     # Split the string up. The last element is the Class, the rest is
     # the package name.
-    log.debug('Translating "%s" into a Module and Class...' % string)
     string_elements = string.split('.')
     class_name = string_elements.pop()
     module_name = '.'.join(string_elements)
-    log.debug('Module: %s, Class: %s' % (module_name, class_name))
 
     # load the module, will raise ImportError if module cannot be loaded
     m = __import__(module_name, globals(), locals(), class_name)
     # get the class, will raise AttributeError if class cannot be found
     c = getattr(m, class_name)
 
-    log.debug('Class Reference: %s' % c)
     return c
 
 
-def getRootPath():
-    """Returns the fully qualified path to our root package path.
-
-    Returns:
-        A string with the fully qualified path of the zk_monitor app
-    """
-    return os.path.abspath(os.path.dirname(__file__))
-
-
-def setup_root_logger(level=logging.WARNING, syslog=None):
+def setup_root_logger(level='warn', syslog=None):
     """Configures the root logger.
 
     Args:
-        level: Logging.<LEVEL> object to set logging level
+        level: Logging level string ('warn' is default)
         syslog: String representing syslog facility to output to.
                 If empty, logs are written to console.
 
     Returns:
         A root Logger object
     """
+
+    # Get the logging level string -> object
+    level = 'logging.%s' % level.upper()
+    level_obj = str_to_class(level)
+
     # Get our logger
     logger = logging.getLogger()
 
     # Set our default logging level
-    logger.setLevel(level)
+    logger.setLevel(level_obj)
 
     # Set the default logging handler to stream to console..
     handler = logging.StreamHandler()

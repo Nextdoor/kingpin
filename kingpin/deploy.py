@@ -57,17 +57,6 @@ parser.add_option('-s', '--syslog', dest='syslog',
 (options, args) = parser.parse_args()
 
 
-def get_root_logger(level, syslog):
-    """Configures our Python stdlib Root Logger"""
-    # Convert the supplied log level string
-    # into a valid log level constant
-    level_string = 'logging.%s' % level.upper()
-    level_constant = utils.str_to_class(level_string)
-
-    # Set up the logger now
-    return utils.setup_root_logger(level=level_constant, syslog=syslog)
-
-
 @gen.coroutine
 def main():
     try:
@@ -90,7 +79,7 @@ def main():
 
 if __name__ == '__main__':
     # Set up logging
-    get_root_logger(options.level, options.syslog)
+    utils.setup_root_logger(level=options.level, syslog=options.syslog)
     logging.getLogger('nd_service_registry.shims').setLevel(logging.WARNING)
 
     try:
