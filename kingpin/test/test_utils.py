@@ -5,7 +5,6 @@ import time
 from tornado import gen
 from tornado import testing
 from tornado.testing import unittest
-import mock
 import requests
 
 from kingpin import exceptions
@@ -88,38 +87,6 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
 
 
 class TestCoroutineHelpers(testing.AsyncTestCase):
-
-    @testing.gen_test(timeout=30)
-    def test_thread_coroutine(self):
-        # Create a method that we'll call and have it return
-        mock_thing = mock.MagicMock()
-        mock_thing.action.return_value = True
-
-        ret = yield utils.thread_coroutine(mock_thing.action)
-        self.assertEquals(ret, True)
-        mock_thing.action.assert_called_once_with()
-
-        # Now, lets have the function actually fail with a requests exception
-        mock_thing = mock.MagicMock()
-        mock_thing.action.side_effect = [
-            requests.exceptions.ConnectionError('doh'), True]
-
-        ret = yield utils.thread_coroutine(mock_thing.action)
-        self.assertEquals(ret, True)
-        mock_thing.action.assert_called_twice_with()
-
-        # Finally, make it fail many times and test the retry
-        mock_thing = mock.MagicMock()
-        mock_thing.action.side_effect = [
-            requests.exceptions.ConnectionError('doh1'),
-            requests.exceptions.ConnectionError('doh2'),
-            requests.exceptions.ConnectionError('doh3'),
-            requests.exceptions.ConnectionError('wee'),
-        ]
-
-        with self.assertRaises(requests.exceptions.ConnectionError):
-            yield utils.thread_coroutine(mock_thing.action)
-        mock_thing.action.assert_called_twice_with()
 
     @testing.gen_test
     def test_retry_with_backoff(self):
