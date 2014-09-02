@@ -95,19 +95,6 @@ class Clone(ServerArrayBaseActor):
 
     required_options = ['source', 'dest']
 
-    def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
-
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following settings:
-              { 'sleep': <int of time to sleep> }
-        """
-        super(Clone, self).__init__(*args, **kwargs)
-
-        self._source = self._options['source']
-        self._dest = self._options['dest']
-
     @gen.coroutine
     def _execute(self):
         # First things first, login to RightScale asynchronously to
@@ -117,12 +104,12 @@ class Clone(ServerArrayBaseActor):
         yield self._client.login()
 
         # First, find the array we're copying from.
-        source_array = yield self._find_server_arrays(self._source,
+        source_array = yield self._find_server_arrays(self._options['source'],
                                                       allow_mock=False)
 
         # Sanity-check -- make sure that the destination server array doesn't
         # already exist. If it does, bail out!
-        yield self._find_server_arrays(self._dest,
+        yield self._find_server_arrays(self._options['dest'],
                                        raise_on='found',
                                        allow_mock=False)
 
@@ -134,14 +121,15 @@ class Clone(ServerArrayBaseActor):
         else:
             # In dry run mode. Don't really clone the array, just return back
             # 'True' as if the array-clone worked.
-            new_array = mock.MagicMock(name=self._dest)
-            new_array.soul = {'name': '<mocked clone of %s>' % self._source}
+            new_array = mock.MagicMock(name=self._options['dest'])
+            new_array.soul = {
+                'name': '<mocked clone of %s>' % self._options['source']}
 
         # Lastly, rename the array
         params = self._generate_rightscale_params(
-            'server_array', {'name': self._dest})
+            'server_array', {'name': self._options['dest']})
         self.log.info('Renaming array "%s" to "%s"' % (new_array.soul['name'],
-                                                       self._dest))
+                                                       self._options['dest']))
         yield self._client.update_server_array(new_array, params)
 
         raise gen.Return(True)
@@ -149,36 +137,22 @@ class Clone(ServerArrayBaseActor):
 
 class Update(ServerArrayBaseActor):
 
-    """Patch a RightScale Server Array."""
+    """Patch a RightScale Server Array.
+
+    Note, the Array name is required. The params and inputs options are
+    optional -- but if you want the actor to actually make any changes, you
+    need to supply one of these.
+
+    Args:
+        desc: String description of the action being executed.
+        options: Dictionary with the following example settings:
+          { 'array': <server array name>,
+            'params': { 'description': 'foo bar',
+                        'state': 'enabled' },
+            'inputs': { 'ELB_NAME': 'foo bar' } }
+    """
 
     required_options = ['array']
-
-    def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
-
-        Note, the Array name is required. The params and inputs options are
-        optional -- but if you want the actor to actually make any changes, you
-        need to supply one of these.
-
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following example settings:
-              { 'array': <server array name>,
-                'params': { 'description': 'foo bar',
-                            'state': 'enabled' },
-                'inputs': { 'ELB_NAME': 'foo bar' } }
-        """
-        super(Update, self).__init__(*args, **kwargs)
-
-        self._array = self._options['array']
-        self._params = None
-        self._inputs = None
-        if 'params' in self._options:
-            self._params = self._generate_rightscale_params(
-                'server_array', self._options['params'])
-        if 'inputs' in self._options:
-            self._inputs = self._generate_rightscale_params(
-                'inputs', self._options['inputs'])
 
     @gen.coroutine
     def _execute(self):
@@ -189,35 +163,39 @@ class Update(ServerArrayBaseActor):
         yield self._client.login()
 
         # First, find the array we're going to be patching.
-        array = yield self._find_server_arrays(self._array)
+        array = yield self._find_server_arrays(self._options['array'])
 
         # In dry run, just comment that we would have made the change.
         if self._dry:
-            if self._params:
-                self.log.info('New params: %s' % self._params)
-            if self._inputs:
-                self.log.info('New inputs: %s' % self._inputs)
+            if self._options['params']:
+                self.log.info('New params: %s' % self._options['params'])
+            if self._options['inputs']:
+                self.log.info('New inputs: %s' % self._options['inputs'])
 
             self.log.info('Not making any changes.')
             raise gen.Return(True)
 
         # Update the ServerArray Parameters
-        if self._params:
+        if 'params' in self._options:
+            params = self._generate_rightscale_params(
+                'server_array', self._options['params'])
             self.log.info('Updating array "%s" with params: %s' %
-                          (array.soul['name'], self._params))
+                          (array.soul['name'], params))
             try:
-                yield self._client.update_server_array(array, self._params)
+                yield self._client.update_server_array(array, params)
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 422:
                     msg = ('Invalid parameters supplied to patch array "%s"' %
-                           self._array)
+                           self._options['array'])
                     raise exceptions.UnrecoverableActionFailure(msg)
 
         # Update the ServerArray Next-Instane Inputs
-        if self._inputs:
+        if 'inputs' in self._options:
+            inputs = self._generate_rightscale_params(
+                'inputs', self._options['inputs'])
             self.log.info('Updating array "%s" with inputs: %s' %
-                          (array.soul['name'], self._inputs))
-            yield self._client.update_server_array_inputs(array, self._inputs)
+                          (array.soul['name'], inputs))
+            yield self._client.update_server_array_inputs(array, inputs)
 
         raise gen.Return(True)
 
@@ -228,28 +206,9 @@ class Destroy(ServerArrayBaseActor):
 
     required_options = ['array', 'terminate']
 
-    def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
-
-        # TODO: Add a 'wait timer' that allows the execution to fail if it
-        # takes too long to terminate the instances.
-
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following example settings:
-              { 'array': <server array name>,
-                'terminate': <boolean, whether or not to terminate all running
-                instances first. If false, and instances are running, this
-                action will fail.> }
-        """
-        super(Destroy, self).__init__(*args, **kwargs)
-
-        self._array = self._options['array']
-        self._terminate = self._options['terminate']
-
     @gen.coroutine
     def _terminate_all_instances(self, array):
-        if not self._terminate:
+        if not self._options['terminate']:
             self.log.debug('Not terminating instances')
             raise gen.Return()
 
@@ -317,12 +276,12 @@ class Destroy(ServerArrayBaseActor):
         yield self._client.login()
 
         # First, find the array we're going to be terminating.
-        array = yield self._find_server_arrays(self._array)
+        array = yield self._find_server_arrays(self._options['array'])
 
         # Disable the array so that no new instances launch. Ignore the result
         # of this opertaion -- as long as it succeeds, we're happy. No need to
         # store the returned server array object.
-        self.log.info('Disabling Array "%s"' % self._array)
+        self.log.info('Disabling Array "%s"' % self._options['array'])
         params = self._generate_rightscale_params(
             'server_array', {'state': 'disabled'})
         yield self._client.update_server_array(array, params)
@@ -344,21 +303,6 @@ class Launch(ServerArrayBaseActor):
     """Launches the min_instances in a RightScale Server Array."""
 
     required_options = ['array']
-
-    def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
-
-        # TODO: Add a 'wait timer' that allows the execution to fail if it
-        # takes too long to launch the instances.
-
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following example settings:
-              { 'array': <server array name> }
-        """
-        super(Launch, self).__init__(*args, **kwargs)
-
-        self._array = self._options['array']
 
     @gen.coroutine
     def _wait_until_healthy(self, array, sleep=60):
@@ -451,7 +395,7 @@ class Launch(ServerArrayBaseActor):
         yield self._client.login()
 
         # First, find the array we're going to be launching....
-        array = yield self._find_server_arrays(self._array)
+        array = yield self._find_server_arrays(self._options['array'])
 
         # Enable the array right away. This means that RightScale will
         # auto-scale-up the array as soon as their next scheduled auto-scale
@@ -468,7 +412,8 @@ class Launch(ServerArrayBaseActor):
         # in-code. Instead, our 'launch clicking' here is just a way to get the
         # ball rolling as quickly as possible before rightscales
         # auto-array-scaling kicks in.
-        self.log.info('Launching Array "%s" instances' % self._array)
+        self.log.info(
+            'Launching Array "%s" instances' % self._options['array'])
         yield self._launch_min_instances(array)
 
         # Now, wait until the number of healthy instances in the array matches
@@ -480,26 +425,18 @@ class Launch(ServerArrayBaseActor):
 
 class Execute(ServerArrayBaseActor):
 
-    """Executes a RightScript or Recipe on a ServerArray."""
+    """Executes a RightScript or Recipe on a ServerArray.
+
+    # TODO: Add a 'wait timer' that allows the execution to fail if it
+    # takes too long to launch the instances.
+
+    Args:
+        desc: String description of the action being executed.
+        options: Dictionary with the following example settings:
+          { 'array': <server array name> }
+    """
 
     required_options = ['array', 'script', 'inputs']
-
-    def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
-
-        # TODO: Add a 'wait timer' that allows the execution to fail if it
-        # takes too long to launch the instances.
-
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following example settings:
-              { 'array': <server array name> }
-        """
-        super(Execute, self).__init__(*args, **kwargs)
-
-        self._array = self._options['array']
-        self._script = self._options['script']
-        self._inputs = self._options['inputs']
 
     @gen.coroutine
     def _execute(self):
@@ -510,26 +447,29 @@ class Execute(ServerArrayBaseActor):
         yield self._client.login()
 
         # First, find the array we're going to be launching....
-        array = yield self._find_server_arrays(self._array)
+        array = yield self._find_server_arrays(self._options['array'])
         instances = yield self._client.get_server_array_current_instances(
             array)
 
         # Munge our inputs into something that RightScale likes
-        inputs = self._generate_rightscale_params('inputs', self._inputs)
+        inputs = self._generate_rightscale_params(
+            'inputs', self._options['inputs'])
 
         # At this point, if we're in dry mode we need to exit. Theres no way to
         # 'test' the actual execution of the rightscale scripts.
         if self._dry:
-            self.log.info('Would have executed "%s" with inputs "%s" on "%s".'
-                          % (self._script, inputs, array.soul['name']))
+            self.log.info(
+                'Would have executed "%s" with inputs "%s" on "%s".'
+                % (self._options['script'], inputs, array.soul['name']))
             raise gen.Return(True)
 
         # Execute the script on all of the servers in the array and store the
         # task status resource records.
-        self.log.info('Executing "%s" on %s instances in the array "%s"' %
-                      (self._script, len(instances), array.soul['name']))
+        self.log.info(
+            'Executing "%s" on %s instances in the array "%s"' %
+            (self._options['script'], len(instances), array.soul['name']))
         tasks = yield self._client.run_executable_on_instances(
-            self._script, inputs, instances)
+            self._options['script'], inputs, instances)
 
         # Finally, monitor all of the tasks for completion.
         actions = []

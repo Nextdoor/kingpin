@@ -32,21 +32,14 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 class Sleep(base.BaseActor):
 
-    """Simple actor that just sleeps for an arbitrary amount of time."""
+    """Simple actor that just sleeps for an arbitrary amount of time.
+
+    Args:
+        options: Dictionary with the following settings:
+          { 'sleep': <int of time to sleep> }
+    """
 
     required_options = ['sleep']
-
-    def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
-
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following settings:
-              { 'sleep': <int of time to sleep> }
-        """
-        super(Sleep, self).__init__(*args, **kwargs)
-
-        self._sleep = self._options['sleep']
 
     @gen.coroutine
     def _execute(self):
@@ -54,8 +47,8 @@ class Sleep(base.BaseActor):
 
         raises: gen.Return(True)
         """
-        log.debug('[%s] Sleeping for %s seconds' % (self._desc, self._sleep))
+        self.log.debug('Sleeping for %s seconds' % self._options['sleep'])
         if not self._dry:
-            yield utils.tornado_sleep(seconds=self._sleep)
+            yield utils.tornado_sleep(seconds=self._options['sleep'])
 
         raise gen.Return(True)
