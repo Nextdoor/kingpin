@@ -12,7 +12,7 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""Misc Actor objects"""
+"""Hipchat Actor objects"""
 
 import logging
 import os
