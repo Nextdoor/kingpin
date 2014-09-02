@@ -70,8 +70,8 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
         log = logging.getLogger()
         log.handlers = []
 
-        logger = utils.setup_root_logger(level='error')
-        self.assertEquals(logger.level, logging.ERROR)
+        logger = utils.setup_root_logger(level='debug')
+        self.assertEquals(logger.level, logging.DEBUG)
 
     def test_setup_root_logger_with_syslog(self):
         # Since we're really checking if loggers get created properly,
