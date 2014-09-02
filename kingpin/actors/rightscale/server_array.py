@@ -383,7 +383,7 @@ class Launch(ServerArrayBaseActor):
 
         while True:
             instances = yield self._client.get_server_array_current_instances(
-                array, filter='state==operational')
+                array, filter=['state==operational'])
             count = len(instances)
             self.log.info('%s instances found' % count)
 
@@ -502,6 +502,38 @@ class Execute(ServerArrayBaseActor):
         self._inputs = self._options['inputs']
 
     @gen.coroutine
+    def _get_operational_instances_and_warn(self, array):
+        """Gets a list of Operational instances and returns it.
+
+        Warns on any non-Operational instances to let the operator know that
+        their script may not execute there.
+
+        Args:
+            array: rightscale.Resource ServerArray Object
+        """
+        # Get all non-terminated instances
+        all_instances = yield self._client.get_server_array_current_instances(
+            array, filter=['state!=terminated'])
+
+        # Filter out the Operational ones from the Non-Operational (booting,
+        # etc) instances.
+        op = [inst for inst in all_instances if inst.soul['state'] ==
+              'operational']
+        non_op = [inst for inst in all_instances if inst.soul['state'] !=
+                  'operational']
+
+        # Warn that there are Non-Operational instances and move on.
+        non_op_count = len(non_op)
+        if non_op_count > 0:
+            self.log.warning(
+                'Found %s instances in a non-Operational state, will not '
+                'execute on these hosts!' % non_op_count)
+
+        self.log.info('Found %s instances in the Operational state.' %
+                      len(op))
+        raise gen.Return(op)
+
+    @gen.coroutine
     def _execute(self):
         # First things first, login to RightScale asynchronously to
         # pre-populate the API attributes that are dynamically generated. This
@@ -509,10 +541,11 @@ class Execute(ServerArrayBaseActor):
         # decorator.
         yield self._client.login()
 
-        # First, find the array we're going to be launching....
+        # First, find the array we're going to be launching. Get a list back of
+        # the 'operational' instances that we are able to execute scripts
+        # against.
         array = yield self._find_server_arrays(self._array)
-        instances = yield self._client.get_server_array_current_instances(
-            array)
+        instances = yield self._get_operational_instances_and_warn(array)
 
         # Munge our inputs into something that RightScale likes
         inputs = self._generate_rightscale_params('inputs', self._inputs)

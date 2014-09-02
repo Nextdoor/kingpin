@@ -603,9 +603,30 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.client_mock.login.side_effect = login
 
     @testing.gen_test
+    def test_get_operational_instances_warn(self):
+        mock_array = mock.MagicMock(name='array')
+        mock_op_instance = mock.MagicMock(name='mock_instance')
+        mock_op_instance.soul = {'state': 'operational'}
+        mock_non_op_instance = mock.MagicMock(name='mock_instance')
+        mock_non_op_instance.soul = {'state': 'booting'}
+
+        @gen.coroutine
+        def yi(array, filter):
+            raise gen.Return([
+                mock_op_instance,
+                mock_non_op_instance,
+                mock_op_instance,
+            ])
+        self.client_mock.get_server_array_current_instances.side_effect = yi
+
+        ret = yield self.actor._get_operational_instances_and_warn(mock_array)
+        self.assertEquals(2, len(ret))
+
+    @testing.gen_test
     def test_execute(self):
         mock_array = mock.MagicMock(name='array')
-        mock_instance = mock.MagicMock(name='mock_instance')
+        mock_op_instance = mock.MagicMock(name='mock_instance')
+        mock_op_instance.soul = {'state': 'operational'}
         mock_task = mock.MagicMock(name='mock_task')
 
         @gen.coroutine
@@ -615,7 +636,7 @@ class TestExecuteActor(testing.AsyncTestCase):
 
         @gen.coroutine
         def yi(*args, **kwargs):
-            raise gen.Return([mock_instance])
+            raise gen.Return([mock_op_instance])
         self.client_mock.get_server_array_current_instances.side_effect = yi
 
         @gen.coroutine
@@ -633,12 +654,12 @@ class TestExecuteActor(testing.AsyncTestCase):
         # Now verify that each of the steps (terminate, wait, destroyed) were
         # all called.
         (self.client_mock.get_server_array_current_instances
-            .assert_called_once_with(mock_array))
+            .assert_called_twice_with(mock_array))
         (self.client_mock.run_executable_on_instances
             .assert_called_once_with(
                 'test_script',
                 {'inputs[foo]': 'text:bar'},
-                [mock_instance]))
+                [mock_op_instance]))
         (self.client_mock.wait_for_task
             .assert_called_once_with(mock_task))
 
