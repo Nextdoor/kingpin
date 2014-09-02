@@ -113,7 +113,8 @@ class Message(base.HTTPBaseActor):
                 # "You have exceeded the rate limit"
                 #
                 # TODO: Build a retry mechanism in here with a sleep timer.
-                self.log.error('Hit the HipChat API Rate Limit. Try again later.')
+                self.log.error('Hit the HipChat API Rate Limit. '
+                               'Try again later.')
                 raise
             raise
 

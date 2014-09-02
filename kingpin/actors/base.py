@@ -40,10 +40,12 @@ log = logging.getLogger(__name__)
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
+
 class LogAdapter(logging.LoggerAdapter):
 
     def process(self, msg, kwargs):
-        return '[%s%s] %s' % (self.extra['desc'], self.extra['dry'], msg), kwargs
+        return ('[%s%s] %s' % (self.extra['desc'], self.extra['dry'], msg),
+                kwargs)
 
 
 class BaseActor(object):
