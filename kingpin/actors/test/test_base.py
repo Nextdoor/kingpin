@@ -1,7 +1,6 @@
 """Tests for the actors.base package."""
 import StringIO
 import json
-import logging
 
 from tornado import gen
 from tornado import httpclient
