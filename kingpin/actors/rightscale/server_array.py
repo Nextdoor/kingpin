@@ -167,9 +167,9 @@ class Update(ServerArrayBaseActor):
 
         # In dry run, just comment that we would have made the change.
         if self._dry:
-            if self._options['params']:
+            if 'params' in self._options:
                 self.log.info('New params: %s' % self._options['params'])
-            if self._options['inputs']:
+            if 'inputs' in self._options:
                 self.log.info('New inputs: %s' % self._options['inputs'])
 
             self.log.info('Not making any changes.')
