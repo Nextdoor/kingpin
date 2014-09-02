@@ -37,6 +37,7 @@ NAME = os.getenv('HIPCHAT_NAME', 'Kingpin')
 
 
 class Message(base.HTTPBaseActor):
+
     """Simple Hipchat Message sending actor."""
 
     def __init__(self, *args, **kwargs):
@@ -112,8 +113,7 @@ class Message(base.HTTPBaseActor):
                 # "You have exceeded the rate limit"
                 #
                 # TODO: Build a retry mechanism in here with a sleep timer.
-                self._log(logging.ERROR,
-                          'Hit the HipChat API Rate Limit. Try again later.')
+                self.log.error('Hit the HipChat API Rate Limit. Try again later.')
                 raise
             raise
 
@@ -125,8 +125,8 @@ class Message(base.HTTPBaseActor):
 
         raises: gen.Return(True)
         """
-        self._log(logging.INFO, 'Sending message "%s" to Hipchat room "%s"' %
-                  (self._message, self._room))
+        self.log.info('Sending message "%s" to Hipchat room "%s"' %
+                      (self._message, self._room))
         res = yield self._post_message(self._room, self._message)
 
         # If we got here, the result is supposed to include 'success' as a key
@@ -135,8 +135,8 @@ class Message(base.HTTPBaseActor):
         # message send, but just validated the API token against the API.
         if 'success' in res:
             if res['success']['code'] == 202:
-                self._log(logging.INFO, 'API Token Validated: %s' %
-                          res['success']['message'])
+                self.log.info('API Token Validated: %s' %
+                              res['success']['message'])
 
         raise gen.Return(True)
 

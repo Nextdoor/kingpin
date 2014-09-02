@@ -66,22 +66,9 @@ class TestBaseActor(testing.AsyncTestCase):
         # Make sure we fired off an alert.
         self.assertEquals(res, True)
 
-    @mock.patch.object(base, 'log')
-    def test_log_dry(self, mocked_log):
-        self.actor._dry = True
-        self.actor._log(logging.ERROR, 'unittest')
-        mocked_log.log.assert_called_once_with(
-            40, '[Unit Test Action (DRY Mode)] unittest')
-
-    @mock.patch.object(base, 'log')
-    def test_log(self, mocked_log):
-        self.actor._dry = False
-        self.actor._log(logging.ERROR, 'unittest')
-        mocked_log.log.assert_called_once_with(
-            40, '[Unit Test Action] unittest')
-
 
 class TestHTTPBaseActor(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestHTTPBaseActor, self).setUp()
         self.actor = base.HTTPBaseActor('Unit Test Action', {})
