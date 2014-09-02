@@ -383,7 +383,7 @@ class Launch(ServerArrayBaseActor):
 
         while True:
             instances = yield self._client.get_server_array_current_instances(
-                array, filter=['state==operational'])
+                array, filters=['state==operational'])
             count = len(instances)
             self.log.info('%s instances found' % count)
 
@@ -513,7 +513,7 @@ class Execute(ServerArrayBaseActor):
         """
         # Get all non-terminated instances
         all_instances = yield self._client.get_server_array_current_instances(
-            array, filter=['state!=terminated'])
+            array, filters=['state!=terminated'])
 
         # Filter out the Operational ones from the Non-Operational (booting,
         # etc) instances.

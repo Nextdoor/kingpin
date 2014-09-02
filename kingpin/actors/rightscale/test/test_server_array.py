@@ -611,7 +611,7 @@ class TestExecuteActor(testing.AsyncTestCase):
         mock_non_op_instance.soul = {'state': 'booting'}
 
         @gen.coroutine
-        def yi(array, filter):
+        def yi(array, filters):
             raise gen.Return([
                 mock_op_instance,
                 mock_non_op_instance,
