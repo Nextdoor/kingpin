@@ -16,8 +16,12 @@
 
 import logging
 import re
+import time
 
+from concurrent import futures
+from tornado import concurrent
 from tornado import gen
+from tornado import ioloop
 import boto.sqs.connection
 import boto.sqs.queue
 import mock
@@ -32,15 +36,30 @@ log = logging.getLogger(__name__)
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
 
+# This executor is used by the tornado.concurrent.run_on_executor()
+# decorator. We would like this to be a class variable so its shared
+# across RightScale objects, but we see testing IO errors when we
+# do this.
+EXECUTOR = futures.ThreadPoolExecutor(10)
+
+
 class SQSActorException(Exception):
+
     """Raised by SQS Actor for any exception."""
 
 
 class SQSQueueNotFoundException(SQSActorException):
+
     """Raised by SQS Actor when a needed queue is not found."""
 
 
 class SQSBaseActor(base.BaseActor):
+
+    # Get references to existing objects that are used by the
+    # tornado.concurrent.run_on_executor() decorator.
+    ioloop = ioloop.IOLoop.current()
+    executor = EXECUTOR
+
     def __init__(self, *args, **kwargs):
         """Create the connection object."""
         super(SQSBaseActor, self).__init__(*args, **kwargs)
@@ -51,11 +70,12 @@ class SQSBaseActor(base.BaseActor):
 
 
 class Create(SQSBaseActor):
+
     """Creates a new SQS Queue."""
 
     required_options = ['name']
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def _create_queue(self, name):
         """Create an SQS queue with the specified name.
 
@@ -65,15 +85,14 @@ class Create(SQSBaseActor):
         if not self._dry:
             self._log(logging.INFO, 'Creating a new queue: %s' % name)
 
-            new_queue = yield utils.thread_coroutine(
-                self.conn.create_queue, name)
+            new_queue = self.conn.create_queue(name)
         else:
             self._log(logging.INFO,
                       'Would create a new queue: %s' % name)
             new_queue = mock.Mock(name=name)
 
         self._log(logging.INFO, 'Returning queue object: %s' % new_queue)
-        raise gen.Return(new_queue)
+        return new_queue
 
     @gen.coroutine
     def _execute(self):
@@ -98,11 +117,12 @@ class Create(SQSBaseActor):
 
 
 class Delete(SQSBaseActor):
+
     """Deletes an existing SQS Queue."""
 
     required_options = ['name']
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def _fetch_queues(self, pattern):
         """Searches SQS for all queues with a matching name pattern.
 
@@ -112,13 +132,13 @@ class Delete(SQSBaseActor):
             Array of matched queues, even if empty.
         """
 
-        queues = yield utils.thread_coroutine(self.conn.get_all_queues)
+        queues = self.conn.get_all_queues()
 
         match_queues = [q for q in queues if re.match(pattern, q.name)]
 
-        raise gen.Return(match_queues)
+        return match_queues
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def _delete_queue(self, queue):
         """Delete the provided queue.
 
@@ -128,14 +148,14 @@ class Delete(SQSBaseActor):
         """
         if not self._dry:
             self._log(logging.INFO, 'Deleting Queue: %s...' % queue.url)
-            ok = yield utils.thread_coroutine(self.conn.delete_queue, queue)
+            ok = self.conn.delete_queue(queue)
         else:
             self._log(logging.INFO, 'Would delete the queue: %s' % queue.url)
             ok = True
 
         self._log(logging.INFO, 'Deleted Queue: %s' % queue.url)
 
-        raise gen.Return(ok)
+        return ok
 
     @gen.coroutine
     @utils.retry(SQSQueueNotFoundException, delay=aws_settings.SQSRETRYDELAY)
@@ -163,13 +183,14 @@ class Delete(SQSBaseActor):
 
 
 class WaitUntilEmpty(SQSBaseActor):
+
     """Waits for an SQS Queue to become empty."""
 
     required_options = ['name']
 
-    @gen.coroutine
+    @concurrent.run_on_executor
     def _wait(self, name, sleep=3):
-        q = yield utils.thread_coroutine(self.conn.get_queue, name)
+        q = self.conn.get_queue(name)
 
         if not q:
             raise exceptions.UnrecoverableActionFailure(
@@ -179,7 +200,7 @@ class WaitUntilEmpty(SQSBaseActor):
         while True:
             if not self._dry:
                 self._log(logging.INFO, 'Counting %s' % q.url)
-                count = yield utils.thread_coroutine(q.count)
+                count = q.count()
             else:
                 self._log(logging.INFO,
                           'Pretending that count is 0 for %s' % q.url)
@@ -189,12 +210,12 @@ class WaitUntilEmpty(SQSBaseActor):
             if count > 0:
                 self._log(logging.INFO,
                           'Waiting for the queue to become empty...')
-                yield utils.tornado_sleep(sleep)
+                time.sleep(sleep)
             else:
                 self._log(logging.INFO, 'Queue is empty!')
                 break
 
-        raise gen.Return(True)
+        return True
 
     @gen.coroutine
     def _execute(self):
