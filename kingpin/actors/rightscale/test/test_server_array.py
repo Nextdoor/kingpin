@@ -334,7 +334,7 @@ class TestDestroyActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_terminate_all_instances_no_terminate(self):
-        self.actor._terminate = False
+        self.actor._options['terminate'] = False
         array_mock = mock.MagicMock(name='unittest')
         array_mock.soul = {'name': 'unittest'}
         array_mock.self.path = '/a/b/1234'
