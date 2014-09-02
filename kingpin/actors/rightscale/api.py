@@ -134,8 +134,8 @@ class RightScale(object):
             name: RightScale ServerArray Name
             exact: Return a single exact match, or multiple matching resources.
 
-        Raises:
-            gen.Return(rightscale.Resource object(s))
+        Returns:
+            <rightscale.Resource object(s)>
         """
         log.debug('Searching for ServerArrays matching: %s (exact match: %s)' %
                   (name, exact))
@@ -158,8 +158,8 @@ class RightScale(object):
         Args:
             name: RightScale RightScript Name
 
-        Raises:
-            gen.Return(rightscale.Resource object)
+        Return:
+            rightscale.Resource object
         """
         log.debug('Searching for RightScript matching: %s' % name)
         found_script = rightscale_util.find_by_name(
@@ -183,8 +183,8 @@ class RightScale(object):
         Args:
             array: Source ServerArray Resource Object
 
-        Raises:
-            gen.Return(rightscale.Resource object)
+        Return:
+            <rightscale.Resource object>
         """
         log.debug('Cloning ServerArray %s' % array.soul['name'])
         source_id = self.get_res_id(array)
@@ -208,7 +208,6 @@ class RightScale(object):
         array_id = self.get_res_id(array)
         self._client.server_arrays.destroy(res_id=array_id)
         log.debug('Array Destroyed')
-        return
 
     @concurrent.run_on_executor
     def update_server_array(self, array, params):
@@ -224,8 +223,8 @@ class RightScale(object):
             params: The parameters to update. eg:
                 { 'server_array[name]': 'new name' }
 
-        Raises:
-            gen.Return(<updated rightscale array object>)
+        Returns:
+            <updated rightscale array object>
         """
 
         log.debug('Patching ServerArray (%s) with new params: %s' %
@@ -251,9 +250,6 @@ class RightScale(object):
             array: rightscale.Resource object to update.
             inputs: The parameters to update. eg:
                 { 'inputs[ELB_NAME]': 'text:foobar' }
-
-        Raises:
-            gen.Return()
         """
 
         log.debug('Patching ServerArray (%s) with new inputs: %s' %
@@ -261,10 +257,11 @@ class RightScale(object):
 
         next_inst = array.next_instance.show()
         next_inst.inputs.multi_update(params=inputs)
-        return
 
     @concurrent.run_on_executor
-    @sync_retry(stop_max_attempt_number=3)
+    @sync_retry(stop_max_attempt_number=3,
+                wait_exponential_multiplier=1000,
+                wait_exponential_max=10000)
     @utils.exception_logger
     def launch_server_array(self, array):
         """Launches an instance of a ServerArray..
@@ -283,8 +280,8 @@ class RightScale(object):
         Args:
             array: ServerArray Resource Object
 
-        Raises:
-            gen.Return(<rightscale.Resource of the newly launched instance>)
+        Returns:
+            rightscale.Resource of the newly launched instance>
         """
         log.debug('Launching a new instance of ServerArray %s' %
                   array.soul['name'])
@@ -310,8 +307,8 @@ class RightScale(object):
             array: rightscale.Resource object to count
             filter: Filter string to use to find instances.
 
-        Raises:
-            gen.Return([<list of rightscale.Resource objects>])
+        Returns:
+            [<list of rightscale.Resource objects>]
         """
         log.debug('Searching for current instances of ServerArray (%s)' %
                   array.soul['name'])
@@ -334,8 +331,8 @@ class RightScale(object):
         Args:
             array: ServerArray Resource Object
 
-        Raises:
-            gen.Return(<action execution resource>)
+        Return:
+            <action execution resource>
         """
         log.debug('Terminating all instances of ServerArray (%s)' %
                   array.soul['name'])
@@ -376,8 +373,8 @@ class RightScale(object):
         Args:
             sleep: Integer of time to wait between status checks
 
-        Raises:
-            gen.Return(<booelan>)
+        Returns:
+            <booelan>
         """
         while True:
             # Get the task status
@@ -479,8 +476,8 @@ class RightScale(object):
             url: String of the URL to call
             post: Optional POST Body Data
 
-        Raises:
-            gen.Return(<rightscale.Resource object>)
+        Returns:
+            <rightscale.Resource object>
         """
         # Make the initial web call
         log.debug('Making generic API call: %s (%s)' % (url, post))
