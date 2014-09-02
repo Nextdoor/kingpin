@@ -118,6 +118,7 @@ class RightScale(object):
         return int(path.split(resource.self.path)[-1])
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def login(self):
         """Logs into RightScale and populates the object properties.
 
@@ -127,6 +128,7 @@ class RightScale(object):
         self._client.login()
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def find_server_arrays(self, name, exact=True):
         """Search for a list of ServerArray by name and return the resources.
 
@@ -152,6 +154,7 @@ class RightScale(object):
         return found_arrays
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def find_right_script(self, name):
         """Search for a RightScript by-name and return the resource.
 
@@ -174,6 +177,7 @@ class RightScale(object):
         return found_script
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def clone_server_array(self, array):
         """Clone a Server Array.
 
@@ -193,6 +197,7 @@ class RightScale(object):
         return new_array
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def destroy_server_array(self, array):
         """Destroys a Server Array.
 
@@ -210,6 +215,7 @@ class RightScale(object):
         log.debug('Array Destroyed')
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def update_server_array(self, array, params):
         """Updates a ServerArray with the supplied parameters.
 
@@ -234,6 +240,7 @@ class RightScale(object):
         return updated_array
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def update_server_array_inputs(self, array, inputs):
         """Updates a ServerArray 'Next Instance' with the supplied inputs.
 
@@ -289,6 +296,7 @@ class RightScale(object):
         return self._client.server_arrays.launch(res_id=array_id)
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def get_server_array_current_instances(
             self, array, filter='state!=terminated'):
         """Returns a list of ServerArray current running instances.
@@ -316,6 +324,7 @@ class RightScale(object):
         return array.current_instances.index(params=params)
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def terminate_server_array_instances(self, array):
         """Executes a terminate on all of the current running instances.
 
@@ -462,6 +471,7 @@ class RightScale(object):
         raise gen.Return(ret)
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def make_generic_request(self, url, post=None):
         """Make a generic API call and return a Resource Object.
 

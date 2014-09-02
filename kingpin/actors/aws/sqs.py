@@ -76,6 +76,7 @@ class Create(SQSBaseActor):
     required_options = ['name']
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def _create_queue(self, name):
         """Create an SQS queue with the specified name.
 
@@ -123,6 +124,7 @@ class Delete(SQSBaseActor):
     required_options = ['name']
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def _fetch_queues(self, pattern):
         """Searches SQS for all queues with a matching name pattern.
 
@@ -139,6 +141,7 @@ class Delete(SQSBaseActor):
         return match_queues
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def _delete_queue(self, queue):
         """Delete the provided queue.
 
@@ -189,6 +192,7 @@ class WaitUntilEmpty(SQSBaseActor):
     required_options = ['name']
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def _wait(self, name, sleep=3):
         q = self.conn.get_queue(name)
 

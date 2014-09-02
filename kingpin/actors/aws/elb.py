@@ -98,6 +98,7 @@ class WaitUntilHealthy(base.BaseActor):
         return match[0]
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def _find_elb(self, name):
         """Return an ELB with the matching name.
 
@@ -128,6 +129,7 @@ class WaitUntilHealthy(base.BaseActor):
         return expected_count
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def _is_healthy(self, elb, count):
         """Check if there are `count` InService instances for a given elb.
 
