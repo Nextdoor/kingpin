@@ -65,6 +65,8 @@ log = logging.getLogger(__name__)
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
+RETRY_WAIT_MULTIPLIER = 1000
+
 DEFAULT_ENDPOINT = 'https://my.rightscale.com'
 
 # This executor is used by the tornado.concurrent.run_on_executor()
@@ -118,6 +120,9 @@ class RightScale(object):
         return int(path.split(resource.self.path)[-1])
 
     @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=3,
+                wait_exponential_multiplier=1000,
+                wait_exponential_max=10000)
     @utils.exception_logger
     def login(self):
         """Logs into RightScale and populates the object properties.
@@ -128,6 +133,9 @@ class RightScale(object):
         self._client.login()
 
     @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=3,
+                wait_exponential_multiplier=1000,
+                wait_exponential_max=10000)
     @utils.exception_logger
     def find_server_arrays(self, name, exact=True):
         """Search for a list of ServerArray by name and return the resources.
@@ -296,6 +304,9 @@ class RightScale(object):
         return self._client.server_arrays.launch(res_id=array_id)
 
     @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=3,
+                wait_exponential_multiplier=1000,
+                wait_exponential_max=10000)
     @utils.exception_logger
     def get_server_array_current_instances(
             self, array, filter='state!=terminated'):
