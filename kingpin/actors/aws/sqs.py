@@ -92,15 +92,14 @@ class Create(SQSBaseActor):
         in dry run.
         """
         if not self._dry:
-            self._log(logging.INFO, 'Creating a new queue: %s' % name)
+            self.log.info('Creating a new queue: %s' % name)
 
             new_queue = self.conn.create_queue(name)
         else:
-            self._log(logging.INFO,
-                      'Would create a new queue: %s' % name)
+            self.log.info('Would create a new queue: %s' % name)
             new_queue = mock.Mock(name=name)
 
-        self._log(logging.INFO, 'Returning queue object: %s' % new_queue)
+        self.log.info('Returning queue object: %s' % new_queue)
         return new_queue
 
     @gen.coroutine
@@ -109,15 +108,13 @@ class Create(SQSBaseActor):
 
         raises: gen.Return(True)
         """
-        self._log(logging.INFO,
-                  'Creating a new SQS Queue "%s"' %
-                  self._options['name'])
+        self.log.info('Creating a new SQS Queue "%s"' % self._options['name'])
         q = yield self._create_queue(name=self._options['name'])
 
         if q.__class__ == boto.sqs.queue.Queue:
-            self._log(logging.INFO, 'Queue Created: %s' % q.url)
+            self.log.info('Queue Created: %s' % q.url)
         elif self._dry:
-            self._log(logging.INFO, 'Fake Queue: %s' % q)
+            self.log.info('Fake Queue: %s' % q)
         else:
             raise exceptions.UnrecoverableActionFailure(
                 'All hell broke loose: %s' % q)
@@ -158,13 +155,13 @@ class Delete(SQSBaseActor):
         Returns True if successful in deletion, or is Dry run.
         """
         if not self._dry:
-            self._log(logging.INFO, 'Deleting Queue: %s...' % queue.url)
+            self.log.info('Deleting Queue: %s...' % queue.url)
             ok = self.conn.delete_queue(queue)
         else:
-            self._log(logging.INFO, 'Would delete the queue: %s' % queue.url)
+            self.log.info('Would delete the queue: %s' % queue.url)
             ok = True
 
-        self._log(logging.INFO, 'Deleted Queue: %s' % queue.url)
+        self.log.info('Deleted Queue: %s' % queue.url)
 
         return ok
 
@@ -182,7 +179,7 @@ class Delete(SQSBaseActor):
             raise SQSQueueNotFoundException(
                 'No queues with pattern "%s" found.' % pattern)
 
-        self._log(logging.INFO, 'Deleting SQS Queues "%s"' % matched_queues)
+        self.log.info('Deleting SQS Queues "%s"' % matched_queues)
 
         tasks = []
         for q in matched_queues:
@@ -211,20 +208,18 @@ class WaitUntilEmpty(SQSBaseActor):
         count = 0
         while True:
             if not self._dry:
-                self._log(logging.INFO, 'Counting %s' % q.url)
+                self.log.info('Counting %s' % q.url)
                 count = q.count()
             else:
-                self._log(logging.INFO,
-                          'Pretending that count is 0 for %s' % q.url)
+                self.log.info('Pretending that count is 0 for %s' % q.url)
                 count = 0
 
-            self._log(logging.INFO, 'Queue has %s messages in it.' % count)
+            self.log.info('Queue has %s messages in it.' % count)
             if count > 0:
-                self._log(logging.INFO,
-                          'Waiting for the queue to become empty...')
+                self.log.info('Waiting for the queue to become empty...')
                 time.sleep(sleep)
             else:
-                self._log(logging.INFO, 'Queue is empty!')
+                self.log.info('Queue is empty!')
                 break
 
         return True
@@ -235,9 +230,8 @@ class WaitUntilEmpty(SQSBaseActor):
 
         raises: gen.Return(True)
         """
-        self._log(logging.INFO,
-                  'Waiting for queue "%s" to become empty.' %
-                  self._options['name'])
+        self.log.info('Waiting for queue "%s" to become empty.' %
+                      self._options['name'])
         result = yield self._wait(name=self._options['name'])
 
         raise gen.Return(result)
