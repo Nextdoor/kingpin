@@ -215,7 +215,7 @@ def populate_with_env(string):
         string = string.replace(('%%%s%%' % k), v)
 
     # Now, see if we missed anything. If we did, raise an exception and fail.
-    missed_tokens = list(set(re.findall(r'%[\w]+%*', string)))
+    missed_tokens = list(set(re.findall(r'%[\w]+%', string)))
     if missed_tokens:
         raise exceptions.InvalidEnvironment(
             'Found un-matched tokens in JSON string: %s' % missed_tokens)
