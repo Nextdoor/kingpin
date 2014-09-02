@@ -67,6 +67,12 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 DEFAULT_ENDPOINT = 'https://my.rightscale.com'
 
+# This executor is used by the tornado.concurrent.run_on_executor()
+# decorator. We would like this to be a class variable so its shared
+# across RightScale objects, but we see testing IO errors when we
+# do this.
+EXECUTOR = futures.ThreadPoolExecutor(10)
+
 
 class ServerArrayException(Exception):
 
@@ -75,9 +81,10 @@ class ServerArrayException(Exception):
 
 class RightScale(object):
 
-    # Get a reference to the main IOLoop for the
+    # Get references to existing objects that are used by the
     # tornado.concurrent.run_on_executor() decorator.
     ioloop = ioloop.IOLoop.current()
+    executor = EXECUTOR
 
     def __init__(self, token, endpoint=DEFAULT_ENDPOINT):
         """Initializes the RightScaleOperator Object for a RightScale Account.
@@ -86,12 +93,6 @@ class RightScale(object):
             token: A RightScale RefreshToken
             api: API URL Endpoint
         """
-        # This executor is used by the tornado.concurrent.run_on_executor()
-        # decorator. We would like this to be a class variable so its shared
-        # across RightScale objects, but we see testing IO errors when we
-        # do this.
-        self.executor = futures.ThreadPoolExecutor(10)
-
         self._token = token
         self._endpoint = endpoint
         self._client = rightscale.RightScale(refresh_token=self._token,
@@ -100,7 +101,7 @@ class RightScale(object):
         # Quiet down the urllib requests library, its noisy even in
         # INFO mode and muddies up the logs.
         r_log = logging.getLogger('requests.packages.urllib3.connectionpool')
-        r_log.setLevel(logging.WARNING)
+        r_log.setLevel(logging.INFO)
 
         log.debug('%s initialized (token=<hidden>, endpoint=%s)' %
                   (self.__class__.__name__, endpoint))

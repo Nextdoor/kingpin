@@ -121,13 +121,6 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
             yield utils.thread_coroutine(mock_thing.action)
         mock_thing.action.assert_called_twice_with()
 
-#        # TMP
-#        mock_thing.action.side_effect = [
-#            requests.exceptions.ConnectionError('doh'),
-#            requests.exceptions.ConnectionError('really_doh')]
-#
-#        yield utils.thread_coroutine(mock_thing.action)
-
     @testing.gen_test
     def test_retry_with_backoff(self):
 

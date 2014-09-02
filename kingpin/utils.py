@@ -124,6 +124,14 @@ def setup_root_logger(level='warn', syslog=None):
 
 
 def exception_logger(func):
+    """Explicitly log Exceptions then Raise them.
+
+    Logging Exceptions and Tracebacks while inside of a thread is broken in the
+    Tornado futures package for Python 2.7. It swallows most of the traceback
+    and only gives you the raw exception object. This little helper method
+    allows us to throw a log entry with the full traceback before raising the
+    exception.
+    """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
