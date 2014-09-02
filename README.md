@@ -2,17 +2,54 @@
 
 [![Build Status](https://travis-ci.org/Nextdoor/kingpin.svg?branch=master)](https://travis-ci.org/Nextdoor/kingpin)
 
-Automated Deployment Engine
+The Kingpin of your Deployment Model
 
 ## Basic Use
 
-TODO
+    Usage: deploy.py <options>
+
+    Options:
+      --version             show program's version number and exit
+      -h, --help            show this help message and exit
+      -j JSON, --json=JSON  Path to JSON Deployment File
+      -d, --dry             Executes a DRY run.
+      -l LEVEL, --level=LEVEL
+                            Set logging level (INFO|WARN|DEBUG|ERROR)
+
+The simplest use cases of this code can be better understood by looking at the
+[simple.json](examples/simple.json) file. Executing it is a simple as this:
+
+    $ export RIGHTSCALE_TOKEN=xyz
+    $ export RIGHTSCALE_ENDPOINT=https://us-3.rightscale.com
+    $ (.venv)$ deploy.py -j examples/simple.json -d
+    2014-09-01 21:18:09,022 INFO      [main stage (DRY Mode)] Beginning
+    2014-09-01 21:18:09,022 INFO      [stage 1 (DRY Mode)] Beginning
+    2014-09-01 21:18:09,022 INFO      [copy serverA (DRY Mode)] Beginning
+    2014-09-01 21:18:09,023 INFO      [copy serverB (DRY Mode)] Beginning
+    2014-09-01 21:18:09,027 INFO      [copy serverC (DRY Mode)] Beginning
+    2014-09-01 21:18:09,954 INFO      [copy serverA (DRY Mode)] Verifying that array "kingpin-integration-testing" exists
+    ...
+    2014-09-01 21:18:14,533 INFO      [stage 3 (DRY Mode)] Finished, success? True
+    2014-09-01 21:18:14,533 INFO      [main stage (DRY Mode)] Finished, success? True
 
 ### Credentials
 
-TODO
+In an effort to keep the commandline interface of Kingpin simple, the majority
+of the configuration settings used at runtime are actually set as environment
+variables. Individual Kingpin Actors have their credential requirements
+documented in their specific documentation (_see below_).
 
-### DSL
+### JSON-based DSL
+
+The entire model for the configuration is based on the concept of a JSON
+dictionary that contains at least one _actor_ configuration. This JSON format
+is highly structured and must rigidly conform to the [JSON
+Schema](kingpin/schema.py).
+
+*Validation*
+The JSON file will be validated for schema-conformity as one of the first
+things that happens at load-time when the app starts up. If it fails, you will
+be notified immediately.
 
 #### The Script
 Definition: _The blueprint or roadmap that outlines a movie story through
@@ -27,6 +64,65 @@ The simplest script will have a single configuration that executes a single
 _actor_. More complex scripts can be created with our _group.Sync_ and
 _group.Async_ actors which can be used to group together multiple _actors_ and
 execute them in a predictable order.
+
+##### Schema Description
+
+The JSON schema is simple. We take a single JSON object that has 3 fields:
+`actor`, `desc` and `options`.
+
+  * `actor` - A text-string describing the name of the Actor package and class.
+    For example, `kingpin.actors.rightscale.server_array.Clone`, or
+    `misc.Sleep`.
+  * `desc` - A text-string describing the name of the stage or action. Meant to
+    ensure that the logs are very human readable.              
+  * `options` - A dictionary of key/value pairs that are required for the
+    specific `actor` that you're instantiating. See individual Actor
+    documentation below for these options.
+
+The simples JSON file could look like this:
+
+    { "desc": "Hipchat: Notify Oncall Room",
+      "actor": "hipchat.Message",
+      "options": {
+        "message": "Beginning release %RELEASE%", "room": "Oncall"
+      }
+    }
+
+However, much more complex configurations can be created by using the
+`group.Sync` and `group.Async` actors to describe massively more complex
+deployents.
+
+##### Token-replacement
+
+In an effort to allow for more re-usable JSON files, _tokens_ can be inserted
+into the raw JSON file like this `%TOKEN_NAME`. These will then be dynamically
+swapped with environment variables found at execution time. Any missing
+environment variables will cause the JSON parsing to fail and will notify you
+immediately.
+
+For an example, take a look at the [complex.json](examples/complex.json) file,
+and these examples of execution.
+
+    # Here we forget to set any environment variables
+    $ deploy.py -j examples/complex.json -d
+    2014-09-01 21:29:47,373 ERROR     Invalid Configuration Detected: Found un-matched tokens in JSON string: ['%RELEASE%', '%OLD_RELEASE%']
+
+    # Here we set one variable, but miss the other one
+    $ RELEASE=0001a deploy.py -j examples/complex.json -d
+    2014-09-01 21:29:56,027 ERROR     Invalid Configuration Detected: Found un-matched tokens in JSON string: ['%OLD_RELEASE%']
+
+    # Finally we set both variables and the code begins..
+    $ OLD_RELEASE=0000a RELEASE=0001a deploy.py -j examples/complex.json -d
+    2014-09-01 21:30:03,886 INFO      [Main (DRY Mode)] Beginning
+    2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Beginning
+    2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Sending message "Beginning release 0001a" to Hipchat room "Oncall"
+    ...
+
+##### Early Actor Instantiation
+
+Again, in an effort to prevent mid-run errors, we pre-instantiate all Actor
+objects all at once before we ever begin executing code. This ensures that
+major typos or misconfigurations in the JSON will be caught early on.
 
 ### The Actors
 Definition: _a participant in an action or process._
@@ -99,4 +195,4 @@ below for using each actor.
 
 ## Development
 
-Development-specific documentation can be found [here](DEVELOPMENT.md)
+Development-specific documentation can be found [here](docs/DEVELOPMENT.md)
