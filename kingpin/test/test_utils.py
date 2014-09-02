@@ -5,94 +5,88 @@ import time
 from tornado import gen
 from tornado import testing
 from tornado.testing import unittest
-import mock
 import requests
 
+from kingpin import exceptions
 from kingpin import utils
 
 
 class TestUtils(unittest.TestCase):
 
-    def testStrToClass(self):
+    def test_str_to_class(self):
         class_string_name = 'tornado.testing.AsyncTestCase'
         returned_class = utils.str_to_class(class_string_name)
         self.assertEquals(testing.AsyncTestCase, returned_class)
 
-    def testGetRootPath(self):
-        path = utils.getRootPath()
-        self.assertTrue(os.path.exists(path))
-        self.assertTrue(os.path.exists('%s/test' % path))
+    def test_populate_with_env(self):
+        os.environ['UNIT_TEST'] = 'FOOBAR'
+        string = 'Unit %UNIT_TEST% Test'
+        expect = 'Unit FOOBAR Test'
+        result = utils.populate_with_env(string)
+        self.assertEquals(result, expect)
+
+    def test_populate_with_env_with_missing_variables(self):
+        os.environ['UNIT_TEST'] = 'FOOBAR'
+        string = 'Unit %UNIT_TEST% Test %NOTFOUNDVARIABLE%'
+        with self.assertRaises(exceptions.InvalidEnvironment):
+            utils.populate_with_env(string)
+
+    def test_convert_json_to_dict(self):
+        dirname, filename = os.path.split(os.path.abspath(__file__))
+        examples = '%s/../../examples' % dirname
+        simple = '%s/simple.json' % examples
+        ret = utils.convert_json_to_dict(simple)
+        self.assertEquals(type(ret), dict)
+
+    def test_exception_logger(self):
+        @utils.exception_logger
+        def raises_exc():
+            raise Exception('Whoa')
+
+        with self.assertRaises(Exception):
+            raises_exc()
 
 
-class TestSetupLoggerUtils(unittest.TestCase):
+class TestSetupRootLoggerUtils(unittest.TestCase):
 
     def setUp(self):
-        utils.setupLogger()
+        utils.setup_root_logger()
 
-    def testSetupLogger(self):
+    def test_setup_root_logger(self):
         # Since we're really checking if loggers get created properly,
         # make sure to wipe out any existing logging handlers on the Root
         # logger object.
         log = logging.getLogger()
         log.handlers = []
 
-        logger = utils.setupLogger()
+        logger = utils.setup_root_logger()
         self.assertEquals(type(logger.handlers[0]), logging.StreamHandler)
         self.assertEquals(logger.level, logging.WARNING)
 
-    def testSetupLoggerWithLevel(self):
+    def test_setup_root_logger_with_level(self):
         # Since we're really checking if loggers get created properly,
         # make sure to wipe out any existing logging handlers on the Root
         # logger object.
         log = logging.getLogger()
         log.handlers = []
 
-        logger = utils.setupLogger(level=logging.DEBUG)
-        self.assertEquals(logger.level, logging.DEBUG)
+        logger = utils.setup_root_logger(level='error')
+        self.assertEquals(logger.level, logging.ERROR)
 
-    def testSetupLoggerWithSyslog(self):
+    def test_setup_root_logger_with_syslog(self):
         # Since we're really checking if loggers get created properly,
         # make sure to wipe out any existing logging handlers on the Root
         # logger object.
         log = logging.getLogger()
         log.handlers = []
 
-        logger = utils.setupLogger(syslog='local0')
+        logger = utils.setup_root_logger(syslog='local0')
         self.assertEquals(type(logger.handlers[0]),
                           logging.handlers.SysLogHandler)
         self.assertEquals(logger.handlers[0].facility, 'local0')
 
 
 class TestCoroutineHelpers(testing.AsyncTestCase):
-
-    @testing.gen_test
-    def test_thread_coroutine(self):
-        # Create a method that we'll call and have it return
-        mock_thing = mock.MagicMock()
-        mock_thing.action.return_value = True
-
-        ret = yield utils.thread_coroutine(mock_thing.action)
-        self.assertEquals(ret, True)
-        mock_thing.action.assert_called_once_with()
-
-        # Now, lets have the function actually fail with a requests exception
-        mock_thing = mock.MagicMock()
-        mock_thing.action.side_effect = [
-            requests.exceptions.ConnectionError('doh'), True]
-
-        ret = yield utils.thread_coroutine(mock_thing.action)
-        self.assertEquals(ret, True)
-        mock_thing.action.assert_called_twice_with()
-
-        # Finally, make it fail twice..
-        mock_thing = mock.MagicMock()
-        mock_thing.action.side_effect = [
-            requests.exceptions.ConnectionError('doh'),
-            requests.exceptions.ConnectionError('really_doh')]
-
-        with self.assertRaises(requests.exceptions.ConnectionError):
-            yield utils.thread_coroutine(mock_thing.action)
-        mock_thing.action.assert_called_twice_with()
 
     @testing.gen_test
     def test_retry_with_backoff(self):

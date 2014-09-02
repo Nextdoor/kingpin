@@ -19,14 +19,18 @@ Common package for utility functions.
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
 from logging import handlers
+import commentjson as json
 import logging
 import os
+import re
 import time
+import traceback
+import functools
 
 from tornado import gen
 from tornado import ioloop
-import futures
-import requests
+
+from kingpin import exceptions
 
 log = logging.getLogger(__name__)
 
@@ -58,46 +62,39 @@ def str_to_class(string):
     """
     # Split the string up. The last element is the Class, the rest is
     # the package name.
-    log.debug('Translating "%s" into a Module and Class...' % string)
     string_elements = string.split('.')
     class_name = string_elements.pop()
     module_name = '.'.join(string_elements)
-    log.debug('Module: %s, Class: %s' % (module_name, class_name))
 
     # load the module, will raise ImportError if module cannot be loaded
     m = __import__(module_name, globals(), locals(), class_name)
     # get the class, will raise AttributeError if class cannot be found
     c = getattr(m, class_name)
 
-    log.debug('Class Reference: %s' % c)
     return c
 
 
-def getRootPath():
-    """Returns the fully qualified path to our root package path.
-
-    Returns:
-        A string with the fully qualified path of the zk_monitor app
-    """
-    return os.path.abspath(os.path.dirname(__file__))
-
-
-def setupLogger(level=logging.WARNING, syslog=None):
+def setup_root_logger(level='warn', syslog=None):
     """Configures the root logger.
 
     Args:
-        level: Logging.<LEVEL> object to set logging level
+        level: Logging level string ('warn' is default)
         syslog: String representing syslog facility to output to.
                 If empty, logs are written to console.
 
     Returns:
         A root Logger object
     """
+
+    # Get the logging level string -> object
+    level = 'logging.%s' % level.upper()
+    level_obj = str_to_class(level)
+
     # Get our logger
     logger = logging.getLogger()
 
     # Set our default logging level
-    logger.setLevel(level)
+    logger.setLevel(level_obj)
 
     # Set the default logging handler to stream to console..
     handler = logging.StreamHandler()
@@ -124,45 +121,25 @@ def setupLogger(level=logging.WARNING, syslog=None):
     return logger
 
 
-@gen.coroutine
-def thread_coroutine(func, *args, **kwargs):
-    """Simple ThreadPool executor for Tornado.
+def exception_logger(func):
+    """Explicitly log Exceptions then Raise them.
 
-    This method leverages the back-ported Python futures
-    package (https://pypi.python.org/pypi/futures) to spin up
-    a ThreadPool and then kick actions off in the thread pool.
-
-    This is a simple and relatively graceful way of handling
-    spawning off of synchronous API calls from the RightScale
-    client below without having to do a full re-write of anything.
-
-    This should not be used at high volume... but for the
-    use case below, its reasonable.
-
-    Example Usage:
-        >>> @gen.coroutine
-        ... def login(self):
-        ...     ret = yield thread_coroutine(self._client.login)
-        ...     raise gen.Return(ret)
-
-    Args:
-        func: Function reference
+    Logging Exceptions and Tracebacks while inside of a thread is broken in the
+    Tornado futures package for Python 2.7. It swallows most of the traceback
+    and only gives you the raw exception object. This little helper method
+    allows us to throw a log entry with the full traceback before raising the
+    exception.
     """
-    with futures.ThreadPoolExecutor(1) as tp:
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
         try:
-            ret = yield tp.submit(func, *args, **kwargs)
-        except requests.exceptions.ConnectionError as e:
-            # The requests library can fail to fetch sometimes and its almost
-            # always OK to re-try the fetch at least once. If the fetch fails a
-            # second time, we allow it to be raised.
-            #
-            # This should be patched in the python-rightscale library so it
-            # auto-retries, but until then we have a patch here to at least
-            # allow one automatic retry.
-            log.debug('Fetch failed. Will retry one time: %s' % e)
-            ret = yield tp.submit(func, *args, **kwargs)
-
-    raise gen.Return(ret)
+            return func(*args, **kwargs)
+        except Exception as e:
+            log.error('Exception caught in %s(%s, %s): %s' %
+                      (func, args, kwargs, e))
+            log.error(traceback.format_exc())
+            raise
+    return wrapper
 
 
 def retry(excs, retries=3, delay=0.25):
@@ -174,9 +151,8 @@ def retry(excs, retries=3, delay=0.25):
 
     Example usage:
         >>> @gen.coroutine
-        ... @retry(excs=(requests.exceptions.HTTPError), retries=3)
+        ... @retry(excs=(Exception), retries=3)
         ... def login(self):
-        ...     yield thread_coroutine(self._client.login)
         ...     raise gen.Return()
 
     Args:
@@ -218,3 +194,47 @@ def tornado_sleep(seconds=1.0):
     """
     yield gen.Task(ioloop.IOLoop.current().add_timeout,
                    time.time() + seconds)
+
+
+def populate_with_env(string):
+    """Insert env variables into the string.
+
+    Will match any environment key wrapped in '%'s and replace it with the
+    value of that env var.
+
+    Example:
+        export ME=biz
+
+        string='foo %ME% %bar%'
+        populate_with_env(string)  # 'foo biz %bar%'
+    """
+
+    # First things first, swap out all instances of %<str>% with any matching
+    # environment variables found in os.environ.
+    for k, v in os.environ.iteritems():
+        string = string.replace(('%%%s%%' % k), v)
+
+    # Now, see if we missed anything. If we did, raise an exception and fail.
+    missed_tokens = list(set(re.findall(r'%[\w]+%', string)))
+    if missed_tokens:
+        raise exceptions.InvalidEnvironment(
+            'Found un-matched tokens in JSON string: %s' % missed_tokens)
+
+    return string
+
+
+def convert_json_to_dict(json_file):
+    """Converts a JSON file to a config dict.
+
+    Reads in a JSON file, swaps out any environment variables that
+    have been used inside the JSON, and then returns a dictionary.
+
+    Args:
+        json_file: Path to the JSON file to import
+
+    Returns:
+        <Dictonary of Config Data>
+    """
+    raw = open(json_file).read()
+    parsed = populate_with_env(raw)
+    return json.loads(parsed)

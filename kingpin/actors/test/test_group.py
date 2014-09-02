@@ -32,13 +32,6 @@ class TestBaseGroupActor(testing.AsyncTestCase):
             'actor': 'kingpin.actors.test.test_group.TestActor',
             'options': {'return_value': False}}
 
-    def test_get_actor(self):
-        actor = group.BaseGroupActor(
-            'Unit Test Action', {'acts': []})
-        ret = actor._get_actor(self.actor_return_true)
-        self.assertEquals(True, ret._options['return_value'])
-        self.assertEquals(TestActor, type(ret))
-
     def test_build_actions(self):
         actor = group.BaseGroupActor(
             'Unit Test Action',

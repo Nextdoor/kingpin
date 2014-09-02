@@ -206,7 +206,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         self.assertEquals(True, ret)
 
     @attr('integration')
-    @testing.gen_test(timeout=120)
+    @testing.gen_test(timeout=480)
     def integration_06b_execute(self):
         actor = server_array.Execute(
             'Execute %s' % self.clone_name,

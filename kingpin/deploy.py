@@ -20,14 +20,16 @@
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
 from tornado import ioloop
-import commentjson as json
 import logging
 import optparse
+import sys
 
 from tornado import gen
 
+from kingpin import exceptions
 from kingpin import schema
 from kingpin import utils
+from kingpin.actors import exceptions as actor_exceptions
 from kingpin.actors import utils as actor_utils
 from kingpin.version import __version__ as VERSION
 
@@ -49,40 +51,42 @@ parser.add_option('-d', '--dry', dest='dry', action='store_true',
 # Logging Configuration
 parser.add_option('-l', '--level', dest="level", default='info',
                   help='Set logging level (INFO|WARN|DEBUG|ERROR)')
-parser.add_option('-s', '--syslog', dest='syslog',
-                  default=None,
-                  help='Log to syslog. Supply facility name. (ie "local0")')
 
 (options, args) = parser.parse_args()
 
 
-def get_root_logger(level, syslog):
-    """Configures our Python stdlib Root Logger"""
-    # Convert the supplied log level string
-    # into a valid log level constant
-    level_string = 'logging.%s' % level.upper()
-    level_constant = utils.str_to_class(level_string)
-
-    # Set up the logger now
-    return utils.setupLogger(level=level_constant, syslog=syslog)
-
-
 @gen.coroutine
 def main():
-    # TODO: Method-ize-this
-    config = json.loads(open(options.json).read())
-    schema.validate(config)
+    try:
+        # Run the JSON dictionary through our environment parser and return
+        # back a dictionary with all of the %XX%% keys swapped out with
+        # environment variables.
+        config = utils.convert_json_to_dict(options.json)
+        # Run the dict through our schema validator quickly
+        schema.validate(config)
+    except exceptions.InvalidEnvironment as e:
+        log.error('Invalid Configuration Detected: %s' % e)
+        sys.exit(1)
+    except exceptions.InvalidJSON as e:
+        log.error('Invalid JSON Detected')
+        log.error(e)
+        sys.exit(1)
 
-    # TODO: Method-ize-this
-    actor = config.pop('actor')
-    initial_actor = actor_utils.get_actor_class(actor)(
-        dry=options.dry, **config)
+    # Instantiate the first actor and execute it. It should handle everything
+    # from there on out.
+    try:
+        initial_actor = actor_utils.get_actor(config, dry=options.dry)
+    except actor_exceptions.ActorException as e:
+        log.error('Invalid Actor Configuration Detected: %s' % e)
+        sys.exit(1)
+
+    # Begin doing real stuff!
     yield initial_actor.execute()
 
+
 if __name__ == '__main__':
-    # Set up logging
-    get_root_logger(options.level, options.syslog)
-    logging.getLogger('nd_service_registry.shims').setLevel(logging.WARNING)
+    # Set up logging before we do anything else
+    utils.setup_root_logger(level=options.level)
 
     try:
         ioloop.IOLoop.instance().run_sync(main)

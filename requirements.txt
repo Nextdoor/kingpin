@@ -11,6 +11,9 @@ futures
 jsonschema
 commentjson
 
+# Used for retrying non-asynchronous methods
+retrying
+
 # Explicit version and source set in the setup.py
 simplejson
 requests

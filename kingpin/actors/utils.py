@@ -17,6 +17,7 @@
 import logging
 
 from kingpin import utils
+from kingpin.actors import exceptions
 
 log = logging.getLogger(__name__)
 
@@ -24,9 +25,30 @@ log = logging.getLogger(__name__)
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
-class InvalidActorException(Exception):
+def get_actor(config, dry):
+    """Returns an initialized Actor object.
 
-    """Raised when an invalid Actor name was supplied."""
+    Args:
+        config: A dictionary of configuration data that conforms to our v1
+                schema in kingpin.schema. Looks like this:
+
+                {'actor': <string name of actor>
+                 'options': <dict of options to pass to actor>
+                 'desc': <string description of actor>}
+        dry: Boolean whether or not in Dry mode
+
+    Returns:
+        <actor object>
+    """
+    # Copy the supplied dict before we modify it below
+    config = dict(config)
+
+    # Get the name of the actor, and pull it out of the config because its
+    # not a valid kwarg for an Actor object.
+    actor_string = config.pop('actor')
+
+    log.debug('Building Actor "%s" with args: %s' % (actor_string, config))
+    return get_actor_class(actor_string)(dry=dry, **config)
 
 
 def get_actor_class(actor):
@@ -38,16 +60,18 @@ def get_actor_class(actor):
     Returns:
         <Class Ref to Actor>
     """
+    expected_exceptions = (AttributeError, ImportError, TypeError)
+
     try:
         # Try to load our local actors up first. Assume that the
         # 'kingpin.actors.' prefix was not included in the name.
         full_actor = 'kingpin.actors.%s' % actor
         ref = utils.str_to_class(full_actor)
-    except (ImportError, TypeError):
+    except expected_exceptions:
         try:
             ref = utils.str_to_class(actor)
-        except (ImportError, TypeError):
+        except expected_exceptions:
             msg = 'Unable to convert "%s" to a valid Actor class name.' % actor
-            raise InvalidActorException(msg)
+            raise exceptions.InvalidActor(msg)
 
     return ref
