@@ -151,9 +151,8 @@ def retry(excs, retries=3, delay=0.25):
 
     Example usage:
         >>> @gen.coroutine
-        ... @retry(excs=(requests.exceptions.HTTPError), retries=3)
+        ... @retry(excs=(Exception), retries=3)
         ... def login(self):
-        ...     yield do_something()
         ...     raise gen.Return()
 
     Args:
