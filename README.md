@@ -2,17 +2,46 @@
 
 [![Build Status](https://travis-ci.org/Nextdoor/kingpin.svg?branch=master)](https://travis-ci.org/Nextdoor/kingpin)
 
-Automated Deployment Engine
+The Kingpin of your Deployment Model
 
 ## Basic Use
 
-TODO
+    Usage: deploy.py <options>
+
+    Options:
+      --version             show program's version number and exit
+      -h, --help            show this help message and exit
+      -j JSON, --json=JSON  Path to JSON Deployment File
+      -d, --dry             Executes a DRY run.
+      -l LEVEL, --level=LEVEL
+                            Set logging level (INFO|WARN|DEBUG|ERROR)
+
+The simplest use cases of this code can be better understood by looking at the
+[simple.json](examples/simple.json) file. Executing it is a simple as this:
+
+    $ export RIGHTSCALE_TOKEN=xyz
+    $ export RIGHTSCALE_ENDPOINT=https://us-3.rightscale.com
+    $ (.venv)$ deploy.py -j examples/simple.json -d
+    2014-09-01 21:18:09,022 [21414] [kingpin.actors.base] [_log]: (INFO) [main stage (DRY Mode)] Beginning
+    2014-09-01 21:18:09,022 [21414] [kingpin.actors.base] [_log]: (INFO) [stage 1 (DRY Mode)] Beginning
+    2014-09-01 21:18:09,022 [21414] [kingpin.actors.base] [_log]: (INFO) [copy serverA (DRY Mode)] Beginning
+    2014-09-01 21:18:09,023 [21414] [kingpin.actors.base] [_log]: (INFO) [copy serverB (DRY Mode)] Beginning
+    2014-09-01 21:18:09,027 [21414] [kingpin.actors.base] [_log]: (INFO) [copy serverC (DRY Mode)] Beginning
+    2014-09-01 21:18:09,954 [21414] [kingpin.actors.base] [_log]: (INFO) [copy serverA (DRY Mode)] Verifying that array "kingpin-integration-testing" exists
+    ...
+    2014-09-01 21:18:14,533 [21414] [kingpin.actors.base] [_log]: (INFO) [stage 3 (DRY Mode)] Finished, success? True
+    2014-09-01 21:18:14,533 [21414] [kingpin.actors.base] [_log]: (INFO) [main stage (DRY Mode)] Finished, success? True
 
 ### Credentials
 
-TODO
+In an effort to keep the commandline interface of Kingpin simple, the majority
+of the configuration settings used at runtime are actually set as environment
+variables. Individual Kingpin Actors have their credential requirements
+documented in their specific documentation (_see below_).
 
-### DSL
+### JSON-based DSL
+
+TODO
 
 #### The Script
 Definition: _The blueprint or roadmap that outlines a movie story through
@@ -83,4 +112,4 @@ below for using each actor.
 
 ## Development
 
-Development-specific documentation can be found [here](DEVELOPMENT.md)
+Development-specific documentation can be found [here](docs/DEVELOPMENT.md)
