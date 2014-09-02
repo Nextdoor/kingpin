@@ -22,15 +22,15 @@ The simplest use cases of this code can be better understood by looking at the
     $ export RIGHTSCALE_TOKEN=xyz
     $ export RIGHTSCALE_ENDPOINT=https://us-3.rightscale.com
     $ (.venv)$ deploy.py -j examples/simple.json -d
-    2014-09-01 21:18:09,022 [21414] [kingpin.actors.base] [_log]: (INFO) [main stage (DRY Mode)] Beginning
-    2014-09-01 21:18:09,022 [21414] [kingpin.actors.base] [_log]: (INFO) [stage 1 (DRY Mode)] Beginning
-    2014-09-01 21:18:09,022 [21414] [kingpin.actors.base] [_log]: (INFO) [copy serverA (DRY Mode)] Beginning
-    2014-09-01 21:18:09,023 [21414] [kingpin.actors.base] [_log]: (INFO) [copy serverB (DRY Mode)] Beginning
-    2014-09-01 21:18:09,027 [21414] [kingpin.actors.base] [_log]: (INFO) [copy serverC (DRY Mode)] Beginning
-    2014-09-01 21:18:09,954 [21414] [kingpin.actors.base] [_log]: (INFO) [copy serverA (DRY Mode)] Verifying that array "kingpin-integration-testing" exists
+    2014-09-01 21:18:09,022 INFO      [main stage (DRY Mode)] Beginning
+    2014-09-01 21:18:09,022 INFO      [stage 1 (DRY Mode)] Beginning
+    2014-09-01 21:18:09,022 INFO      [copy serverA (DRY Mode)] Beginning
+    2014-09-01 21:18:09,023 INFO      [copy serverB (DRY Mode)] Beginning
+    2014-09-01 21:18:09,027 INFO      [copy serverC (DRY Mode)] Beginning
+    2014-09-01 21:18:09,954 INFO      [copy serverA (DRY Mode)] Verifying that array "kingpin-integration-testing" exists
     ...
-    2014-09-01 21:18:14,533 [21414] [kingpin.actors.base] [_log]: (INFO) [stage 3 (DRY Mode)] Finished, success? True
-    2014-09-01 21:18:14,533 [21414] [kingpin.actors.base] [_log]: (INFO) [main stage (DRY Mode)] Finished, success? True
+    2014-09-01 21:18:14,533 INFO      [stage 3 (DRY Mode)] Finished, success? True
+    2014-09-01 21:18:14,533 INFO      [main stage (DRY Mode)] Finished, success? True
 
 ### Credentials
 
@@ -105,17 +105,17 @@ and these examples of execution.
 
     # Here we forget to set any environment variables
     $ deploy.py -j examples/complex.json -d
-    2014-09-01 21:29:47,373 [21471] [__main__] [main]: (ERROR) Invalid Configuration Detected: Found un-matched tokens in JSON string: ['%RELEASE%', '%OLD_RELEASE%']
+    2014-09-01 21:29:47,373 ERROR     Invalid Configuration Detected: Found un-matched tokens in JSON string: ['%RELEASE%', '%OLD_RELEASE%']
 
     # Here we set one variable, but miss the other one
     $ RELEASE=0001a deploy.py -j examples/complex.json -d
-    2014-09-01 21:29:56,027 [21472] [__main__] [main]: (ERROR) Invalid Configuration Detected: Found un-matched tokens in JSON string: ['%OLD_RELEASE%']
+    2014-09-01 21:29:56,027 ERROR     Invalid Configuration Detected: Found un-matched tokens in JSON string: ['%OLD_RELEASE%']
 
     # Finally we set both variables and the code begins..
     $ OLD_RELEASE=0000a RELEASE=0001a deploy.py -j examples/complex.json -d
-    2014-09-01 21:30:03,886 [21474] [kingpin.actors.base] [_log]: (INFO) [Main (DRY Mode)] Beginning
-    2014-09-01 21:30:03,886 [21474] [kingpin.actors.base] [_log]: (INFO) [Hipchat: Notify Oncall Room (DRY Mode)] Beginning
-    2014-09-01 21:30:03,886 [21474] [kingpin.actors.base] [_log]: (INFO) [Hipchat: Notify Oncall Room (DRY Mode)] Sending message "Beginning release 0001a" to Hipchat room "Oncall"
+    2014-09-01 21:30:03,886 INFO      [Main (DRY Mode)] Beginning
+    2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Beginning
+    2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Sending message "Beginning release 0001a" to Hipchat room "Oncall"
     ...
 
 ##### Early Actor Instantiation
