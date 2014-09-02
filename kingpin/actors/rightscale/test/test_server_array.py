@@ -619,7 +619,7 @@ class TestExecuteActor(testing.AsyncTestCase):
             ])
         self.client_mock.get_server_array_current_instances.side_effect = yi
 
-        ret = yield self.actor._get_operational_instances_and_warn(mock_array)
+        ret = yield self.actor._get_operational_instances(mock_array)
         self.assertEquals(2, len(ret))
 
     @testing.gen_test

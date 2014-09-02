@@ -502,7 +502,7 @@ class Execute(ServerArrayBaseActor):
         self._inputs = self._options['inputs']
 
     @gen.coroutine
-    def _get_operational_instances_and_warn(self, array):
+    def _get_operational_instances(self, array):
         """Gets a list of Operational instances and returns it.
 
         Warns on any non-Operational instances to let the operator know that
@@ -545,7 +545,7 @@ class Execute(ServerArrayBaseActor):
         # the 'operational' instances that we are able to execute scripts
         # against.
         array = yield self._find_server_arrays(self._array)
-        instances = yield self._get_operational_instances_and_warn(array)
+        instances = yield self._get_operational_instances(array)
 
         # Munge our inputs into something that RightScale likes
         inputs = self._generate_rightscale_params('inputs', self._inputs)
