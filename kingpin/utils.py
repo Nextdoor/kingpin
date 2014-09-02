@@ -100,18 +100,19 @@ def setup_root_logger(level='warn', syslog=None):
     handler = logging.StreamHandler()
 
     # Get our PID .. used below in the log line format.
-    pid = os.getpid()
-    format = '%(asctime)-15s [' + str(pid) + '] [%(name)s] ' \
-             '[%(funcName)s]: (%(levelname)s) %(message)s'
+    details = ''
+    if level_obj <= 10:
+        details = str(os.getpid()) + ' [%(name)-50s] [%(funcName)-30s]'
 
     # If syslog enabled, then override the logging handler to go to syslog.
+    asctime = '%(asctime)-15s '
     if syslog is not None:
+        asctime = ''
         handler = handlers.SysLogHandler(address=('127.0.0.1', 514),
                                          facility=syslog)
-        format = '[' + str(pid) + '] [%(name)s] ' \
-                 '[%(funcName)s]: (%(levelname)s) %(message)s'
 
-    formatter = logging.Formatter(format)
+    fmt = asctime + '%(levelname)-8s ' + details + ' %(message)s'
+    formatter = logging.Formatter(fmt)
 
     # Append the formatter to the handler, then set the handler as our default
     # handler for the root logger.
