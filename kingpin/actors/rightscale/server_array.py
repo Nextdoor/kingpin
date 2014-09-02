@@ -60,14 +60,14 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
         else:
             raise api.ServerArrayException('Invalid "raise_on" setting.')
 
-        self._log(logging.INFO, msg)
+        self.log.info(msg)
         array = yield self._client.find_server_arrays(array_name, exact=True)
 
         if not array and self._dry and allow_mock:
             # Create a fake ServerArray object thats mocked up to help with
             # execution of the rest of the code.
-            self._log(logging.INFO,
-                      'Array "%s" not found -- creating a mock.' % array_name)
+            self.log.info('Array "%s" not found -- creating a mock.' %
+                          array_name)
             array = mock.MagicMock(name=array_name)
             # Give the mock a real identity and give it valid elasticity
             # parameters so the Launch() actor can behave properly.
@@ -127,8 +127,7 @@ class Clone(ServerArrayBaseActor):
                                        allow_mock=False)
 
         # Now, clone the array!
-        self._log(logging.INFO, 'Cloning array "%s"' %
-                  source_array.soul['name'])
+        self.log.info('Cloning array "%s"' % source_array.soul['name'])
         if not self._dry:
             # We're really doin this!
             new_array = yield self._client.clone_server_array(source_array)
@@ -141,8 +140,8 @@ class Clone(ServerArrayBaseActor):
         # Lastly, rename the array
         params = self._generate_rightscale_params(
             'server_array', {'name': self._dest})
-        self._log(logging.INFO, 'Renaming array "%s" to "%s"' %
-                  (new_array.soul['name'], self._dest))
+        self.log.info('Renaming array "%s" to "%s"' % (new_array.soul['name'],
+                                                       self._dest))
         yield self._client.update_server_array(new_array, params)
 
         raise gen.Return(True)
@@ -195,18 +194,17 @@ class Update(ServerArrayBaseActor):
         # In dry run, just comment that we would have made the change.
         if self._dry:
             if self._params:
-                self._log(logging.INFO, 'New params: %s' % self._params)
+                self.log.info('New params: %s' % self._params)
             if self._inputs:
-                self._log(logging.INFO, 'New inputs: %s' % self._inputs)
+                self.log.info('New inputs: %s' % self._inputs)
 
-            self._log(logging.INFO, 'Not making any changes.')
+            self.log.info('Not making any changes.')
             raise gen.Return(True)
 
         # Update the ServerArray Parameters
         if self._params:
-            msg = ('Updating array "%s" with params: %s' %
-                   (array.soul['name'], self._params))
-            self._log(logging.INFO, msg)
+            self.log.info('Updating array "%s" with params: %s' %
+                          (array.soul['name'], self._params))
             try:
                 yield self._client.update_server_array(array, self._params)
             except requests.exceptions.HTTPError as e:
@@ -217,9 +215,8 @@ class Update(ServerArrayBaseActor):
 
         # Update the ServerArray Next-Instane Inputs
         if self._inputs:
-            msg = ('Updating array "%s" with inputs: %s' %
-                   (array.soul['name'], self._inputs))
-            self._log(logging.INFO, msg)
+            self.log.info('Updating array "%s" with inputs: %s' %
+                          (array.soul['name'], self._inputs))
             yield self._client.update_server_array_inputs(array, self._inputs)
 
         raise gen.Return(True)
@@ -253,18 +250,16 @@ class Destroy(ServerArrayBaseActor):
     @gen.coroutine
     def _terminate_all_instances(self, array):
         if not self._terminate:
-            self._log(logging.DEBUG, 'Not terminating instances')
+            self.log.debug('Not terminating instances')
             raise gen.Return()
 
         if self._dry:
-            self._log(logging.INFO,
-                      'Would have terminated all array "%s" instances.' %
-                      array.soul['name'])
+            self.log.info('Would have terminated all array "%s" instances.' %
+                          array.soul['name'])
             raise gen.Return()
 
-        self._log(logging.INFO,
-                  'Terminating all instances in array "%s"' %
-                  array.soul['name'])
+        self.log.info('Terminating all instances in array "%s"' %
+                      array.soul['name'])
         yield self._client.terminate_server_array_instances(array)
         raise gen.Return()
 
@@ -282,22 +277,21 @@ class Destroy(ServerArrayBaseActor):
             sleep: Integer time to sleep between checks (def: 60)
         """
         if self._dry:
-                self._log(logging.INFO,
-                          'Pretending that array %s instances are terminated.'
-                          % array.soul['name'])
+                self.log.info('Pretending that array %s instances '
+                              'are terminated.' % array.soul['name'])
                 raise gen.Return()
 
         while True:
             instances = yield self._client.get_server_array_current_instances(
                 array)
             count = len(instances)
-            self._log(logging.INFO, '%s instances found' % count)
+            self.log.info('%s instances found' % count)
 
             if count < 1:
                 raise gen.Return()
 
             # At this point, sleep
-            self._log(logging.DEBUG, 'Sleeping..')
+            self.log.debug('Sleeping..')
             yield utils.tornado_sleep(sleep)
 
     @gen.coroutine
@@ -306,11 +300,11 @@ class Destroy(ServerArrayBaseActor):
         TODO: Handle exceptions if the array is not terminatable.
         """
         if self._dry:
-            self._log(logging.INFO,
-                      'Pretending to destroy array "%s"' % array.soul['name'])
+            self.log.info('Pretending to destroy array "%s"' %
+                          array.soul['name'])
             raise gen.Return()
 
-        self._log(logging.INFO, 'Destroying array "%s"' % array.soul['name'])
+        self.log.info('Destroying array "%s"' % array.soul['name'])
         yield self._client.destroy_server_array(array)
         raise gen.Return()
 
@@ -328,7 +322,7 @@ class Destroy(ServerArrayBaseActor):
         # Disable the array so that no new instances launch. Ignore the result
         # of this opertaion -- as long as it succeeds, we're happy. No need to
         # store the returned server array object.
-        self._log(logging.INFO, 'Disabling Array "%s"' % self._array)
+        self.log.info('Disabling Array "%s"' % self._array)
         params = self._generate_rightscale_params(
             'server_array', {'state': 'disabled'})
         yield self._client.update_server_array(array, params)
@@ -380,9 +374,8 @@ class Launch(ServerArrayBaseActor):
             sleep: Integer time to sleep between checks (def: 60)
         """
         if self._dry:
-            self._log(logging.INFO,
-                      'Pretending that array %s instances are launched.'
-                      % array.soul['name'])
+            self.log.info('Pretending that array %s instances are launched.'
+                          % array.soul['name'])
             raise gen.Return()
 
         # Get the current min_count setting from the ServerArray object
@@ -392,13 +385,13 @@ class Launch(ServerArrayBaseActor):
             instances = yield self._client.get_server_array_current_instances(
                 array, filter='state==operational')
             count = len(instances)
-            self._log(logging.INFO, '%s instances found' % count)
+            self.log.info('%s instances found' % count)
 
             if min <= count:
                 raise gen.Return()
 
             # At this point, sleep
-            self._log(logging.DEBUG, 'Sleeping..')
+            self.log.debug('Sleeping..')
             yield utils.tornado_sleep(sleep)
 
 #    @gen.coroutine
@@ -439,9 +432,8 @@ class Launch(ServerArrayBaseActor):
         min = int(array.soul['elasticity_params']['bounds']['min_count'])
 
         if self._dry:
-            self._log(logging.INFO,
-                      'Would have launched instances of array %s' %
-                      array.soul['name'])
+            self.log.info('Would have launched instances of array %s' %
+                          array.soul['name'])
             raise gen.Return()
 
         # Build 'min' number of launch clicks
@@ -464,7 +456,7 @@ class Launch(ServerArrayBaseActor):
         # Enable the array right away. This means that RightScale will
         # auto-scale-up the array as soon as their next scheduled auto-scale
         # run hits (usually 60s). Store the newly updated array.
-        self._log(logging.INFO, 'Enabling Array "%s"' % array.soul['name'])
+        self.log.info('Enabling Array "%s"' % array.soul['name'])
         params = self._generate_rightscale_params(
             'server_array', {'state': 'enabled'})
         array = yield self._client.update_server_array(array, params)
@@ -476,7 +468,7 @@ class Launch(ServerArrayBaseActor):
         # in-code. Instead, our 'launch clicking' here is just a way to get the
         # ball rolling as quickly as possible before rightscales
         # auto-array-scaling kicks in.
-        self._log(logging.INFO, 'Launching Array "%s" instances' % self._array)
+        self.log.info('Launching Array "%s" instances' % self._array)
         yield self._launch_min_instances(array)
 
         # Now, wait until the number of healthy instances in the array matches
@@ -528,16 +520,14 @@ class Execute(ServerArrayBaseActor):
         # At this point, if we're in dry mode we need to exit. Theres no way to
         # 'test' the actual execution of the rightscale scripts.
         if self._dry:
-            self._log(logging.INFO,
-                      'Would have executed "%s" with inputs "%s" on "%s".' %
-                      (self._script, inputs, array.soul['name']))
+            self.log.info('Would have executed "%s" with inputs "%s" on "%s".'
+                          % (self._script, inputs, array.soul['name']))
             raise gen.Return(True)
 
         # Execute the script on all of the servers in the array and store the
         # task status resource records.
-        self._log(logging.INFO,
-                  'Executing "%s" on %s instances in the array "%s"' %
-                  (self._script, len(instances), array.soul['name']))
+        self.log.info('Executing "%s" on %s instances in the array "%s"' %
+                      (self._script, len(instances), array.soul['name']))
         tasks = yield self._client.run_executable_on_instances(
             self._script, inputs, instances)
 
@@ -545,8 +535,7 @@ class Execute(ServerArrayBaseActor):
         actions = []
         for task in tasks:
             actions.append(self._client.wait_for_task(task))
-        self._log(logging.INFO,
-                  'Waiting for %s tasks to finish.' % len(tasks))
+        self.log.info('Waiting for %s tasks to finish.' % len(tasks))
         ret = yield actions
 
         raise gen.Return(all(ret))

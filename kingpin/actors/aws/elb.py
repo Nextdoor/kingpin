@@ -73,6 +73,14 @@ class WaitUntilHealthy(base.BaseActor):
 
         region = self._get_region(self._options['region'])
 
+        if not (aws_settings.AWS_ACCESS_KEY_ID and
+                aws_settings.AWS_SECRET_ACCESS_KEY):
+            raise exceptions.InvalidCredentials(
+                'AWS settings imported but not all credentials are supplied. '
+                'AWS_ACCESS_KEY_ID: %s, AWS_SECRET_ACCESS_KEY: %s' % (
+                    aws_settings.AWS_ACCESS_KEY_ID,
+                    aws_settings.AWS_SECRET_ACCESS_KEY))
+
         self.conn = aws_elb.ELBConnection(
             aws_settings.AWS_ACCESS_KEY_ID,
             aws_settings.AWS_SECRET_ACCESS_KEY,
@@ -103,10 +111,10 @@ class WaitUntilHealthy(base.BaseActor):
         """Return an ELB with the matching name.
 
         Must find exactly 1 match. Zones are limited by the AWS credentials"""
-        self._log(logging.INFO, 'Searching for ELB "%s"' % name)
+        self.log.info('Searching for ELB "%s"' % name)
 
         elbs = self.conn.get_all_load_balancers(load_balancer_names=name)
-        self._log(logging.INFO, 'ELBs found: %s' % elbs)
+        self.log.info('ELBs found: %s' % elbs)
 
         if len(elbs) != 1:
             raise exceptions.UnrecoverableActionFailure(
@@ -138,23 +146,22 @@ class WaitUntilHealthy(base.BaseActor):
                    for more information read _get_expected_count()"""
         name = elb.name
 
-        self._log(logging.INFO,
-                  ('Counting ELB InService instances for : %s' % name))
+        self.log.info('Counting ELB InService instances for : %s' % name)
 
         # Get all instances for this ELB
         instance_list = elb.get_instance_health()
         total_count = len(instance_list)
 
-        self._log(logging.DEBUG, 'All instances: %s' % instance_list)
+        self.log.info('All instances: %s' % instance_list)
         in_service_count = [
             i.state for i in instance_list].count('InService')
 
         expected_count = self._get_expected_count(count, total_count)
 
         healthy = (in_service_count >= expected_count)
-        self._log(logging.INFO, 'ELB "%s" healthy: %s' % (elb.name, healthy))
-        self._log(logging.INFO, 'InService vs expected: %s / %s' % (
-                                in_service_count, expected_count))
+        self.log.info('ELB "%s" healthy: %s' % (elb.name, healthy))
+        self.log.info('InService vs expected: %s / %s' %
+                      (in_service_count, expected_count))
 
         return healthy
 
@@ -171,16 +178,16 @@ class WaitUntilHealthy(base.BaseActor):
             healthy = yield self._is_healthy(elb, count=self._options['count'])
 
             if healthy is True:
-                self._log(logging.INFO, 'ELB is healthy. Exiting.')
+                self.log.info('ELB is healthy. Exiting.')
                 break
 
             # Not healthy :( continue looping
 
             if self._dry:
-                self._log(logging.INFO, 'Pretending that ELB is healthy.')
+                self.log.info('Pretending that ELB is healthy.')
                 break
 
-            self._log(logging.INFO, 'Retrying in 3 seconds.')
+            self.log.info('Retrying in 3 seconds.')
             yield utils.tornado_sleep(3)
 
         raise gen.Return(True)

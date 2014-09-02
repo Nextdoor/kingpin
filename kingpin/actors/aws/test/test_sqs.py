@@ -5,13 +5,18 @@ import boto.sqs.connection
 import boto.sqs.queue
 import mock
 
-from kingpin.actors.aws import sqs
 from kingpin.actors.aws import settings
+from kingpin.actors.aws import sqs
 
 log = logging.getLogger(__name__)
 
 
 class SQSTestCase(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(SQSTestCase, self).setUp()
+        settings.AWS_ACCESS_KEY_ID = 'unit-test'
+        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
 
     @mock.patch.object(boto.sqs.connection, 'SQSConnection')
     def run(self, result, sqsc):
@@ -20,6 +25,15 @@ class SQSTestCase(testing.AsyncTestCase):
 
 
 class TestCreateSQSQueueActor(SQSTestCase):
+
+    @testing.gen_test
+    def test_require_env(self):
+        settings.AWS_ACCESS_KEY_ID = ''
+        with self.assertRaises(Exception):
+            sqs.WaitUntilEmpty('Unit Test Action', {
+                'name': 'unit-test-queue',
+                'region': 'us-west-2',
+                'count': 3})
 
     @testing.gen_test
     def test_execute(self):
