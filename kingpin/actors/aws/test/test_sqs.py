@@ -5,8 +5,10 @@ import boto.sqs.connection
 import boto.sqs.queue
 import mock
 
-from kingpin.actors.aws import sqs
 from kingpin.actors.aws import settings
+settings.AWS_ACCESS_KEY_ID = 'unit-test'
+settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+from kingpin.actors.aws import sqs
 
 log = logging.getLogger(__name__)
 

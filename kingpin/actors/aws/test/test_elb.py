@@ -5,6 +5,10 @@ from tornado import testing
 import mock
 
 from kingpin import utils
+from kingpin.actors.aws import settings
+settings.AWS_ACCESS_KEY_ID = 'unit-test'
+settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+
 from kingpin.actors.aws import elb as elb_actor
 
 log = logging.getLogger(__name__)

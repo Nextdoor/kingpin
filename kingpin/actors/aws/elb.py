@@ -73,6 +73,14 @@ class WaitUntilHealthy(base.BaseActor):
 
         region = self._get_region(self._options['region'])
 
+        if not (aws_settings.AWS_ACCESS_KEY_ID and
+                aws_settings.AWS_SECRET_ACCESS_KEY):
+            raise exceptions.InvalidCredentials(
+                'AWS settings imported but not all credentials are supplied. '
+                'AWS_ACCESS_KEY_ID: %s, AWS_SECRET_ACCESS_KEY: %s' % (
+                    aws_settings.AWS_ACCESS_KEY_ID,
+                    aws_settings.AWS_SECRET_ACCESS_KEY))
+
         self.conn = aws_elb.ELBConnection(
             aws_settings.AWS_ACCESS_KEY_ID,
             aws_settings.AWS_SECRET_ACCESS_KEY,
