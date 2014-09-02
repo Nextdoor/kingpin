@@ -24,11 +24,11 @@ import logging
 import os
 import re
 import time
+import traceback
+import functools
 
 from tornado import gen
 from tornado import ioloop
-import futures
-import requests
 
 from kingpin import exceptions
 
@@ -121,45 +121,25 @@ def setup_root_logger(level='warn', syslog=None):
     return logger
 
 
-@gen.coroutine
-def thread_coroutine(func, *args, **kwargs):
-    """Simple ThreadPool executor for Tornado.
+def exception_logger(func):
+    """Explicitly log Exceptions then Raise them.
 
-    This method leverages the back-ported Python futures
-    package (https://pypi.python.org/pypi/futures) to spin up
-    a ThreadPool and then kick actions off in the thread pool.
-
-    This is a simple and relatively graceful way of handling
-    spawning off of synchronous API calls from the RightScale
-    client below without having to do a full re-write of anything.
-
-    This should not be used at high volume... but for the
-    use case below, its reasonable.
-
-    Example Usage:
-        >>> @gen.coroutine
-        ... def login(self):
-        ...     ret = yield thread_coroutine(self._client.login)
-        ...     raise gen.Return(ret)
-
-    Args:
-        func: Function reference
+    Logging Exceptions and Tracebacks while inside of a thread is broken in the
+    Tornado futures package for Python 2.7. It swallows most of the traceback
+    and only gives you the raw exception object. This little helper method
+    allows us to throw a log entry with the full traceback before raising the
+    exception.
     """
-    with futures.ThreadPoolExecutor(1) as tp:
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
         try:
-            ret = yield tp.submit(func, *args, **kwargs)
-        except requests.exceptions.ConnectionError as e:
-            # The requests library can fail to fetch sometimes and its almost
-            # always OK to re-try the fetch at least once. If the fetch fails a
-            # second time, we allow it to be raised.
-            #
-            # This should be patched in the python-rightscale library so it
-            # auto-retries, but until then we have a patch here to at least
-            # allow one automatic retry.
-            log.debug('Fetch failed. Will retry one time: %s' % e)
-            ret = yield tp.submit(func, *args, **kwargs)
-
-    raise gen.Return(ret)
+            return func(*args, **kwargs)
+        except Exception as e:
+            log.error('Exception caught in %s(%s, %s): %s' %
+                      (func, args, kwargs, e))
+            log.error(traceback.format_exc())
+            raise
+    return wrapper
 
 
 def retry(excs, retries=3, delay=0.25):
@@ -171,9 +151,8 @@ def retry(excs, retries=3, delay=0.25):
 
     Example usage:
         >>> @gen.coroutine
-        ... @retry(excs=(requests.exceptions.HTTPError), retries=3)
+        ... @retry(excs=(Exception), retries=3)
         ... def login(self):
-        ...     yield thread_coroutine(self._client.login)
         ...     raise gen.Return()
 
     Args:
@@ -236,7 +215,7 @@ def populate_with_env(string):
         string = string.replace(('%%%s%%' % k), v)
 
     # Now, see if we missed anything. If we did, raise an exception and fail.
-    missed_tokens = list(set(re.findall(r'%[\w]+%*', string)))
+    missed_tokens = list(set(re.findall(r'%[\w]+%', string)))
     if missed_tokens:
         raise exceptions.InvalidEnvironment(
             'Found un-matched tokens in JSON string: %s' % missed_tokens)

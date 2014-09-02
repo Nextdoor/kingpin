@@ -5,7 +5,6 @@ import time
 from tornado import gen
 from tornado import testing
 from tornado.testing import unittest
-import mock
 import requests
 
 from kingpin import exceptions
@@ -38,6 +37,14 @@ class TestUtils(unittest.TestCase):
         simple = '%s/simple.json' % examples
         ret = utils.convert_json_to_dict(simple)
         self.assertEquals(type(ret), dict)
+
+    def test_exception_logger(self):
+        @utils.exception_logger
+        def raises_exc():
+            raise Exception('Whoa')
+
+        with self.assertRaises(Exception):
+            raises_exc()
 
 
 class TestSetupRootLoggerUtils(unittest.TestCase):
@@ -80,35 +87,6 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
 
 
 class TestCoroutineHelpers(testing.AsyncTestCase):
-
-    @testing.gen_test
-    def test_thread_coroutine(self):
-        # Create a method that we'll call and have it return
-        mock_thing = mock.MagicMock()
-        mock_thing.action.return_value = True
-
-        ret = yield utils.thread_coroutine(mock_thing.action)
-        self.assertEquals(ret, True)
-        mock_thing.action.assert_called_once_with()
-
-        # Now, lets have the function actually fail with a requests exception
-        mock_thing = mock.MagicMock()
-        mock_thing.action.side_effect = [
-            requests.exceptions.ConnectionError('doh'), True]
-
-        ret = yield utils.thread_coroutine(mock_thing.action)
-        self.assertEquals(ret, True)
-        mock_thing.action.assert_called_twice_with()
-
-        # Finally, make it fail twice..
-        mock_thing = mock.MagicMock()
-        mock_thing.action.side_effect = [
-            requests.exceptions.ConnectionError('doh'),
-            requests.exceptions.ConnectionError('really_doh')]
-
-        with self.assertRaises(requests.exceptions.ConnectionError):
-            yield utils.thread_coroutine(mock_thing.action)
-        mock_thing.action.assert_called_twice_with()
 
     @testing.gen_test
     def test_retry_with_backoff(self):
