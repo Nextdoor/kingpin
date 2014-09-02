@@ -41,7 +41,15 @@ documented in their specific documentation (_see below_).
 
 ### JSON-based DSL
 
-TODO
+The entire model for the configuration is based on the concept of a JSON
+dictionary that contains at least one _actor_ configuration. This JSON format
+is highly structured and must rigidly conform to the [JSON
+Schema](kingpin/schema.py).
+
+*Validation*
+The JSON file will be validated for schema-conformity as one of the first
+things that happens at load-time when the app starts up. If it fails, you will
+be notified immediately.
 
 #### The Script
 Definition: _The blueprint or roadmap that outlines a movie story through
@@ -56,6 +64,65 @@ The simplest script will have a single configuration that executes a single
 _actor_. More complex scripts can be created with our _group.Sync_ and
 _group.Async_ actors which can be used to group together multiple _actors_ and
 execute them in a predictable order.
+
+##### Schema Description
+
+The JSON schema is simple. We take a single JSON object that has 3 fields:
+`actor`, `desc` and `options`.
+
+  * `actor` - A text-string describing the name of the Actor package and class.
+    For example, `kingpin.actors.rightscale.server_array.Clone`, or
+    `misc.Sleep`.
+  * `desc` - A text-string describing the name of the stage or action. Meant to
+    ensure that the logs are very human readable.              
+  * `options` - A dictionary of key/value pairs that are required for the
+    specific `actor` that you're instantiating. See individual Actor
+    documentation below for these options.
+
+The simples JSON file could look like this:
+
+  { "desc": "Hipchat: Notify Oncall Room",
+    "actor": "hipchat.Message",
+    "options": {
+      "message": "Beginning release %RELEASE%", "room": "Oncall"
+    }
+  }
+
+However, much more complex configurations can be created by using the
+`group.Sync` and `group.Async` actors to describe massively more complex
+deployents.
+
+##### Token-replacement
+
+In an effort to allow for more re-usable JSON files, _tokens_ can be inserted
+into the raw JSON file like this `%TOKEN_NAME`. These will then be dynamically
+swapped with environment variables found at execution time. Any missing
+environment variables will cause the JSON parsing to fail and will notify you
+immediately.
+
+For an example, take a look at the [complex.json](examples/complex.json) file,
+and these examples of execution.
+
+    # Here we forget to set any environment variables
+    $ deploy.py -j examples/complex.json -d
+    2014-09-01 21:29:47,373 [21471] [__main__] [main]: (ERROR) Invalid Configuration Detected: Found un-matched tokens in JSON string: ['%RELEASE%', '%OLD_RELEASE%']
+
+    # Here we set one variable, but miss the other one
+    $ RELEASE=0001a deploy.py -j examples/complex.json -d
+    2014-09-01 21:29:56,027 [21472] [__main__] [main]: (ERROR) Invalid Configuration Detected: Found un-matched tokens in JSON string: ['%OLD_RELEASE%']
+
+    # Finally we set both variables and the code begins..
+    $ OLD_RELEASE=0000a RELEASE=0001a deploy.py -j examples/complex.json -d
+    2014-09-01 21:30:03,886 [21474] [kingpin.actors.base] [_log]: (INFO) [Main (DRY Mode)] Beginning
+    2014-09-01 21:30:03,886 [21474] [kingpin.actors.base] [_log]: (INFO) [Hipchat: Notify Oncall Room (DRY Mode)] Beginning
+    2014-09-01 21:30:03,886 [21474] [kingpin.actors.base] [_log]: (INFO) [Hipchat: Notify Oncall Room (DRY Mode)] Sending message "Beginning release 0001a" to Hipchat room "Oncall"
+    ...
+
+##### Early Actor Instantiation
+
+Again, in an effort to prevent mid-run errors, we pre-instantiate all Actor
+objects all at once before we ever begin executing code. This ensures that
+major typos or misconfigurations in the JSON will be caught early on.
 
 ### The Actors
 Definition: _a participant in an action or process._
