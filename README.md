@@ -81,12 +81,12 @@ The JSON schema is simple. We take a single JSON object that has 3 fields:
 
 The simples JSON file could look like this:
 
-  { "desc": "Hipchat: Notify Oncall Room",
-    "actor": "hipchat.Message",
-    "options": {
-      "message": "Beginning release %RELEASE%", "room": "Oncall"
+    { "desc": "Hipchat: Notify Oncall Room",
+      "actor": "hipchat.Message",
+      "options": {
+        "message": "Beginning release %RELEASE%", "room": "Oncall"
+      }
     }
-  }
 
 However, much more complex configurations can be created by using the
 `group.Sync` and `group.Async` actors to describe massively more complex
