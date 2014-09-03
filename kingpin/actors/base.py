@@ -77,15 +77,19 @@ class BaseActor(object):
         self._desc = desc
         self._options = options
         self._dry = dry
-        self._validate_options(options)
 
-        # Get our custom logging object based onthe LogAdapter
-        logger_name = '%s.%s' % (self.__module__, self.__class__.__name__)
-        logger = logging.getLogger(logger_name)
-        dry_str = ' (DRY Mode)' if self._dry else ''
-        self.log = LogAdapter(logger, {'desc': desc, 'dry': dry_str})
+        self._setup_log()
+        self._validate_options(options)  # Relies on _setup_log() above
 
         self.log.debug('Initialized')
+
+    def _setup_log(self):
+        """Create a customized logging object based on the LogAdapter."""
+        name = '%s.%s' % (self.__module__, self.__class__.__name__)
+        logger = logging.getLogger(name)
+        dry_str = ' (DRY Mode)' if self._dry else ''
+
+        self.log = LogAdapter(logger, {'desc': self._desc, 'dry': dry_str})
 
     def _validate_options(self, options):
         """Validate that all the required options were passed in.

@@ -10,11 +10,13 @@ stale value if the number of messages in the queue changes rapidly.
 **Options**
 
   * `name` - The name of the queue to operate on
+  * `region` - AWS region string, like 'us-west-2'
 
 Examples
 
     # For an SQS queue named `production-tasks`
-    { 'name': 'production-tasks' }
+    { 'name': 'production-tasks',
+      'region': 'us-east-1'}
 
 
 **Dry Mode**

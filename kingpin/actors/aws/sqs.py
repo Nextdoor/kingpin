@@ -60,9 +60,13 @@ class SQSBaseActor(base.BaseActor):
     ioloop = ioloop.IOLoop.current()
     executor = EXECUTOR
 
+    required_options = ['name', 'region']
+
     def __init__(self, *args, **kwargs):
         """Create the connection object."""
         super(SQSBaseActor, self).__init__(*args, **kwargs)
+
+        region = self._get_region(self._options['region'])
 
         if not (aws_settings.AWS_ACCESS_KEY_ID and
                 aws_settings.AWS_SECRET_ACCESS_KEY):
@@ -74,14 +78,32 @@ class SQSBaseActor(base.BaseActor):
 
         self.conn = boto.sqs.connection.SQSConnection(
             aws_settings.AWS_ACCESS_KEY_ID,
-            aws_settings.AWS_SECRET_ACCESS_KEY)
+            aws_settings.AWS_SECRET_ACCESS_KEY,
+            region=region)
+
+    def _get_region(self, region):
+        """Return 'region' object used in SQSConnection
+
+        Args:
+            region: string - AWS region name, like us-west-2
+        Returns:
+            RegionInfo object from boto.sqs
+        """
+
+        all_regions = boto.sqs.regions()
+        match = [r for r in all_regions if r.name == region]
+
+        if len(match) != 1:
+            raise exceptions.UnrecoverableActionFailure((
+                'Expected to find exactly 1 region named %s. '
+                'Found: %s') % (region, match))
+
+        return match[0]
 
 
 class Create(SQSBaseActor):
 
     """Creates a new SQS Queue."""
-
-    required_options = ['name']
 
     @concurrent.run_on_executor
     @utils.exception_logger
@@ -125,8 +147,6 @@ class Create(SQSBaseActor):
 class Delete(SQSBaseActor):
 
     """Deletes an existing SQS Queue."""
-
-    required_options = ['name']
 
     @concurrent.run_on_executor
     @utils.exception_logger
@@ -193,8 +213,6 @@ class Delete(SQSBaseActor):
 class WaitUntilEmpty(SQSBaseActor):
 
     """Waits for an SQS Queue to become empty."""
-
-    required_options = ['name']
 
     @concurrent.run_on_executor
     @utils.exception_logger

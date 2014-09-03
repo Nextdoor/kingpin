@@ -40,13 +40,15 @@ class IntegrationSQS(testing.AsyncTestCase):
     integration = True
 
     queue_name = 'integration-test-%s' % UUID
+    region = 'us-east-1'
 
     @attr('integration')
     @testing.gen_test(timeout=60)
     def integration_01_create_queue(self):
         actor = sqs.Create(
             'Create %s' % self.queue_name,
-            {'name': self.queue_name})
+            {'name': self.queue_name,
+             'region': self.region})
         done = yield actor.execute()
         self.assertTrue(done)
 
@@ -55,7 +57,8 @@ class IntegrationSQS(testing.AsyncTestCase):
     def integration_02_monitor_queue(self):
 
         actor = sqs.WaitUntilEmpty('Wait until empty',
-                                   {'name': self.queue_name})
+                                   {'name': self.queue_name,
+                                    'region': self.region})
 
         log.debug('New queue should be empty')
         queue = actor.conn.get_queue(self.queue_name)
@@ -71,7 +74,8 @@ class IntegrationSQS(testing.AsyncTestCase):
     def integration_03_delete_queue(self):
 
         actor = sqs.Delete('Delete %s' % self.queue_name,
-                           {'name': self.queue_name})
+                           {'name': self.queue_name,
+                            'region': self.region})
 
         # Previous tests may've executed too quickly.
         # Sleeping will make sure the delete can find the queue.
