@@ -36,9 +36,18 @@ class TestCreateSQSQueueActor(SQSTestCase):
                 'count': 3})
 
     @testing.gen_test
+    def test_check_regions(self):
+        with self.assertRaises(Exception):
+            sqs.WaitUntilEmpty('Unit Test Action', {
+                'name': 'unit-test-queue',
+                'region': 'bonkers',  # This should fail
+                'count': 3})
+
+    @testing.gen_test
     def test_execute(self):
         self.actor = sqs.Create('Unit Test Action',
-                                {'name': 'unit-test-queue'})
+                                {'name': 'unit-test-queue',
+                                 'region': 'us-west-2'})
 
         self.conn().create_queue.return_value = boto.sqs.queue.Queue()
 
@@ -49,7 +58,8 @@ class TestCreateSQSQueueActor(SQSTestCase):
     @testing.gen_test
     def test_execute_dry(self):
         self.actor = sqs.Create('Unit Test Action',
-                                {'name': 'unit-test-queue'},
+                                {'name': 'unit-test-queue',
+                                 'region': 'us-west-2'},
                                 dry=True)
 
         self.conn().create_queue.return_value = boto.sqs.queue.Queue()
@@ -61,7 +71,8 @@ class TestCreateSQSQueueActor(SQSTestCase):
     @testing.gen_test
     def test_execute_with_error(self):
         self.actor = sqs.Create('Unit Test Action',
-                                {'name': 'unit-test-queue'})
+                                {'name': 'unit-test-queue',
+                                 'region': 'us-west-2'})
 
         self.conn().create_queue.return_value = False
         with self.assertRaises(Exception):
@@ -75,7 +86,8 @@ class TestDeleteSQSQueueActor(SQSTestCase):
     @testing.gen_test
     def test_execute(self):
         actor = sqs.Delete('Unit Test Action',
-                           {'name': 'unit-test-queue'})
+                           {'name': 'unit-test-queue',
+                            'region': 'us-west-2'})
 
         q = mock.Mock()
         q.name = 'unit-test-queue'
@@ -89,7 +101,8 @@ class TestDeleteSQSQueueActor(SQSTestCase):
     @testing.gen_test
     def test_execute_dry(self):
         actor = sqs.Delete('Unit Test Action',
-                           {'name': 'unit-test-queue'},
+                           {'name': 'unit-test-queue',
+                            'region': 'us-west-2'},
                            dry=True)
 
         q = mock.Mock()
@@ -106,7 +119,8 @@ class TestDeleteSQSQueueActor(SQSTestCase):
         settings.SQSRETRYDELAY = 0
         reload(sqs)
         actor = sqs.Delete('Unit Test Action',
-                           {'name': 'non-existent-queue'})
+                           {'name': 'non-existent-queue',
+                            'region': 'us-west-2'})
 
         with self.assertRaises(Exception):
             yield actor.execute()
@@ -117,7 +131,8 @@ class TestWaitUntilQueueEmptyActor(SQSTestCase):
     @testing.gen_test
     def test_execute(self):
         self.actor = sqs.WaitUntilEmpty('UTA!',
-                                        {'name': 'unit-test-queue'})
+                                        {'name': 'unit-test-queue',
+                                         'region': 'us-west-2'})
 
         self.conn().get_queue().count.return_value = 0
         yield self.actor.execute()
@@ -125,7 +140,8 @@ class TestWaitUntilQueueEmptyActor(SQSTestCase):
     @testing.gen_test
     def test_wrong_queuename(self):
         self.actor = sqs.WaitUntilEmpty('UTA!',
-                                        {'name': 'unit-test-queue'})
+                                        {'name': 'unit-test-queue',
+                                         'region': 'us-west-2'})
 
         self.conn().get_queue.return_value = None
         with self.assertRaises(Exception):
@@ -134,7 +150,8 @@ class TestWaitUntilQueueEmptyActor(SQSTestCase):
     @testing.gen_test
     def test_dry_run(self):
         self.actor = sqs.WaitUntilEmpty('UTA!',
-                                        {'name': 'unit-test-queue'},
+                                        {'name': 'unit-test-queue',
+                                         'region': 'us-west-2'},
                                         dry=True)
 
         self.conn().get_queue().count.return_value = 10  # Note: NOT zero
@@ -146,7 +163,8 @@ class TestWaitUntilQueueEmptyActor(SQSTestCase):
     @testing.gen_test
     def test_sleep_and_retry(self):
         self.actor = sqs.WaitUntilEmpty('UTA!',
-                                        {'name': 'unit-test-queue'})
+                                        {'name': 'unit-test-queue',
+                                         'region': 'us-west-2'})
 
         self.conn().get_queue().count.side_effect = [3, 2, 1, 0]
         yield self.actor._wait('unit-name', sleep=0)
