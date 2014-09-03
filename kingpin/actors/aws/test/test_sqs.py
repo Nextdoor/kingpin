@@ -32,16 +32,20 @@ class TestCreateSQSQueueActor(SQSTestCase):
         with self.assertRaises(Exception):
             sqs.WaitUntilEmpty('Unit Test Action', {
                 'name': 'unit-test-queue',
-                'region': 'us-west-2',
-                'count': 3})
+                'region': 'us-west-2'})
 
     @testing.gen_test
     def test_check_regions(self):
         with self.assertRaises(Exception):
-            sqs.WaitUntilEmpty('Unit Test Action', {
+            sqs.SQSBaseActor('Unit Test Action', {
                 'name': 'unit-test-queue',
-                'region': 'bonkers',  # This should fail
-                'count': 3})
+                'region': 'bonkers'})  # This should fail
+
+        actor = sqs.SQSBaseActor('Unit Test Action', {
+            'name': 'unit-test-queue',
+            'region': 'us-east-1'})
+
+        self.assertEquals(actor._get_region('us-east-1').name, 'us-east-1')
 
     @testing.gen_test
     def test_execute(self):

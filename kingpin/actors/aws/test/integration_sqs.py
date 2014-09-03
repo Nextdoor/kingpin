@@ -70,16 +70,12 @@ class IntegrationSQS(testing.AsyncTestCase):
         self.assertTrue(success)
 
     @attr('integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=120)  # Delete actor sleeps and retries.
     def integration_03_delete_queue(self):
 
         actor = sqs.Delete('Delete %s' % self.queue_name,
                            {'name': self.queue_name,
                             'region': self.region})
-
-        # Previous tests may've executed too quickly.
-        # Sleeping will make sure the delete can find the queue.
-        yield utils.tornado_sleep(30)
 
         done = yield actor.execute()
         self.assertTrue(done)
