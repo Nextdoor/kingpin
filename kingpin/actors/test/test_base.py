@@ -1,6 +1,8 @@
 """Tests for the actors.base package."""
 import StringIO
 import json
+import os
+import logging
 
 from tornado import gen
 from tornado import httpclient
@@ -17,7 +19,9 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
 class FakeHTTPClientClass(object):
+
     """Fake HTTPClient object for testing"""
+
     response_value = None
 
     @gen.coroutine
@@ -26,6 +30,7 @@ class FakeHTTPClientClass(object):
 
 
 class TestBaseActor(testing.AsyncTestCase):
+
     @gen.coroutine
     def sleep(self):
         # Basically a fake action that should take a few seconds to run for the
@@ -42,6 +47,15 @@ class TestBaseActor(testing.AsyncTestCase):
         # Mock out the actors ._execute() method so that we have something to
         # test
         self.actor._execute = self.sleep
+
+    @testing.gen_test
+    def test_httplib_debugging(self):
+        # Override the environment setting and reload the class
+        os.environ['URLLIB_DEBUG'] = '1'
+        reload(base)
+        # Get the logger now and validate that its level was set right
+        requests_logger = logging.getLogger('requests.packages.urllib3')
+        self.assertEquals(10, requests_logger.level)
 
     @testing.gen_test
     def test_validate_options(self):

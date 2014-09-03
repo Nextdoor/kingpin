@@ -29,6 +29,7 @@ import functools
 
 from tornado import gen
 from tornado import ioloop
+import httplib
 
 from kingpin import exceptions
 
@@ -120,6 +121,28 @@ def setup_root_logger(level='warn', syslog=None):
     logger.addHandler(handler)
 
     return logger
+
+
+def super_httplib_debug_logging():
+    """Enables DEBUG logging deep in HTTPLIB.
+
+    HTTPLib by default doens't log out things like the raw HTTP headers,
+    cookies, response body, etc -- even when your main logger is in DEBUG mode.
+    This is because its a security risk, as well as just highly verbose.
+
+    For the purposes of debugging though, this can be useful. This method
+    enables deep debug logging of the HTTPLib web requests. This is highly
+    insecure, but very useful when troubleshooting failures with remote API
+    endpoints.
+
+    Returns:
+        Requests 'logger' object (mainly for unit testing)
+    """
+    httplib.HTTPConnection.debuglevel = 1
+    requests_log = logging.getLogger("requests.packages.urllib3")
+    requests_log.propagate = True
+    requests_log.setLevel(logging.DEBUG)
+    return requests_log
 
 
 def exception_logger(func):

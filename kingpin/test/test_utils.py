@@ -85,6 +85,10 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
                           logging.handlers.SysLogHandler)
         self.assertEquals(logger.handlers[0].facility, 'local0')
 
+    def test_super_httplib_debug_logging(self):
+        logger = utils.super_httplib_debug_logging()
+        self.assertEquals(10, logger.level)
+
 
 class TestCoroutineHelpers(testing.AsyncTestCase):
 

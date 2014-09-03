@@ -49,7 +49,7 @@ parser.add_option('-d', '--dry', dest='dry', action='store_true',
                   help='Executes a DRY run.')
 
 # Logging Configuration
-parser.add_option('-l', '--level', dest="level", default='info',
+parser.add_option('-l', '--level', dest='level', default='info',
                   help='Set logging level (INFO|WARN|DEBUG|ERROR)')
 
 (options, args) = parser.parse_args()

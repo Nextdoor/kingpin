@@ -29,16 +29,26 @@ any live changes. It is up to the developer of the Actor to define what
 
 import json
 import logging
+import os
 
 from tornado import gen
 from tornado import httpclient
 from tornado import httputil
 
+from kingpin import utils
 from kingpin.actors import exceptions
 
 log = logging.getLogger(__name__)
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
+
+
+# If super-debug logging is enabled, then we turn on the URLLIB3 HTTP
+# request logging. This is extremely verbose and insecure, but useful
+# for troubleshooting. URLLIB3 is used by several actors (aws, rightscale),
+# so we do this setup here in the base actor class.
+if os.getenv('URLLIB_DEBUG', None):
+    utils.super_httplib_debug_logging()
 
 
 class LogAdapter(logging.LoggerAdapter):

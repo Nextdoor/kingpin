@@ -132,6 +132,12 @@ Definition: _a participant in an action or process._
 Kingpin provides several internal actors that can be used to create complex
 and reliable groups of actions to be executed.
 
+**Optional Environment Variables**
+
+  * `URLLIB_DEBUG` - Set this variable to enable extreme debug logging of the
+    URLLIB requests made by the RightScale/AWS actors.
+    _Note, this is very insecure as headers/cookies/etc._
+
 **Actor-specific Documentation**
 
   * [misc.Sleep](docs/actors/misc.Sleep.md)
