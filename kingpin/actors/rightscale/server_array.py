@@ -372,9 +372,12 @@ class Launch(ServerArrayBaseActor):
             count = int(array.soul['elasticity_params']['bounds']['min_count'])
 
         if self._dry:
-            self.log.info('Would have launched instances of array %s' %
-                          array.soul['name'])
+            self.log.info('Would have launched %s instances of array %s' % (
+                          count, array.soul['name']))
             raise gen.Return()
+
+        self.log.info('Launching %s instances of array %s...' % (
+                      count, array.soul['name']))
 
         if async:
             tasks = []
@@ -389,6 +392,9 @@ class Launch(ServerArrayBaseActor):
             for i in xrange(0, count):
                 # Launch one server at a time
                 yield self._client.launch_server_array(array)
+
+        self.log.info('Launched %s instances for array %s' % (
+                      count, array.soul['name']))
 
         raise gen.Return()
 
