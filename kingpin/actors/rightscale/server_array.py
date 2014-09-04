@@ -300,7 +300,13 @@ class Destroy(ServerArrayBaseActor):
 
 class Launch(ServerArrayBaseActor):
 
-    """Launches the min_instances in a RightScale Server Array."""
+    """Launches the min_instances in a RightScale Server Array.
+
+    Actor Options: {
+        'array': <server array name>,
+        'count': <optional number to launch. Default array's "min" count>
+    }
+    """
 
     required_options = ['array']
 
@@ -338,11 +344,7 @@ class Launch(ServerArrayBaseActor):
             self.log.debug('Sleeping..')
             yield utils.tornado_sleep(sleep)
 
-#    @gen.coroutine
-#    def _async_launch_min_instances(self, array):
-#        """Asynchronously launch all the instances in an array.
-#
-#        **DO NOT USE THIS METHOD**
+#        **DO NOT USE async=True METHOD**
 #
 #        NOTE: The smart thing to do here is to simultaneously click 'launch'
 #        for every necessary instance so they all launch at once. These API
@@ -352,37 +354,31 @@ class Launch(ServerArrayBaseActor):
 #        Unfortunately, RightScales ServerArray API only allows a single call
 #        to /launch at any time on a single ServerArray. This means that these
 #        calls must be synchronous for now.
-#        """
-#
-#        if self._dry:
-#            self._log(logging.INFO, 'Would have launched instances')
-#            raise gen.Return()
-#
-#        # Get the current min_count setting from the ServerArray object
-#        min = int(array.soul['elasticity_params']['bounds']['min_count'])
-#
-#        actions = []
-#        for i in xrange(0, min):
-#            actions.append(self._client.launch_server_array(array))
-#
-#        # Yield them all
-#        ret = yield actions
-#
-#        raise gen.Return(ret)
-
     @gen.coroutine
-    def _launch_min_instances(self, array):
-        # Get the current min_count setting from the ServerArray object
-        min = int(array.soul['elasticity_params']['bounds']['min_count'])
+    def _launch_instances(self, array, count=None, async=False):
+
+        if count is None:
+            # Get the current min_count setting from the ServerArray object
+            count = int(array.soul['elasticity_params']['bounds']['min_count'])
 
         if self._dry:
             self.log.info('Would have launched instances of array %s' %
                           array.soul['name'])
             raise gen.Return()
 
-        # Build 'min' number of launch clicks
-        for i in xrange(0, min):
-            yield self._client.launch_server_array(array)
+        if async:
+            tasks = []
+            for i in xrange(0, count):
+                # Make all the launch calls quickly
+                tasks.append(self._client.launch_server_array(array))
+
+            # Wait for all of them to finish.
+            yield tasks
+
+        if not async:
+            for i in xrange(0, count):
+                # Launch one server at a time
+                yield self._client.launch_server_array(array)
 
         raise gen.Return()
 
@@ -414,7 +410,10 @@ class Launch(ServerArrayBaseActor):
         # auto-array-scaling kicks in.
         self.log.info(
             'Launching Array "%s" instances' % self._options['array'])
-        yield self._launch_min_instances(array)
+
+        # If count is None, then _launch_instances will use array's `min`.
+        count = self._options.get('count')
+        yield self._launch_instances(array, count=count)
 
         # Now, wait until the number of healthy instances in the array matches
         # the min_count (or is greater than) of that array.

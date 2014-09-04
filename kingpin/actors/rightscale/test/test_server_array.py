@@ -511,7 +511,7 @@ class TestLaunchActor(testing.AsyncTestCase):
         self.assertEquals(ret, None)
 
     @testing.gen_test
-    def test_launch_min_instances(self):
+    def test_launch__instances(self):
         array_mock = mock.MagicMock(name='unittest')
         array_mock.soul = {
             'name': 'unittest',
@@ -523,15 +523,32 @@ class TestLaunchActor(testing.AsyncTestCase):
             raise gen.Return()
         self.client_mock.launch_server_array.side_effect = launch
 
-        ret = yield self.actor._launch_min_instances(array_mock)
+        # Regular function call
+        ret = yield self.actor._launch_instances(array_mock)
         self.assertEquals(ret, None)
         self.client_mock.launch_server_array.assert_has_calls(
             [mock.call(array_mock), mock.call(array_mock),
              mock.call(array_mock), mock.call(array_mock)])
 
+        # Count-specific function call
+        self.client_mock.launch_server_array.reset_mock()
+        ret = yield self.actor._launch_instances(array_mock, count=2)
+        self.assertEquals(ret, None)
+        self.client_mock.launch_server_array.assert_has_calls(
+            [mock.call(array_mock), mock.call(array_mock)])  # Note this is 2
+
+        # Async function call
+        self.client_mock.launch_server_array.reset_mock()
+        ret = yield self.actor._launch_instances(array_mock, async=True)
+        self.assertEquals(ret, None)
+        self.client_mock.launch_server_array.assert_has_calls(
+            [mock.call(array_mock), mock.call(array_mock),
+             mock.call(array_mock), mock.call(array_mock)])
+
+        # Dry call
         self.actor._dry = True
         self.client_mock.launch_server_array.reset_mock()
-        ret = yield self.actor._launch_min_instances(array_mock)
+        ret = yield self.actor._launch_instances(array_mock)
         self.assertEquals(ret, None)
         self.client_mock.launch_server_array.assert_has_calls([])
 
@@ -553,10 +570,10 @@ class TestLaunchActor(testing.AsyncTestCase):
         self.client_mock.update_server_array.side_effect = update_array
 
         @gen.coroutine
-        def launch_array(array):
+        def launch_array(array, *args, **kwargs):
             array.launched()
             raise gen.Return()
-        self.actor._launch_min_instances = launch_array
+        self.actor._launch_instances = launch_array
 
         @gen.coroutine
         def wait(array):

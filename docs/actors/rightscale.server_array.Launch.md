@@ -10,12 +10,18 @@ _Note: Explicitly enables the array so that auto-scaling functions as well_
 **Options**
 
   * `array` - The name of the ServerArray to launch
+  * `count` - Optional number of instance to launch. Defaults to min.
 
 Examples
 
-    # Launch the newly created array and wait until all 4 instances
+    # Launch the newly created array and wait until all instances
     # have booted and are marked Operational
     { 'array': 'my-array' }
+    
+    # Launch the newly created array and wait until 1 instance
+    # has booted and is marked Operational
+    { 'array': 'my-array',
+      'count': 1 }
     
 **Dry Mode**
 
