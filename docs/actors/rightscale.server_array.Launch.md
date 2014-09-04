@@ -10,9 +10,9 @@ _Note: Only enables the array for auto-scaling if `count` option is omitted._
 **Options**
 
   * `array` - The name of the ServerArray to launch
-  * `count` - Optional number of instance to launch. Defaults to min of the
-              array. Specifying a count will _not_ enable the auto-scaling of
-              the array.
+  * `count` - Optional number of instance to launch. Defaults to min_count
+              of the array. Specifying a count will _not_ enable the
+              auto-scaling of the array.
 
 Examples
 

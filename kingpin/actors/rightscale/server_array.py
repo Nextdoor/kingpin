@@ -356,7 +356,17 @@ class Launch(ServerArrayBaseActor):
 #        calls must be synchronous for now.
     @gen.coroutine
     def _launch_instances(self, array, count=None, async=False):
+        """Launch new instances in a specified array.
 
+        Instructs RightScale to launch instances, specified amount, or array's
+        autoscaling 'min' value, in a syncronous or async way.
+
+        Args:
+            array - rightscale ServerArray object
+            count - `None` to use array's _min_ value
+                    `int` to launch a specific number of instances
+            async - Boolean, launch all and wait, or launch one at a time.
+        """
         if count is None:
             # Get the current min_count setting from the ServerArray object
             count = int(array.soul['elasticity_params']['bounds']['min_count'])
