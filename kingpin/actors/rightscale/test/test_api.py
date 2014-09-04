@@ -316,7 +316,7 @@ class TestRightScale(testing.AsyncTestCase):
             'my::recipe', inputs, [mock_instance])
         mock_tracker.web_request.assert_called_once_with(
             '/foo/bar/run_executable',
-            {'inputs[ELB_NAME]': 'something', 'recipe': 'my::recipe'})
+            {'inputs[ELB_NAME]': 'something', 'recipe_name': 'my::recipe'})
 
         # Test with a RightScript instead
         mock_tracker.web_request.reset_mock()

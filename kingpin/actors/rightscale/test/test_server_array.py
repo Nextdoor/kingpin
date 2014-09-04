@@ -466,7 +466,8 @@ class TestLaunchActor(testing.AsyncTestCase):
         # Create the actor
         self.actor = server_array.Launch(
             'Launch',
-            {'array': 'unittestarray'})
+            {'array': 'unittestarray',
+             'enable': True})
 
         # Patch the actor so that we use the client mock
         self.client_mock = mock.MagicMock()
@@ -477,6 +478,24 @@ class TestLaunchActor(testing.AsyncTestCase):
         def login():
             raise gen.Return()
         self.client_mock.login.side_effect = login
+
+    @testing.gen_test
+    def test_requirements(self):
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            # Missing enable and count flags
+            server_array.Launch(
+                'Unit test', {
+                    'array': 'unit test array',
+                    })
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            # Not enabling and missing count flag
+            server_array.Launch(
+                'Unit test', {
+                    'array': 'unit test array',
+                    'enable': False
+                    })
 
     @testing.gen_test
     def test_wait_until_healthy(self):
