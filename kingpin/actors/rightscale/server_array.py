@@ -200,7 +200,7 @@ class Update(ServerArrayBaseActor):
         raise gen.Return(True)
 
 
-class Destroy(ServerArrayBaseActor):
+class Terminate(ServerArrayBaseActor):
 
     """Destroy a RightScale Server Array."""
 
@@ -254,6 +254,38 @@ class Destroy(ServerArrayBaseActor):
             yield utils.tornado_sleep(sleep)
 
     @gen.coroutine
+    def _execute(self):
+        # First things first, login to RightScale asynchronously to
+        # pre-populate the API attributes that are dynamically generated. This
+        # is a hack, and in the future should likely turn into a smart
+        # decorator.
+        yield self._client.login()
+
+        # First, find the array we're going to be terminating.
+        self.array = yield self._find_server_arrays(self._options['array'])
+
+        # Disable the array so that no new instances launch. Ignore the result
+        # of this opertaion -- as long as it succeeds, we're happy. No need to
+        # store the returned server array object.
+        self.log.info('Disabling Array "%s"' % self._options['array'])
+        params = self._generate_rightscale_params(
+            'server_array', {'state': 'disabled'})
+        yield self._client.update_server_array(self.array, params)
+
+        # Optionally terminate all of the instances in the array first.
+        yield self._terminate_all_instances(self.array)
+
+        # Wait...
+        yield self._wait_until_empty(self.array)
+
+        raise gen.Return(True)
+
+
+class Destroy(Terminate):
+
+    """Termiante all instances and destroy the array"""
+
+    @gen.coroutine
     def _destroy_array(self, array):
         """
         TODO: Handle exceptions if the array is not terminatable.
@@ -269,31 +301,12 @@ class Destroy(ServerArrayBaseActor):
 
     @gen.coroutine
     def _execute(self):
-        # First things first, login to RightScale asynchronously to
-        # pre-populate the API attributes that are dynamically generated. This
-        # is a hack, and in the future should likely turn into a smart
-        # decorator.
-        yield self._client.login()
 
-        # First, find the array we're going to be terminating.
-        array = yield self._find_server_arrays(self._options['array'])
+        # Terminate all instances
+        # This will populate self.array
+        yield super(Destroy, self)._execute()
 
-        # Disable the array so that no new instances launch. Ignore the result
-        # of this opertaion -- as long as it succeeds, we're happy. No need to
-        # store the returned server array object.
-        self.log.info('Disabling Array "%s"' % self._options['array'])
-        params = self._generate_rightscale_params(
-            'server_array', {'state': 'disabled'})
-        yield self._client.update_server_array(array, params)
-
-        # Optionally terminate all of the instances in the array first.
-        yield self._terminate_all_instances(array)
-
-        # Wait...
-        yield self._wait_until_empty(array)
-
-        # Wait for al lthe instances to die, and destroy the array
-        yield self._destroy_array(array)
+        yield self._destroy_array(self.array)
 
         raise gen.Return(True)
 
