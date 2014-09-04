@@ -450,7 +450,7 @@ class Execute(ServerArrayBaseActor):
         """
         # Get all non-terminated instances
         all_instances = yield self._client.get_server_array_current_instances(
-            array, filters=['state!=terminated'])
+            array, filters=['state<>terminated'])
 
         # Filter out the Operational ones from the Non-Operational (booting,
         # etc) instances.

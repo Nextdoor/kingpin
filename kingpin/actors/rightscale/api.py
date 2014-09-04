@@ -298,7 +298,7 @@ class RightScale(object):
     @concurrent.run_on_executor
     @utils.exception_logger
     def get_server_array_current_instances(
-            self, array, filters=['state!=terminated']):
+            self, array, filters=['state<>terminated']):
         """Returns a list of ServerArray current running instances.
 
         Makes this API Call:
