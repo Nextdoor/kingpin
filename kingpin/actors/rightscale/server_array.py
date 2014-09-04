@@ -393,13 +393,18 @@ class Launch(ServerArrayBaseActor):
         # First, find the array we're going to be launching....
         array = yield self._find_server_arrays(self._options['array'])
 
+        # If count is None, then _launch_instances will use array's `min`.
+        count = self._options.get('count')
+
         # Enable the array right away. This means that RightScale will
         # auto-scale-up the array as soon as their next scheduled auto-scale
         # run hits (usually 60s). Store the newly updated array.
-        self.log.info('Enabling Array "%s"' % array.soul['name'])
-        params = self._generate_rightscale_params(
-            'server_array', {'state': 'enabled'})
-        array = yield self._client.update_server_array(array, params)
+        if count is None:
+            self.log.info('Enabling Array "%s"' % array.soul['name'])
+            if not self._dry:
+                params = self._generate_rightscale_params(
+                    'server_array', {'state': 'enabled'})
+                array = yield self._client.update_server_array(array, params)
 
         # Launch all of the instances we want as quickly as we can. Note, we
         # don't actually store the result here because we don't care about the
@@ -411,8 +416,6 @@ class Launch(ServerArrayBaseActor):
         self.log.info(
             'Launching Array "%s" instances' % self._options['array'])
 
-        # If count is None, then _launch_instances will use array's `min`.
-        count = self._options.get('count')
         yield self._launch_instances(array, count=count)
 
         # Now, wait until the number of healthy instances in the array matches

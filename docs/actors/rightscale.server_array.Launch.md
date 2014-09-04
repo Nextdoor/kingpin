@@ -5,12 +5,14 @@ has become healthy before returning. _Healthy_ means that the array has
 at least the `min_count` number of instances running as defined by the
 array definition in RightScale.
 
-_Note: Explicitly enables the array so that auto-scaling functions as well_
+_Note: Only enables the array for auto-scaling if `count` option is omitted._
 
 **Options**
 
   * `array` - The name of the ServerArray to launch
-  * `count` - Optional number of instance to launch. Defaults to min.
+  * `count` - Optional number of instance to launch. Defaults to min of the
+              array. Specifying a count will _not_ enable the auto-scaling of
+              the array.
 
 Examples
 
