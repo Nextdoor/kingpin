@@ -176,7 +176,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
         # Launch the machines and wait until they boot
         actor = server_array.Launch(
             'Launch %s' % self.clone_name,
-            {'array': self.clone_name}, dry=True)
+            {'array': self.clone_name,
+             'enable': True}, dry=True)
         ret = yield actor.execute()
         self.assertEquals(True, ret)
 
@@ -189,7 +190,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
         # Launch the machines and wait until they boot
         actor = server_array.Launch(
             'Launch %s' % self.clone_name,
-            {'array': self.clone_name})
+            {'array': self.clone_name,
+             'enable': True})
         ret = yield actor.execute()
         self.assertEquals(True, ret)
 
