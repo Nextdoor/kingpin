@@ -441,12 +441,14 @@ class Launch(ServerArrayBaseActor):
         # This means that RightScale will auto-scale-up the array as soon as
         # their next scheduled auto-scale run hits (usually 60s). Store the
         # newly updated array.
-        if self._options['enable']:
-            self.log.info('Enabling Array "%s"' % array.soul['name'])
+        if self._options.get('enable', False):
             if not self._dry:
+                self.log.info('Enabling Array "%s"' % array.soul['name'])
                 params = self._generate_rightscale_params(
                     'server_array', {'state': 'enabled'})
                 array = yield self._client.update_server_array(array, params)
+            else:
+                self.log.info('Would enable array "%s"' % array.sould['name'])
 
         # Launch all of the instances we want as quickly as we can. Note, we
         # don't actually store the result here because we don't care about the
