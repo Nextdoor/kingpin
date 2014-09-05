@@ -466,7 +466,8 @@ class TestLaunchActor(testing.AsyncTestCase):
         # Create the actor
         self.actor = server_array.Launch(
             'Launch',
-            {'array': 'unittestarray'})
+            {'array': 'unittestarray',
+             'enable': True})
 
         # Patch the actor so that we use the client mock
         self.client_mock = mock.MagicMock()
@@ -477,6 +478,24 @@ class TestLaunchActor(testing.AsyncTestCase):
         def login():
             raise gen.Return()
         self.client_mock.login.side_effect = login
+
+    @testing.gen_test
+    def test_requirements(self):
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            # Missing enable and count flags
+            server_array.Launch(
+                'Unit test', {
+                    'array': 'unit test array',
+                    })
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            # Not enabling and missing count flag
+            server_array.Launch(
+                'Unit test', {
+                    'array': 'unit test array',
+                    'enable': False
+                    })
 
     @testing.gen_test
     def test_wait_until_healthy(self):
@@ -511,7 +530,7 @@ class TestLaunchActor(testing.AsyncTestCase):
         self.assertEquals(ret, None)
 
     @testing.gen_test
-    def test_launch_min_instances(self):
+    def test_launch__instances(self):
         array_mock = mock.MagicMock(name='unittest')
         array_mock.soul = {
             'name': 'unittest',
@@ -523,15 +542,32 @@ class TestLaunchActor(testing.AsyncTestCase):
             raise gen.Return()
         self.client_mock.launch_server_array.side_effect = launch
 
-        ret = yield self.actor._launch_min_instances(array_mock)
+        # Regular function call
+        ret = yield self.actor._launch_instances(array_mock)
         self.assertEquals(ret, None)
         self.client_mock.launch_server_array.assert_has_calls(
             [mock.call(array_mock), mock.call(array_mock),
              mock.call(array_mock), mock.call(array_mock)])
 
+        # Count-specific function call
+        self.client_mock.launch_server_array.reset_mock()
+        ret = yield self.actor._launch_instances(array_mock, count=2)
+        self.assertEquals(ret, None)
+        self.client_mock.launch_server_array.assert_has_calls(
+            [mock.call(array_mock), mock.call(array_mock)])  # Note this is 2
+
+        # Async function call
+        self.client_mock.launch_server_array.reset_mock()
+        ret = yield self.actor._launch_instances(array_mock, async=True)
+        self.assertEquals(ret, None)
+        self.client_mock.launch_server_array.assert_has_calls(
+            [mock.call(array_mock), mock.call(array_mock),
+             mock.call(array_mock), mock.call(array_mock)])
+
+        # Dry call
         self.actor._dry = True
         self.client_mock.launch_server_array.reset_mock()
-        ret = yield self.actor._launch_min_instances(array_mock)
+        ret = yield self.actor._launch_instances(array_mock)
         self.assertEquals(ret, None)
         self.client_mock.launch_server_array.assert_has_calls([])
 
@@ -553,10 +589,10 @@ class TestLaunchActor(testing.AsyncTestCase):
         self.client_mock.update_server_array.side_effect = update_array
 
         @gen.coroutine
-        def launch_array(array):
+        def launch_array(array, *args, **kwargs):
             array.launched()
             raise gen.Return()
-        self.actor._launch_min_instances = launch_array
+        self.actor._launch_instances = launch_array
 
         @gen.coroutine
         def wait(array):

@@ -443,7 +443,7 @@ class RightScale(object):
         # the latter, we have to go and find its href identifier first.
         if '::' in name:
             script_type = 'Recipe'
-            params['recipe'] = name
+            params['recipe_name'] = name
         else:
             script_type = 'RightScript'
             script = yield self.find_right_script(name)

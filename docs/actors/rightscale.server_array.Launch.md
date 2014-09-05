@@ -1,21 +1,29 @@
 ##### rightscale.server_array.Launch
 
-Launches instances in an existing ServerArray and waits until that array
-has become healthy before returning. _Healthy_ means that the array has
-at least the `min_count` number of instances running as defined by the
-array definition in RightScale.
-
-_Note: Explicitly enables the array so that auto-scaling functions as well_
+Launches instances in an existing ServerArray and waits until that array has
+become healthy before returning. _Healthy_ means that the array has at least
+the user-specified `count` or `min_count` number of instances running as
+defined by the array definition in RightScale.
 
 **Options**
 
   * `array` - The name of the ServerArray to launch
+  * `count` - Optional number of instance to launch. Defaults to min_count
+    of the array.
+  * `enable` - should the autoscaling of the array be enabled? Settings this
+    to False, or omitting the parameter will not disable an enabled array.
 
 Examples
 
-    # Launch the newly created array and wait until all 4 instances
+    # Enable the newly created array and wait until all instances
     # have booted and are marked Operational
-    { 'array': 'my-array' }
+    { 'array': 'my-array',
+      'enable': True}
+    
+    # Do not enable the newly created array, Launch 1 instance, and wait until
+    # 1 instance has booted and is marked Operational
+    { 'array': 'my-array',
+      'count': 1 }
     
 **Dry Mode**
 
