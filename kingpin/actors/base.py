@@ -83,6 +83,10 @@ class BaseActor(object):
 
         self.log.debug('Initialized')
 
+    @gen.coroutine
+    def find_problems(self):
+        raise gen.Return([])
+
     def _setup_log(self):
         """Create a customized logging object based on the LogAdapter."""
         name = '%s.%s' % (self.__module__, self.__class__.__name__)
