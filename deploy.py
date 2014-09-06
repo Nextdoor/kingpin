@@ -81,6 +81,15 @@ def main():
         sys.exit(1)
 
     # Begin doing real stuff!
+    log.info('Finding problems...')
+    problems = yield initial_actor.find_problems()
+    if any(problems):
+        log.error('Found %s problems...' % len(problems))
+        for p in problems:
+            log.error(p)
+        raise gen.Return(False)
+
+    log.info('No problems found!')
     yield initial_actor.execute()
 
 
@@ -88,7 +97,24 @@ if __name__ == '__main__':
     # Set up logging before we do anything else
     utils.setup_root_logger(level=options.level)
 
+
     try:
         ioloop.IOLoop.instance().run_sync(main)
     except KeyboardInterrupt:
         log.info('CTRL-C Caught, shutting down')
+
+
+    try:
+       pass
+    except Exception as e:
+        # Skip traceback that involves site-packages.
+        import traceback
+        trace_lines = traceback.format_exc(e).splitlines()
+        skip_next = False
+        for l in trace_lines:
+            if 'site-packages' in l:
+                skip_next = True
+                continue
+            if not skip_next:
+                print l
+            skip_next = False
