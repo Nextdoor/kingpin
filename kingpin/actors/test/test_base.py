@@ -49,6 +49,12 @@ class TestBaseActor(testing.AsyncTestCase):
         self.actor._execute = self.sleep
 
     @testing.gen_test
+    def test_problems(self):
+        # Base class should never have problems
+        ok = yield self.actor.find_problems()
+        self.assertEquals(ok, [])
+
+    @testing.gen_test
     def test_httplib_debugging(self):
         # Override the environment setting and reload the class
         os.environ['URLLIB_DEBUG'] = '1'

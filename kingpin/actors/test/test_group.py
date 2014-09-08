@@ -18,6 +18,10 @@ class TestActor(base.BaseActor):
     def _execute(self):
         raise gen.Return(self._options['return_value'])
 
+    @gen.coroutine
+    def find_problems(self):
+        raise gen.Return(self._options['problem'])
+
 
 class TestBaseGroupActor(testing.AsyncTestCase):
 
@@ -31,6 +35,10 @@ class TestBaseGroupActor(testing.AsyncTestCase):
             'desc': 'returns false',
             'actor': 'kingpin.actors.test.test_group.TestActor',
             'options': {'return_value': False}}
+        self.actor_with_a_problem = {
+            'desc': 'Problematic',
+            'actor': 'kingpin.actors.test.test_group.TestActor',
+            'options': {'problem': 'unit-test-problem'}}
 
     def test_build_actions(self):
         actor = group.BaseGroupActor(
@@ -41,6 +49,17 @@ class TestBaseGroupActor(testing.AsyncTestCase):
                       dict(self.actor_return_true)]})
         ret = actor._build_actions()
         self.assertEquals(4, len(ret))
+
+    @testing.gen_test
+    def test_problems(self):
+        # Should execute problems for all subsequent acts
+        actor = group.BaseGroupActor(
+            'Unit Test Action',
+            {'acts': [dict(self.actor_with_a_problem),
+                      dict(self.actor_with_a_problem)]})
+
+        problems = yield actor.find_problems()
+        self.assertEquals(len(problems), 2)
 
     @testing.gen_test
     def test_execute_success(self):
