@@ -198,6 +198,43 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.client_mock.login.side_effect = login
 
     @testing.gen_test
+    def test_problems_no_array(self):
+        @gen.coroutine
+        def yield_server_arrays(self, *args, **kwargs):
+            raise gen.Return()
+        self.actor._find_server_arrays = yield_server_arrays
+        no_problems = yield self.actor.find_problems()
+        self.assertEquals(no_problems, [])
+
+    @testing.gen_test
+    def test_problems_found_input(self):
+        @gen.coroutine
+        def yield_server_arrays(self, *args, **kwargs):
+            input_obj = mock.Mock()
+            input_obj.soul = {'name': 'test'}  # has to match 'inputs' param
+            array = mock.Mock()
+            array.next_instance.show().inputs.index.return_value = [
+                input_obj]
+            raise gen.Return(array)
+        self.actor._find_server_arrays = yield_server_arrays
+        no_problems = yield self.actor.find_problems()
+        self.assertEquals(no_problems, [])
+
+    @testing.gen_test
+    def test_problems_found_notinput(self):
+        @gen.coroutine
+        def yield_server_arrays(self, *args, **kwargs):
+            input_obj = mock.Mock()
+            input_obj.soul = {'name': 'fail'}
+            array = mock.Mock()
+            array.next_instance.show().inputs.index.return_value = [
+                input_obj]
+            raise gen.Return(array)
+        self.actor._find_server_arrays = yield_server_arrays
+        problems = yield self.actor.find_problems()
+        self.assertEquals(len(problems), 1)
+
+    @testing.gen_test
     def test_execute(self):
         self.actor._dry = False
         mocked_array = mock.MagicMock(name='unittestarray')

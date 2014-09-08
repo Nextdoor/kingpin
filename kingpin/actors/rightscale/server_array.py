@@ -60,7 +60,7 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
         else:
             raise api.ServerArrayException('Invalid "raise_on" setting.')
 
-        self.log.info(msg)
+        self.log.debug(msg)
         array = yield self._client.find_server_arrays(array_name, exact=True)
 
         if not array and self._dry and allow_mock:
@@ -156,8 +156,11 @@ class Update(ServerArrayBaseActor):
 
     @gen.coroutine
     def find_problems(self):
+        """Check that input name exists."""
         problem_list = []
-        array = yield self._find_server_arrays(self._options['array'])
+        array = yield self._find_server_arrays(self._options['array'],
+                                               allow_mock=False,
+                                               raise_on=None)
         if not array:
             self.log.warning('Array %s not found. May not be an issue.' %
                              self._options['array'])
@@ -225,6 +228,28 @@ class Terminate(ServerArrayBaseActor):
     """Destroy a RightScale Server Array."""
 
     required_options = ['array']
+
+    @gen.coroutine
+    def find_problems(self):
+        # Find array
+        name = self._options['array']
+        array = yield self._find_server_arrays(name,
+                                               allow_mock=False,
+                                               raise_on=None)
+        # If it's not there -- just a warning
+        if not array:
+            self.log.warning('Could not find "%s" -- may be ok.' % name)
+            raise gen.Return([])
+
+        # If it's there and not empty -- just a warning
+        instances = yield self._client.get_server_array_current_instances(
+            array)
+        count = len(instances)
+
+        if count > 0:
+            self.log.warning('Array %s has instances! -- may be ok.' % name)
+
+        raise gen.Return([])
 
     @gen.coroutine
     def _terminate_all_instances(self, array):
@@ -521,7 +546,6 @@ class Execute(ServerArrayBaseActor):
                                 self._options['script']))
 
         raise gen.Return(problem_list)
-
 
     @gen.coroutine
     def _get_operational_instances(self, array):
