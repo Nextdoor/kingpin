@@ -360,8 +360,6 @@ class TestTerminateActor(testing.AsyncTestCase):
         self.assertEquals(problems, [])
 
         self.actor._find_server_arrays = generate_tornado_call(['Array'])
-        self.actor._client.get_server_array_current_instances = (
-            generate_tornado_call(['instance']))
         problems = yield self.actor.find_problems()
         self.assertEquals(problems, [])
 
@@ -511,23 +509,45 @@ class TestTerminateActor(testing.AsyncTestCase):
 class TestDestroyActor(TestServerArrayBaseActor):
 
     @testing.gen_test
-    def test_execute(self):
+    def test_problems(self):
+        actor = server_array.Destroy(
+            'Destroy',
+            {'array': 'unittestarray'})
+        actor._find_server_arrays = generate_tornado_call(mock.Mock())
 
-        # Mock doesn't work here
-        original = server_array.Terminate._execute
-        server_array.Terminate._execute = generate_tornado_call()
+        problems = yield actor.find_problems()
+        self.assertEquals(problems, [])
+
+        # Should not have problems even if it doesn't find an array
+        actor._find_server_arrays = generate_tornado_call()
+
+        problems = yield actor.find_problems()
+        self.assertEquals(problems, [])
+
+    @testing.gen_test
+    def test_terminate(self):
+        actor = server_array.Destroy(
+            'Destroy',
+            {'array': 'unittestarray'})
+        with mock.patch.object(server_array, 'Terminate') as t:
+            actor._terminate()
+            self.assertEquals(t()._execute.call_count, 1)
+
+    @testing.gen_test
+    def test_execute(self):
 
         actor = server_array.Destroy(
             'Destroy',
             {'array': 'unittestarray'})
-        array = mock.MagicMock(name='unittest')
-        array.soul = {'name': 'unittest'}
+        actor._terminate = generate_tornado_call(mock.Mock())
         actor._destroy_array = generate_tornado_call()
-        actor.array = array
 
-        yield actor._execute()
+        array = mock.MagicMock(name='unittest')
+        server_array.Terminate.array = array  # Fake helper computation
 
-        server_array.Terminate._execute = original
+        ret = yield actor._execute()
+
+        self.assertTrue(ret)
 
     @testing.gen_test
     def test_destroy_array(self):
