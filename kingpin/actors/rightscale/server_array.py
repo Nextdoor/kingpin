@@ -521,7 +521,7 @@ class Launch(ServerArrayBaseActor):
                     'server_array', {'state': 'enabled'})
                 array = yield self._client.update_server_array(array, params)
             else:
-                self.log.info('Would enable array "%s"' % array.sould['name'])
+                self.log.info('Would enable array "%s"' % array.soul['name'])
 
         # Launch all of the instances we want as quickly as we can. Note, we
         # don't actually store the result here because we don't care about the
