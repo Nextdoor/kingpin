@@ -102,10 +102,6 @@ if __name__ == '__main__':
         ioloop.IOLoop.instance().run_sync(main)
     except KeyboardInterrupt:
         log.info('CTRL-C Caught, shutting down')
-
-
-    try:
-       pass
     except Exception as e:
         # Skip traceback that involves site-packages.
         import traceback
