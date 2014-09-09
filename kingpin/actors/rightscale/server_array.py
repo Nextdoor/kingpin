@@ -225,7 +225,7 @@ class Update(ServerArrayBaseActor):
 
 class Terminate(ServerArrayBaseActor):
 
-    """Destroy a RightScale Server Array."""
+    """Terminate all instances in a RightScale Server Array."""
 
     required_options = ['array']
 
