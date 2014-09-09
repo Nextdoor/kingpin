@@ -241,14 +241,6 @@ class Terminate(ServerArrayBaseActor):
             self.log.warning('Could not find "%s" -- may be ok.' % name)
             raise gen.Return([])
 
-        # If it's there and not empty -- just a warning
-        instances = yield self._client.get_server_array_current_instances(
-            array)
-        count = len(instances)
-
-        if count > 0:
-            self.log.warning('Array %s has instances! -- may be ok.' % name)
-
         raise gen.Return([])
 
     @gen.coroutine
@@ -322,9 +314,25 @@ class Terminate(ServerArrayBaseActor):
         raise gen.Return(True)
 
 
-class Destroy(Terminate):
+class Destroy(ServerArrayBaseActor):
 
-    """Termiante all instances and destroy the array"""
+    """Destroy the array"""
+
+    required_options = ['array']
+
+    @gen.coroutine
+    def find_problems(self):
+        # Find array
+        name = self._options['array']
+        array = yield self._find_server_arrays(name,
+                                               allow_mock=False,
+                                               raise_on=None)
+        # If it's not there -- just a warning
+        if not array:
+            self.log.warning('Could not find "%s" -- may be ok.' % name)
+            raise gen.Return([])
+
+        raise gen.Return([])
 
     @gen.coroutine
     def _destroy_array(self, array):
@@ -341,13 +349,31 @@ class Destroy(Terminate):
         raise gen.Return()
 
     @gen.coroutine
+    def _terminate(self):
+        """Create and execute Terminator actor
+
+        Returns: the Terminate actor object
+        """
+        helper = Terminate(
+            desc=self._desc + ' (terminate)',
+            options={'array': self._options['array']},
+            dry=self._dry)
+
+        yield helper._execute()
+
+        raise gen.Return(helper)
+
+    @gen.coroutine
     def _execute(self):
 
         # Terminate all instances
-        # This will populate self.array
-        yield super(Destroy, self)._execute()
+        self.log.info('Terminating array before destroying it.')
+        helper = yield self._terminate()
 
-        yield self._destroy_array(self.array)
+        # Can grab the array object from the helper instead of re-searching
+        array = helper.array
+
+        yield self._destroy_array(array)
 
         raise gen.Return(True)
 
