@@ -356,7 +356,7 @@ class RightScale(object):
         # We don't care if it succeeded -- the multi-terminate job fails
         # all the time when there are hosts still in a 'terminated state'
         # when this call is made. Just wait for it to finish.
-        self.wait_for_task(task)
+        yield self.wait_for_task(task)
 
     @concurrent.run_on_executor
     @sync_retry(stop_max_attempt_number=20,
