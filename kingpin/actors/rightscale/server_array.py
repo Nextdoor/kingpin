@@ -398,7 +398,7 @@ class Launch(ServerArrayBaseActor):
                           count, array.soul['name']))
             raise gen.Return()
 
-        self.log.info('Launching %s instances of array %s...' % (
+        self.log.info('Launching %s instances of array %s' % (
                       count, array.soul['name']))
 
         if async:
