@@ -81,15 +81,23 @@ def main():
         sys.exit(1)
 
     # Begin doing real stuff!
-    log.info('Finding problems...')
-    problems = yield initial_actor.find_problems()
-    if any(problems):
-        log.error('Found %s problems...' % len(problems))
-        for p in problems:
-            log.error(p)
-        raise gen.Return(False)
+    if not options.dry:
+        # do a dry run first, then do real one
+        dry_actor = actor_utils.get_actor(config, dry=True)
+        log.info('Rehearsing!')
+        try:
+            success = yield dry_actor.execute()
+        except actor_exceptions.ActorException as e:
+            success = False
+            message = e
 
-    log.info('No problems found!')
+        if not success:
+            log.critical('Dry run failed. Reason:')
+            log.critical(message)
+            sys.exit(2)
+        else:
+            log.info('Rehearsal OK! Performing!')
+
     yield initial_actor.execute()
 
 
