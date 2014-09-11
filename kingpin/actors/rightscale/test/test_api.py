@@ -160,6 +160,15 @@ class TestRightScale(testing.AsyncTestCase):
         self.assertEquals(ret, 'test')
 
     @testing.gen_test
+    def test_get_server_array_inputs(self):
+        array = mock.Mock()
+        ret = yield self.client.get_server_array_inputs(array)
+
+        self.assertEquals(
+            ret,
+            array.next_instance.show().inputs.index())
+
+    @testing.gen_test
     def test_update_server_array_inputs(self):
         ni_mock = mock.MagicMock(name='next_instance')
         ni_mock.inputs.multi_update.return_value = None

@@ -264,6 +264,25 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @utils.exception_logger
+    def get_server_array_inputs(self, array):
+        """Looks up ServerArray 'Next Instance' inputs.
+
+        Valid parameters can be found at the following URL:
+
+            http://reference.rightscale.com/api1.5/resources/
+            ResourceInputs.html#index
+
+        Args: rightscale.Resource array object.
+        Returns:
+            List of rightscale.Resource input objects.
+        """
+        instance = array.next_instance.show()
+        all_inputs = instance.inputs.index()
+
+        return all_inputs
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
     def update_server_array_inputs(self, array, inputs):
         """Updates a ServerArray 'Next Instance' with the supplied inputs.
 
