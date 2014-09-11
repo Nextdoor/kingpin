@@ -85,6 +85,12 @@ class BaseActor(object):
 
     @gen.coroutine
     def find_problems(self):
+        """Call private method or log a warning."""
+        if hasattr(self, '_find_problems'):
+            problems = yield self._find_problems()
+            raise gen.Return(problems)
+        else:
+            self.log.warning('This actor does not have a problem finder.')
         raise gen.Return([])
 
     def _setup_log(self):

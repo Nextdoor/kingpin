@@ -19,7 +19,7 @@ class TestActor(base.BaseActor):
         raise gen.Return(self._options['return_value'])
 
     @gen.coroutine
-    def find_problems(self):
+    def _find_problems(self):
         raise gen.Return(self._options['problem'])
 
 

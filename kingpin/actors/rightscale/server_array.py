@@ -155,7 +155,7 @@ class Update(ServerArrayBaseActor):
     required_options = ['array']
 
     @gen.coroutine
-    def find_problems(self):
+    def _find_problems(self):
         """Check that input name exists."""
         problem_list = []
         array = yield self._find_server_arrays(self._options['array'],
@@ -229,7 +229,7 @@ class Terminate(ServerArrayBaseActor):
     required_options = ['array']
 
     @gen.coroutine
-    def find_problems(self):
+    def _find_problems(self):
         # Find array
         name = self._options['array']
         array = yield self._find_server_arrays(name,
@@ -238,7 +238,6 @@ class Terminate(ServerArrayBaseActor):
         # If it's not there -- just a warning
         if not array:
             self.log.warning('Could not find "%s" -- may be ok.' % name)
-            raise gen.Return([])
 
         raise gen.Return([])
 
@@ -326,7 +325,7 @@ class Destroy(ServerArrayBaseActor):
     required_options = ['array']
 
     @gen.coroutine
-    def find_problems(self):
+    def _find_problems(self):
         # Find array
         name = self._options['array']
         array = yield self._find_server_arrays(name,
@@ -335,7 +334,6 @@ class Destroy(ServerArrayBaseActor):
         # If it's not there -- just a warning
         if not array:
             self.log.warning('Could not find "%s" -- may be ok.' % name)
-            raise gen.Return([])
 
         raise gen.Return([])
 
@@ -559,7 +557,7 @@ class Execute(ServerArrayBaseActor):
     required_options = ['array', 'script', 'inputs']
 
     @gen.coroutine
-    def find_problems(self):
+    def _find_problems(self):
         """Check what you can without making any changes."""
 
         problem_list = []
