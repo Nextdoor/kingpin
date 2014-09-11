@@ -68,7 +68,7 @@ class BaseGroupActor(base.BaseActor):
         return actions
 
     @gen.coroutine
-    def find_problems(self):
+    def _find_problems(self):
         """Get a list of problems for all actions."""
 
         all_problems = []
