@@ -60,7 +60,7 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
         else:
             raise api.ServerArrayException('Invalid "raise_on" setting.')
 
-        self.log.info(msg)
+        self.log.debug(msg)
         array = yield self._client.find_server_arrays(array_name, exact=True)
 
         if not array and self._dry and allow_mock:
@@ -155,6 +155,28 @@ class Update(ServerArrayBaseActor):
     required_options = ['array']
 
     @gen.coroutine
+    def _find_problems(self):
+        """Check that input name exists."""
+        problem_list = []
+        array = yield self._find_server_arrays(self._options['array'],
+                                               allow_mock=False,
+                                               raise_on=None)
+        if not array:
+            self.log.warning('Array %s not found. May not be an issue.' %
+                             self._options['array'])
+            raise gen.Return([])
+
+        all_inputs = yield self._client.get_server_array_inputs(array)
+        all_input_names = [i.soul['name'] for i in all_inputs]
+
+        for input_name, new_value in self._options['inputs'].items():
+            # Inputs have to be there. If not -- it's a problem.
+            if input_name not in all_input_names:
+                problem_list.append('Input not found: "%s"' % input_name)
+
+        raise gen.Return(problem_list)
+
+    @gen.coroutine
     def _execute(self):
         # First things first, login to RightScale asynchronously to
         # pre-populate the API attributes that are dynamically generated. This
@@ -200,18 +222,27 @@ class Update(ServerArrayBaseActor):
         raise gen.Return(True)
 
 
-class Destroy(ServerArrayBaseActor):
+class Terminate(ServerArrayBaseActor):
 
-    """Destroy a RightScale Server Array."""
+    """Terminate all instances in a RightScale Server Array."""
 
-    required_options = ['array', 'terminate']
+    required_options = ['array']
+
+    @gen.coroutine
+    def _find_problems(self):
+        # Find array
+        name = self._options['array']
+        array = yield self._find_server_arrays(name,
+                                               allow_mock=False,
+                                               raise_on=None)
+        # If it's not there -- just a warning
+        if not array:
+            self.log.warning('Could not find "%s" -- may be ok.' % name)
+
+        raise gen.Return([])
 
     @gen.coroutine
     def _terminate_all_instances(self, array):
-        if not self._options['terminate']:
-            self.log.debug('Not terminating instances')
-            raise gen.Return()
-
         if self._dry:
             self.log.info('Would have terminated all array "%s" instances.' %
                           array.soul['name'])
@@ -260,6 +291,53 @@ class Destroy(ServerArrayBaseActor):
             yield utils.tornado_sleep(sleep)
 
     @gen.coroutine
+    def _execute(self):
+        # First things first, login to RightScale asynchronously to
+        # pre-populate the API attributes that are dynamically generated. This
+        # is a hack, and in the future should likely turn into a smart
+        # decorator.
+        yield self._client.login()
+
+        # First, find the array we're going to be terminating.
+        self.array = yield self._find_server_arrays(self._options['array'])
+
+        # Disable the array so that no new instances launch. Ignore the result
+        # of this opertaion -- as long as it succeeds, we're happy. No need to
+        # store the returned server array object.
+        self.log.info('Disabling Array "%s"' % self._options['array'])
+        params = self._generate_rightscale_params(
+            'server_array', {'state': 'disabled'})
+        yield self._client.update_server_array(self.array, params)
+
+        # Optionally terminate all of the instances in the array first.
+        yield self._terminate_all_instances(self.array)
+
+        # Wait...
+        yield self._wait_until_empty(self.array)
+
+        raise gen.Return(True)
+
+
+class Destroy(ServerArrayBaseActor):
+
+    """Destroy the array"""
+
+    required_options = ['array']
+
+    @gen.coroutine
+    def _find_problems(self):
+        # Find array
+        name = self._options['array']
+        array = yield self._find_server_arrays(name,
+                                               allow_mock=False,
+                                               raise_on=None)
+        # If it's not there -- just a warning
+        if not array:
+            self.log.warning('Could not find "%s" -- may be ok.' % name)
+
+        raise gen.Return([])
+
+    @gen.coroutine
     def _destroy_array(self, array):
         """
         TODO: Handle exceptions if the array is not terminatable.
@@ -274,31 +352,30 @@ class Destroy(ServerArrayBaseActor):
         raise gen.Return()
 
     @gen.coroutine
+    def _terminate(self):
+        """Create and execute Terminator actor
+
+        Returns: the Terminate actor object
+        """
+        helper = Terminate(
+            desc=self._desc + ' (terminate)',
+            options={'array': self._options['array']},
+            dry=self._dry)
+
+        yield helper._execute()
+
+        raise gen.Return(helper)
+
+    @gen.coroutine
     def _execute(self):
-        # First things first, login to RightScale asynchronously to
-        # pre-populate the API attributes that are dynamically generated. This
-        # is a hack, and in the future should likely turn into a smart
-        # decorator.
-        yield self._client.login()
 
-        # First, find the array we're going to be terminating.
-        array = yield self._find_server_arrays(self._options['array'])
+        # Terminate all instances
+        self.log.info('Terminating array before destroying it.')
+        helper = yield self._terminate()
 
-        # Disable the array so that no new instances launch. Ignore the result
-        # of this opertaion -- as long as it succeeds, we're happy. No need to
-        # store the returned server array object.
-        self.log.info('Disabling Array "%s"' % self._options['array'])
-        params = self._generate_rightscale_params(
-            'server_array', {'state': 'disabled'})
-        yield self._client.update_server_array(array, params)
+        # Can grab the array object from the helper instead of re-searching
+        array = helper.array
 
-        # Optionally terminate all of the instances in the array first.
-        yield self._terminate_all_instances(array)
-
-        # Wait...
-        yield self._wait_until_empty(array)
-
-        # Wait for al lthe instances to die, and destroy the array
         yield self._destroy_array(array)
 
         raise gen.Return(True)
@@ -434,12 +511,14 @@ class Launch(ServerArrayBaseActor):
         # This means that RightScale will auto-scale-up the array as soon as
         # their next scheduled auto-scale run hits (usually 60s). Store the
         # newly updated array.
-        if self._options['enable']:
-            self.log.info('Enabling Array "%s"' % array.soul['name'])
+        if self._options.get('enable', False):
             if not self._dry:
+                self.log.info('Enabling Array "%s"' % array.soul['name'])
                 params = self._generate_rightscale_params(
                     'server_array', {'state': 'enabled'})
                 array = yield self._client.update_server_array(array, params)
+            else:
+                self.log.info('Would enable array "%s"' % array.soul['name'])
 
         # Launch all of the instances we want as quickly as we can. Note, we
         # don't actually store the result here because we don't care about the
@@ -476,6 +555,26 @@ class Execute(ServerArrayBaseActor):
     """
 
     required_options = ['array', 'script', 'inputs']
+
+    @gen.coroutine
+    def _find_problems(self):
+        """Check what you can without making any changes."""
+
+        problem_list = []
+        script_name = self._options['script']
+        if '::' in script_name:
+            script_type = 'Recipe'
+            script_name = script_name.split('::')[0]
+            script = yield self._client.find_cookbook(script_name)
+        else:
+            script_type = 'RightScript'
+            script = yield self._client.find_right_script(script_name)
+
+        if not script:
+            problem_list.append('%s %s not found' % (script_type,
+                                self._options['script']))
+
+        raise gen.Return(problem_list)
 
     @gen.coroutine
     def _get_operational_instances(self, array):

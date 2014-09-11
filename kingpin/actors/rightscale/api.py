@@ -155,6 +155,29 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @utils.exception_logger
+    def find_cookbook(self, name):
+        """Search for a Cookbook by-name and return the resource.
+
+        Args:
+            name: Cookbook Name
+
+        Return:
+            rightscale.Resource object
+        """
+        log.debug('Searching for Cookbook matching: %s' % name)
+        found_script = rightscale_util.find_by_name(
+            self._client.cookbooks, name, exact=True)
+
+        if not found_script:
+            log.debug('Cookbook matching "%s" could not be found.' % name)
+            return
+
+        log.debug('Got Cookbook: %s' % found_script)
+
+        return found_script
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
     def find_right_script(self, name):
         """Search for a RightScript by-name and return the resource.
 
@@ -238,6 +261,25 @@ class RightScale(object):
         array.self.update(params=params)
         updated_array = array.self.show()
         return updated_array
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    def get_server_array_inputs(self, array):
+        """Looks up ServerArray 'Next Instance' inputs.
+
+        Valid parameters can be found at the following URL:
+
+            http://reference.rightscale.com/api1.5/resources/
+            ResourceInputs.html#index
+
+        Args: rightscale.Resource array object.
+        Returns:
+            List of rightscale.Resource input objects.
+        """
+        instance = array.next_instance.show()
+        all_inputs = instance.inputs.index()
+
+        return all_inputs
 
     @concurrent.run_on_executor
     @utils.exception_logger

@@ -83,6 +83,16 @@ class BaseActor(object):
 
         self.log.debug('Initialized')
 
+    @gen.coroutine
+    def find_problems(self):
+        """Call private method or log a warning."""
+        if hasattr(self, '_find_problems'):
+            problems = yield self._find_problems()
+            raise gen.Return(problems)
+        else:
+            self.log.warning('This actor does not have a problem finder.')
+        raise gen.Return([])
+
     def _setup_log(self):
         """Create a customized logging object based on the LogAdapter."""
         name = '%s.%s' % (self.__module__, self.__class__.__name__)
@@ -125,7 +135,10 @@ class BaseActor(object):
         """
         self.log.info('Beginning')
         result = yield self._execute()
-        self.log.info('Finished, success? %s' % result)
+        if result:
+            self.log.info('Finished successfully. Result: %s' % result)
+        else:
+            self.log.warning('Finished with errors. Result: %s' % result)
         raise gen.Return(result)
 
 
