@@ -18,8 +18,10 @@ def generate_tornado_call(value=None):
 
     @gen.coroutine
     def call(*args, **kwargs):
+        call._call_count = call._call_count + 1
         raise gen.Return(value)
 
+    call._call_count = 0
     return call
 
 
@@ -215,38 +217,31 @@ class TestUpdateActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_problems_no_array(self):
-        @gen.coroutine
-        def yield_server_arrays(self, *args, **kwargs):
-            raise gen.Return()
-        self.actor._find_server_arrays = yield_server_arrays
+        self.actor._find_server_arrays = generate_tornado_call()
         no_problems = yield self.actor.find_problems()
         self.assertEquals(no_problems, [])
 
     @testing.gen_test
     def test_problems_found_input(self):
-        @gen.coroutine
-        def yield_server_arrays(self, *args, **kwargs):
-            input_obj = mock.Mock()
-            input_obj.soul = {'name': 'test'}  # has to match 'inputs' param
-            array = mock.Mock()
-            array.next_instance.show().inputs.index.return_value = [
-                input_obj]
-            raise gen.Return(array)
-        self.actor._find_server_arrays = yield_server_arrays
+        input_obj = mock.Mock()
+        input_obj.soul = {'name': 'test'}  # has to match 'inputs' param
+        array = mock.Mock()
+
+        self.actor._find_server_arrays = generate_tornado_call(array)
+        self.actor._client.get_server_array_inputs = generate_tornado_call(
+            [input_obj])
         no_problems = yield self.actor.find_problems()
         self.assertEquals(no_problems, [])
 
     @testing.gen_test
-    def test_problems_found_notinput(self):
-        @gen.coroutine
-        def yield_server_arrays(self, *args, **kwargs):
-            input_obj = mock.Mock()
-            input_obj.soul = {'name': 'fail'}
-            array = mock.Mock()
-            array.next_instance.show().inputs.index.return_value = [
-                input_obj]
-            raise gen.Return(array)
-        self.actor._find_server_arrays = yield_server_arrays
+    def test_problems_found_noinput(self):
+        input_obj = mock.Mock()
+        input_obj.soul = {'name': 'fail'}
+        array = mock.Mock()
+
+        self.actor._find_server_arrays = generate_tornado_call(array)
+        self.actor._client.get_server_array_inputs = generate_tornado_call(
+            [input_obj])
         problems = yield self.actor.find_problems()
         self.assertEquals(len(problems), 1)
 
@@ -513,8 +508,10 @@ class TestDestroyActor(TestServerArrayBaseActor):
             'Destroy',
             {'array': 'unittestarray'})
         with mock.patch.object(server_array, 'Terminate') as t:
-            actor._terminate()
-            self.assertEquals(t()._execute.call_count, 1)
+            t()._execute = generate_tornado_call()
+            obj = yield actor._terminate()
+            self.assertEquals(t()._execute._call_count, 1)
+            self.assertEquals(obj, t())
 
     @testing.gen_test
     def test_execute(self):
@@ -530,6 +527,8 @@ class TestDestroyActor(TestServerArrayBaseActor):
 
         ret = yield actor._execute()
 
+        self.assertEquals(actor._terminate._call_count, 1)
+        self.assertEquals(actor._destroy_array._call_count, 1)
         self.assertTrue(ret)
 
     @testing.gen_test

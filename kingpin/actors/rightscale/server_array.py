@@ -166,8 +166,7 @@ class Update(ServerArrayBaseActor):
                              self._options['array'])
             raise gen.Return([])
 
-        instance = array.next_instance.show()
-        all_inputs = instance.inputs.index()
+        all_inputs = yield self._client.get_server_array_inputs(array)
         all_input_names = [i.soul['name'] for i in all_inputs]
 
         for input_name, new_value in self._options['inputs'].items():
