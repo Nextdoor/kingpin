@@ -341,7 +341,7 @@ class RightScale(object):
             array: ServerArray Resource Object
 
         Return:
-            <action execution resource>
+            <task object for termination request>
         """
         log.debug('Terminating all instances of ServerArray (%s)' %
                   array.soul['name'])
@@ -353,10 +353,7 @@ class RightScale(object):
                 # There are no instances to terminate.
                 return
 
-        # We don't care if it succeeded -- the multi-terminate job fails
-        # all the time when there are hosts still in a 'terminated state'
-        # when this call is made. Just wait for it to finish.
-        yield self.wait_for_task(task)
+        return task
 
     @concurrent.run_on_executor
     @sync_retry(stop_max_attempt_number=20,
