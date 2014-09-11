@@ -199,18 +199,11 @@ class TestRightScale(testing.AsyncTestCase):
             return mock_task
         self.mock_client.server_arrays.multi_terminate.side_effect = action
 
-        @gen.coroutine
-        def fake_wait(*args, **kwargs):
-            return gen.Return()
-
         # Mock out the wait_for_task method to return quickly
-        with mock.patch.object(self.client, 'wait_for_task') as mock_wait:
-            mock_wait.side_effect = fake_wait
-            ret = yield self.client.terminate_server_array_instances(
-                array_mock)
+        ret = yield self.client.terminate_server_array_instances(array_mock)
         self.mock_client.server_arrays.multi_terminate.assert_called_once_with(
             res_id=1234)
-        self.assertEquals(None, ret)
+        self.assertEquals(mock_task, ret)
 
     @testing.gen_test
     def test_terminate_server_array_instances_422_error(self):

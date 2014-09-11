@@ -219,7 +219,13 @@ class Destroy(ServerArrayBaseActor):
 
         self.log.info('Terminating all instances in array "%s"' %
                       array.soul['name'])
-        yield self._client.terminate_server_array_instances(array)
+        task = yield self._client.terminate_server_array_instances(array)
+        # We don't care if it succeeded -- the multi-terminate job
+        # fails all the time when there are hosts still in a
+        # 'terminated state' when this call is made. Just wait for it to
+        # finish.
+        yield self._client.wait_for_task(task)
+
         raise gen.Return()
 
     @gen.coroutine
@@ -392,7 +398,7 @@ class Launch(ServerArrayBaseActor):
                           count, array.soul['name']))
             raise gen.Return()
 
-        self.log.info('Launching %s instances of array %s...' % (
+        self.log.info('Launching %s instances of array %s' % (
                       count, array.soul['name']))
 
         if async:
