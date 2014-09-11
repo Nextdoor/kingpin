@@ -241,7 +241,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             yield actor.execute()
 
     @attr('integration')
-    @testing.gen_test(timeout=300)
+    @testing.gen_test(timeout=120)
     def integration_07a_destroy_dry(self):
         actor = server_array.Destroy(
             'Destroy %s' % self.template_array,
@@ -251,7 +251,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         self.assertEquals(True, ret)
 
     @attr('integration')
-    @testing.gen_test(timeout=300)
+    @testing.gen_test(timeout=600)
     def integration_07b_destroy(self):
         actor = server_array.Destroy(
             'Destroy %s' % self.template_array,

@@ -364,10 +364,17 @@ class TestTerminateActor(testing.AsyncTestCase):
         array_mock.soul = {'name': 'unittest'}
         array_mock.self.path = '/a/b/1234'
 
+        mock_task = mock.MagicMock(name='fake terminate task')
+
         @gen.coroutine
         def term(self, *args, **kwargs):
-            raise gen.Return()
+            raise gen.Return(mock_task)
         self.client_mock.terminate_server_array_instances.side_effect = term
+
+        @gen.coroutine
+        def wait(self, *args, **kwargs):
+            raise gen.Return()
+        self.client_mock.wait_for_task.side_effect = wait
 
         ret = yield self.actor._terminate_all_instances(array_mock)
         self.assertEquals(ret, None)
@@ -386,6 +393,11 @@ class TestTerminateActor(testing.AsyncTestCase):
             raise gen.Return()
         self.client_mock.terminate_server_array_instances.side_effect = term
 
+        @gen.coroutine
+        def wait(self, *args, **kwargs):
+            raise gen.Return()
+        self.client_mock.wait_for_task.side_effect = wait
+
         ret = yield self.actor._terminate_all_instances(array_mock)
         self.assertEquals(ret, None)
         (self.client_mock.terminate_server_array_instances.
@@ -402,6 +414,11 @@ class TestTerminateActor(testing.AsyncTestCase):
         def term(self, *args, **kwargs):
             raise gen.Return()
         self.client_mock.terminate_server_array_instances.side_effect = term
+
+        @gen.coroutine
+        def wait(self, *args, **kwargs):
+            raise gen.Return()
+        self.client_mock.wait_for_task.side_effect = wait
 
         ret = yield self.actor._terminate_all_instances(array_mock)
         self.assertEquals(ret, None)
@@ -582,7 +599,7 @@ class TestLaunchActor(testing.AsyncTestCase):
             server_array.Launch(
                 'Unit test', {
                     'array': 'unit test array',
-                    })
+                })
 
         with self.assertRaises(exceptions.InvalidOptions):
             # Not enabling and missing count flag
@@ -590,7 +607,7 @@ class TestLaunchActor(testing.AsyncTestCase):
                 'Unit test', {
                     'array': 'unit test array',
                     'enable': False
-                    })
+                })
 
     @testing.gen_test
     def test_wait_until_healthy(self):
