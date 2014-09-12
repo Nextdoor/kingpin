@@ -155,28 +155,6 @@ class Update(ServerArrayBaseActor):
     required_options = ['array']
 
     @gen.coroutine
-    def _find_problems(self):
-        """Check that input name exists."""
-        problem_list = []
-        array = yield self._find_server_arrays(self._options['array'],
-                                               allow_mock=False,
-                                               raise_on=None)
-        if not array:
-            self.log.warning('Array %s not found. May not be an issue.' %
-                             self._options['array'])
-            raise gen.Return([])
-
-        all_inputs = yield self._client.get_server_array_inputs(array)
-        all_input_names = [i.soul['name'] for i in all_inputs]
-
-        for input_name, new_value in self._options['inputs'].items():
-            # Inputs have to be there. If not -- it's a problem.
-            if input_name not in all_input_names:
-                problem_list.append('Input not found: "%s"' % input_name)
-
-        raise gen.Return(problem_list)
-
-    @gen.coroutine
     def _execute(self):
         # First things first, login to RightScale asynchronously to
         # pre-populate the API attributes that are dynamically generated. This
@@ -193,6 +171,15 @@ class Update(ServerArrayBaseActor):
                 self.log.info('New params: %s' % self._options['params'])
             if 'inputs' in self._options:
                 self.log.info('New inputs: %s' % self._options['inputs'])
+
+                all_inputs = yield self._client.get_server_array_inputs(array)
+                all_input_names = [i.soul['name'] for i in all_inputs]
+
+                for input_name, _ in self._options['inputs'].items():
+                    # Inputs have to be there. If not -- it's a problem.
+                    if input_name not in all_input_names:
+                        self.log.error('Input not found: "%s"' % input_name)
+                        raise gen.Return(False)
 
             self.log.info('Not making any changes.')
             raise gen.Return(True)
@@ -227,19 +214,6 @@ class Terminate(ServerArrayBaseActor):
     """Terminate all instances in a RightScale Server Array."""
 
     required_options = ['array']
-
-    @gen.coroutine
-    def _find_problems(self):
-        # Find array
-        name = self._options['array']
-        array = yield self._find_server_arrays(name,
-                                               allow_mock=False,
-                                               raise_on=None)
-        # If it's not there -- just a warning
-        if not array:
-            self.log.warning('Could not find "%s" -- may be ok.' % name)
-
-        raise gen.Return([])
 
     @gen.coroutine
     def _terminate_all_instances(self, array):
@@ -323,19 +297,6 @@ class Destroy(ServerArrayBaseActor):
     """Destroy the array"""
 
     required_options = ['array']
-
-    @gen.coroutine
-    def _find_problems(self):
-        # Find array
-        name = self._options['array']
-        array = yield self._find_server_arrays(name,
-                                               allow_mock=False,
-                                               raise_on=None)
-        # If it's not there -- just a warning
-        if not array:
-            self.log.warning('Could not find "%s" -- may be ok.' % name)
-
-        raise gen.Return([])
 
     @gen.coroutine
     def _destroy_array(self, array):
@@ -557,26 +518,6 @@ class Execute(ServerArrayBaseActor):
     required_options = ['array', 'script', 'inputs']
 
     @gen.coroutine
-    def _find_problems(self):
-        """Check what you can without making any changes."""
-
-        problem_list = []
-        script_name = self._options['script']
-        if '::' in script_name:
-            script_type = 'Recipe'
-            script_name = script_name.split('::')[0]
-            script = yield self._client.find_cookbook(script_name)
-        else:
-            script_type = 'RightScript'
-            script = yield self._client.find_right_script(script_name)
-
-        if not script:
-            problem_list.append('%s %s not found' % (script_type,
-                                self._options['script']))
-
-        raise gen.Return(problem_list)
-
-    @gen.coroutine
     def _get_operational_instances(self, array):
         """Gets a list of Operational instances and returns it.
 
@@ -629,6 +570,20 @@ class Execute(ServerArrayBaseActor):
         # At this point, if we're in dry mode we need to exit. Theres no way to
         # 'test' the actual execution of the rightscale scripts.
         if self._dry:
+            script_name = self._options['script']
+            if '::' in script_name:
+                script_type = 'Recipe'
+                script_name = script_name.split('::')[0]
+                script = yield self._client.find_cookbook(script_name)
+            else:
+                script_type = 'RightScript'
+                script = yield self._client.find_right_script(script_name)
+
+            if not script:
+                self.log.error('%s %s not found' % (
+                    script_type, self._options['script']))
+                raise gen.Return(False)
+
             self.log.info(
                 'Would have executed "%s" with inputs "%s" on "%s".'
                 % (self._options['script'], inputs, array.soul['name']))
