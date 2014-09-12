@@ -178,36 +178,6 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.client_mock.login = mock_tornado()
 
     @testing.gen_test
-    def test_problems_no_array(self):
-        self.actor._find_server_arrays = mock_tornado()
-        no_problems = yield self.actor.find_problems()
-        self.assertEquals(no_problems, [])
-
-    @testing.gen_test
-    def test_problems_found_input(self):
-        input_obj = mock.Mock()
-        input_obj.soul = {'name': 'test'}  # has to match 'inputs' param
-        array = mock.Mock()
-
-        self.actor._find_server_arrays = mock_tornado(array)
-        self.actor._client.get_server_array_inputs = mock_tornado(
-            [input_obj])
-        no_problems = yield self.actor.find_problems()
-        self.assertEquals(no_problems, [])
-
-    @testing.gen_test
-    def test_problems_found_noinput(self):
-        input_obj = mock.Mock()
-        input_obj.soul = {'name': 'fail'}
-        array = mock.Mock()
-
-        self.actor._find_server_arrays = mock_tornado(array)
-        self.actor._client.get_server_array_inputs = mock_tornado(
-            [input_obj])
-        problems = yield self.actor.find_problems()
-        self.assertEquals(len(problems), 1)
-
-    @testing.gen_test
     def test_execute(self):
         self.actor._dry = False
         mocked_array = mock.MagicMock(name='unittestarray')
@@ -288,17 +258,6 @@ class TestTerminateActor(testing.AsyncTestCase):
 
         # Mock out the login method entirely
         self.client_mock.login = mock_tornado()
-
-    @testing.gen_test
-    def test_problems(self):
-        # Never "fail" -- only have warnings.
-        self.actor._find_server_arrays = mock_tornado([])
-        problems = yield self.actor.find_problems()
-        self.assertEquals(problems, [])
-
-        self.actor._find_server_arrays = mock_tornado(['Array'])
-        problems = yield self.actor.find_problems()
-        self.assertEquals(problems, [])
 
     @testing.gen_test
     def test_terminate_all_instances(self):
@@ -394,22 +353,6 @@ class TestTerminateActor(testing.AsyncTestCase):
 
 
 class TestDestroyActor(TestServerArrayBaseActor):
-
-    @testing.gen_test
-    def test_problems(self):
-        actor = server_array.Destroy(
-            'Destroy',
-            {'array': 'unittestarray'})
-        actor._find_server_arrays = mock_tornado(mock.Mock())
-
-        problems = yield actor.find_problems()
-        self.assertEquals(problems, [])
-
-        # Should not have problems even if it doesn't find an array
-        actor._find_server_arrays = mock_tornado()
-
-        problems = yield actor.find_problems()
-        self.assertEquals(problems, [])
 
     @testing.gen_test
     def test_terminate(self):
@@ -623,29 +566,6 @@ class TestExecuteActor(testing.AsyncTestCase):
 
         # Mock out the login method entirely
         self.client_mock.login = mock_tornado()
-
-    @testing.gen_test
-    def test_problems_rightscript(self):
-        # RightScript found
-        self.actor._client.find_right_script = mock_tornado(
-            'found')
-        problems = yield self.actor.find_problems()
-        self.assertEquals(problems, [])
-
-    @testing.gen_test
-    def test_problems_cookbook(self):
-        # Cookbook found
-        self.actor._options['script'] = 'cook::book'
-        self.actor._client.find_cookbook = mock_tornado(
-            'found')
-        problems = yield self.actor.find_problems()
-        self.assertEquals(problems, [])
-
-    @testing.gen_test
-    def test_problems_notfound(self):
-        self.actor._client.find_right_script = mock_tornado()
-        problems = yield self.actor.find_problems()
-        self.assertEquals(len(problems), 1)
 
     @testing.gen_test
     def test_get_operational_instances_warn(self):

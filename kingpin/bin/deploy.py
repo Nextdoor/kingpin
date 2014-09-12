@@ -84,9 +84,13 @@ def main():
     if not options.dry:
         # do a dry run first, then do real one
         dry_actor = actor_utils.get_actor(config, dry=True)
-        log.info('Rehearsing!')
+        log.info('Rehearsing... Break a leg!')
+        message = ''
         try:
             success = yield dry_actor.execute()
+            if not success:
+                message = ('Some actors broke a leg during rehearsal. Read log '
+                           'output for more details.')
         except actor_exceptions.ActorException as e:
             success = False
             message = e
