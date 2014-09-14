@@ -89,8 +89,8 @@ def main():
         try:
             success = yield dry_actor.execute()
             if not success:
-                message = ('Some actors broke a leg during rehearsal. Read log '
-                           'output for more details.')
+                message = ('Some actors broke a leg during rehearsal. Read '
+                           'log output for more details.')
         except actor_exceptions.ActorException as e:
             success = False
             message = e
@@ -108,7 +108,6 @@ def main():
 if __name__ == '__main__':
     # Set up logging before we do anything else
     utils.setup_root_logger(level=options.level)
-
 
     try:
         ioloop.IOLoop.instance().run_sync(main)

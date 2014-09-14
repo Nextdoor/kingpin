@@ -178,10 +178,23 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.client_mock.login = mock_tornado()
 
     @testing.gen_test
+    def test_check_inputs(self):
+        array = mock.Mock()
+        inputs = {}
+        self.actor._client.get_server_array_inputs = mock_tornado([])
+        ok = yield self.actor._check_array_inputs(array, inputs)
+        self.assertTrue(ok)
+
+        inputs = {'key': 'value'}
+        fail = yield self.actor._check_array_inputs(array, inputs)
+        self.assertFalse(fail)
+
+    @testing.gen_test
     def test_execute(self):
         self.actor._dry = False
         mocked_array = mock.MagicMock(name='unittestarray')
 
+        self.actor._check_array_inputs = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
         self.client_mock.update_server_array.return_value = tornado_value(None)
@@ -202,6 +215,7 @@ class TestUpdateActor(testing.AsyncTestCase):
     def test_execute_422_error(self):
         mocked_array = mock.MagicMock(name='unittestarray')
 
+        self.actor._check_array_inputs = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
         msg = '422 Client Error: Unprocessable Entity'
@@ -221,6 +235,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.actor._dry = True
         mocked_array = mock.MagicMock(name='unittestarray')
 
+        self.actor._check_array_inputs = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
         ret = yield self.actor.execute()
@@ -233,6 +248,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         mocked_array = mock.MagicMock(name='unittestarray')
         mocked_array.soul = {'name': 'unittestarray'}
 
+        self.actor._check_array_inputs = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
         ret = yield self.actor.execute()
@@ -568,6 +584,20 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.client_mock.login = mock_tornado()
 
     @testing.gen_test
+    def test_check_script(self):
+        self.actor._client.find_cookbook = mock.Mock()
+        self.actor._client.find_cookbook.side_effect = tornado_value
+        result = yield self.actor._check_script('unit-test::recipe')
+        self.assertTrue(result)
+        self.actor._client.find_cookbook.assert_called_with('unit-test')
+
+        self.actor._client.find_right_script = mock.Mock()
+        self.actor._client.find_right_script.side_effect = tornado_value
+        result = yield self.actor._check_script('ut-script')
+        self.assertTrue(result)
+        self.actor._client.find_right_script.assert_called_with('ut-script')
+
+    @testing.gen_test
     def test_get_operational_instances_warn(self):
         mock_array = mock.MagicMock(name='array')
         mock_op_instance = mock.MagicMock(name='mock_instance')
@@ -590,6 +620,7 @@ class TestExecuteActor(testing.AsyncTestCase):
         mock_op_instance.soul = {'state': 'operational'}
         mock_task = mock.MagicMock(name='mock_task')
 
+        self.actor._check_script = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mock_array)
 
         yi = tornado_value([mock_op_instance])
@@ -622,10 +653,24 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.actor._dry = True
         mock_array = mock.MagicMock(name='array')
 
+        self.actor._check_script = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mock_array)
 
         self.client_mock.get_server_array_current_instances = mock_tornado([])
 
         ret = yield self.actor._execute()
 
-        self.assertEquals(ret, True)
+        self.assertTrue(ret)
+
+    @testing.gen_test
+    def test_execute_dry_fail(self):
+        self.actor._dry = True
+        mock_array = mock.MagicMock(name='array')
+
+        self.actor._check_script = mock_tornado(False)
+        self.actor._find_server_arrays = mock_tornado(mock_array)
+
+        self.client_mock.get_server_array_current_instances = mock_tornado([])
+
+        ret = yield self.actor._execute()
+        self.assertFalse(ret)
