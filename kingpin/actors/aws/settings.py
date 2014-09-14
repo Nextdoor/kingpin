@@ -14,10 +14,7 @@
 
 """Common settings for AWS Actors"""
 
-import logging
 import os
-
-log = logging.getLogger(__name__)
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
