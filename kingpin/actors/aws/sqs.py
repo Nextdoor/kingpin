@@ -186,7 +186,7 @@ class Delete(SQSBaseActor):
         return ok
 
     @gen.coroutine
-    @utils.retry(SQSQueueNotFoundException, delay=aws_settings.SQSRETRYDELAY)
+    @utils.retry(SQSQueueNotFoundException, delay=aws_settings.SQS_RETRY_DELAY)
     def _execute(self):
         """Executes an actor and yields the results when its finished.
 
