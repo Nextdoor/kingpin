@@ -112,25 +112,30 @@ class Create(SQSBaseActor):
 
         Returns either the real boto.sqs.queue.Queue object or the Mock object
         in dry run.
+
+        Args:
+            name: Queue name (string) to create.
+
+        Returns:
+            An SQS Queue Object
         """
         if not self._dry:
             self.log.info('Creating a new queue: %s' % name)
-
             new_queue = self.conn.create_queue(name)
         else:
             self.log.info('Would create a new queue: %s' % name)
             new_queue = mock.Mock(name=name)
 
-        self.log.info('Returning queue object: %s' % new_queue)
+        self.log.debug('Returning queue object: %s' % new_queue)
         return new_queue
 
     @gen.coroutine
     def _execute(self):
         """Executes an actor and yields the results when its finished.
 
-        raises: gen.Return(True)
+        Raises:
+            gen.Return(True)
         """
-        self.log.info('Creating a new SQS Queue "%s"' % self._options['name'])
         q = yield self._create_queue(name=self._options['name'])
 
         if q.__class__ == boto.sqs.queue.Queue:
@@ -155,14 +160,12 @@ class Delete(SQSBaseActor):
 
         Args:
             pattern: string - regex used in `re.match()`
+
         Returns:
             Array of matched queues, even if empty.
         """
-
         queues = self.conn.get_all_queues()
-
         match_queues = [q for q in queues if re.match(pattern, q.name)]
-
         return match_queues
 
     @concurrent.run_on_executor
@@ -181,8 +184,6 @@ class Delete(SQSBaseActor):
             self.log.info('Would delete the queue: %s' % queue.url)
             ok = True
 
-        self.log.info('Deleted Queue: %s' % queue.url)
-
         return ok
 
     @gen.coroutine
@@ -190,7 +191,8 @@ class Delete(SQSBaseActor):
     def _execute(self):
         """Executes an actor and yields the results when its finished.
 
-        raises: gen.Return(True)
+        Raises:
+            gen.Return(True)
         """
         pattern = self._options['name']
         matched_queues = yield self._fetch_queues(pattern=pattern)
@@ -199,7 +201,7 @@ class Delete(SQSBaseActor):
             raise SQSQueueNotFoundException(
                 'No queues with pattern "%s" found.' % pattern)
 
-        self.log.info('Deleting SQS Queues "%s"' % matched_queues)
+        self.log.info('Deleting SQS Queues: %s' % matched_queues)
 
         tasks = []
         for q in matched_queues:
@@ -214,9 +216,21 @@ class WaitUntilEmpty(SQSBaseActor):
 
     """Waits for an SQS Queue to become empty."""
 
+    # TODO(Mikhail): Make this actor monitor several queues based on a pattern
+
     @concurrent.run_on_executor
     @utils.exception_logger
     def _wait(self, name, sleep=3):
+        """Sleeps until an SQS Queue has emptied out.
+
+        Args:
+            name: String name of the queue to monitor
+            sleep: Int of seconds to wait between checks
+
+        Returns:
+            True: When queue is empty.
+        """
+
         q = self.conn.get_queue(name)
 
         if not q:
