@@ -87,7 +87,7 @@ class BaseActor(object):
         """Create a customized logging object based on the LogAdapter."""
         name = '%s.%s' % (self.__module__, self.__class__.__name__)
         logger = logging.getLogger(name)
-        dry_str = '(DRY) ' if self._dry else ''
+        dry_str = 'DRY: ' if self._dry else ''
 
         self.log = LogAdapter(logger, {'desc': self._desc, 'dry': dry_str})
 
