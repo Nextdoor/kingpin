@@ -155,6 +155,20 @@ class Update(ServerArrayBaseActor):
     required_options = ['array']
 
     @gen.coroutine
+    def _check_array_inputs(self, array, inputs):
+        all_inputs = yield self._client.get_server_array_inputs(array)
+        all_input_names = [i.soul['name'] for i in all_inputs]
+
+        success = True
+        for input_name, _ in inputs.items():
+            # Inputs have to be there. If not -- it's a problem.
+            if input_name not in all_input_names:
+                self.log.error('Input not found: "%s"' % input_name)
+                success = False
+
+        raise gen.Return(success)
+
+    @gen.coroutine
     def _execute(self):
         # First things first, login to RightScale asynchronously to
         # pre-populate the API attributes that are dynamically generated. This
@@ -167,22 +181,19 @@ class Update(ServerArrayBaseActor):
 
         # In dry run, just comment that we would have made the change.
         if self._dry:
+            ok = True
+            self.log.info('Not making any changes.')
             if 'params' in self._options:
                 self.log.info('New params: %s' % self._options['params'])
             if 'inputs' in self._options:
                 self.log.info('New inputs: %s' % self._options['inputs'])
 
-                all_inputs = yield self._client.get_server_array_inputs(array)
-                all_input_names = [i.soul['name'] for i in all_inputs]
+                inputs_ok = yield self._check_array_inputs(
+                    array, self._options['inputs'])
 
-                for input_name, _ in self._options['inputs'].items():
-                    # Inputs have to be there. If not -- it's a problem.
-                    if input_name not in all_input_names:
-                        self.log.error('Input not found: "%s"' % input_name)
-                        raise gen.Return(False)
+                ok = ok and inputs_ok
 
-            self.log.info('Not making any changes.')
-            raise gen.Return(True)
+            raise gen.Return(ok)
 
         # Update the ServerArray Parameters
         if 'params' in self._options:
@@ -550,6 +561,16 @@ class Execute(ServerArrayBaseActor):
         raise gen.Return(op)
 
     @gen.coroutine
+    def _check_script(self, script_name):
+        if '::' in script_name:
+            script_name = script_name.split('::')[0]
+            script = yield self._client.find_cookbook(script_name)
+        else:
+            script = yield self._client.find_right_script(script_name)
+
+        raise gen.Return(bool(script))
+
+    @gen.coroutine
     def _execute(self):
         # First things first, login to RightScale asynchronously to
         # pre-populate the API attributes that are dynamically generated. This
@@ -567,21 +588,14 @@ class Execute(ServerArrayBaseActor):
         inputs = self._generate_rightscale_params(
             'inputs', self._options['inputs'])
 
-        # At this point, if we're in dry mode we need to exit. Theres no way to
-        # 'test' the actual execution of the rightscale scripts.
+        # Theres no way to 'test' the actual execution of the rightscale
+        # scripts, so we'll just check that it exists.
         if self._dry:
-            script_name = self._options['script']
-            if '::' in script_name:
-                script_type = 'Recipe'
-                script_name = script_name.split('::')[0]
-                script = yield self._client.find_cookbook(script_name)
-            else:
-                script_type = 'RightScript'
-                script = yield self._client.find_right_script(script_name)
+            script_found = yield self._check_script(self._options['script'])
 
-            if not script:
-                self.log.error('%s %s not found' % (
-                    script_type, self._options['script']))
+            if not script_found:
+                self.log.error(
+                    'Script "%s" not found!' % self._options['script'])
                 raise gen.Return(False)
 
             self.log.info(

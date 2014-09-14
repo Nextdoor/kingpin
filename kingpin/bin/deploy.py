@@ -89,8 +89,8 @@ def main():
         try:
             success = yield dry_actor.execute()
             if not success:
-                message = ('Some actors broke a leg during rehearsal. Read log '
-                           'output for more details.')
+                message = ('Some actors broke a leg during rehearsal. Read '
+                           'log output for more details.')
         except actor_exceptions.ActorException as e:
             success = False
             message = e
