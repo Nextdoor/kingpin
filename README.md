@@ -6,7 +6,7 @@ The Kingpin of your Deployment Model
 
 ## Basic Use
 
-    Usage: deploy.py <options>
+    Usage: kingpin <options>
 
     Options:
       --version             show program's version number and exit
@@ -21,7 +21,7 @@ The simplest use cases of this code can be better understood by looking at the
 
     $ export RIGHTSCALE_TOKEN=xyz
     $ export RIGHTSCALE_ENDPOINT=https://us-3.rightscale.com
-    $ (.venv)$ deploy.py -j examples/simple.json -d
+    $ (.venv)$ kingpin -j examples/simple.json -d
     2014-09-01 21:18:09,022 INFO      [main stage (DRY Mode)] Beginning
     2014-09-01 21:18:09,022 INFO      [stage 1 (DRY Mode)] Beginning
     2014-09-01 21:18:09,022 INFO      [copy serverA (DRY Mode)] Beginning
@@ -104,15 +104,15 @@ For an example, take a look at the [complex.json](examples/complex.json) file,
 and these examples of execution.
 
     # Here we forget to set any environment variables
-    $ deploy.py -j examples/complex.json -d
+    $ kingpin -j examples/complex.json -d
     2014-09-01 21:29:47,373 ERROR     Invalid Configuration Detected: Found un-matched tokens in JSON string: ['%RELEASE%', '%OLD_RELEASE%']
 
     # Here we set one variable, but miss the other one
-    $ RELEASE=0001a deploy.py -j examples/complex.json -d
+    $ RELEASE=0001a kingpin -j examples/complex.json -d
     2014-09-01 21:29:56,027 ERROR     Invalid Configuration Detected: Found un-matched tokens in JSON string: ['%OLD_RELEASE%']
 
     # Finally we set both variables and the code begins..
-    $ OLD_RELEASE=0000a RELEASE=0001a deploy.py -j examples/complex.json -d
+    $ OLD_RELEASE=0000a RELEASE=0001a kingpin -j examples/complex.json -d
     2014-09-01 21:30:03,886 INFO      [Main (DRY Mode)] Beginning
     2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Beginning
     2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Sending message "Beginning release 0001a" to Hipchat room "Oncall"
