@@ -194,10 +194,11 @@ below for using each actor.
 **Actor-specific Documentation**
 
   * [rightscale.server_array.Clone](docs/actors/rightscale.server_array.Clone.md)
-  * [rightscale.server_array.Update](docs/actors/rightscale.server_array.Update.md)
-  * [rightscale.server_array.Launch](docs/actors/rightscale.server_array.Launch.md)
   * [rightscale.server_array.Destroy](docs/actors/rightscale.server_array.Destroy.md)
   * [rightscale.server_array.Execute](docs/actors/rightscale.server_array.Execute.md)
+  * [rightscale.server_array.Launch](docs/actors/rightscale.server_array.Launch.md)
+  * [rightscale.server_array.Update](docs/actors/rightscale.server_array.Update.md)
+  * [rightscale.server_array.Terminate](docs/actors/rightscale.server_array.Terminate.md)
 
 ## Development
 
