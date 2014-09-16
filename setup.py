@@ -161,7 +161,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'kingpin = kingpin.bin.deploy:main'
+            'kingpin = kingpin.bin.deploy:begin'
         ],
     },
     classifiers=[

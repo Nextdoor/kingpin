@@ -84,7 +84,7 @@ def main():
     yield initial_actor.execute()
 
 
-if __name__ == '__main__':
+def begin():
     # Set up logging before we do anything else
     utils.setup_root_logger(level=options.level)
 
@@ -92,3 +92,7 @@ if __name__ == '__main__':
         ioloop.IOLoop.instance().run_sync(main)
     except KeyboardInterrupt:
         log.info('CTRL-C Caught, shutting down')
+
+
+if __name__ == '__main__':
+    begin()
