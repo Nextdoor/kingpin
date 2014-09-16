@@ -77,20 +77,18 @@ class TestRightScale(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_find_cookbook(self):
-        with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
-            u_mock.return_value = 1
-            ret = yield self.client.find_cookbook('cook::book')
-            u_mock.assert_called_once_with(
-                self.mock_client.cookbooks, 'cook::book', exact=True)
-            self.assertEquals(1, ret)
+        self.client._client = mock.Mock()
+        resource = mock.Mock(name='Resource')
+        resource.soul = {'metadata': {'recipes': {'cook::book': True}}}
+        self.client._client.cookbooks.index.return_value = [resource]
+        ret = yield self.client.find_cookbook('cook::book')
+        self.assertEquals(resource, ret)
 
     @testing.gen_test
     def test_find_cookbook_empty_result(self):
         with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
             u_mock.return_value = None
             ret = yield self.client.find_cookbook('cook::book')
-            u_mock.assert_called_once_with(
-                self.mock_client.cookbooks, 'cook::book', exact=True)
             self.assertEquals(None, ret)
 
     @testing.gen_test

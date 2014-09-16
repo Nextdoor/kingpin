@@ -563,7 +563,6 @@ class Execute(ServerArrayBaseActor):
     @gen.coroutine
     def _check_script(self, script_name):
         if '::' in script_name:
-            script_name = script_name.split('::')[0]
             script = yield self._client.find_cookbook(script_name)
         else:
             script = yield self._client.find_right_script(script_name)

@@ -587,9 +587,9 @@ class TestExecuteActor(testing.AsyncTestCase):
     def test_check_script(self):
         self.actor._client.find_cookbook = mock.Mock()
         self.actor._client.find_cookbook.side_effect = tornado_value
-        result = yield self.actor._check_script('unit-test::recipe')
+        result = yield self.actor._check_script('ut::recipe')
         self.assertTrue(result)
-        self.actor._client.find_cookbook.assert_called_with('unit-test')
+        self.actor._client.find_cookbook.assert_called_with('ut::recipe')
 
         self.actor._client.find_right_script = mock.Mock()
         self.actor._client.find_right_script.side_effect = tornado_value

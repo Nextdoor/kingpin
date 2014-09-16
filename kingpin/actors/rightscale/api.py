@@ -164,17 +164,27 @@ class RightScale(object):
         Return:
             rightscale.Resource object
         """
-        log.debug('Searching for Cookbook matching: %s' % name)
-        found_script = rightscale_util.find_by_name(
-            self._client.cookbooks, name, exact=True)
+        script_name = name.split('::')[0]
+        recipe_name = name
 
-        if not found_script:
+        log.debug('Searching for Cookbook matching: %s' % name)
+        found_scripts = self._client.cookbooks.index(
+            params={'filter[]': ['name==%s' % script_name],
+                    'view': 'extended'})
+        found_recipes = [
+            r for r in found_scripts if r.soul['metadata']['recipes'].get(
+                recipe_name, False)]
+
+        if not found_recipes:
             log.debug('Cookbook matching "%s" could not be found.' % name)
+            log.debug('Found scripts %s' % found_scripts)
             return
 
-        log.debug('Got Cookbook: %s' % found_script)
+        recipe = found_recipes[0]
 
-        return found_script
+        log.debug('Got Cookbook: %s' % recipe)
+
+        return recipe
 
     @concurrent.run_on_executor
     @utils.exception_logger
