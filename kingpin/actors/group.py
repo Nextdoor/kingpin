@@ -68,19 +68,6 @@ class BaseGroupActor(base.BaseActor):
         return actions
 
     @gen.coroutine
-    def _find_problems(self):
-        """Get a list of problems for all actions."""
-
-        all_problems = []
-        for act in self._actions:
-            self.log.info('Checking problems for [%s]"' % act._desc)
-            problem = yield act.find_problems()
-            if problem:
-                all_problems.append('[%s]: %s' % (act._desc, problem))
-
-        raise gen.Return(all_problems)
-
-    @gen.coroutine
     def _execute(self):
         """Executes the actions configured, and returns.
 
@@ -103,7 +90,7 @@ class Sync(BaseGroupActor):
         """Synchronously executes all of the Actor.execute() methods."""
         returns = []
         for act in self._actions:
-            self.log.info('Beginning "%s"..' % act._desc)
+            self.log.debug('Beginning "%s"..' % act._desc)
             ret = yield act.execute()
             self.log.debug('Finished "%s", success?.. %s' % (act._desc, ret))
             returns.append(ret)

@@ -110,7 +110,14 @@ class WaitUntilHealthy(base.BaseActor):
     def _find_elb(self, name):
         """Return an ELB with the matching name.
 
-        Must find exactly 1 match. Zones are limited by the AWS credentials"""
+        Must find exactly 1 match. Zones are limited by the AWS credentials.
+
+        Args:
+            name: String-name of the ELB to search for
+
+        Returns:
+            A single ELB reference object
+        """
         self.log.info('Searching for ELB "%s"' % name)
 
         elbs = self.conn.get_all_load_balancers(load_balancer_names=name)
@@ -127,7 +134,16 @@ class WaitUntilHealthy(base.BaseActor):
         """Calculate the expected count for a given percentage.
 
         Either returns the passed count if it's an integer, or
-        calculates the count given an expected percentage."""
+        calculates the count given an expected percentage.
+
+        Args:
+            count: Minimum count (int) or percentage (int) of hosts that must
+                   be healthy.
+            total_count: The total number of instances in the ELB.
+
+        Returns:
+            Number of instances required to be 'healthy'
+        """
 
         if '%' in str(count):
             expected_count = math.ceil(total_count * p2f(count))
@@ -143,7 +159,11 @@ class WaitUntilHealthy(base.BaseActor):
 
         Args:
             count: integer, or string with % in it.
-                   for more information read _get_expected_count()"""
+                   for more information read _get_expected_count()
+
+        Returns:
+            Boolean whether or not the ELB is healthy enough.
+        """
         name = elb.name
 
         self.log.info('Counting ELB InService instances for : %s' % name)
@@ -159,7 +179,7 @@ class WaitUntilHealthy(base.BaseActor):
         expected_count = self._get_expected_count(count, total_count)
 
         healthy = (in_service_count >= expected_count)
-        self.log.info('ELB "%s" healthy: %s' % (elb.name, healthy))
+        self.log.info('ELB "%s" healthy state: %s' % (elb.name, healthy))
         self.log.info('InService vs expected: %s / %s' %
                       (in_service_count, expected_count))
 
@@ -178,15 +198,15 @@ class WaitUntilHealthy(base.BaseActor):
             healthy = yield self._is_healthy(elb, count=self._options['count'])
 
             if healthy is True:
-                self.log.info('ELB is healthy. Exiting.')
+                self.log.info('ELB is healthy.')
                 break
 
-            # Not healthy :( continue looping
-
+            # In dry mode, fake it
             if self._dry:
                 self.log.info('Pretending that ELB is healthy.')
                 break
 
+            # Not healthy :( continue looping
             self.log.info('Retrying in 3 seconds.')
             yield utils.tornado_sleep(3)
 

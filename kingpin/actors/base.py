@@ -54,7 +54,7 @@ if os.getenv('URLLIB_DEBUG', None):
 class LogAdapter(logging.LoggerAdapter):
 
     def process(self, msg, kwargs):
-        return ('[%s%s] %s' % (self.extra['desc'], self.extra['dry'], msg),
+        return ('[%s%s] %s' % (self.extra['dry'], self.extra['desc'], msg),
                 kwargs)
 
 
@@ -83,21 +83,11 @@ class BaseActor(object):
 
         self.log.debug('Initialized')
 
-    @gen.coroutine
-    def find_problems(self):
-        """Call private method or log a warning."""
-        if hasattr(self, '_find_problems'):
-            problems = yield self._find_problems()
-            raise gen.Return(problems)
-        else:
-            self.log.warning('This actor does not have a problem finder.')
-        raise gen.Return([])
-
     def _setup_log(self):
         """Create a customized logging object based on the LogAdapter."""
         name = '%s.%s' % (self.__module__, self.__class__.__name__)
         logger = logging.getLogger(name)
-        dry_str = ' (DRY Mode)' if self._dry else ''
+        dry_str = 'DRY: ' if self._dry else ''
 
         self.log = LogAdapter(logger, {'desc': self._desc, 'dry': dry_str})
 
@@ -135,10 +125,12 @@ class BaseActor(object):
         """
         self.log.info('Beginning')
         result = yield self._execute()
+
         if result:
-            self.log.info('Finished successfully. Result: %s' % result)
+            self.log.info('Finished successfully.')
         else:
-            self.log.warning('Finished with errors. Result: %s' % result)
+            self.log.warning('Finished with errors.')
+
         raise gen.Return(result)
 
 
