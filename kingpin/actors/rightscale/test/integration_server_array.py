@@ -45,7 +45,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         self.template_script = 'kingpin-integration-testing-script'
         self.clone_name = 'kingpin-%s' % UUID
 
-    @attr('integration')
+    @attr('integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_01a_clone_dry(self):
         actor = server_array.Clone(
@@ -56,7 +56,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(True, ret)
 
-    @attr('integration')
+    @attr('integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_01b_clone_dry_with_missing_template(self):
         actor = server_array.Clone(
@@ -97,7 +97,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(api.ServerArrayException):
             yield actor.execute()
 
-    @attr('integration')
+    @attr('integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_03a_update_dry(self):
         actor = server_array.Update(
@@ -106,7 +106,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(True, ret)
 
-    @attr('integration')
+    @attr('integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_03b_update_dry_missing_array(self):
         actor = server_array.Update(
@@ -170,7 +170,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(True, ret)
 
-    @attr('integration')
+    @attr('integration', 'dry')
     @testing.gen_test(timeout=30)
     def integration_05a_launch_dry(self):
         # Launch the machines and wait until they boot
@@ -195,7 +195,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(True, ret)
 
-    @attr('integration')
+    @attr('integration', 'dry')
     @testing.gen_test(timeout=120)
     def integration_06a_execute_dry(self):
         actor = server_array.Execute(
@@ -240,7 +240,32 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(api.ServerArrayException):
             yield actor.execute()
 
+    @attr('integration', 'dry')
+    @testing.gen_test(timeout=120)
+    def integration_06d_execute_missing_recipe_dry(self):
+        actor = server_array.Execute(
+            'Execute missing::recipe',
+            {'array': self.clone_name,
+             'script': 'missing::recipe',
+             'inputs': {}},
+            dry=True)
+
+        success = yield actor.execute()
+        self.assertFalse(success)
+        
     @attr('integration')
+    @testing.gen_test(timeout=120)
+    def integration_06d_execute_missing_recipe(self):
+        actor = server_array.Execute(
+            'Execute missing::recipe',
+            {'array': self.clone_name,
+             'script': 'missing::recipe',
+             'inputs': {}})
+        with self.assertRaises(api.ServerArrayException):
+            yield actor.execute()
+        
+
+    @attr('integration', 'dry')
     @testing.gen_test(timeout=120)
     def integration_07a_destroy_dry(self):
         actor = server_array.Destroy(
