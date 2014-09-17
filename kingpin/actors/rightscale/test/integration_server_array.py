@@ -252,7 +252,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
 
         success = yield actor.execute()
         self.assertFalse(success)
-        
+
     @attr('integration')
     @testing.gen_test(timeout=120)
     def integration_06d_execute_missing_recipe(self):
@@ -263,7 +263,6 @@ class IntegrationServerArray(testing.AsyncTestCase):
              'inputs': {}})
         with self.assertRaises(api.ServerArrayException):
             yield actor.execute()
-        
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=120)
