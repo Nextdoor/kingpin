@@ -31,6 +31,10 @@ class TestBaseGroupActor(testing.AsyncTestCase):
             'desc': 'returns false',
             'actor': 'kingpin.actors.test.test_group.TestActor',
             'options': {'return_value': False}}
+        self.actor_with_a_problem = {
+            'desc': 'Problematic',
+            'actor': 'kingpin.actors.test.test_group.TestActor',
+            'options': {'problem': 'unit-test-problem'}}
 
     def test_build_actions(self):
         actor = group.BaseGroupActor(

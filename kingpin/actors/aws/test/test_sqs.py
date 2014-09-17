@@ -120,7 +120,7 @@ class TestDeleteSQSQueueActor(SQSTestCase):
 
     @testing.gen_test
     def test_execute_with_failure(self):
-        settings.SQSRETRYDELAY = 0
+        settings.SQS_RETRY_DELAY = 0
         reload(sqs)
         actor = sqs.Delete('Unit Test Action',
                            {'name': 'non-existent-queue',

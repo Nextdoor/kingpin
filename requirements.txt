@@ -1,5 +1,3 @@
-simplejson
-
 # General App Requirements
 tornado==3.2.2
 boto==2.32.1

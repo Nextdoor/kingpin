@@ -14,10 +14,7 @@
 
 """Common settings for AWS Actors"""
 
-import logging
 import os
-
-log = logging.getLogger(__name__)
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
@@ -27,4 +24,4 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')
 
-SQSRETRYDELAY = 30
+SQS_RETRY_DELAY = 30

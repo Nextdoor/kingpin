@@ -58,7 +58,6 @@ class TestRightScale(testing.AsyncTestCase):
             u_mock.assert_called_once_with(
                 self.mock_client.server_arrays, 'test', exact=True)
             self.assertEquals([1, 2, 3], ret)
-            u_mock.reset()
 
         with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
             u_mock.return_value = [1, 2, 3]
@@ -77,6 +76,22 @@ class TestRightScale(testing.AsyncTestCase):
             self.assertEquals(None, ret)
 
     @testing.gen_test
+    def test_find_cookbook(self):
+        self.client._client = mock.Mock()
+        resource = mock.Mock(name='Resource')
+        resource.soul = {'metadata': {'recipes': {'cook::book': True}}}
+        self.client._client.cookbooks.index.return_value = [resource]
+        ret = yield self.client.find_cookbook('cook::book')
+        self.assertEquals(resource, ret)
+
+    @testing.gen_test
+    def test_find_cookbook_empty_result(self):
+        with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
+            u_mock.return_value = None
+            ret = yield self.client.find_cookbook('cook::book')
+            self.assertEquals(None, ret)
+
+    @testing.gen_test
     def test_find_right_script(self):
         with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
             u_mock.return_value = 1
@@ -84,7 +99,6 @@ class TestRightScale(testing.AsyncTestCase):
             u_mock.assert_called_once_with(
                 self.mock_client.right_scripts, 'test', exact=True)
             self.assertEquals(1, ret)
-            u_mock.reset()
 
     @testing.gen_test
     def test_find_right_script_empty_result(self):
@@ -142,6 +156,15 @@ class TestRightScale(testing.AsyncTestCase):
         sa_mock.self.update.assert_called_once_with(params=params)
 
         self.assertEquals(ret, 'test')
+
+    @testing.gen_test
+    def test_get_server_array_inputs(self):
+        array = mock.Mock()
+        ret = yield self.client.get_server_array_inputs(array)
+
+        self.assertEquals(
+            ret,
+            array.next_instance.show().inputs.index())
 
     @testing.gen_test
     def test_update_server_array_inputs(self):

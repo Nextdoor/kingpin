@@ -81,6 +81,27 @@ def main():
         sys.exit(1)
 
     # Begin doing real stuff!
+    if not options.dry:
+        # do a dry run first, then do real one
+        dry_actor = actor_utils.get_actor(config, dry=True)
+        log.info('Rehearsing... Break a leg!')
+        message = ''
+        try:
+            success = yield dry_actor.execute()
+            if not success:
+                message = ('Some actors broke a leg during rehearsal. Read '
+                           'log output for more details.')
+        except actor_exceptions.ActorException as e:
+            success = False
+            message = e
+
+        if not success:
+            log.critical('Dry run failed. Reason:')
+            log.critical(message)
+            sys.exit(2)
+        else:
+            log.info('Rehearsal OK! Performing!')
+
     yield initial_actor.execute()
 
 
@@ -92,7 +113,18 @@ def begin():
         ioloop.IOLoop.instance().run_sync(main)
     except KeyboardInterrupt:
         log.info('CTRL-C Caught, shutting down')
-
+    except Exception as e:
+        # Skip traceback that involves site-packages.
+        import traceback
+        trace_lines = traceback.format_exc(e).splitlines()
+        skip_next = False
+        for l in trace_lines:
+            if 'site-packages' in l:
+                skip_next = True
+                continue
+            if not skip_next:
+                print l
+            skip_next = False
 
 if __name__ == '__main__':
     begin()
