@@ -214,7 +214,7 @@ class Delete(SQSBaseActor):
 
 class WaitUntilEmpty(SQSBaseActor):
 
-    """Waits for an SQS Queue to become empty."""
+    """Waits for one or more SQS Queues to become empty."""
 
     @concurrent.run_on_executor
     @utils.exception_logger
