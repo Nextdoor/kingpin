@@ -274,7 +274,7 @@ class TestRightScale(testing.AsyncTestCase):
         # task succeeds
         mock_task = mock.MagicMock(name='fake task')
         mock_task.self.show.side_effect = [queued, in_process, success]
-        ret = yield self.client.wait_for_task(mock_task, sleep=0.1)
+        ret = yield self.client.wait_for_task(mock_task, sleep=0.01)
         self.assertEquals(ret, True)
         mock_task.assert_has_calls(
             [mock.call.self.show(), mock.call.self.show(),
@@ -283,7 +283,7 @@ class TestRightScale(testing.AsyncTestCase):
         # task completed
         mock_task = mock.MagicMock(name='fake task')
         mock_task.self.show.side_effect = [queued, in_process, completed]
-        ret = yield self.client.wait_for_task(mock_task, sleep=0.1)
+        ret = yield self.client.wait_for_task(mock_task, sleep=0.01)
         self.assertEquals(ret, True)
         mock_task.assert_has_calls(
             [mock.call.self.show(), mock.call.self.show(),
@@ -292,7 +292,7 @@ class TestRightScale(testing.AsyncTestCase):
         # task fails
         mock_task = mock.MagicMock(name='fake task')
         mock_task.self.show.side_effect = [queued, in_process, failed]
-        ret = yield self.client.wait_for_task(mock_task, sleep=0.1)
+        ret = yield self.client.wait_for_task(mock_task, sleep=0.01)
         self.assertEquals(ret, False)
         mock_task.assert_has_calls(
             [mock.call.self.show(), mock.call.self.show(),
