@@ -188,8 +188,13 @@ class Update(ServerArrayBaseActor):
             if 'inputs' in self._options:
                 self.log.info('New inputs: %s' % self._options['inputs'])
 
-                inputs_ok = yield self._check_array_inputs(
-                    array, self._options['inputs'])
+                if isinstance(array, mock.Mock):
+                    self.log.warning(
+                        'Cannot check inputs for non-existent array.')
+                    inputs_ok = True
+                else:
+                    inputs_ok = yield self._check_array_inputs(
+                        array, self._options['inputs'])
 
                 ok = ok and inputs_ok
 

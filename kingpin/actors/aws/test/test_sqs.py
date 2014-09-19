@@ -1,6 +1,7 @@
 import logging
 
 from tornado import testing
+from tornado import gen
 import boto.sqs.connection
 import boto.sqs.queue
 import mock
@@ -9,6 +10,18 @@ from kingpin.actors.aws import settings
 from kingpin.actors.aws import sqs
 
 log = logging.getLogger(__name__)
+
+
+def mock_tornado(value=None):
+    """Creates a mock for a coroutine function that returns `value`"""
+
+    @gen.coroutine
+    def call(*args, **kwargs):
+        call._call_count = call._call_count + 1
+        raise gen.Return(value)
+
+    call._call_count = 0
+    return call
 
 
 class SQSTestCase(testing.AsyncTestCase):
@@ -134,43 +147,31 @@ class TestWaitUntilQueueEmptyActor(SQSTestCase):
 
     @testing.gen_test
     def test_execute(self):
-        self.actor = sqs.WaitUntilEmpty('UTA!',
-                                        {'name': 'unit-test-queue',
-                                         'region': 'us-west-2'})
+        actor = sqs.WaitUntilEmpty('UTA!',
+                                   {'name': 'unit-test-queue',
+                                    'region': 'us-west-2'})
 
-        self.conn().get_queue().count.return_value = 0
-        yield self.actor.execute()
-
-    @testing.gen_test
-    def test_wrong_queuename(self):
-        self.actor = sqs.WaitUntilEmpty('UTA!',
-                                        {'name': 'unit-test-queue',
-                                         'region': 'us-west-2'})
-
-        self.conn().get_queue.return_value = None
-        with self.assertRaises(Exception):
-            yield self.actor.execute()
+        actor._wait = mock_tornado(True)
+        actor._fetch_queues = mock_tornado([mock.Mock()])
+        yield actor.execute()
 
     @testing.gen_test
-    def test_dry_run(self):
-        self.actor = sqs.WaitUntilEmpty('UTA!',
-                                        {'name': 'unit-test-queue',
-                                         'region': 'us-west-2'},
-                                        dry=True)
-
-        self.conn().get_queue().count.return_value = 10  # Note: NOT zero
-        yield self.actor.execute()
-
-        # Dry run means count should not be called.
-        self.assertFalse(self.conn().get_queue().count.called)
+    def test_wait(self):
+        actor = sqs.WaitUntilEmpty('UTA!',
+                                   {'name': 'unit-test-queue',
+                                    'region': 'us-west-2'})
+        queue = mock.Mock()
+        queue.count.side_effect = [1, 0]
+        yield actor._wait(queue, sleep=0)
+        self.assertEqual(queue.count.call_count, 2)
 
     @testing.gen_test
-    def test_sleep_and_retry(self):
-        self.actor = sqs.WaitUntilEmpty('UTA!',
-                                        {'name': 'unit-test-queue',
-                                         'region': 'us-west-2'})
-
-        self.conn().get_queue().count.side_effect = [3, 2, 1, 0]
-        yield self.actor._wait('unit-name', sleep=0)
-
-        self.assertEquals(self.conn().get_queue().count.call_count, 4)
+    def test_wait_dry(self):
+        actor = sqs.WaitUntilEmpty('UTA!',
+                                   {'name': 'unit-test-queue',
+                                    'region': 'us-west-2'},
+                                   dry=True)
+        queue = mock.Mock()
+        queue.count.side_effect = [1, 2]  # Not zero!
+        yield actor._wait(queue, sleep=0)
+        self.assertEqual(queue.count.call_count, 0)
