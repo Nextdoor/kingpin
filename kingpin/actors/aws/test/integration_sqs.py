@@ -42,9 +42,20 @@ class IntegrationSQS(testing.AsyncTestCase):
     queue_name = 'integration-test-%s' % UUID
     region = 'us-east-1'
 
+    @attr('integration', 'dry')
+    @testing.gen_test(timeout=60)
+    def integration_01a_create_queue_dry(self):
+        actor = sqs.Create(
+            'Create %s' % self.queue_name,
+            {'name': self.queue_name,
+             'region': self.region},
+            dry=True)
+        done = yield actor.execute()
+        self.assertTrue(done)
+
     @attr('integration')
     @testing.gen_test(timeout=60)
-    def integration_01_create_queue(self):
+    def integration_01b_create_queue(self):
         actor = sqs.Create(
             'Create %s' % self.queue_name,
             {'name': self.queue_name,
@@ -52,9 +63,21 @@ class IntegrationSQS(testing.AsyncTestCase):
         done = yield actor.execute()
         self.assertTrue(done)
 
+    @attr('integration', 'dry')
+    @testing.gen_test(timeout=60)
+    def integration_02a_monitor_queue_dry(self):
+        actor = sqs.WaitUntilEmpty('Wait until empty',
+                                   {'name': self.queue_name,
+                                    'region': self.region},
+                                   dry=True)
+
+        success = yield actor.execute()
+
+        self.assertTrue(success)
+
     @attr('integration')
     @testing.gen_test(timeout=60)
-    def integration_02_monitor_queue(self):
+    def integration_02b_monitor_queue(self):
 
         actor = sqs.WaitUntilEmpty('Wait until empty',
                                    {'name': self.queue_name,
@@ -69,9 +92,20 @@ class IntegrationSQS(testing.AsyncTestCase):
 
         self.assertTrue(success)
 
+    @attr('integration', 'dry')
+    @testing.gen_test()
+    def integration_03a_delete_queue_dry(self):
+        actor = sqs.Delete('Delete %s' % self.queue_name,
+                           {'name': self.queue_name,
+                            'region': self.region},
+                           dry=True)
+
+        done = yield actor.execute()
+        self.assertTrue(done)
+
     @attr('integration')
     @testing.gen_test(timeout=120)  # Delete actor sleeps and retries.
-    def integration_03_delete_queue(self):
+    def integration_03b_delete_queue(self):
 
         actor = sqs.Delete('Delete %s' % self.queue_name,
                            {'name': self.queue_name,

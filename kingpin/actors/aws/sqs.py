@@ -100,6 +100,21 @@ class SQSBaseActor(base.BaseActor):
 
         return match[0]
 
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    def _fetch_queues(self, pattern):
+        """Searches SQS for all queues with a matching name pattern.
+
+        Args:
+            pattern: string - regex used in `re.match()`
+
+        Returns:
+            Array of matched queues, even if empty.
+        """
+        queues = self.conn.get_all_queues()
+        match_queues = [q for q in queues if re.match(pattern, q.name)]
+        return match_queues
+
 
 class Create(SQSBaseActor):
 
@@ -155,21 +170,6 @@ class Delete(SQSBaseActor):
 
     @concurrent.run_on_executor
     @utils.exception_logger
-    def _fetch_queues(self, pattern):
-        """Searches SQS for all queues with a matching name pattern.
-
-        Args:
-            pattern: string - regex used in `re.match()`
-
-        Returns:
-            Array of matched queues, even if empty.
-        """
-        queues = self.conn.get_all_queues()
-        match_queues = [q for q in queues if re.match(pattern, q.name)]
-        return match_queues
-
-    @concurrent.run_on_executor
-    @utils.exception_logger
     def _delete_queue(self, queue):
         """Delete the provided queue.
 
@@ -197,7 +197,7 @@ class Delete(SQSBaseActor):
         pattern = self._options['name']
         matched_queues = yield self._fetch_queues(pattern=pattern)
 
-        if not matched_queues:
+        if not matched_queues and not self._dry:
             raise SQSQueueNotFoundException(
                 'No queues with pattern "%s" found.' % pattern)
 
@@ -214,44 +214,36 @@ class Delete(SQSBaseActor):
 
 class WaitUntilEmpty(SQSBaseActor):
 
-    """Waits for an SQS Queue to become empty."""
-
-    # TODO(Mikhail): Make this actor monitor several queues based on a pattern
+    """Waits for one or more SQS Queues to become empty."""
 
     @concurrent.run_on_executor
     @utils.exception_logger
-    def _wait(self, name, sleep=3):
+    def _wait(self, queue, sleep=3):
         """Sleeps until an SQS Queue has emptied out.
 
         Args:
-            name: String name of the queue to monitor
+            queue: AWS SQS Queue object
             sleep: Int of seconds to wait between checks
 
         Returns:
             True: When queue is empty.
         """
 
-        q = self.conn.get_queue(name)
-
-        if not q:
-            raise exceptions.UnrecoverableActionFailure(
-                'Queue not found: %s' % name)
-
         count = 0
         while True:
             if not self._dry:
-                self.log.info('Counting %s' % q.url)
-                count = q.count()
+                self.log.debug('Counting %s' % queue.url)
+                count = queue.count()
             else:
-                self.log.info('Pretending that count is 0 for %s' % q.url)
+                self.log.info('Pretending that count is 0 for %s' % queue.url)
                 count = 0
 
-            self.log.info('Queue has %s messages in it.' % count)
+            self.log.debug('Queue has %s messages in it.' % count)
             if count > 0:
-                self.log.info('Waiting for the queue to become empty...')
+                self.log.info('Waiting on %s to become empty...' % queue.name)
                 time.sleep(sleep)
             else:
-                self.log.info('Queue is empty!')
+                self.log.debug('Queue is empty!')
                 break
 
         return True
@@ -262,8 +254,17 @@ class WaitUntilEmpty(SQSBaseActor):
 
         raises: gen.Return(True)
         """
-        self.log.info('Waiting for queue "%s" to become empty.' %
+        self.log.info('Waiting for "%s" queues to become empty.' %
                       self._options['name'])
-        result = yield self._wait(name=self._options['name'])
+        pattern = self._options['name']
+        matched_queues = yield self._fetch_queues(pattern)
+        sleepers = []
+        for q in matched_queues:
+            sleepers.append(self._wait(queue=q))
 
-        raise gen.Return(result)
+        self.log.info('%s queues need to be empty.' % len(matched_queues))
+        self.log.info([q.name for q in matched_queues])
+        yield sleepers
+        self.log.info('All queues report empty.')
+
+        raise gen.Return(True)
