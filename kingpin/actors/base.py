@@ -204,7 +204,7 @@ class HTTPBaseActor(BaseActor):
     # garbled data (ie, maybe a 500 errror or something else thats not in
     # JSON format, we should back off and try again.
     @gen.coroutine
-    def _fetch(self, url, post=None):
+    def _fetch(self, url, post=None, auth_username=None, auth_password=None):
         """Executes a web request asynchronously and yields the body.
 
         Args:
@@ -222,8 +222,8 @@ class HTTPBaseActor(BaseActor):
             method=self._get_method(post),
             body=post,
             headers=self.headers,
-            auth_username=None,
-            auth_password=None,
+            auth_username=auth_username,
+            auth_password=auth_password,
             follow_redirects=True,
             max_redirects=10)
 
