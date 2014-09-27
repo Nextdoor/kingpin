@@ -13,4 +13,4 @@ Examples
 
 **Dry Mode**
 
-Fully supported -- does not actually do anything, just logs dry mode.
+Currently does not actually do anything, just logs dry mode.
