@@ -33,6 +33,7 @@ API_URL = 'https://metrics-api.librato.com/v1/annotations/'
 TOKEN = os.getenv('LIBRATO_TOKEN', None)
 EMAIL = os.getenv('LIBRATO_EMAIL', None)
 
+
 class Annotation(base.HTTPBaseActor):
 
     """Simple Librato Message sending actor using their API:
@@ -55,7 +56,6 @@ class Annotation(base.HTTPBaseActor):
         if not TOKEN:
             raise exceptions.InvalidCredentials(
                 'Missing the "LIBRATO_TOKEN" environment variable.')
-
 
     @gen.coroutine
     def _fetch_wrapper(self, *args, **kwargs):

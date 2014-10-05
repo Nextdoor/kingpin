@@ -1,6 +1,6 @@
 ##### librato.Annotation
 
-Posts a Annotation to Librato.
+Posts an Annotation to Librato.
 
 **Options**
 

@@ -1,6 +1,6 @@
 ##### hipchat.Message
 
-Sends a message to a room in HipChat
+Sends a message to a room in HipChat.
 
 **Options**
 

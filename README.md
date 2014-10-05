@@ -74,7 +74,7 @@ The JSON schema is simple. We take a single JSON object that has 3 fields:
     For example, `kingpin.actors.rightscale.server_array.Clone`, or
     `misc.Sleep`.
   * `desc` - A text-string describing the name of the stage or action. Meant to
-    ensure that the logs are very human readable.              
+    ensure that the logs are very human readable.
   * `options` - A dictionary of key/value pairs that are required for the
     specific `actor` that you're instantiating. See individual Actor
     documentation below for these options.
@@ -111,7 +111,7 @@ and these examples of execution.
     $ RELEASE=0001a kingpin -j examples/complex.json -d
     2014-09-01 21:29:56,027 ERROR     Invalid Configuration Detected: Found un-matched tokens in JSON string: ['%OLD_RELEASE%']
 
-    # Finally we set both variables and the code begins..
+    # Finally we set both variables and the code begins...
     $ OLD_RELEASE=0000a RELEASE=0001a kingpin -j examples/complex.json -d
     2014-09-01 21:30:03,886 INFO      [Main (DRY Mode)] Beginning
     2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Beginning
@@ -136,7 +136,7 @@ and reliable groups of actions to be executed.
 
   * `URLLIB_DEBUG` - Set this variable to enable extreme debug logging of the
     URLLIB requests made by the RightScale/AWS actors.
-    _Note, this is very insecure as headers/cookies/etc._
+    _Note, this is very insecure as headers/cookies/etc. are exposed_
 
 **Actor-specific Documentation**
 
@@ -146,7 +146,10 @@ and reliable groups of actions to be executed.
 
 #### AWS
 
-The AWS Actors allow you to interact with the resources (such as SQS and ELB) inside your Amazon AWS account. These actors all support dry runs properly, but each actor has its own caveats with `dry=True`. Please read the instructions below for using each actor.
+The AWS Actors allow you to interact with the resources (such as SQS and ELB)
+inside your Amazon AWS account. These actors all support dry runs properly, but
+each actor has its own caveats with `dry=True`. Please read the instructions
+below for using each actor.
 
 **Required Environment Variables**
 
@@ -162,10 +165,10 @@ The AWS Actors allow you to interact with the resources (such as SQS and ELB) in
 
 #### HipChat
 
-The Hipchat Actors allow you to send messages to a HipChat room during
-as stages during your job execution. The actor supports dry mode by validating
-that the configured API Token has access to execute the methods, without
-actually sending the messages.
+The Hipchat Actors allow you to send messages to a HipChat room at stages during
+your job execution. The actor supports dry mode by validating that the
+configured API Token has access to execute the methods, without actually sending
+the messages.
 
 **Required Environment Variables**
 
@@ -176,6 +179,21 @@ actually sending the messages.
 **Actor-specific Documentation**
 
   * [hipchat.Message](docs/actors/hipchat.Message.md)
+
+#### Librato
+
+The Librato Actor allows you to post an Annotation to Librato. This is
+specifically useful for marking when deployments occur on your graphs for
+cause/effect analysis.
+
+**Required Environment Variables**
+
+  * `LIBRATO_TOKEN` - Librato API Token
+  * `LIBRATO_EMAIL` - Librato email account (i.e. username)
+
+**Actor-specific Documentation**
+
+  * [librato.Annotation](docs/actors/librato.Annotation.md)
 
 #### RightScale
 
