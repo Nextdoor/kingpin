@@ -39,7 +39,7 @@ class Annotation(base.HTTPBaseActor):
     """Simple Librato Message sending actor using their API:
     http://dev.librato.com/v1/post/annotations/:name"""
 
-    required_options = ['title', 'description']
+    required_options = ['title', 'description', 'metric']
 
     def __init__(self, *args, **kwargs):
         """Initializes the Actor.
@@ -57,6 +57,10 @@ class Annotation(base.HTTPBaseActor):
             raise exceptions.InvalidCredentials(
                 'Missing the "LIBRATO_TOKEN" environment variable.')
 
+        if not EMAIL:
+            raise exceptions.InvalidCredentials(
+                'Missing the "LIBRATO_EMAIL" environment variable.')
+
     @gen.coroutine
     def _fetch_wrapper(self, *args, **kwargs):
         """Wrap the superclass _fetch method to catch known Librato errors."""
@@ -66,7 +70,7 @@ class Annotation(base.HTTPBaseActor):
             if e.code == 401:
                 # "The authentication you provided is invalid."
                 raise exceptions.InvalidCredentials(
-                    'The "LIBRATO_TOKEN" supplied is invalid.')
+                    'Librato authentication failed.')
             raise
 
         raise gen.Return(res)
@@ -77,15 +81,17 @@ class Annotation(base.HTTPBaseActor):
 
         raises: gen.Return(True)
         """
-        self.log.info('Annotating "%s"' % self._options['title'])
+        self.log.info(
+            "Annotating metric '%s' with title:'%s', description:'%s'" % (
+                self._options['metric'], self._options['title'],
+                self._options['description']))
         url = API_URL + self._options['metric']
         args = urllib.urlencode({'title': self._options['title'],
                                  'description': self._options['description']})
         if self._dry:
             # TODO test credentials
             self.log.info('Skipping annotation')
-            res = True
         else:
-            res = yield self._fetch_wrapper(
+            yield self._fetch_wrapper(
                 url, post=args, auth_username=EMAIL, auth_password=TOKEN)
-        raise gen.Return(res)
+        raise gen.Return(True)

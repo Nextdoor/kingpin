@@ -6,10 +6,12 @@ Posts an Annotation to Librato.
 
   * `title` - The title of the annotation
   * `description` - The description of the annotation
+  * `metric` - Name of the metric to annotate
 
 Examples
 
-    { 'title': 'Deploy', 'description': 'Version: 0001a' }
+    { 'title': 'Deploy', 'description': 'Version: 0001a',
+      'metric': 'production_releases' }
 
 **Dry Mode**
 
