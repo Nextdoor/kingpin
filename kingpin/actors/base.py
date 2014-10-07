@@ -210,6 +210,8 @@ class HTTPBaseActor(BaseActor):
         Args:
             url: (Str) The full url path of the API call
             post: (Str) POST body data to submit (if any)
+            auth_username: (str) HTTP auth username
+            auth_password: (str) HTTP auth password
         """
 
         # Generate the full request URL and log out what we're doing...
