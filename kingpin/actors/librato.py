@@ -29,7 +29,10 @@ log = logging.getLogger(__name__)
 __author__ = 'Charles McLaughlin <charles@nextdoor.com>'
 
 API_CONTENT_TYPE = 'application/x-www-form-urlencoded'
-API_URL = 'https://metrics-api.librato.com/v1/annotations/'
+API_URL = 'https://metrics-api.librato.com/v1/'
+ANNOTATIONS_URL = API_URL + 'annotations/'
+METRICS_URL = API_URL + 'metrics'  # Used to test auth
+
 TOKEN = os.getenv('LIBRATO_TOKEN', None)
 EMAIL = os.getenv('LIBRATO_EMAIL', None)
 
@@ -67,6 +70,10 @@ class Annotation(base.HTTPBaseActor):
         try:
             res = yield self._fetch(*args, **kwargs)
         except httpclient.HTTPError as e:
+            if e.code == 400:
+                # "HTTPError: HTTP 400: Bad Request"
+                raise exceptions.BadRequest(
+                    'Check your JSON inputs.')
             if e.code == 401:
                 # "The authentication you provided is invalid."
                 raise exceptions.InvalidCredentials(
@@ -81,17 +88,21 @@ class Annotation(base.HTTPBaseActor):
 
         raises: gen.Return(True)
         """
-        self.log.info(
-            "Annotating metric '%s' with title:'%s', description:'%s'" % (
-                self._options['name'], self._options['title'],
-                self._options['description']))
-        url = API_URL + self._options['name']
-        args = urllib.urlencode({'title': self._options['title'],
-                                 'description': self._options['description']})
+
         if self._dry:
-            # TODO test credentials
-            self.log.info('Skipping annotation')
-        else:
+            self.log.info('Testing Librato auth, skipping annotation')
             yield self._fetch_wrapper(
-                url, post=args, auth_username=EMAIL, auth_password=TOKEN)
+                METRICS_URL, auth_username=EMAIL, auth_password=TOKEN)
+        else:
+            self.log.info(
+                "Annotating metric '%s' with title:'%s', description:'%s'" % (
+                    self._options['name'], self._options['title'],
+                    self._options['description']))
+            url = ANNOTATIONS_URL + self._options['name']
+            args = urllib.urlencode(
+                {'title': self._options['title'],
+                 'description': self._options['description']})
+
+            yield self._fetch_wrapper(url, post=args,
+                                      auth_username=EMAIL, auth_password=TOKEN)
         raise gen.Return(True)
