@@ -39,7 +39,7 @@ class Annotation(base.HTTPBaseActor):
     """Simple Librato Message sending actor using their API:
     http://dev.librato.com/v1/post/annotations/:name"""
 
-    required_options = ['title', 'description', 'metric']
+    required_options = ['title', 'description', 'name']
 
     def __init__(self, *args, **kwargs):
         """Initializes the Actor.
@@ -49,7 +49,7 @@ class Annotation(base.HTTPBaseActor):
             options: Dictionary with the following settings:
               { 'title': <annotation title>,
                 'description': <annotation description>,
-                'metric': <metric to annotate>}
+                'name': <name of the to annotate>}
         """
         super(Annotation, self).__init__(*args, **kwargs)
 
@@ -83,9 +83,9 @@ class Annotation(base.HTTPBaseActor):
         """
         self.log.info(
             "Annotating metric '%s' with title:'%s', description:'%s'" % (
-                self._options['metric'], self._options['title'],
+                self._options['name'], self._options['title'],
                 self._options['description']))
-        url = API_URL + self._options['metric']
+        url = API_URL + self._options['name']
         args = urllib.urlencode({'title': self._options['title'],
                                  'description': self._options['description']})
         if self._dry:
