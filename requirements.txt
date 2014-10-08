@@ -1,5 +1,8 @@
 # General App Requirements
-tornado>=3.2.2
+#
+# NOTE: Integration tests for actors.aws.elb are broken in Tornado 4.0 due to
+# changes in the way the concurrent.futures package is handled.
+tornado>=3.2.2,<4.0
 
 # Used to make synchronous tasks asynchronous
 futures
