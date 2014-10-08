@@ -17,6 +17,7 @@ environment. All of our examples below will show how to do this.
     $ virtualenv .venv --no-site-packages
     New python executable in .venv/bin/python
     Installing setuptools, pip...done.
+    $ source .venv/bin/activate
     (.venv) $ git clone https://github.com/Nextdoor/kingpin
     Cloning into 'kingpin'...
     remote: Counting objects: 1824, done.
@@ -37,6 +38,7 @@ environment. All of our examples below will show how to do this.
     $ virtualenv .venv --no-site-packages
     New python executable in .venv/bin/python
     Installing setuptools, pip...done.
+    $ source .venv/bin/activate
     (.venv) $ git clone https://github.com/Nextdoor/kingpin
     (.venv)$ pip install --process-dependency-links git+https://github.com/Nextdoor/kingpin.git
     Downloading/unpacking git+https://github.com/Nextdoor/kingpin.git
