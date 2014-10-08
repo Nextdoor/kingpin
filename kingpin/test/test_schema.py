@@ -1,4 +1,4 @@
-import commentjson as json
+import demjson
 import os
 
 import unittest
@@ -16,16 +16,16 @@ class TestSchema(unittest.TestCase):
         self.examples = '%s/../../examples' % dirname
 
     def test_validate_with_simple_json(self):
-        simple = json.loads(open('%s/simple.json' % self.examples).read())
-        ret = schema.validate(simple)
+        json = demjson.decode(open('%s/simple.json' % self.examples).read())
+        ret = schema.validate(json)
         self.assertEquals(None, ret)
 
     def test_validate_with_complex_json(self):
-        complex = json.loads(open('%s/complex.json' % self.examples).read())
-        ret = schema.validate(complex)
+        json = demjson.decode(open('%s/complex.json' % self.examples).read())
+        ret = schema.validate(json)
         self.assertEquals(None, ret)
 
     def test_validate_with_invalid_json(self):
-        complex = {'this': 'is', 'invalid': 'ok'}
+        json = {'this': 'is', 'invalid': 'ok'}
         with self.assertRaises(exceptions.InvalidJSON):
-            schema.validate(complex)
+            schema.validate(json)
