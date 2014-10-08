@@ -15,7 +15,7 @@ retrying
 # kingpin.actors.rightscale
 #
 # NOTE: Version specified in the setup.py file
-# python-rightscale
+python-rightscale
 
 # kingpin.actors.aws
 boto>=2.32.1
