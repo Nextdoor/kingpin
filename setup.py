@@ -24,9 +24,9 @@ from setuptools import Command
 from setuptools import setup
 from setuptools import find_packages
 
+from kingpin.version import __version__
+
 PACKAGE = 'kingpin'
-__version__ = None
-execfile(os.path.join(PACKAGE, 'version.py'))  # set __version__
 
 
 def maybe_rm(path):
