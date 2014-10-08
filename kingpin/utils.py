@@ -19,7 +19,7 @@ Common package for utility functions.
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
 from logging import handlers
-import commentjson as json
+import demjson
 import logging
 import os
 import re
@@ -261,4 +261,4 @@ def convert_json_to_dict(json_file):
     """
     raw = open(json_file).read()
     parsed = populate_with_env(raw)
-    return json.loads(parsed)
+    return demjson.decode(parsed)
