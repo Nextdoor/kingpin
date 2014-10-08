@@ -44,5 +44,6 @@ class UnrecoverableActionFailure(ActorException):
 
     """An action failed, and is unrecoverable or retryable."""
 
+
 class BadRequest(ActorException):
     """An action failed due to a HTTP 400 error likely due to bad input. """
