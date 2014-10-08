@@ -134,6 +134,27 @@ However, much more complex configurations can be created by using the
 `group.Sync` and `group.Async` actors to describe massively more complex
 deployents.
 
+##### JSON Commenting
+
+Because these JSON scripts can get quite large, Kingping leverages the
+`demjson` package to parse your script. This package is slightly more graceful
+when handling syntax issues (extra commas, for example), and allows for
+JavaScript style commenting inside of the script.
+
+Take this example:
+
+    { "actor": "misc.Sleep",
+    
+      /* Cool description */
+      "desc": 'This is funny',
+    
+      /* This shouldn't end with a comma, but does */
+      "options": { "time": 30 }, }
+
+
+The above example would fail to parse in most JSON parsers, but in `demjson`
+it works just fine.
+
 ##### Token-replacement
 
 In an effort to allow for more re-usable JSON files, _tokens_ can be inserted
