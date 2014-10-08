@@ -16,17 +16,15 @@ import os
 import sys
 import shutil
 
-import nose
-
 from distutils.command.clean import clean
 from distutils.command.sdist import sdist
 from setuptools import Command
 from setuptools import setup
 from setuptools import find_packages
 
+from kingpin.version import __version__
+
 PACKAGE = 'kingpin'
-__version__ = None
-execfile(os.path.join(PACKAGE, 'version.py'))  # set __version__
 
 
 def maybe_rm(path):
@@ -98,6 +96,9 @@ class UnitTestCommand(Command):
         pass
 
     def run(self):
+        # (imported here so that the setup.py can install the rest of the test
+        # requirements, including nose...)
+        import nose
         maybe_rm('.coverage')
         val = nose.run(argv=self.args)
 
@@ -156,9 +157,8 @@ setup(
     setup_requires=open('requirements.txt').readlines(),
     install_requires=open('requirements.txt').readlines(),
     dependency_links=[
-        'https://github.com/equeny/tornadomail/archive/e413b81450bf94b4db3cad1815affb8b2dce6b41.zip#egg=tornadomail',
-        'https://github.com/diranged/python-rightscale-1/archive/retries.zip#egg=python-rightscale',
-    ],
+        'http://github.com/diranged/python-rightscale-1/tarball/fix_pip_install#egg=python-rightscale-0.1.2'
+        ],
     entry_points={
         'console_scripts': [
             'kingpin = kingpin.bin.deploy:begin'

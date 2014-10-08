@@ -9,9 +9,8 @@ all: build
 
 build: .build
 
-.build: requirements.txt requirements.test.txt
+.build: requirements.test.txt
 	pip install -r requirements.test.txt
-	python setup.py install
 	touch .build
 
 clean:
