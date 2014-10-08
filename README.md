@@ -4,6 +4,46 @@
 
 The Kingpin of your Deployment Model
 
+## Installation
+
+Currently this package is not published to PyPI, so you have to install either
+by checking the code out of GitHub or via a special Pip command line.
+
+Note, we *strongly* recommend running the code inside a Python virtual
+environment. All of our examples below will show how to do this.
+
+### Github Checkout/Install
+
+    $ virtualenv .venv --no-site-packages
+    New python executable in .venv/bin/python
+    Installing setuptools, pip...done.
+    (.venv) $ git clone https://github.com/Nextdoor/kingpin
+    Cloning into 'kingpin'...
+    remote: Counting objects: 1824, done.
+    remote: Compressing objects: 100% (10/10), done.
+    remote: Total 1824 (delta 4), reused 0 (delta 0)
+    Receiving objects: 100% (1824/1824), 283.35 KiB, done.
+    Resolving deltas: 100% (1330/1330), done.
+    (.venv)$ cd kingpin/
+    (.venv)$ python setup.py install
+    warning: no files found matching 'boto/mturk/test/*.doctest'
+    warning: no files found matching 'boto/mturk/test/.gitignore'
+    zip_safe flag not set; analyzing archive contents...
+    ...
+    ...
+
+### Direct PIP Install
+
+    $ virtualenv .venv --no-site-packages
+    New python executable in .venv/bin/python
+    Installing setuptools, pip...done.
+    (.venv) $ git clone https://github.com/Nextdoor/kingpin
+    (.venv)$ pip install --process-dependency-links git+https://github.com/Nextdoor/kingpin.git
+    Downloading/unpacking git+https://github.com/Nextdoor/kingpin.git
+      Cloning https://github.com/Nextdoor/kingpin.git (to master) to /var/folders/j6/qyd2dp6n3f156h6xknndt35m00010b/T/pip-H9LwNt-build
+    ...
+    ...
+
 ## Basic Use
 
     Usage: kingpin <options>
