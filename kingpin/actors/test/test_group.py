@@ -48,13 +48,10 @@ class TestBaseGroupActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_success(self):
-        actor = group.BaseGroupActor(
-            'Unit Test Action',
-            {'acts': [dict(self.actor_return_true),
-                      dict(self.actor_return_true),
-                      dict(self.actor_return_true),
-                      dict(self.actor_return_true)]})
+        actor = group.BaseGroupActor('Unit Test Action', {'acts': []})
 
+        # Mock out the _run_actions method and make sure it just returns two
+        # True results.
         @gen.coroutine
         def run_actions_true(*args, **kwargs):
             raise gen.Return([True, True])
@@ -63,17 +60,15 @@ class TestBaseGroupActor(testing.AsyncTestCase):
         ret = yield actor._execute()
         self.assertEquals(True, ret)
 
+    @testing.gen_test
     def test_execute_failure(self):
-        actor = group.BaseGroupActor(
-            'Unit Test Action',
-            {'acts': [dict(self.actor_return_true),
-                      dict(self.actor_return_true),
-                      dict(self.actor_return_false),
-                      dict(self.actor_return_true)]})
+        actor = group.BaseGroupActor('Unit Test Action', {'acts': []})
 
+        # Mock out the _run_actions method and make sure it just returns one
+        # True and one False results.
         @gen.coroutine
         def run_actions_true(*args, **kwargs):
-            raise gen.Return([True, True])
+            raise gen.Return([True, False])
         actor._run_actions = run_actions_true
 
         ret = yield actor._execute()
