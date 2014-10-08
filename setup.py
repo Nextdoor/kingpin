@@ -16,8 +16,6 @@ import os
 import sys
 import shutil
 
-import nose
-
 from distutils.command.clean import clean
 from distutils.command.sdist import sdist
 from setuptools import Command
@@ -98,6 +96,9 @@ class UnitTestCommand(Command):
         pass
 
     def run(self):
+        # (imported here so that the setup.py can install the rest of the test
+        # requirements, including nose...)
+        import nose
         maybe_rm('.coverage')
         val = nose.run(argv=self.args)
 
