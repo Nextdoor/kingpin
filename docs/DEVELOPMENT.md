@@ -1,5 +1,33 @@
 ## Development
 
+### Setting up your Environment
+
+#### Create your VirtualEnvironment
+
+    $ virtualenv .venv --no-site-packages
+    New python executable in .venv/bin/python
+    Installing setuptools, pip...done.
+    $ source .venv/bin/activate
+
+#### Check out the code
+
+    (.venv) $ git clone git@github.com:Nextdoor/kingpin
+    Cloning into 'kingpin'...
+    Warning: Permanently added 'github.com,192.30.252.128' (RSA) to the list of known hosts.
+    remote: Counting objects: 1831, done.
+    remote: irangedCompressing objects: 100% (17/17), done.
+    remote: Total 1831 (delta 7), reused 0 (delta 0)
+    Receiving objects: 100% (1831/1831), 287.68 KiB, done.
+    Resolving deltas: 100% (1333/1333), done.
+
+#### Install the test-specific dependencies
+
+    (.venv) $ pip install -r kingpin/requirements.test.txt
+    ...
+    (.venv) $ cd kingpin
+    (.venv) $ python setup.py test
+    ...
+
 ### Testing
 
 #### Unit Tests
