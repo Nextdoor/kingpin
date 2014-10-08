@@ -156,9 +156,8 @@ setup(
     setup_requires=open('requirements.txt').readlines(),
     install_requires=open('requirements.txt').readlines(),
     dependency_links=[
-        'https://github.com/equeny/tornadomail/archive/e413b81450bf94b4db3cad1815affb8b2dce6b41.zip#egg=tornadomail',
-        'https://github.com/diranged/python-rightscale-1/archive/retries.zip#egg=python-rightscale',
-    ],
+        'http://github.com/diranged/python-rightscale-1/tarball/fix_pip_install#egg=python-rightscale-0.1.2'
+        ],
     entry_points={
         'console_scripts': [
             'kingpin = kingpin.bin.deploy:begin'
