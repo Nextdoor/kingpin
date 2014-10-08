@@ -6,8 +6,8 @@ The Kingpin of your Deployment Model
 
 ## Installation
 
-Currently this package is not published to PyPI, so you have to install either
-by checking the code out of GitHub or via a special Pip command line.
+Currently this package is not published to PyPI, so you have to install
+either by checking the code out of GitHub or via a special Pip command line.
 
 Note, we *strongly* recommend running the code inside a Python virtual
 environment. All of our examples below will show how to do this.
