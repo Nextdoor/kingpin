@@ -112,7 +112,7 @@ class SQSBaseActor(base.BaseActor):
             Array of matched queues, even if empty.
         """
         queues = self.conn.get_all_queues()
-        match_queues = [q for q in queues if re.match(pattern, q.name)]
+        match_queues = [q for q in queues if re.search(pattern, q.name)]
         return match_queues
 
 
