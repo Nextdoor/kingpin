@@ -52,7 +52,7 @@ class Annotation(base.HTTPBaseActor):
             options: Dictionary with the following settings:
               { 'title': <annotation title>,
                 'description': <annotation description>,
-                'name': <name of the to annotate>}
+                'name': <name of the metric to annotate>}
         """
         super(Annotation, self).__init__(*args, **kwargs)
 
@@ -91,6 +91,10 @@ class Annotation(base.HTTPBaseActor):
 
         if self._dry:
             self.log.info('Testing Librato auth, skipping annotation')
+            msg = ("Would have annotated metric "
+                   "'%s' with title:'%s', description:'%s'")
+            self.log.info(msg % (self._options['name'], self._options['title'],
+                                 self._options['description']))
             yield self._fetch_wrapper(
                 METRICS_URL, auth_username=EMAIL, auth_password=TOKEN)
         else:

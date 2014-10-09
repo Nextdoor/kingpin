@@ -44,7 +44,7 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
 
     @testing.gen_test
     def integration_test_execute_with_invalid_token(self):
-        # Set auth token to invalid value and make sure init fails
+        # Set auth token to invalid value and make sure execute fails
         librato.TOKEN = 'Invalid'
 
         actor = librato.Annotation(
@@ -58,7 +58,7 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
 
     @testing.gen_test
     def integration_test_execute_with_invalid_email(self):
-        # Set auth email to invalid value and make sure init fails
+        # Set auth email to invalid value and make sure execute fails
         librato.EMAIL = 'Invalid'
 
         actor = librato.Annotation(
@@ -71,13 +71,13 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
             yield actor.execute()
 
     @testing.gen_test
-    def integration_test_execute_real(self):
+    def integration_test_execute(self):
 
         actor = librato.Annotation(
             'Unit Test Action',
-            {'title': 'unittest',
-             'description': 'unittest',
-             'name': 'unittest'}, dry=True)
+            {'title': 'Kingpin Integration Testing',
+             'description': 'Executing integration tests',
+             'name': 'kingpin-integration-testing'}, dry=True)
 
         res = yield actor.execute()
         self.assertEquals(True, res)
