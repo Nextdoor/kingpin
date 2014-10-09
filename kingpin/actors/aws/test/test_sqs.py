@@ -37,6 +37,28 @@ class SQSTestCase(testing.AsyncTestCase):
         super(SQSTestCase, self).run(result=result)
 
 
+class TestSQSBaseActor(SQSTestCase):
+
+    @testing.gen_test
+    def test_fetch(self):
+
+        all_queues = [mock.Mock(), mock.Mock(), mock.Mock(), mock.Mock()]
+        all_queues[0].name = '1-miss'
+        all_queues[1].name = '2-miss'
+        all_queues[2].name = '3-match'
+        all_queues[3].name = '4-match'
+
+        self.conn().get_all_queues.return_value = all_queues
+
+        actor = sqs.SQSBaseActor('Unit Test Action', {
+            'name': 'unit-test-queue',
+            'region': 'us-east-1'})
+
+        results = yield actor._fetch_queues('match')
+
+        self.assertEquals(results, [all_queues[2], all_queues[3]])
+
+
 class TestCreateSQSQueueActor(SQSTestCase):
 
     @testing.gen_test
