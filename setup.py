@@ -157,8 +157,8 @@ setup(
     setup_requires=open('requirements.txt').readlines(),
     install_requires=open('requirements.txt').readlines(),
     dependency_links=[
-        'http://github.com/diranged/python-rightscale-1/tarball/fix_pip_install#egg=python-rightscale-0.1.2'
-        ],
+        'https://github.com/diranged/python-rightscale-1/tarball/fix_pip_install#egg=python-rightscale-0.1.2'
+    ],
     entry_points={
         'console_scripts': [
             'kingpin = kingpin.bin.deploy:begin'
