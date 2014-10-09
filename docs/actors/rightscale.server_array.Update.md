@@ -12,6 +12,7 @@ then converted into the RightScale format. See below for examples.
 
   * `array`  - The name of the ServerArray to update
   * `params` - Dictionary of parameters to update
+  * `inputs` - Dictionary of next-instance server arryay inputs to update
 
 Examples
 
