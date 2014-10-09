@@ -20,6 +20,10 @@ Examples
       'params': { 'elasticity_params': { 'bounds': { 'min_count': 4 } },
                   'name': 'my-really-new-name' } }
 
+    # Update the next-instance server array inputs
+    { 'array': 'my-new-array',
+      'inputs': { 'ELB_NAME': 'text:foobar' } }
+
 **Dry Mode**
 
 In Dry mode this actor _does_ search for the `array`, but allows it to be
