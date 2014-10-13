@@ -26,6 +26,7 @@ class FakeHTTPClientClass(object):
 
     @gen.coroutine
     def fetch(self, *args, **kwargs):
+        self.request = args[0]
         raise gen.Return(self.response_value)
 
 
@@ -145,3 +146,22 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
 
             with self.assertRaises(exceptions.UnparseableResponseFromEndpoint):
                 yield self.actor._fetch('/')
+
+    @testing.gen_test
+    def test_fetch_with_auth(self):
+        response_dict = {'foo': 'asdf'}
+        response_body = json.dumps(response_dict)
+        http_response = httpclient.HTTPResponse(
+            httpclient.HTTPRequest('/'), code=200,
+            buffer=StringIO.StringIO(response_body))
+
+        with mock.patch.object(self.actor, '_get_http_client') as m:
+            m.return_value = FakeHTTPClientClass()
+            m.return_value.response_value = http_response
+
+            yield self.actor._fetch('/', auth_username='foo',
+                                    auth_password='bar')
+            self.assertEquals(m.return_value.request.auth_username,
+                              'foo')
+            self.assertEquals(m.return_value.request.auth_password,
+                              'bar')

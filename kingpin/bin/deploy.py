@@ -119,7 +119,7 @@ def begin():
         trace_lines = traceback.format_exc(e).splitlines()
         skip_next = False
         for l in trace_lines:
-            if 'site-packages' in l:
+            if 'tornado' in l:
                 skip_next = True
                 continue
             if not skip_next:
