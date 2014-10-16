@@ -164,6 +164,18 @@ class TestDeleteSQSQueueActor(SQSTestCase):
         with self.assertRaises(Exception):
             yield actor.execute()
 
+    @testing.gen_test
+    def test_execute_idempotent(self):
+        settings.SQS_RETRY_DELAY = 0
+        reload(sqs)
+        actor = sqs.Delete('Unit Test Action',
+                           {'name': 'non-existent-queue',
+                            'region': 'us-west-2',
+                            'idempotent': True})
+
+        # Should work w/out raising an exception.
+        yield actor.execute()
+
 
 class TestWaitUntilQueueEmptyActor(SQSTestCase):
 
