@@ -64,6 +64,7 @@ class BaseActor(object):
     """Abstract base class for Actor objects."""
 
     required_options = []
+    option_defaults = {}
 
     def __init__(self, desc, options, dry=False):
         """Initializes the Actor.
@@ -81,6 +82,7 @@ class BaseActor(object):
 
         self._setup_log()
         self._validate_options(options)  # Relies on _setup_log() above
+        self._setup_defaults()
 
         self.log.debug('Initialized')
 
@@ -101,6 +103,17 @@ class BaseActor(object):
         Raises:
             exceptionsInvalidOptions
         """
+
+        for opt in options:
+            if opt not in self.option_defaults:
+                log.warning('Defaults missing for %s' % opt)
+                continue
+
+            expected_type = self.option_defaults[opt][0]
+            if not isinstance(opt, expected_type):
+                raise exceptions.InvalidOptions('Option %s has to be a %s' % (
+                    opt, expected_type))
+
         missing_options = []
         for option in self.required_options:
             if option not in options:
@@ -113,6 +126,13 @@ class BaseActor(object):
 
         raise exceptions.InvalidOptions(
             'Missing options: %s' % ' '.join(missing_options))
+
+    def _setup_defaults(self):
+        """Populate options with defaults if they aren't set."""
+
+        for option, defaults in self.option_defaults.items():
+            if option not in self._options:
+                self._options[option] = defaults[1]
 
     # TODO: Write an execution wrapper that logs the time it takes for
     # steps to finish. Wrap execute() with it.
