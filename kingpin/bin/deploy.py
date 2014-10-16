@@ -11,11 +11,7 @@
 # limitations under the License.
 #
 # Copyright 2014 Nextdoor.com, Inc
-"""CLI Script Runner for Kingpin
-
-**NOTE: THIS IS A TOTAL WORK IN PROGRESS. NOT SUITABLE FOR PRODUCTION YET**
-
-"""
+"""CLI Script Runner for Kingpin."""
 
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
@@ -102,7 +98,11 @@ def main():
         else:
             log.info('Rehearsal OK! Performing!')
 
-    yield initial_actor.execute()
+    success = yield initial_actor.execute()
+
+    if not success:
+        log.error('Kingpin encountered mistakes during the play.')
+        sys.exit(1)
 
 
 def begin():
