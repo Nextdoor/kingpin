@@ -233,7 +233,7 @@ class TestUpdateActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute_dry(self):
         self.actor._dry = True
-        mocked_array = mock.MagicMock(name='unittestarray')
+        mocked_array = object()
 
         self.actor._check_array_inputs = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mocked_array)
