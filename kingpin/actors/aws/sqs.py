@@ -61,6 +61,10 @@ class SQSBaseActor(base.BaseActor):
     executor = EXECUTOR
 
     required_options = ['name', 'region']
+    option_defaults = {
+        'name': (str, None, 'Name or pattern for SQS queues.'),
+        'region': (str, None, 'AWS region for SQS, such as us-west-2')
+    }
 
     def __init__(self, *args, **kwargs):
         """Create the connection object."""
@@ -80,8 +84,6 @@ class SQSBaseActor(base.BaseActor):
             aws_settings.AWS_ACCESS_KEY_ID,
             aws_settings.AWS_SECRET_ACCESS_KEY,
             region=region)
-
-        self._options['idempotent'] = self._options.get('idempotent', False)
 
     def _get_region(self, region):
         """Return 'region' object used in SQSConnection
@@ -169,6 +171,10 @@ class Create(SQSBaseActor):
 class Delete(SQSBaseActor):
 
     """Deletes an existing SQS Queue."""
+
+    option_defaults = {
+        'idempotent': (bool, False, 'Continue if queues are already deleted.')
+    }
 
     @concurrent.run_on_executor
     @utils.exception_logger
