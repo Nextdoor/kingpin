@@ -200,7 +200,6 @@ class Delete(SQSBaseActor):
         matched_queues = yield self._fetch_queues(pattern=pattern)
 
         not_found_condition = (not matched_queues and
-                               not self._dry and
                                not self._options['idempotent'])
 
         if not_found_condition:
