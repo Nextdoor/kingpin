@@ -178,6 +178,18 @@ class TestWaitUntilQueueEmptyActor(SQSTestCase):
         yield actor.execute()
 
     @testing.gen_test
+    def test_execute_empty(self):
+        actor = sqs.WaitUntilEmpty('UTA!',
+                                   {'name': 'unit-test-queue',
+                                    'region': 'us-west-2',
+                                    'required': True})
+
+        actor._wait = mock_tornado(True)
+        actor._fetch_queues = mock_tornado()
+        with self.assertRaises(Exception):
+            yield actor.execute()
+
+    @testing.gen_test
     def test_wait(self):
         actor = sqs.WaitUntilEmpty('UTA!',
                                    {'name': 'unit-test-queue',
