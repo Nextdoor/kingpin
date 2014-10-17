@@ -294,10 +294,14 @@ class Terminate(ServerArrayBaseActor):
         # Disable the array so that no new instances launch. Ignore the result
         # of this opertaion -- as long as it succeeds, we're happy. No need to
         # store the returned server array object.
-        self.log.info('Disabling Array "%s"' % self._options['array'])
         params = self._generate_rightscale_params(
             'server_array', {'state': 'disabled'})
-        yield self._client.update_server_array(self.array, params)
+        if not self._dry:
+            self.log.info('Disabling Array "%s"' % self._options['array'])
+            yield self._client.update_server_array(self.array, params)
+        else:
+            self.log.info('Would have updated array "%s" with params: %s' %
+                          (self._options['array'], params))
 
         # Optionally terminate all of the instances in the array first.
         yield self._terminate_all_instances(self.array)
