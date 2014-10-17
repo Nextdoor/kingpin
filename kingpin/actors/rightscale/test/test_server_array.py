@@ -367,6 +367,20 @@ class TestTerminateActor(testing.AsyncTestCase):
         self.assertEquals(self.actor._terminate_all_instances._call_count, 1)
         self.assertEquals(ret, True)
 
+    @testing.gen_test
+    def test_execute_dry(self):
+        self.actor._dry = True
+        initial_array = mock.MagicMock(name='unittestarray')
+        self.actor._find_server_arrays = mock_tornado(initial_array)
+
+        @gen.coroutine
+        def update_array(array, params):
+            array.updated(params)
+        self.client_mock.update_server_array.side_Effect = update_array
+
+        # ensure that we never called the update_array method!
+        yield self.actor._execute()
+        initial_array.updated.assert_has_calls([])
 
 class TestDestroyActor(TestServerArrayBaseActor):
 
