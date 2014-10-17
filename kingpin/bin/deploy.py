@@ -47,6 +47,8 @@ parser.add_option('-d', '--dry', dest='dry', action='store_true',
 # Logging Configuration
 parser.add_option('-l', '--level', dest='level', default='info',
                   help='Set logging level (INFO|WARN|DEBUG|ERROR)')
+parser.add_option('-c', '--color', dest='color', default=False,
+                  action='store_true', help='Colorize the log output')
 
 (options, args) = parser.parse_args()
 
@@ -107,7 +109,7 @@ def main():
 
 def begin():
     # Set up logging before we do anything else
-    utils.setup_root_logger(level=options.level)
+    utils.setup_root_logger(level=options.level, color=options.color)
 
     try:
         ioloop.IOLoop.instance().run_sync(main)
@@ -123,7 +125,7 @@ def begin():
                 skip_next = True
                 continue
             if not skip_next:
-                print l
+                print(l)
             skip_next = False
 
 if __name__ == '__main__':

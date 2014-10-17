@@ -12,6 +12,9 @@ simplejson
 jsonschema
 demjson
 
+# Colorize the log output!
+rainbow_logging_handler
+
 # Used for retrying non-asynchronous methods
 retrying
 

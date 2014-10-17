@@ -26,10 +26,12 @@ import re
 import time
 import traceback
 import functools
+import sys
 
 from tornado import gen
 from tornado import ioloop
 import httplib
+import rainbow_logging_handler
 
 from kingpin import exceptions
 
@@ -75,13 +77,14 @@ def str_to_class(string):
     return c
 
 
-def setup_root_logger(level='warn', syslog=None):
+def setup_root_logger(level='warn', syslog=None, color=False):
     """Configures the root logger.
 
     Args:
         level: Logging level string ('warn' is default)
         syslog: String representing syslog facility to output to.
                 If empty, logs are written to console.
+        color: Colorize the log output
 
     Returns:
         A root Logger object
@@ -98,7 +101,10 @@ def setup_root_logger(level='warn', syslog=None):
     logger.setLevel(level_obj)
 
     # Set the default logging handler to stream to console..
-    handler = logging.StreamHandler()
+    if color:
+        handler = rainbow_logging_handler.RainbowLoggingHandler(sys.stdout)
+    else:
+        handler = logging.StreamHandler()
 
     # Get our PID .. used below in the log line format.
     details = ''

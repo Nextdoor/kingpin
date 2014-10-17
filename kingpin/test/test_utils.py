@@ -6,6 +6,7 @@ from tornado import gen
 from tornado import testing
 from tornado.testing import unittest
 import requests
+import rainbow_logging_handler
 
 from kingpin import exceptions
 from kingpin import utils
@@ -59,8 +60,23 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
         log = logging.getLogger()
         log.handlers = []
 
+        # Default logger is basic
         logger = utils.setup_root_logger()
         self.assertEquals(type(logger.handlers[0]), logging.StreamHandler)
+        self.assertEquals(logger.level, logging.WARNING)
+
+    def test_setup_root_logger_color(self):
+        # Since we're really checking if loggers get created properly,
+        # make sure to wipe out any existing logging handlers on the Root
+        # logger object.
+        log = logging.getLogger()
+        log.handlers = []
+
+        # Color logger is nifty
+        logger = utils.setup_root_logger(color=True)
+        self.assertEquals(
+            type(logger.handlers[0]),
+            rainbow_logging_handler.RainbowLoggingHandler)
         self.assertEquals(logger.level, logging.WARNING)
 
     def test_setup_root_logger_with_level(self):
