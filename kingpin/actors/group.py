@@ -77,6 +77,7 @@ class BaseGroupActor(base.BaseActor):
         False. Otherwise it returns True to indicate that all Actors
         finished successfully.
         """
+        self.log.info('Beginning %s actions' % len(self._actions))
         ret = yield self._run_actions()
         raise gen.Return(all(ret))
 
