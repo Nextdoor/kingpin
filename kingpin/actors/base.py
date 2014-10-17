@@ -123,11 +123,11 @@ class BaseActor(object):
         Raises:
             gen.Return(result)
         """
-        self.log.info('Beginning')
+        self.log.debug('Beginning')
         result = yield self._execute()
 
         if result:
-            self.log.info('Finished successfully.')
+            self.log.debug('Finished successfully.')
         else:
             self.log.warning('Finished with errors.')
 
