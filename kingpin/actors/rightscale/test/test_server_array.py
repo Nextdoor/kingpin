@@ -382,6 +382,7 @@ class TestTerminateActor(testing.AsyncTestCase):
         yield self.actor._execute()
         initial_array.updated.assert_has_calls([])
 
+
 class TestDestroyActor(TestServerArrayBaseActor):
 
     @testing.gen_test
