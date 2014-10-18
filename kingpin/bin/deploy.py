@@ -21,6 +21,7 @@ import optparse
 import sys
 
 from tornado import gen
+import demjson
 
 from kingpin import exceptions
 from kingpin import schema
@@ -65,13 +66,14 @@ def main():
     except exceptions.InvalidEnvironment as e:
         log.error('Invalid Configuration Detected: %s' % e)
         sys.exit(1)
-    except exceptions.InvalidJSON as e:
+    except (exceptions.InvalidJSON, demjson.JSONDecodeError) as e:
         log.error('Invalid JSON Detected')
         log.error(e)
         sys.exit(1)
 
-    # Instantiate the first actor and execute it. It should handle everything
-    # from there on out.
+    # Instantiate the first actor, but don't execute it. By doing this, we can
+    # do a pre-flight-check of all of the actors to make sure they instantiate
+    # properly.
     try:
         initial_actor = actor_utils.get_actor(config, dry=options.dry)
     except actor_exceptions.ActorException as e:
