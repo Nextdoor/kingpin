@@ -124,7 +124,11 @@ class BaseActor(object):
             gen.Return(result)
         """
         self.log.debug('Beginning')
-        result = yield self._execute()
+        try:
+            result = yield self._execute()
+        except exceptions.ActorException as e:
+            log.error('Exception caught: %s' % e)
+            raise gen.Return(False)
 
         if result:
             self.log.debug('Finished successfully.')
