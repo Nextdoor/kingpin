@@ -102,17 +102,24 @@ def setup_root_logger(level='warn', syslog=None, color=False):
 
     # Set the default logging handler to stream to console..
     if color:
-        handler = rainbow_logging_handler.RainbowLoggingHandler(sys.stdout)
+        handler = rainbow_logging_handler.RainbowLoggingHandler(
+            sys.stdout,
+
+            # Disable colorization of the 'info' log statements. If the code is
+            # run in an environment like Jenkins, the background is white, and
+            # we don't want to force these log lines to be white as well.
+            color_message_info=(None, None, False)
+        )
     else:
         handler = logging.StreamHandler()
 
     # Get our PID .. used below in the log line format.
     details = ''
     if level_obj <= 10:
-        details = str(os.getpid()) + ' [%(name)-50s] [%(funcName)-30s]'
+        details = str(os.getpid()) + ' [%(name)-40s] [%(funcName)-20s]'
 
     # If syslog enabled, then override the logging handler to go to syslog.
-    asctime = '%(asctime)-15s '
+    asctime = '%(asctime)-10s '
     if syslog is not None:
         asctime = ''
         handler = handlers.SysLogHandler(address=('127.0.0.1', 514),
