@@ -147,6 +147,14 @@ RightScale ServerTemplate.
     # Run the tests
     make test
 
+### Actor Design
+
+#### Dry Run
+
+#### Exception Handling
+
+#### Status Handling
+
 ### Postfix on Mac OSX
 
 If you want to develop on a Mac OSX host, you need to enable email the
