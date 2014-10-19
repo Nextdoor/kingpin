@@ -88,13 +88,23 @@ class Sync(BaseGroupActor):
 
     @gen.coroutine
     def _run_actions(self):
-        """Synchronously executes all of the Actor.execute() methods."""
+        """Synchronously executes all of the Actor.execute() methods.
+
+        If any one actor fails, we prevent execution of the rest of the actors
+        and return the"""
         returns = []
         for act in self._actions:
             self.log.debug('Beginning "%s"..' % act._desc)
             ret = yield act.execute()
             self.log.debug('Finished "%s", success?.. %s' % (act._desc, ret))
             returns.append(ret)
+
+            # When an actor fails, it returns False. If we fail any actor
+            # sycnrhonously, we want to bail out and not continue moving on to
+            # the next synchronous actor.
+            if not ret:
+                raise gen.Return(returns)
+
         raise gen.Return(returns)
 
 
@@ -104,7 +114,13 @@ class Async(BaseGroupActor):
 
     @gen.coroutine
     def _run_actions(self):
-        """Asynchronously executes all of the Actor.execute() methods."""
+        """Asynchronously executes all of the Actor.execute() methods.
+
+        All actors execute asynchronously, so we don't bother checking whether
+        they've failed or not here. The BaseGroupActor will return a True/False
+        based on whether or not all actors succeeded (True) or if one-or-more
+        failed (False).
+        """
         executions = []
         for act in self._actions:
             executions.append(act.execute())

@@ -114,9 +114,9 @@ class TestCreateSQSQueueActor(SQSTestCase):
                                  'region': 'us-west-2'})
 
         self.conn().create_queue.return_value = False
-        with self.assertRaises(Exception):
-            yield self.actor.execute()
 
+        res = yield self.actor.execute()
+        self.assertEquals(False, res)
         self.conn().create_queue.assert_called_once_with('unit-test-queue')
 
 
