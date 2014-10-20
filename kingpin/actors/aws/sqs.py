@@ -81,6 +81,8 @@ class SQSBaseActor(base.BaseActor):
             aws_settings.AWS_SECRET_ACCESS_KEY,
             region=region)
 
+        self._options['idempotent'] = self._options.get('idempotent', False)
+
     def _get_region(self, region):
         """Return 'region' object used in SQSConnection
 
@@ -197,7 +199,10 @@ class Delete(SQSBaseActor):
         pattern = self._options['name']
         matched_queues = yield self._fetch_queues(pattern=pattern)
 
-        if not matched_queues and not self._dry:
+        not_found_condition = (not matched_queues and
+                               not self._options['idempotent'])
+
+        if not_found_condition:
             raise SQSQueueNotFoundException(
                 'No queues with pattern "%s" found.' % pattern)
 

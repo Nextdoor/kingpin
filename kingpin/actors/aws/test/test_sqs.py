@@ -153,6 +153,13 @@ class TestDeleteSQSQueueActor(SQSTestCase):
         self.assertTrue(self.conn().get_all_queues.called)
         self.assertFalse(self.conn().delete_queue.called)
 
+        self.conn().get_all_queues = mock.Mock(return_value=[])
+        # Should fail even in dry run, if idempotent flag is not there.
+        settings.SQS_RETRY_DELAY = 0
+        reload(sqs)
+        with self.assertRaises(Exception):
+            yield actor.execute()
+
     @testing.gen_test
     def test_execute_with_failure(self):
         settings.SQS_RETRY_DELAY = 0
@@ -163,6 +170,18 @@ class TestDeleteSQSQueueActor(SQSTestCase):
 
         with self.assertRaises(Exception):
             yield actor.execute()
+
+    @testing.gen_test
+    def test_execute_idempotent(self):
+        settings.SQS_RETRY_DELAY = 0
+        reload(sqs)
+        actor = sqs.Delete('Unit Test Action',
+                           {'name': 'non-existent-queue',
+                            'region': 'us-west-2',
+                            'idempotent': True})
+
+        # Should work w/out raising an exception.
+        yield actor.execute()
 
 
 class TestWaitUntilQueueEmptyActor(SQSTestCase):
