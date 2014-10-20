@@ -259,8 +259,8 @@ class WaitUntilEmpty(SQSBaseActor):
 
         # Note: this does not check for dry mode.
         if self._options.get('required') and not matched_queues:
-            self.log.error('No queues like "%s" were found!' % pattern)
-            raise exceptions.ActorException()
+            raise exceptions.ActorException(
+                'No queues like "%s" were found!' % pattern)
 
         self.log.info('Waiting for "%s" queues to become empty.' %
                       self._options['name'])

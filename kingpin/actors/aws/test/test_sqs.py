@@ -6,6 +6,7 @@ import boto.sqs.connection
 import boto.sqs.queue
 import mock
 
+from kingpin.actors import exceptions
 from kingpin.actors.aws import settings
 from kingpin.actors.aws import sqs
 
@@ -186,7 +187,7 @@ class TestWaitUntilQueueEmptyActor(SQSTestCase):
 
         actor._wait = mock_tornado(True)
         actor._fetch_queues = mock_tornado()
-        with self.assertRaises(Exception):
+        with self.assertRaises(exceptions.ActorException):
             yield actor.execute()
 
     @testing.gen_test
