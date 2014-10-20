@@ -6,7 +6,6 @@ import boto.sqs.connection
 import boto.sqs.queue
 import mock
 
-from kingpin.actors import exceptions
 from kingpin.actors.aws import settings
 from kingpin.actors.aws import sqs
 
@@ -158,8 +157,8 @@ class TestDeleteSQSQueueActor(SQSTestCase):
         # Should fail even in dry run, if idempotent flag is not there.
         settings.SQS_RETRY_DELAY = 0
         reload(sqs)
-        with self.assertRaises(Exception):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @testing.gen_test
     def test_execute_with_failure(self):
@@ -206,8 +205,8 @@ class TestWaitUntilQueueEmptyActor(SQSTestCase):
 
         actor._wait = mock_tornado(True)
         actor._fetch_queues = mock_tornado()
-        with self.assertRaises(exceptions.ActorException):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @testing.gen_test
     def test_wait(self):
