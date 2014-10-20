@@ -102,6 +102,12 @@ def setup_root_logger(level='warn', syslog=None, color=False):
 
     # Set the default logging handler to stream to console..
     if color:
+        # Patch the handler's 'is_tty()' method to return True. If the user
+        # asked for color, we give them color. The is_tty() method calls the
+        # sys.stdout.isatty() method and then refuses to give color output on
+        # platforms like Jenkins, where this code is likely to be run.
+        rainbow_logging_handler.RainbowLoggingHandler.is_tty = True
+
         handler = rainbow_logging_handler.RainbowLoggingHandler(
             sys.stdout,
 
