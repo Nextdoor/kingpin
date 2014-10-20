@@ -128,7 +128,7 @@ class BaseActor(object):
         try:
             result = yield self._execute()
         except exceptions.ActorException as e:
-            self.log.error('Exception caught: %s' % e)
+            self.log.error(e)
             raise gen.Return(False)
         except Exception as e:
             # We don't like general exception catch clauses like this, but

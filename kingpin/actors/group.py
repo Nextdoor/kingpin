@@ -91,7 +91,11 @@ class Sync(BaseGroupActor):
         """Synchronously executes all of the Actor.execute() methods.
 
         If any one actor fails, we prevent execution of the rest of the actors
-        and return the"""
+        and return the list of gathered return values.
+
+        raises:
+            gen.Return([ <list of return values> ])
+        """
         returns = []
         for act in self._actions:
             self.log.debug('Beginning "%s"..' % act._desc)
@@ -99,11 +103,10 @@ class Sync(BaseGroupActor):
             self.log.debug('Finished "%s", success?.. %s' % (act._desc, ret))
             returns.append(ret)
 
-            # When an actor fails, it returns False. If we fail any actor
-            # sycnrhonously, we want to bail out and not continue moving on to
-            # the next synchronous actor.
+            # When an actor fails, it returns False. If we fail any actor, we
+            # bail out and do not proceed with any futher acts.
             if not ret:
-                raise gen.Return(returns)
+                break
 
         raise gen.Return(returns)
 
