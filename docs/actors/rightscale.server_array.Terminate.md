@@ -5,7 +5,9 @@ disabled.
 
 **Options**
 
-  * `array`     - The name of the ServerArray to destroy
+  * `array` - The name of the ServerArray to destroy
+  * `idempotent` - optional boolean, default False. Will fail the actor if set
+                   to True and no arrays are found.
 
 Examples
 

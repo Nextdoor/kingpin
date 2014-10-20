@@ -289,7 +289,20 @@ class Terminate(ServerArrayBaseActor):
         yield self._client.login()
 
         # First, find the array we're going to be terminating.
-        self.array = yield self._find_server_arrays(self._options['array'])
+        self.array = yield self._find_server_arrays(self._options['array'],
+                                                    raise_on=None,
+                                                    allow_mock=False)
+
+        idempotent = self._options.get('idempotent', False)
+
+        if not self.array:  # Note - no dry check.
+            if idempotent:
+                self.log.info('No arrays like "%s" found, and that\'s ok' % (
+                    self._options['array']))
+                raise gen.Return(True)
+            else:
+                self.log.error('No arrays like "%s" found! Exiting.')
+                raise gen.Return(False)
 
         # Disable the array so that no new instances launch. Ignore the result
         # of this opertaion -- as long as it succeeds, we're happy. No need to
