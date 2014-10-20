@@ -149,11 +149,86 @@ RightScale ServerTemplate.
 
 ### Actor Design
 
-#### Dry Run
+#### Required Options
+
+The following options are baked into our *BaseActor* model and must be
+supported by any actor that subclasses it. They are fundamentally critical to
+the behavior of Kingpin, and should not be bypassed or ignored.
+
+##### `desc`
+
+A string describing the stage or action thats occuring. Meant to be human
+readable and useful for logging. You do not need to do anything intentinally to
+support this option (its handled in
+*kingpin.actors.base.BaseActor.__init__()*).
+
+##### `dry`
+
+All Actors *must* support a `dry` run flag. The codepath thats executed when
+`_execute()` is yielded should be as wet as possible without actually making
+any changes. For example, if you have an actor that checks the state of an
+Amazon ELB (*hint see aws.elb.WaitUntilHealthy*), you would want the actor to
+actually search Amazons API for the ELB, actually check the number of instances
+that are healthy in the ELB, and then fake a return value so that the rest of
+the script can be tested.
+
+##### `options`
+
+Your actor can take in custom options (ELB name, Route53 DNS entry name, etc)
+through a dictionary named `options` thats passed in to every actor and stored
+as `self._options`. The contents of this dictionary are entirely up to you.
+
+#### Required Methods
+
+##### _execute() method
+
+Your actor can execute any code you would like in the `_execute()` method. This
+method should make sure that its a tornado-style generator (thus, can be
+yielded), and that it never calls any blocking operations.
+
+Actors should *not*:
+  * Call a blocking operation ever
+  * Bypass normal logging methods
+  * `return` a result (should `raise gen.Return(...)`)
+
+Actors should:
+  * Subclass *kingpin.actors.base.BaseActor* 
+  * Implement a *_execute()* method
+  * Handle as many possible exceptions of third-party libraries as possible
+  * Return True/False based on whether the action has succeeded. False
+    indicates that the Actor failed, and currently stops execution of the rest
+    of the program.
+
+Actors can:
+  * Raise *kingpin.actors.exceptions.ActorException* rather than returning
+    False. This is considered an unrecoverable exception and no Kingpin will
+    not execute any further actors when this happens. This is different than
+    returning False though. False should be returned when there were no
+    problems in the code or environment, but the action simpy failed (lets say
+    you tried to launch an already launched server array). Exceptions should be
+    raised when an unexpected failure occurs.
+
+**Super simple example Actor _execute() method**
+
+    @gen.coroutine
+    def _execute(self):
+        self.log.info('Making that web call')
+        res = yield self._post_web_call(URL)
+        raise gen.Return(res)
+
+#### Helper Methods/Objects
+
+##### self.log
+
+For consistency in logging, a custom Logger object is instantiated for every
+Actor. This logging object ensures that prefixes such as the `desc` of an Actor
+are included in the log messages. Usage examples:
+
+    self.log.error('Hey, something failed')
+    self.log.info('I am doing work')
+    self.log.warning('I do not think that should have happened')
 
 #### Exception Handling
-
-#### Status Handling
 
 ### Postfix on Mac OSX
 

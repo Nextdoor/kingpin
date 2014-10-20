@@ -3,12 +3,6 @@
 Groups together a series of Actors and executes them synchronously
 in the order that they were defined.
 
-**Failure**
-
-In the event that an actor fails, this actor will return the failure immediately.
-Because the actors are executed in-order of definition, the failure will
-prevent any further actors from executing.
-
 **Options**
 
   * `acts` - An array of individual Actor definitions.
@@ -25,3 +19,9 @@ Examples
 **Dry Mode**
 
 Passes on the Dry mode setting to the sub-actors that are called.
+
+**Failure**
+
+In the event that an actor fails, this actor will return the failure immediately.
+Because the actors are executed in-order of definition, the failure will
+prevent any further actoretasks from executing.
