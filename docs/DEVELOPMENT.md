@@ -193,7 +193,8 @@ Actors must *not*:
 
 Actors must:
   * Subclass *kingpin.actors.base.BaseActor* 
-  * Include `__author__` attribute
+  * Include `__author__` attribute thats a single *string* with the owners
+    listed in it.
   * Implement a *_execute()* method
   * Handle as many possible exceptions of third-party libraries as possible
   * Return True/False based on whether the action has succeeded. False
