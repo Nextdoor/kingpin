@@ -186,13 +186,14 @@ Your actor can execute any code you would like in the `_execute()` method. This
 method should make sure that its a tornado-style generator (thus, can be
 yielded), and that it never calls any blocking operations.
 
-Actors should *not*:
+Actors must *not*:
   * Call a blocking operation ever
   * Bypass normal logging methods
   * `return` a result (should `raise gen.Return(...)`)
 
-Actors should:
+Actors must:
   * Subclass *kingpin.actors.base.BaseActor* 
+  * Include `__author__` attribute
   * Implement a *_execute()* method
   * Handle as many possible exceptions of third-party libraries as possible
   * Return True/False based on whether the action has succeeded. False

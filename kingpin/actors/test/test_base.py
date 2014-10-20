@@ -81,13 +81,22 @@ class TestBaseActor(testing.AsyncTestCase):
         self.assertEquals(res, True)
 
     @testing.gen_test
-    def test_execute_raises_exception(self):
+    def test_execute_catches_expected_exception(self):
         @gen.coroutine
         def raise_exc():
             raise exceptions.ActorException('Test')
 
         self.actor._execute = raise_exc
+        res = yield self.actor.execute()
+        self.assertEquals(res, False)
 
+    @testing.gen_test
+    def test_execute_catches_unexpected_exception(self):
+        @gen.coroutine
+        def raise_exc():
+            raise Exception('Test')
+
+        self.actor._execute = raise_exc
         res = yield self.actor.execute()
         self.assertEquals(res, False)
 

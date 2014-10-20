@@ -161,8 +161,8 @@ class TestDeleteSQSQueueActor(SQSTestCase):
                            {'name': 'non-existent-queue',
                             'region': 'us-west-2'})
 
-        with self.assertRaises(Exception):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
 
 class TestWaitUntilQueueEmptyActor(SQSTestCase):
