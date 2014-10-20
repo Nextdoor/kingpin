@@ -1,7 +1,7 @@
 ##### group.Async
 
 Groups together a series of Actors and executes them asynchronously -
-waiting until all of them finish before returning. 
+waiting until all of them finish before returning.
 
 **Options**
 
