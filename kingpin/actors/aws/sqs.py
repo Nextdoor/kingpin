@@ -259,10 +259,17 @@ class WaitUntilEmpty(SQSBaseActor):
 
         raises: gen.Return(True)
         """
-        self.log.info('Waiting for "%s" queues to become empty.' %
-                      self._options['name'])
         pattern = self._options['name']
         matched_queues = yield self._fetch_queues(pattern)
+
+        # Note: this does not check for dry mode.
+        if self._options.get('required') and not matched_queues:
+            raise exceptions.ActorException(
+                'No queues like "%s" were found!' % pattern)
+
+        self.log.info('Waiting for "%s" queues to become empty.' %
+                      self._options['name'])
+
         sleepers = []
         for q in matched_queues:
             sleepers.append(self._wait(queue=q))

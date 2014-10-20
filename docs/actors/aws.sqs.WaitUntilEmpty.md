@@ -12,15 +12,19 @@ return a stale value if the number of messages in the queue changes rapidly.
 
   * `name` - The name or regex pattern of the queues to operate on
   * `region` - AWS region string, like 'us-west-2'
+  * `required` - optional boolean, default False. On True will fail if no
+                 queues are found.
 
 Examples
 
     # For an SQS queues with name containing `release-0025a`
     { 'name': 'release-0025a',
-      'region': 'us-east-1'}
+      'region': 'us-east-1',
+      'required': True }
 
 
 **Dry Mode**
 
 This actor performs the finding of the queue, but will pretend that the count
-is 0 and return success.
+is 0 and return success. Will fail even in dry mode if `required` option is set
+to True and no queues with the name pattern are found.
