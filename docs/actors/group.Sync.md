@@ -18,10 +18,10 @@ Examples
 
 **Dry Mode**
 
-Passes on the Dry mode setting to the sub-actors that are called.
+Passes on the Dry mode setting to the acts that are called.
 
 **Failure**
 
-In the event that an actor fails, this actor will return the failure immediately.
-Because the actors are executed in-order of definition, the failure will
-prevent any further actoretasks from executing.
+In the event that an act fails, this actor will return the failure immediately.
+Because the acts are executed in-order of definition, the failure will
+prevent any further acts from executing.

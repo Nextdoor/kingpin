@@ -22,7 +22,7 @@ Passes on the Dry mode setting to the sub-actors that are called.
 
 **Failure**
 
-In the event that one or more actors fail in this group, the entire group actor
+In the event that one or more `acts` fail in this group, the entire group acts
 will return a failure to Kingpin. Because multiple actors are executing all at
 the same time, the all of these actors will be allowed to finish before the
 failure is returned.
