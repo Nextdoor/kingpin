@@ -200,6 +200,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Execute %s' % self.clone_name,
             {'array': self.clone_name,
              'script': self.template_script,
+             'ignore_failure': False,
              'inputs': {'SLEEP': 'text:15'}},
             dry=True)
         ret = yield actor.execute()
@@ -212,6 +213,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Execute %s' % self.clone_name,
             {'array': self.clone_name,
              'script': self.template_script,
+             'ignore_failure': False,
              'inputs': {'SLEEP': 'text:15'}})
         ret = yield actor.execute()
         self.assertEquals(True, ret)
@@ -223,6 +225,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Execute %s' % self.clone_name,
             {'array': self.clone_name,
              'script': 'bogus script',
+             'ignore_failure': False,
              'inputs': {'SLEEP': 'text:15'}})
         res = yield actor.execute()
         self.assertEquals(res, False)
@@ -234,6 +237,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Execute %s' % self.clone_name,
             {'array': self.clone_name,
              'script': self.template_script,
+             'ignore_failure': False,
              'inputs': {'SLEEP': 'bogus field'}})
         res = yield actor.execute()
         self.assertEquals(res, False)
@@ -245,6 +249,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Execute missing::recipe',
             {'array': self.clone_name,
              'script': 'missing::recipe',
+             'ignore_failure': False,
              'inputs': {}},
             dry=True)
         res = yield actor.execute()
@@ -257,9 +262,34 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Execute missing::recipe',
             {'array': self.clone_name,
              'script': 'missing::recipe',
+             'ignore_failure': False,
              'inputs': {}})
         res = yield actor.execute()
         self.assertEquals(res, False)
+
+    @attr('integration')
+    @testing.gen_test(timeout=120)
+    def integration_06e_execute_script_fails_to_run(self):
+        actor = server_array.Execute(
+            'Execute %s' % self.clone_name,
+            {'array': self.clone_name,
+             'script': self.template_script,
+             'ignore_failure': False,
+             'inputs': {'SLEEP': 'text:invalid_input'}})
+        res = yield actor.execute()
+        self.assertEquals(res, False)
+
+    @attr('integration')
+    @testing.gen_test(timeout=120)
+    def integration_06e_execute_script_fails_to_run_but_ignored(self):
+        actor = server_array.Execute(
+            'Execute %s' % self.clone_name,
+            {'array': self.clone_name,
+             'script': self.template_script,
+             'ignore_failure': True,
+             'inputs': {'SLEEP': 'text:invalid_input'}})
+        res = yield actor.execute()
+        self.assertEquals(res, True)
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=120)

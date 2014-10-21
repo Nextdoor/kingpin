@@ -18,6 +18,8 @@ execution of those tasks from start to finish and returns the results.
   * `array`    - The name of the ServerArray to operate on
   * `script`   - The name of the RightScript or Recipe to execute
   * `inputs`   - Dictionary of Key/Value pairs to use as inputs for the script
+  * `ignore_failure` - True/False, whether or not to ignore the script
+                       execution result.
 
 Examples
 
@@ -25,6 +27,7 @@ Examples
     # input named ELB_NAME.
     { 'array': 'my-array',
       'script': 'connect to elb',
+      'ignore_failure': True,
       'inputs': { 'ELB_NAME': 'text:my-elb' } }
 
 **Dry Mode**
