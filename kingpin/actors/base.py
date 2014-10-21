@@ -62,8 +62,10 @@ class BaseActor(object):
 
     """Abstract base class for Actor objects."""
 
-    required_options = []
-    option_defaults = {}
+    # {
+    #     'option_name': (type, default, "Long description of the option"),
+    # }
+    all_options = {}
 
     def __init__(self, desc, options, dry=False):
         """Initializes the Actor.
@@ -80,8 +82,8 @@ class BaseActor(object):
         self._dry = dry
 
         self._setup_log()
-        self._validate_options(options)  # Relies on _setup_log() above
         self._setup_defaults()
+        self._validate_options(options)  # Relies on _setup_log() above
 
         self.log.debug('Initialized')
 
@@ -93,6 +95,14 @@ class BaseActor(object):
 
         self.log = LogAdapter(logger, {'desc': self._desc, 'dry': dry_str})
 
+    def _setup_defaults(self):
+        """Populate options with defaults if they aren't set."""
+
+        for option, definition in self.all_options.items():
+            if option not in self._options:
+                # Index 1 holds the default value
+                self._options[option] = definition[1]
+
     def _validate_options(self, options):
         """Validate that all the required options were passed in.
 
@@ -103,35 +113,34 @@ class BaseActor(object):
             exceptionsInvalidOptions
         """
 
-        for opt in options:
-            if opt not in self.option_defaults:
+        for opt, value in options.items():
+            if opt not in self.all_options:
                 log.warning('Defaults missing for %s' % opt)
                 continue
 
-            expected_type = self.option_defaults[opt][0]
-            if not isinstance(opt, expected_type):
-                raise exceptions.InvalidOptions('Option %s has to be a %s' % (
-                    opt, expected_type))
+            expected_type = self.all_options[opt][0]
+            if not isinstance(value, expected_type):
+                message = 'Option "%s" has to be %s and is %s.' % (
+                    opt, expected_type, type(value))
+                raise exceptions.InvalidOptions(message)
+
+        # Loop through all_options, and find the required ones
+        # Required options have `None` as their default value.
+        required = [opt_name
+                    for (opt_name, definition) in self.all_options.items()
+                    if definition[1] is None]
 
         missing_options = []
-        for option in self.required_options:
+        for option in required:
             if option not in options:
                 missing_options.append(option)
 
         if not missing_options:
             return
 
-        self.log.error('Unable to configure Actor with options: %s' % options)
-
-        raise exceptions.InvalidOptions(
-            'Missing options: %s' % ' '.join(missing_options))
-
-    def _setup_defaults(self):
-        """Populate options with defaults if they aren't set."""
-
-        for option, defaults in self.option_defaults.items():
-            if option not in self._options:
-                self._options[option] = defaults[1]
+        self.log.critical('Insufficient Actor options: %s' % options)
+        self.log.critical('Missing options: %s' % missing_options)
+        raise exceptions.InvalidOptions()
 
     # TODO: Write an execution wrapper that logs the time it takes for
     # steps to finish. Wrap execute() with it.

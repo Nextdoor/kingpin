@@ -60,15 +60,16 @@ class TestBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_validate_options(self):
-        self.actor.required_options = ['test']
+        self.actor.all_options = {'test': (str, None, '')}
         with self.assertRaises(exceptions.InvalidOptions):
             ret = self.actor._validate_options({'a': 'b'})
 
-        self.actor.required_options = ['test']
+        self.actor.all_options = {'test': (str, None, '')}
         ret = self.actor._validate_options({'test': 'b'})
         self.assertEquals(None, ret)
 
-        self.actor.required_options = ['test', 'test2']
+        self.actor.all_options = {'test': (str, None, ''),
+                                  'test2': (str, None, '')}
         ret = self.actor._validate_options({'test': 'b', 'test2': 'b'})
         self.assertEquals(None, ret)
 

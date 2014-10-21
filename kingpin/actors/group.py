@@ -35,7 +35,9 @@ class BaseGroupActor(base.BaseActor):
 
     """
 
-    required_options = ['acts']
+    all_options = {
+        'acts': (list, None, "Array of actor definitions.")
+    }
 
     def __init__(self, *args, **kwargs):
         """Initializes all of the sub actors.

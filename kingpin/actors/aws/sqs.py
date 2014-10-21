@@ -60,12 +60,6 @@ class SQSBaseActor(base.BaseActor):
     ioloop = ioloop.IOLoop.current()
     executor = EXECUTOR
 
-    required_options = ['name', 'region']
-    option_defaults = {
-        'name': (str, None, 'Name or pattern for SQS queues.'),
-        'region': (str, None, 'AWS region for SQS, such as us-west-2')
-    }
-
     def __init__(self, *args, **kwargs):
         """Create the connection object."""
         super(SQSBaseActor, self).__init__(*args, **kwargs)
@@ -124,6 +118,11 @@ class Create(SQSBaseActor):
 
     """Creates a new SQS Queue."""
 
+    all_options = {
+        'name': (str, None, 'Name or pattern for SQS queues.'),
+        'region': (str, None, 'AWS region for SQS, such as us-west-2')
+    }
+
     @concurrent.run_on_executor
     @utils.exception_logger
     def _create_queue(self, name):
@@ -172,7 +171,9 @@ class Delete(SQSBaseActor):
 
     """Deletes an existing SQS Queue."""
 
-    option_defaults = {
+    all_options = {
+        'name': (str, None, 'Name or pattern for SQS queues.'),
+        'region': (str, None, 'AWS region for SQS, such as us-west-2'),
         'idempotent': (bool, False, 'Continue if queues are already deleted.')
     }
 
@@ -226,6 +227,11 @@ class Delete(SQSBaseActor):
 class WaitUntilEmpty(SQSBaseActor):
 
     """Waits for one or more SQS Queues to become empty."""
+
+    all_options = {
+        'name': (str, None, 'Name or pattern for SQS queues.'),
+        'region': (str, None, 'AWS region for SQS, such as us-west-2')
+    }
 
     @concurrent.run_on_executor
     @utils.exception_logger
