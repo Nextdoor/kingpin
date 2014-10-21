@@ -42,18 +42,14 @@ class Annotation(base.HTTPBaseActor):
     """Simple Librato Message sending actor using their API:
     http://dev.librato.com/v1/post/annotations/:name"""
 
-    required_options = ['title', 'description', 'name']
+    all_options = {
+        'title': (str, None, "Annotation title"),
+        'description': (str, None, "Annotation description"),
+        'name': (str, None, "Name of the metric to annotate")
+    }
 
     def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
-
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following settings:
-              { 'title': <annotation title>,
-                'description': <annotation description>,
-                'name': <name of the metric to annotate>}
-        """
+        """Check for the needed environment variables."""
         super(Annotation, self).__init__(*args, **kwargs)
 
         if not TOKEN:

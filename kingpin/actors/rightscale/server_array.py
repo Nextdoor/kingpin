@@ -93,7 +93,10 @@ class Clone(ServerArrayBaseActor):
 
     """Clones a RightScale Server Array."""
 
-    required_options = ['source', 'dest']
+    all_options = {
+        'source': (str, None, 'Name of the ServerArray to clone.'),
+        'dest': (str, None, 'Name to give the cloned ServerArray.')
+    }
 
     @gen.coroutine
     def _execute(self):
@@ -143,16 +146,18 @@ class Update(ServerArrayBaseActor):
     optional -- but if you want the actor to actually make any changes, you
     need to supply one of these.
 
-    Args:
-        desc: String description of the action being executed.
-        options: Dictionary with the following example settings:
+    Actor Options (example):
           { 'array': <server array name>,
             'params': { 'description': 'foo bar',
                         'state': 'enabled' },
             'inputs': { 'ELB_NAME': 'foo bar' } }
     """
 
-    required_options = ['array']
+    all_options = {
+        'array': (str, None, 'ServerArray name to Update'),
+        'params': (dict, {}, 'ServerArray RightScale parameters'),
+        'inputs': (dict, {}, 'ServerArray inputs for launching.')
+    }
 
     @gen.coroutine
     def _check_array_inputs(self, array, inputs):
@@ -183,9 +188,9 @@ class Update(ServerArrayBaseActor):
         if self._dry:
             ok = True
             self.log.info('Not making any changes.')
-            if 'params' in self._options:
+            if self._options['params']:
                 self.log.info('New params: %s' % self._options['params'])
-            if 'inputs' in self._options:
+            if self._options['inputs']:
                 self.log.info('New inputs: %s' % self._options['inputs'])
 
                 if isinstance(array, mock.Mock):
@@ -201,7 +206,7 @@ class Update(ServerArrayBaseActor):
             raise gen.Return(ok)
 
         # Update the ServerArray Parameters
-        if 'params' in self._options:
+        if self._options['params']:
             params = self._generate_rightscale_params(
                 'server_array', self._options['params'])
             self.log.info('Updating array "%s" with params: %s' %
@@ -215,7 +220,7 @@ class Update(ServerArrayBaseActor):
                     raise exceptions.UnrecoverableActionFailure(msg)
 
         # Update the ServerArray Next-Instane Inputs
-        if 'inputs' in self._options:
+        if self._options['inputs']:
             inputs = self._generate_rightscale_params(
                 'inputs', self._options['inputs'])
             self.log.info('Updating array "%s" with inputs: %s' %
@@ -229,7 +234,9 @@ class Terminate(ServerArrayBaseActor):
 
     """Terminate all instances in a RightScale Server Array."""
 
-    required_options = ['array']
+    all_options = {
+        'array': (str, None, 'ServerArray name to Terminate')
+    }
 
     @gen.coroutine
     def _terminate_all_instances(self, array):
@@ -316,7 +323,9 @@ class Destroy(ServerArrayBaseActor):
 
     """Destroy the array"""
 
-    required_options = ['array']
+    all_options = {
+        'array': (str, None, 'ServerArray name to Destroy')
+    }
 
     @gen.coroutine
     def _destroy_array(self, array):
@@ -373,7 +382,11 @@ class Launch(ServerArrayBaseActor):
     }
     """
 
-    required_options = ['array']
+    all_options = {
+        'array': (str, None, 'ServerArray name to launch'),
+        'count': (int, False, 'Number of server to launch.'),
+        'enable': (bool, False, 'Enable autoscaling?')
+    }
 
     def __init__(self, *args, **kwargs):
         """Check Actor prerequisites."""
@@ -435,7 +448,7 @@ class Launch(ServerArrayBaseActor):
 #        to /launch at any time on a single ServerArray. This means that these
 #        calls must be synchronous for now.
     @gen.coroutine
-    def _launch_instances(self, array, count=None, async=False):
+    def _launch_instances(self, array, count=False, async=False):
         """Launch new instances in a specified array.
 
         Instructs RightScale to launch instances, specified amount, or array's
@@ -443,11 +456,11 @@ class Launch(ServerArrayBaseActor):
 
         Args:
             array - rightscale ServerArray object
-            count - `None` to use array's _min_ value
+            count - `False` to use array's _min_ value
                     `int` to launch a specific number of instances
             async - Boolean, launch all and wait, or launch one at a time.
         """
-        if count is None:
+        if not count:
             # Get the current min_count setting from the ServerArray object
             count = int(array.soul['elasticity_params']['bounds']['min_count'])
 
@@ -492,7 +505,7 @@ class Launch(ServerArrayBaseActor):
         # This means that RightScale will auto-scale-up the array as soon as
         # their next scheduled auto-scale run hits (usually 60s). Store the
         # newly updated array.
-        if self._options.get('enable', False):
+        if self._options['enable']:
             if not self._dry:
                 self.log.info('Enabling Array "%s"' % array.soul['name'])
                 params = self._generate_rightscale_params(
@@ -512,7 +525,7 @@ class Launch(ServerArrayBaseActor):
             'Launching Array "%s" instances' % self._options['array'])
 
         # If count is None, then _launch_instances will use array's `min`.
-        count = self._options.get('count')
+        count = self._options['count']
         yield self._launch_instances(array, count=count)
 
         # Now, wait until the number of healthy instances in the array matches
@@ -528,14 +541,14 @@ class Execute(ServerArrayBaseActor):
 
     # TODO: Add a 'wait timer' that allows the execution to fail if it
     # takes too long to launch the instances.
-
-    Args:
-        desc: String description of the action being executed.
-        options: Dictionary with the following example settings:
-          { 'array': <server array name> }
     """
 
-    required_options = ['array', 'script', 'inputs']
+    all_options = {
+        'array': (str, None, 'ServerArray name on which to execute a script.'),
+        'script': (str, None, 'RightScale RightScript or Recipe to execute.'),
+        'inputs': (dict, {}, ('Inputs needed by the script. '
+                              'Read _generate_rightscale_params.'))
+    }
 
     @gen.coroutine
     def _get_operational_instances(self, array):

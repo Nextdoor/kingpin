@@ -53,7 +53,12 @@ class WaitUntilHealthy(base.BaseActor):
 
     """Waits till a specified number of instances are "InService"."""
 
-    required_options = ['name', 'count', 'region']
+    all_options = {
+        'name': (str, None, 'Name of the ELB'),
+        'count': ((int, str), None,
+                  'Specific count, or percentage of instances to wait for.'),
+        'region': (str, None, 'AWS region name, like us-west-2')
+    }
 
     # Get references to existing objects that are used by the
     # tornado.concurrent.run_on_executor() decorator.

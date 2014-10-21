@@ -32,14 +32,11 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 class Sleep(base.BaseActor):
 
-    """Simple actor that just sleeps for an arbitrary amount of time.
+    """Simple actor that just sleeps for an arbitrary amount of time."""
 
-    Args:
-        options: Dictionary with the following settings:
-          { 'sleep': <int of time to sleep> }
-    """
-
-    required_options = ['sleep']
+    all_options = {
+        'sleep': ((int, float), None, 'Number of seconds to do nothing.')
+    }
 
     @gen.coroutine
     def _execute(self):
