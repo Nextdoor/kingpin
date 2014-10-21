@@ -40,25 +40,20 @@ class Message(base.HTTPBaseActor):
 
     """Simple Hipchat Message sending actor."""
 
-    def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
+    all_options = {
+        'room': (str, None, 'Hipchat room name'),
+        'message': (str, None, 'Message to send')
+    }
 
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following settings:
-              { 'room': <hipchat room name>,
-                'message': <string of message to send>' }
-        """
+    def __init__(self, *args, **kwargs):
+        """Check required environment variables."""
         super(Message, self).__init__(*args, **kwargs)
 
         if not TOKEN:
             raise exceptions.InvalidCredentials(
                 'Missing the "HIPCHAT_TOKEN" environment variable.')
 
-        for opt in ['room', 'message']:
-            if opt not in self._options:
-                raise exceptions.InvalidOptions('Missing "%s" option.' % opt)
-
+        # TODO: don't copy options into object variables.
         self._room = self._options['room']
         self._message = self._options['message']
         self._token = TOKEN

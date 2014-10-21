@@ -101,8 +101,10 @@ class BaseActor(object):
 
         for option, definition in self.all_options.items():
             if option not in self._options:
-                # Index 1 holds the default value
-                self._options[option] = definition[1]
+                default = definition[1]
+                # `None` means it's required. Don't set the default
+                if default is not None:
+                    self._options[option] = default
 
     def _validate_options(self, options):
         """Validate that all the required options were passed in.
@@ -114,34 +116,35 @@ class BaseActor(object):
             exceptionsInvalidOptions
         """
 
-        for opt, value in options.items():
-            if opt not in self.all_options:
-                log.warning('Defaults missing for %s' % opt)
-                continue
-
-            expected_type = self.all_options[opt][0]
-            if not isinstance(value, expected_type):
-                message = 'Option "%s" has to be %s and is %s.' % (
-                    opt, expected_type, type(value))
-                raise exceptions.InvalidOptions(message)
-
         # Loop through all_options, and find the required ones
         # Required options have `None` as their default value.
         required = [opt_name
                     for (opt_name, definition) in self.all_options.items()
                     if definition[1] is None]
 
+        self.log.debug('Checking for required options: %s' % required)
         missing_options = []
         for option in required:
             if option not in options:
                 missing_options.append(option)
 
-        if not missing_options:
-            return
+        if missing_options:
+            self.log.critical('Insufficient Actor options: %s' % options)
+            message = 'Missing options: %s' % missing_options
+            self.log.critical(message)
+            raise exceptions.InvalidOptions(message)
 
-        self.log.critical('Insufficient Actor options: %s' % options)
-        self.log.critical('Missing options: %s' % missing_options)
-        raise exceptions.InvalidOptions()
+        for opt, value in options.items():
+            if opt not in self.all_options:
+                message = 'Unexpected option passed: %s' % opt
+                self.log.error(message)
+                raise exceptions.InvalidOptions(message)
+
+            expected_type = self.all_options[opt][0]
+            if not isinstance(value, expected_type):
+                message = 'Option "%s" has to be %s and is %s.' % (
+                    opt, expected_type, type(value))
+                raise exceptions.InvalidOptions(message)
 
     # TODO: Write an execution wrapper that logs the time it takes for
     # steps to finish. Wrap execute() with it.
