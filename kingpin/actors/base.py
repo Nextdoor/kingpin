@@ -30,6 +30,7 @@ any live changes. It is up to the developer of the Actor to define what
 import json
 import logging
 import os
+import sys
 
 from tornado import gen
 from tornado import httpclient
@@ -124,7 +125,23 @@ class BaseActor(object):
             gen.Return(result)
         """
         self.log.debug('Beginning')
-        result = yield self._execute()
+        try:
+            result = yield self._execute()
+        except exceptions.ActorException as e:
+            self.log.error(e)
+            raise gen.Return(False)
+        except Exception as e:
+            # We don't like general exception catch clauses like this, but
+            # because actors can be written by third parties and automatically
+            # imported, its impossible for us to catch every exception
+            # possible. This is a failsafe thats meant to throw a strong
+            # warning.
+            log.critical('Unexpected exception caught! '
+                         'Please contact the author (%s) and provide them '
+                         'with this stacktrace' %
+                         sys.modules[__name__].__author__)
+            self.log.exception(e)
+            raise gen.Return(False)
 
         if result:
             self.log.debug('Finished successfully.')

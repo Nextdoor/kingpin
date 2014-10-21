@@ -131,6 +131,22 @@ class TestSyncGroupActor(testing.AsyncTestCase):
         res = yield actor._run_actions()
         self.assertEquals(res, [True, False])
 
+    @testing.gen_test
+    def test_run_actions_with_multiple_actors_and_one_fails(self):
+        actor = group.Sync(
+            'Unit Test Action',
+            {'acts': [
+                dict(self.actor_return_true),
+                dict(self.actor_return_false),
+                dict(self.actor_return_true),
+                dict(self.actor_return_true)]})
+
+        # Ensure that only the first two acts are returned, and nothing else.
+        # This proves that we stopped exexuting after the first False return
+        # value.
+        res = yield actor._run_actions()
+        self.assertEquals(res, [True, False])
+
 
 class TestAsyncGroupActor(testing.AsyncTestCase):
 
