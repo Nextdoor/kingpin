@@ -532,10 +532,13 @@ class Execute(ServerArrayBaseActor):
     Args:
         desc: String description of the action being executed.
         options: Dictionary with the following example settings:
-          { 'array': <server array name> }
+          { 'array': <server array name>,
+            'script': 'script name to execute',
+            'inputs': <dict of inputs>,
+            'ignore_failure': True}
     """
 
-    required_options = ['array', 'script', 'inputs']
+    required_options = ['array', 'script', 'inputs', 'ignore_failure']
 
     @gen.coroutine
     def _get_operational_instances(self, array):
@@ -626,4 +629,20 @@ class Execute(ServerArrayBaseActor):
         self.log.info('Waiting for %s tasks to finish.' % len(tasks))
         ret = yield actions
 
-        raise gen.Return(all(ret))
+        # So? Did all of them succeed?
+        all_succeeded = all(ret)
+        if not all_succeeded:
+            self.log.warning('Not all of the tasks succeeded')
+        else:
+            self.log.info('All tasks succeeded')
+
+        # If we don't care about the return value, we just return True at this
+        # point. We do throw a log statement though indicating the return
+        # status of one of the tasks failed.
+        if self._options['ignore_failure']:
+            raise gen.Return(True)
+
+        # If we care about the exit values of the script executions, then
+        # we return 'all(ret)' which translates to either True (all = True), or
+        # False (not all = True).
+        raise gen.Return(all_succeeded)

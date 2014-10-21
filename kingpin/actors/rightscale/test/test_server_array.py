@@ -588,6 +588,7 @@ class TestExecuteActor(testing.AsyncTestCase):
             'Execute',
             {'array': 'unittestarray',
              'script': 'test_script',
+             'ignore_failure': False,
              'inputs': {'foo': 'text:bar'}})
 
         # Patch the actor so that we use the client mock
@@ -660,6 +661,46 @@ class TestExecuteActor(testing.AsyncTestCase):
         (self.client_mock.wait_for_task
             .assert_called_once_with(mock_task))
 
+        self.assertEquals(ret, True)
+
+    @testing.gen_test
+    def test_execute_with_failure_and_ignore_failure_enabled(self):
+        mock_array = mock.MagicMock(name='array')
+        mock_op_instance = mock.MagicMock(name='mock_instance')
+        mock_op_instance.soul = {'state': 'operational'}
+        mock_task = mock.MagicMock(name='mock_task')
+
+        # override the actor 'ignore_failure' option and set it to true
+        self.actor._options['ignore_failure'] = True
+
+        self.actor._check_script = mock_tornado(True)
+        self.actor._find_server_arrays = mock_tornado(mock_array)
+
+        yi = tornado_value([mock_op_instance])
+        self.client_mock.get_server_array_current_instances.return_value = yi
+
+        run_e = tornado_value([mock_task])
+        self.client_mock.run_executable_on_instances.return_value = run_e
+
+        wait = tornado_value(False)
+        self.client_mock.wait_for_task.return_value = wait
+
+        ret = yield self.actor._execute()
+
+        # Now verify that each of the steps (terminate, wait, destroyed) were
+        # all called.
+        (self.client_mock.get_server_array_current_instances
+            .assert_called_twice_with(mock_array))
+        (self.client_mock.run_executable_on_instances
+            .assert_called_once_with(
+                'test_script',
+                {'inputs[foo]': 'text:bar'},
+                [mock_op_instance]))
+        (self.client_mock.wait_for_task
+            .assert_called_once_with(mock_task))
+
+        # The task failed, but we said 'ignore result' so we should
+        # get True back anyways.
         self.assertEquals(ret, True)
 
     @testing.gen_test
