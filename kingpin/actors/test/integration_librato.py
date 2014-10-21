@@ -12,6 +12,7 @@ __author__ = 'Charles McLaughlin <charles@nextdoor.com>'
 
 
 class IntegrationLibratoAnnotation(testing.AsyncTestCase):
+
     """Integration tests against the Librato API.
 
     These tests actually hit the Librato API and test that the code
@@ -58,8 +59,8 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
              'description': 'unittest',
              'name': 'unittest'}, dry=True)
 
-        with self.assertRaises(exceptions.InvalidCredentials):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @attr('integration', 'dry')
     @testing.gen_test
@@ -73,8 +74,8 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
              'description': 'unittest',
              'name': 'unittest'}, dry=True)
 
-        with self.assertRaises(exceptions.InvalidCredentials):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @attr('integration', 'dry')
     @testing.gen_test

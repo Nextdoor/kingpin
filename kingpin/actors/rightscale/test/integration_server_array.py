@@ -5,8 +5,6 @@ import uuid
 
 from tornado import testing
 
-from kingpin.actors import exceptions
-from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import server_array
 
 
@@ -64,8 +62,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'source': 'unit-test-fake-array',
              'dest': self.clone_name},
             dry=True)
-        with self.assertRaises(api.ServerArrayException):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @attr('integration')
     @testing.gen_test(timeout=60)
@@ -84,8 +82,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Clone %s' % self.template_array,
             {'source': self.template_array,
              'dest': self.clone_name})
-        with self.assertRaises(api.ServerArrayException):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @attr('integration')
     @testing.gen_test(timeout=30)
@@ -94,8 +92,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Clone missing array',
             {'source': 'unit-test-fake-array',
              'dest': self.clone_name})
-        with self.assertRaises(api.ServerArrayException):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=60)
@@ -153,8 +151,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
              'params': {
                  'elasticity_params': {
                      'bounds': {'min_count': '5', 'max_count': '1'}}}})
-        with self.assertRaises(exceptions.UnrecoverableActionFailure):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @attr('integration')
     @testing.gen_test(timeout=60)
@@ -226,8 +224,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name,
              'script': 'bogus script',
              'inputs': {'SLEEP': 'text:15'}})
-        with self.assertRaises(api.ServerArrayException):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @attr('integration')
     @testing.gen_test(timeout=120)
@@ -237,8 +235,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name,
              'script': self.template_script,
              'inputs': {'SLEEP': 'bogus field'}})
-        with self.assertRaises(api.ServerArrayException):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=120)
@@ -249,9 +247,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
              'script': 'missing::recipe',
              'inputs': {}},
             dry=True)
-
-        success = yield actor.execute()
-        self.assertFalse(success)
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @attr('integration')
     @testing.gen_test(timeout=120)
@@ -261,8 +258,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name,
              'script': 'missing::recipe',
              'inputs': {}})
-        with self.assertRaises(api.ServerArrayException):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=120)
