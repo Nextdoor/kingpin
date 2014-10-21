@@ -55,6 +55,13 @@ class SQSQueueNotFoundException(SQSActorException):
 
 class SQSBaseActor(base.BaseActor):
 
+    # This actor should not be instantiated, but unit testing requires that
+    # it's all options are defined properly here.
+    all_options = {
+        'name': (str, None, 'Queue name to do nothing with.'),
+        'region': (str, None, 'AWS region name like us-west-2')
+    }
+
     # Get references to existing objects that are used by the
     # tornado.concurrent.run_on_executor() decorator.
     ioloop = ioloop.IOLoop.current()

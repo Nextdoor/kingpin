@@ -265,8 +265,7 @@ class TestTerminateActor(testing.AsyncTestCase):
         # Create the actor
         self.actor = server_array.Terminate(
             'Terminate',
-            {'array': 'unittestarray',
-             'terminate': True})
+            {'array': 'unittestarray'})
 
         # Patch the actor so that we use the client mock
         self.client_mock = mock.MagicMock()

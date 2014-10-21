@@ -74,6 +74,22 @@ class TestBaseActor(testing.AsyncTestCase):
         self.assertEquals(None, ret)
 
     @testing.gen_test
+    def test_validation_issues(self):
+        # Requirement not satisfied
+        self.actor.all_options = {'needed': (str, None, ''),
+                                  'optional': (str, '', '')}
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._validate_options({'optional': 'b'})
+
+        # Invalid option type:
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._validate_options({'needed': 1, 'optional': 'b'})
+
+        # Unexpected option passed
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._validate_options({'needed': 'a', 'unexpected': 'b'})
+
+    @testing.gen_test
     def test_execute(self):
         # Call the executor and test it out
         res = yield self.actor.execute()
