@@ -54,8 +54,8 @@ class Message(base.HTTPBaseActor):
                 'Missing the "HIPCHAT_TOKEN" environment variable.')
 
         # TODO: don't copy options into object variables.
-        self._room = self._options['room']
-        self._message = self._options['message']
+        self._room = self.option('room')
+        self._message = self.option('message')
         self._token = TOKEN
         self._name = self._validate_from_name(NAME)
 

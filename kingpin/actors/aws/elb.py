@@ -76,7 +76,7 @@ class WaitUntilHealthy(base.BaseActor):
 
         super(WaitUntilHealthy, self).__init__(*args, **kwargs)
 
-        region = self._get_region(self._options['region'])
+        region = self._get_region(self.option('region'))
 
         if not (aws_settings.AWS_ACCESS_KEY_ID and
                 aws_settings.AWS_SECRET_ACCESS_KEY):
@@ -197,10 +197,10 @@ class WaitUntilHealthy(base.BaseActor):
         raises: gen.Return(True)
         """
 
-        elb = yield self._find_elb(name=self._options['name'])
+        elb = yield self._find_elb(name=self.option('name'))
 
         while True:
-            healthy = yield self._is_healthy(elb, count=self._options['count'])
+            healthy = yield self._is_healthy(elb, count=self.option('count'))
 
             if healthy is True:
                 self.log.info('ELB is healthy.')

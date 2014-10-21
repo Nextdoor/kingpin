@@ -71,7 +71,7 @@ class SQSBaseActor(base.BaseActor):
         """Create the connection object."""
         super(SQSBaseActor, self).__init__(*args, **kwargs)
 
-        region = self._get_region(self._options['region'])
+        region = self._get_region(self.option('region'))
 
         if not (aws_settings.AWS_ACCESS_KEY_ID and
                 aws_settings.AWS_SECRET_ACCESS_KEY):
@@ -161,7 +161,7 @@ class Create(SQSBaseActor):
         Raises:
             gen.Return(True)
         """
-        q = yield self._create_queue(name=self._options['name'])
+        q = yield self._create_queue(name=self.option('name'))
 
         if q.__class__ == boto.sqs.queue.Queue:
             self.log.info('Queue Created: %s' % q.url)
@@ -210,11 +210,11 @@ class Delete(SQSBaseActor):
         Raises:
             gen.Return(True)
         """
-        pattern = self._options['name']
+        pattern = self.option('name')
         matched_queues = yield self._fetch_queues(pattern=pattern)
 
         not_found_condition = (not matched_queues and
-                               not self._options['idempotent'])
+                               not self.option('idempotent'))
 
         if not_found_condition:
             raise SQSQueueNotFoundException(
@@ -237,7 +237,8 @@ class WaitUntilEmpty(SQSBaseActor):
 
     all_options = {
         'name': (str, None, 'Name or pattern for SQS queues.'),
-        'region': (str, None, 'AWS region for SQS, such as us-west-2')
+        'region': (str, None, 'AWS region for SQS, such as us-west-2'),
+        'required': (bool, False, 'At least 1 queue must be found.')
     }
 
     @concurrent.run_on_executor
@@ -278,16 +279,16 @@ class WaitUntilEmpty(SQSBaseActor):
 
         raises: gen.Return(True)
         """
-        pattern = self._options['name']
+        pattern = self.option('name')
         matched_queues = yield self._fetch_queues(pattern)
 
         # Note: this does not check for dry mode.
-        if self._options.get('required') and not matched_queues:
+        if self.option('required') and not matched_queues:
             raise exceptions.ActorException(
                 'No queues like "%s" were found!' % pattern)
 
         self.log.info('Waiting for "%s" queues to become empty.' %
-                      self._options['name'])
+                      self.option('name'))
 
         sleepers = []
         for q in matched_queues:

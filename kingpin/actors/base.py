@@ -103,7 +103,7 @@ class BaseActor(object):
                 default = definition[1]
                 # `None` means it's required. Don't set the default
                 if default is not None:
-                    self._options[option] = default
+                    self._options.update({option: default})
 
     def _validate_options(self, options):
         """Validate that all the required options were passed in.
@@ -143,6 +143,11 @@ class BaseActor(object):
                 self.log.critical(e)
             raise exceptions.InvalidOptions(
                 'Found %s issue(s) with passed options.' % len(option_errors))
+
+    def option(self, name):
+        """Return the value for a given Actor option."""
+
+        return self._options.get(name)
 
     # TODO: Write an execution wrapper that logs the time it takes for
     # steps to finish. Wrap execute() with it.

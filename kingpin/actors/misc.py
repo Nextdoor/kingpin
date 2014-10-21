@@ -44,8 +44,8 @@ class Sleep(base.BaseActor):
 
         raises: gen.Return(True)
         """
-        self.log.debug('Sleeping for %s seconds' % self._options['sleep'])
+        self.log.debug('Sleeping for %s seconds' % self.option('sleep'))
         if not self._dry:
-            yield utils.tornado_sleep(seconds=self._options['sleep'])
+            yield utils.tornado_sleep(seconds=self.option('sleep'))
 
         raise gen.Return(True)

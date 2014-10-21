@@ -89,19 +89,19 @@ class Annotation(base.HTTPBaseActor):
             self.log.info('Testing Librato auth, skipping annotation')
             msg = ("Would have annotated metric "
                    "'%s' with title:'%s', description:'%s'")
-            self.log.info(msg % (self._options['name'], self._options['title'],
-                                 self._options['description']))
+            self.log.info(msg % (self.option('name'), self.option('title'),
+                                 self.option('description')))
             yield self._fetch_wrapper(
                 METRICS_URL, auth_username=EMAIL, auth_password=TOKEN)
         else:
             self.log.info(
                 "Annotating metric '%s' with title:'%s', description:'%s'" % (
-                    self._options['name'], self._options['title'],
-                    self._options['description']))
-            url = ANNOTATIONS_URL + self._options['name']
+                    self.option('name'), self.option('title'),
+                    self.option('description')))
+            url = ANNOTATIONS_URL + self.option('name')
             args = urllib.urlencode(
-                {'title': self._options['title'],
-                 'description': self._options['description']})
+                {'title': self.option('title'),
+                 'description': self.option('description')})
 
             yield self._fetch_wrapper(url, post=args,
                                       auth_username=EMAIL, auth_password=TOKEN)
