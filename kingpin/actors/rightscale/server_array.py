@@ -107,12 +107,12 @@ class Clone(ServerArrayBaseActor):
         yield self._client.login()
 
         # First, find the array we're copying from.
-        source_array = yield self._find_server_arrays(self._options['source'],
+        source_array = yield self._find_server_arrays(self.option('source'),
                                                       allow_mock=False)
 
         # Sanity-check -- make sure that the destination server array doesn't
         # already exist. If it does, bail out!
-        yield self._find_server_arrays(self._options['dest'],
+        yield self._find_server_arrays(self.option('dest'),
                                        raise_on='found',
                                        allow_mock=False)
 
@@ -124,15 +124,15 @@ class Clone(ServerArrayBaseActor):
         else:
             # In dry run mode. Don't really clone the array, just return back
             # 'True' as if the array-clone worked.
-            new_array = mock.MagicMock(name=self._options['dest'])
+            new_array = mock.MagicMock(name=self.option('dest'))
             new_array.soul = {
-                'name': '<mocked clone of %s>' % self._options['source']}
+                'name': '<mocked clone of %s>' % self.option('source')}
 
         # Lastly, rename the array
         params = self._generate_rightscale_params(
-            'server_array', {'name': self._options['dest']})
+            'server_array', {'name': self.option('dest')})
         self.log.info('Renaming array "%s" to "%s"' % (new_array.soul['name'],
-                                                       self._options['dest']))
+                                                       self.option('dest')))
         yield self._client.update_server_array(new_array, params)
 
         raise gen.Return(True)
@@ -182,16 +182,16 @@ class Update(ServerArrayBaseActor):
         yield self._client.login()
 
         # First, find the array we're going to be patching.
-        array = yield self._find_server_arrays(self._options['array'])
+        array = yield self._find_server_arrays(self.option('array'))
 
         # In dry run, just comment that we would have made the change.
         if self._dry:
             ok = True
             self.log.info('Not making any changes.')
-            if self._options['params']:
-                self.log.info('New params: %s' % self._options['params'])
-            if self._options['inputs']:
-                self.log.info('New inputs: %s' % self._options['inputs'])
+            if self.option('params'):
+                self.log.info('New params: %s' % self.option('params'))
+            if self.option('inputs'):
+                self.log.info('New inputs: %s' % self.option('inputs'))
 
                 if isinstance(array, mock.Mock):
                     self.log.warning(
@@ -199,16 +199,16 @@ class Update(ServerArrayBaseActor):
                     inputs_ok = True
                 else:
                     inputs_ok = yield self._check_array_inputs(
-                        array, self._options['inputs'])
+                        array, self.option('inputs'))
 
                 ok = ok and inputs_ok
 
             raise gen.Return(ok)
 
         # Update the ServerArray Parameters
-        if self._options['params']:
+        if self.option('params'):
             params = self._generate_rightscale_params(
-                'server_array', self._options['params'])
+                'server_array', self.option('params'))
             self.log.info('Updating array "%s" with params: %s' %
                           (array.soul['name'], params))
             try:
@@ -216,13 +216,13 @@ class Update(ServerArrayBaseActor):
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 422:
                     msg = ('Invalid parameters supplied to patch array "%s"' %
-                           self._options['array'])
+                           self.option('array'))
                     raise exceptions.UnrecoverableActionFailure(msg)
 
         # Update the ServerArray Next-Instane Inputs
-        if self._options['inputs']:
+        if self.option('inputs'):
             inputs = self._generate_rightscale_params(
-                'inputs', self._options['inputs'])
+                'inputs', self.option('inputs'))
             self.log.info('Updating array "%s" with inputs: %s' %
                           (array.soul['name'], inputs))
             yield self._client.update_server_array_inputs(array, inputs)
@@ -296,7 +296,7 @@ class Terminate(ServerArrayBaseActor):
         yield self._client.login()
 
         # First, find the array we're going to be terminating.
-        self.array = yield self._find_server_arrays(self._options['array'])
+        self.array = yield self._find_server_arrays(self.option('array'))
 
         # Disable the array so that no new instances launch. Ignore the result
         # of this opertaion -- as long as it succeeds, we're happy. No need to
@@ -304,11 +304,11 @@ class Terminate(ServerArrayBaseActor):
         params = self._generate_rightscale_params(
             'server_array', {'state': 'disabled'})
         if not self._dry:
-            self.log.info('Disabling Array "%s"' % self._options['array'])
+            self.log.info('Disabling Array "%s"' % self.option('array'))
             yield self._client.update_server_array(self.array, params)
         else:
             self.log.info('Would have updated array "%s" with params: %s' %
-                          (self._options['array'], params))
+                          (self.option('array'), params))
 
         # Optionally terminate all of the instances in the array first.
         yield self._terminate_all_instances(self.array)
@@ -349,7 +349,7 @@ class Destroy(ServerArrayBaseActor):
         """
         helper = Terminate(
             desc=self._desc + ' (terminate)',
-            options={'array': self._options['array']},
+            options={'array': self.option('array')},
             dry=self._dry)
 
         yield helper._execute()
@@ -500,12 +500,12 @@ class Launch(ServerArrayBaseActor):
         yield self._client.login()
 
         # First, find the array we're going to be launching....
-        array = yield self._find_server_arrays(self._options['array'])
+        array = yield self._find_server_arrays(self.option('array'))
 
         # This means that RightScale will auto-scale-up the array as soon as
         # their next scheduled auto-scale run hits (usually 60s). Store the
         # newly updated array.
-        if self._options['enable']:
+        if self.option('enable'):
             if not self._dry:
                 self.log.info('Enabling Array "%s"' % array.soul['name'])
                 params = self._generate_rightscale_params(
@@ -522,10 +522,10 @@ class Launch(ServerArrayBaseActor):
         # ball rolling as quickly as possible before rightscales
         # auto-array-scaling kicks in.
         self.log.info(
-            'Launching Array "%s" instances' % self._options['array'])
+            'Launching Array "%s" instances' % self.option('array'))
 
         # If count is None, then _launch_instances will use array's `min`.
-        count = self._options['count']
+        count = self.option('count')
         yield self._launch_instances(array, count=count)
 
         # Now, wait until the number of healthy instances in the array matches
@@ -602,35 +602,35 @@ class Execute(ServerArrayBaseActor):
         # First, find the array we're going to be launching. Get a list back of
         # the 'operational' instances that we are able to execute scripts
         # against.
-        array = yield self._find_server_arrays(self._options['array'])
+        array = yield self._find_server_arrays(self.option('array'))
         instances = yield self._get_operational_instances(array)
 
         # Munge our inputs into something that RightScale likes
         inputs = self._generate_rightscale_params(
-            'inputs', self._options['inputs'])
+            'inputs', self.option('inputs'))
 
         # Theres no way to 'test' the actual execution of the rightscale
         # scripts, so we'll just check that it exists.
         if self._dry:
-            script_found = yield self._check_script(self._options['script'])
+            script_found = yield self._check_script(self.option('script'))
 
             if not script_found:
                 self.log.error(
-                    'Script "%s" not found!' % self._options['script'])
+                    'Script "%s" not found!' % self.option('script'))
                 raise gen.Return(False)
 
             self.log.info(
                 'Would have executed "%s" with inputs "%s" on "%s".'
-                % (self._options['script'], inputs, array.soul['name']))
+                % (self.option('script'), inputs, array.soul['name']))
             raise gen.Return(True)
 
         # Execute the script on all of the servers in the array and store the
         # task status resource records.
         self.log.info(
             'Executing "%s" on %s instances in the array "%s"' %
-            (self._options['script'], len(instances), array.soul['name']))
+            (self.option('script'), len(instances), array.soul['name']))
         tasks = yield self._client.run_executable_on_instances(
-            self._options['script'], inputs, instances)
+            self.option('script'), inputs, instances)
 
         # Finally, monitor all of the tasks for completion.
         actions = []

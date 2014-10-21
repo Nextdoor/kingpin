@@ -20,7 +20,7 @@ class TestActor(base.BaseActor):
 
     @gen.coroutine
     def _execute(self):
-        raise gen.Return(self._options['return_value'])
+        raise gen.Return(self.option('return_value'))
 
 
 class TestBaseGroupActor(testing.AsyncTestCase):

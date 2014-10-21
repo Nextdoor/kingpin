@@ -65,7 +65,7 @@ class BaseGroupActor(base.BaseActor):
             A list of references to <actor objects>.
         """
         actions = []
-        for act in self._options['acts']:
+        for act in self.option('acts'):
             actions.append(utils.get_actor(act, dry=self._dry))
         return actions
 
