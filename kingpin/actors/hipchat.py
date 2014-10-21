@@ -53,9 +53,6 @@ class Message(base.HTTPBaseActor):
             raise exceptions.InvalidCredentials(
                 'Missing the "HIPCHAT_TOKEN" environment variable.')
 
-        # TODO: don't copy options into object variables.
-        self._room = self.option('room')
-        self._message = self.option('message')
         self._token = TOKEN
         self._name = self._validate_from_name(NAME)
 
@@ -122,8 +119,8 @@ class Message(base.HTTPBaseActor):
         raises: gen.Return(True)
         """
         self.log.info('Sending message "%s" to Hipchat room "%s"' %
-                      (self._message, self._room))
-        res = yield self._post_message(self._room, self._message)
+                      (self.option('message'), self.option('room')))
+        res = yield self._post_message(self.option('room'), self.option('message'))
 
         # If we got here, the result is supposed to include 'success' as a key
         # and inside that key we can dig for the actual message. If the
