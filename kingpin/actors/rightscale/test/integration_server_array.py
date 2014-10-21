@@ -249,9 +249,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
              'script': 'missing::recipe',
              'inputs': {}},
             dry=True)
-
-        success = yield actor.execute()
-        self.assertFalse(success)
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @attr('integration')
     @testing.gen_test(timeout=120)
@@ -261,8 +260,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name,
              'script': 'missing::recipe',
              'inputs': {}})
-        with self.assertRaises(api.ServerArrayException):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=120)
