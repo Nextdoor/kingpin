@@ -122,28 +122,27 @@ class BaseActor(object):
                     if definition[1] is None]
 
         self.log.debug('Checking for required options: %s' % required)
-        missing_options = []
+        option_errors = []
         for option in required:
             if option not in options:
-                missing_options.append(option)
-
-        if missing_options:
-            self.log.critical('Insufficient Actor options: %s' % options)
-            message = 'Missing options: %s' % missing_options
-            self.log.critical(message)
-            raise exceptions.InvalidOptions(message)
+                option_errors.append('Option "%s" is required!' % option)
 
         for opt, value in options.items():
             if opt not in self.all_options:
-                message = 'Unexpected option passed: %s' % opt
-                self.log.error(message)
-                raise exceptions.InvalidOptions(message)
+                option_errors.append('Option "%s" is not expected.' % opt)
+                continue
 
             expected_type = self.all_options[opt][0]
             if not isinstance(value, expected_type):
                 message = 'Option "%s" has to be %s and is %s.' % (
                     opt, expected_type, type(value))
-                raise exceptions.InvalidOptions(message)
+                option_errors.append(message)
+
+        if option_errors:
+            for e in option_errors:
+                self.log.critical(e)
+            raise exceptions.InvalidOptions(
+                'Found %s issue(s) with passed options.' % len(option_errors))
 
     # TODO: Write an execution wrapper that logs the time it takes for
     # steps to finish. Wrap execute() with it.
