@@ -1,27 +1,15 @@
 import logging
 
 from tornado import testing
-from tornado import gen
 import boto.sqs.connection
 import boto.sqs.queue
 import mock
 
 from kingpin.actors.aws import settings
 from kingpin.actors.aws import sqs
+from kingpin.actors.test.helper import mock_tornado
 
 log = logging.getLogger(__name__)
-
-
-def mock_tornado(value=None):
-    """Creates a mock for a coroutine function that returns `value`"""
-
-    @gen.coroutine
-    def call(*args, **kwargs):
-        call._call_count = call._call_count + 1
-        raise gen.Return(value)
-
-    call._call_count = 0
-    return call
 
 
 class SQSTestCase(testing.AsyncTestCase):
