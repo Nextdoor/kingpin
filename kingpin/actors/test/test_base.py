@@ -58,36 +58,54 @@ class TestBaseActor(testing.AsyncTestCase):
         requests_logger = logging.getLogger('requests.packages.urllib3')
         self.assertEquals(10, requests_logger.level)
 
-    @testing.gen_test
     def test_validate_options(self):
         self.actor.all_options = {'test': (str, None, '')}
+        self.actor._options = {'a': 'b'}
         with self.assertRaises(exceptions.InvalidOptions):
-            ret = self.actor._validate_options({'a': 'b'})
+            ret = self.actor._validate_options()
 
         self.actor.all_options = {'test': (str, None, '')}
-        ret = self.actor._validate_options({'test': 'b'})
+        self.actor._options = {'test': 'b'}
+        ret = self.actor._validate_options()
         self.assertEquals(None, ret)
 
         self.actor.all_options = {'test': (str, None, ''),
                                   'test2': (str, None, '')}
-        ret = self.actor._validate_options({'test': 'b', 'test2': 'b'})
+        self.actor._options = {'test': 'b', 'test2': 'b'}
+        ret = self.actor._validate_options()
         self.assertEquals(None, ret)
 
-    @testing.gen_test
     def test_validation_issues(self):
-        # Requirement not satisfied
         self.actor.all_options = {'needed': (str, None, ''),
                                   'optional': (str, '', '')}
+
+        # Requirement not satisfied
+        self.actor._options = {'optional': 'b'}
         with self.assertRaises(exceptions.InvalidOptions):
-            self.actor._validate_options({'optional': 'b'})
+            self.actor._validate_options()
 
         # Invalid option type:
+        self.actor._options = {'needed': 1, 'optional': 'b'}
         with self.assertRaises(exceptions.InvalidOptions):
-            self.actor._validate_options({'needed': 1, 'optional': 'b'})
+            self.actor._validate_options()
 
         # Unexpected option passed
+        self.actor._options = {'needed': 'a', 'unexpected': 'b'}
         with self.assertRaises(exceptions.InvalidOptions):
-            self.actor._validate_options({'needed': 'a', 'unexpected': 'b'})
+            self.actor._validate_options()
+
+    def test_validate_defaults(self):
+        # Default is not a permitted type
+        self.actor.all_options = {'name': (str, False, 'String!')}
+        self.actor._setup_defaults()
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._validate_options()
+
+    @testing.gen_test
+    def test_option(self):
+        self.actor._options['foo'] = 'bar'
+        opt = self.actor.option('foo')
+        self.assertEquals(opt, 'bar')
 
     @testing.gen_test
     def test_execute(self):

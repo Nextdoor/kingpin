@@ -88,7 +88,7 @@ Executing the tests:
     running pep8
     running pyflakes
 
-##### kingpin.actor.rightscale.server_array
+##### kingpin.actor.rightscale.server\_array
 
 These tests clone a ServerArray, modify it, launch it, and destroy it. They
 rely on an existing ServerArray template being available and launchable in
