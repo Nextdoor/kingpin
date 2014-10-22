@@ -408,14 +408,20 @@ class Launch(ServerArrayBaseActor):
                           % array.soul['name'])
             raise gen.Return()
 
-        # Get the current min_count setting from the ServerArray object
-        min_count = int(array.soul['elasticity_params']['bounds']['min_count'])
+        # Get the current min_count setting from the ServerArray object, or get
+        # the min_count from the count number supplied to the actor (if it
+        # was).
+        min_count = self._options.get('count', False)
+        if not min_count:
+            min_count = int(array.soul['elasticity_params']
+                            ['bounds']['min_count'])
 
         while True:
             instances = yield self._client.get_server_array_current_instances(
                 array, filters=['state==operational'])
             count = len(instances)
-            self.log.info('%s instances found' % count)
+            self.log.info('%s instances found, waiting for %s' %
+                          (count, min_count))
 
             if min_count <= count:
                 raise gen.Return()

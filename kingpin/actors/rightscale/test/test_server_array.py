@@ -484,11 +484,40 @@ class TestLaunchActor(testing.AsyncTestCase):
         def get(self, *args, **kwargs):
             server_list.append('x')
             raise gen.Return(server_list)
-
         self.client_mock.get_server_array_current_instances = get
 
         ret = yield self.actor._wait_until_healthy(array_mock, sleep=0.01)
         self.assertEquals(len(server_list), 4)
+        self.assertEquals(ret, None)
+
+        # Now run the same test, but in dry mode..
+        self.actor._dry = True
+        server_list = []
+        ret = yield self.actor._wait_until_healthy(array_mock, sleep=0.01)
+        self.assertEquals(len(server_list), 0)
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_wait_until_healthy_based_on_specific_count(self):
+        # Set the 'count' option to 2 in the Actor
+        self.actor._options['count'] = 2
+
+        # Now proceed with creating a fake array, etc.
+        array_mock = mock.MagicMock(name='unittest')
+        array_mock.soul = {
+            'name': 'unittest',
+            'elasticity_params': {'bounds': {'min_count': '4'}}}
+
+        server_list = []
+
+        @gen.coroutine
+        def get(self, *args, **kwargs):
+            server_list.append('x')
+            raise gen.Return(server_list)
+        self.client_mock.get_server_array_current_instances = get
+
+        ret = yield self.actor._wait_until_healthy(array_mock, sleep=0.01)
+        self.assertEquals(len(server_list), 2)
         self.assertEquals(ret, None)
 
         # Now run the same test, but in dry mode..
