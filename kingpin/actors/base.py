@@ -134,6 +134,11 @@ class BaseActor(object):
                 continue
 
             expected_type = self.all_options[opt][0]
+
+            # Unicode is not a `str` but it is a `basestring`
+            if expected_type == str:
+                expected_type = basestring
+
             if not isinstance(value, expected_type):
                 message = 'Option "%s" has to be %s and is %s.' % (
                     opt, expected_type, type(value))
