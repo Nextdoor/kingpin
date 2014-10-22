@@ -84,7 +84,7 @@ class BaseActor(object):
 
         self._setup_log()
         self._setup_defaults()
-        self._validate_options(options)  # Relies on _setup_log() above
+        self._validate_options()  # Relies on _setup_log() above
 
         self.log.debug('Initialized')
 
@@ -106,7 +106,7 @@ class BaseActor(object):
                 if default is not None:
                     self._options.update({option: default})
 
-    def _validate_options(self, options):
+    def _validate_options(self):
         """Validate that all the required options were passed in.
 
         Args:
@@ -125,10 +125,10 @@ class BaseActor(object):
         self.log.debug('Checking for required options: %s' % required)
         option_errors = []
         for option in required:
-            if option not in options:
+            if option not in self._options:
                 option_errors.append('Option "%s" is required!' % option)
 
-        for opt, value in options.items():
+        for opt, value in self._options.items():
             if opt not in self.all_options:
                 option_errors.append('Option "%s" is not expected.' % opt)
                 continue

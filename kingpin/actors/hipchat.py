@@ -120,7 +120,8 @@ class Message(base.HTTPBaseActor):
         """
         self.log.info('Sending message "%s" to Hipchat room "%s"' %
                       (self.option('message'), self.option('room')))
-        res = yield self._post_message(self.option('room'), self.option('message'))
+        res = yield self._post_message(self.option('room'),
+                                       self.option('message'))
 
         # If we got here, the result is supposed to include 'success' as a key
         # and inside that key we can dig for the actual message. If the
