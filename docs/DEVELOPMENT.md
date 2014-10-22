@@ -122,6 +122,14 @@ RightScale ServerTemplate.
         |
         +-- actors.aws
         |   | Amazon Web Services Actor
+        |   |
+        |   +-- elb
+        |   |   +-- WaitUntilHealthy
+        |   |
+        |   +-- sqs
+        |       +-- Create
+        |       +-- Delete
+        |       +-- WaitUntilEmpty
         |
         +-- actors.email
         |   | Email Actor
@@ -133,6 +141,8 @@ RightScale ServerTemplate.
         |
         +-- actors.librato
             | Librato Metric Actor
+            |
+            +-- Annotation
 
 ### Setup
 

@@ -33,11 +33,14 @@ class FakeHTTPClientClass(object):
 class TestBaseActor(testing.AsyncTestCase):
 
     @gen.coroutine
-    def sleep(self):
-        # Basically a fake action that should take a few seconds to run for the
-        # sake of the unit tests.
-        yield utils.tornado_sleep(0.1)
+    def true(self):
+        yield utils.tornado_sleep(0.01)
         raise gen.Return(True)
+
+    @gen.coroutine
+    def false(self):
+        yield utils.tornado_sleep(0.01)
+        raise gen.Return(False)
 
     def setUp(self):
         super(TestBaseActor, self).setUp()
@@ -47,7 +50,7 @@ class TestBaseActor(testing.AsyncTestCase):
 
         # Mock out the actors ._execute() method so that we have something to
         # test
-        self.actor._execute = self.sleep
+        self.actor._execute = self.true
 
     @testing.gen_test
     def test_httplib_debugging(self):
@@ -91,10 +94,20 @@ class TestBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute(self):
-        # Call the executor and test it out
         res = yield self.actor.execute()
+        self.assertEquals(res, True)
 
-        # Make sure we fired off an alert.
+    @testing.gen_test
+    def test_execute_fail(self):
+        self.actor._execute = self.false
+        res = yield self.actor.execute()
+        self.assertEquals(res, False)
+
+    @testing.gen_test
+    def test_execute_fail_with_warn_on_failure(self):
+        self.actor._execute = self.false
+        self.actor._warn_on_fail = True
+        res = yield self.actor.execute()
         self.assertEquals(res, True)
 
 

@@ -34,8 +34,11 @@ def get_actor(config, dry):
 
                 {'actor': <string name of actor>
                  'options': <dict of options to pass to actor>
-                 'desc': <string description of actor>}
+                 'desc': <string description of actor>,
+                 'warn_on_fail': <bool>}
+
         dry: Boolean whether or not in Dry mode
+        warn_on_fail: Boolean
 
     Returns:
         <actor object>
