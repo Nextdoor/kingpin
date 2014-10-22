@@ -66,6 +66,14 @@ class BaseActor(object):
     # {
     #     'option_name': (type, default, "Long description of the option"),
     # }
+    #
+    # If `default` is `None` then the option requires user specified input
+    #
+    # Example:
+    # {
+    #    'room': (str, None, 'Hipchat room to notify'),
+    #    'from': (str, 'Kingpin', 'User that sends the message')
+    # }
     all_options = {}
 
     def __init__(self, desc, options, dry=False):
