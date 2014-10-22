@@ -19,6 +19,7 @@ dedicated packages. Things like sleep timers, loggers, etc.
 """
 
 import logging
+import urllib
 
 from tornado import gen
 
@@ -49,3 +50,34 @@ class Sleep(base.BaseActor):
             yield utils.tornado_sleep(seconds=self.option('sleep'))
 
         raise gen.Return(True)
+
+
+class GenericHTTP(base.HTTPBaseActor):
+
+    """Simple HTTP get/post sending actor."""
+
+    all_options = {
+        'url': (str, None, 'Domain name + query string to fetch'),
+        'data': (dict, {}, 'Data to attach as a POST query'),
+        'username': (str, '', 'HTTPAuth username'),
+        'password': (str, '', 'HTTPAuth password')
+    }
+
+    @gen.coroutine
+    def _execute(self):
+
+        escaped_post = urllib.urlencode(self.option('data')) or None
+
+        res = yield self._fetch(self.option('url'),
+                                post=escaped_post,
+                                auth_username=self.option('username'),
+                                auth_password=self.option('password'))
+
+        if 'success' in res and (200 <= res['success']['code'] < 300):
+            raise gen.Return(True)
+
+        self.log.error('Request failed.')
+        self.log.error('Request url: %s' % self.option('url'))
+        self.log.error('Request data: %s' % escaped_post)
+        self.log.debug('Response: %s' % res)
+        raise gen.Return(False)
