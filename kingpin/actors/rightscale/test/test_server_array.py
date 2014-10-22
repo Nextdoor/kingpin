@@ -6,7 +6,6 @@ from tornado import gen
 import requests
 
 from kingpin.actors import exceptions
-from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import base
 from kingpin.actors.rightscale import server_array
 
@@ -50,7 +49,7 @@ class TestServerArrayBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_find_server_arrays_with_bad_raise_on(self):
-        with self.assertRaises(api.ServerArrayException):
+        with self.assertRaises(exceptions.ActorException):
             yield self.actor._find_server_arrays('t', raise_on='bogus')
 
     @testing.gen_test
@@ -64,7 +63,7 @@ class TestServerArrayBaseActor(testing.AsyncTestCase):
         self.assertTrue(isinstance(ret, mock.MagicMock))
 
         # With it set to false, we should raise an exception
-        with self.assertRaises(api.ServerArrayException):
+        with self.assertRaises(exceptions.ActorException):
             yield self.actor._find_server_arrays('t', allow_mock=False)
 
     @testing.gen_test
@@ -76,7 +75,7 @@ class TestServerArrayBaseActor(testing.AsyncTestCase):
 
         # If the array is found, but we don't want it found, it should
         # raise an exception.
-        with self.assertRaises(api.ServerArrayException):
+        with self.assertRaises(exceptions.ActorException):
             yield self.actor._find_server_arrays('t', raise_on='found')
 
         # If the array is found, and we DO want it found, it should be
@@ -95,7 +94,7 @@ class TestServerArrayBaseActor(testing.AsyncTestCase):
 
         # If the array is not found, but we do want it found, it should
         # raise an exception.
-        with self.assertRaises(api.ServerArrayException):
+        with self.assertRaises(exceptions.ActorException):
             yield self.actor._find_server_arrays('t', raise_on='notfound')
 
         # If the array is not found, and we don't want it found, it should
@@ -224,8 +223,8 @@ class TestUpdateActor(testing.AsyncTestCase):
         error = requests.exceptions.HTTPError(msg, response=mocked_response)
         self.client_mock.update_server_array.side_effect = error
 
-        with self.assertRaises(exceptions.UnrecoverableActionFailure):
-            yield self.actor.execute()
+        res = yield self.actor.execute()
+        self.assertEquals(False, res)
 
         self.client_mock.update_server_array.assert_called_once_with(
             mocked_array, {'server_array[name]': 'newunitarray'})

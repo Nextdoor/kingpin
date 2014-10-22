@@ -23,7 +23,6 @@ import requests
 
 from kingpin import utils
 from kingpin.actors import exceptions
-from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import base
 
 log = logging.getLogger(__name__)
@@ -58,7 +57,8 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
         elif not raise_on:
             msg = 'Searching for array named "%s"' % array_name
         else:
-            raise api.ServerArrayException('Invalid "raise_on" setting.')
+            raise exceptions.UnrecoverableActionFailure(
+                'Invalid "raise_on" setting.')
 
         self.log.debug(msg)
         array = yield self._client.find_server_arrays(array_name, exact=True)
@@ -79,11 +79,11 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
             array.self.show.return_value = array
 
         if array and raise_on == 'found':
-            raise api.ServerArrayException(
+            raise exceptions.UnrecoverableActionFailure(
                 'Dest array "%s" already exists! Exiting!' % array_name)
 
         if not array and raise_on == 'notfound':
-            raise api.ServerArrayException(
+            raise exceptions.UnrecoverableActionFailure(
                 'Array "%s" not found! Exiting!' % array_name)
 
         raise gen.Return(array)
