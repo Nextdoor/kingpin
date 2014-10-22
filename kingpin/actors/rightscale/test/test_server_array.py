@@ -8,26 +8,9 @@ import requests
 from kingpin.actors import exceptions
 from kingpin.actors.rightscale import base
 from kingpin.actors.rightscale import server_array
+from kingpin.actors.test.helper import mock_tornado, tornado_value
 
 log = logging.getLogger(__name__)
-
-
-def mock_tornado(value=None):
-    """Creates a mock for a coroutine function that returns `value`"""
-
-    @gen.coroutine
-    def call(*args, **kwargs):
-        call._call_count = call._call_count + 1
-        raise gen.Return(value)
-
-    call._call_count = 0
-    return call
-
-
-@gen.coroutine
-def tornado_value(value):
-    """Convers whatever is passed in to a tornado value."""
-    raise gen.Return(value)
 
 
 class TestServerArrayBaseActor(testing.AsyncTestCase):
@@ -264,8 +247,7 @@ class TestTerminateActor(testing.AsyncTestCase):
         # Create the actor
         self.actor = server_array.Terminate(
             'Terminate',
-            {'array': 'unittestarray',
-             'terminate': True})
+            {'array': 'unittestarray'})
 
         # Patch the actor so that we use the client mock
         self.client_mock = mock.MagicMock()
