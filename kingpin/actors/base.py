@@ -30,6 +30,7 @@ any live changes. It is up to the developer of the Actor to define what
 import json
 import logging
 import os
+import sys
 
 from tornado import gen
 from tornado import httpclient
@@ -65,6 +66,14 @@ class BaseActor(object):
     # {
     #     'option_name': (type, default, "Long description of the option"),
     # }
+    #
+    # If `default` is `None` then the option requires user specified input
+    #
+    # Example:
+    # {
+    #    'room': (str, None, 'Hipchat room to notify'),
+    #    'from': (str, 'Kingpin', 'User that sends the message')
+    # }
     all_options = {}
 
     def __init__(self, desc, options, dry=False, warn_on_fail=False):
@@ -86,7 +95,7 @@ class BaseActor(object):
 
         self._setup_log()
         self._setup_defaults()
-        self._validate_options(options)  # Relies on _setup_log() above
+        self._validate_options()  # Relies on _setup_log() above
 
         self.log.debug('Initialized')
 
@@ -108,7 +117,7 @@ class BaseActor(object):
                 if default is not None:
                     self._options.update({option: default})
 
-    def _validate_options(self, options):
+    def _validate_options(self):
         """Validate that all the required options were passed in.
 
         Args:
@@ -127,15 +136,20 @@ class BaseActor(object):
         self.log.debug('Checking for required options: %s' % required)
         option_errors = []
         for option in required:
-            if option not in options:
+            if option not in self._options:
                 option_errors.append('Option "%s" is required!' % option)
 
-        for opt, value in options.items():
+        for opt, value in self._options.items():
             if opt not in self.all_options:
                 option_errors.append('Option "%s" is not expected.' % opt)
                 continue
 
             expected_type = self.all_options[opt][0]
+
+            # Unicode is not a `str` but it is a `basestring`
+            if expected_type == str:
+                expected_type = basestring
+
             if not isinstance(value, expected_type):
                 message = 'Option "%s" has to be %s and is %s.' % (
                     opt, expected_type, type(value))
@@ -163,7 +177,23 @@ class BaseActor(object):
             gen.Return(result)
         """
         self.log.debug('Beginning')
-        result = yield self._execute()
+        try:
+            result = yield self._execute()
+        except exceptions.ActorException as e:
+            self.log.error(e)
+            raise gen.Return(False)
+        except Exception as e:
+            # We don't like general exception catch clauses like this, but
+            # because actors can be written by third parties and automatically
+            # imported, its impossible for us to catch every exception
+            # possible. This is a failsafe thats meant to throw a strong
+            # warning.
+            log.critical('Unexpected exception caught! '
+                         'Please contact the author (%s) and provide them '
+                         'with this stacktrace' %
+                         sys.modules[__name__].__author__)
+            self.log.exception(e)
+            raise gen.Return(False)
 
         # Log the result. If theres a failure, throw up a warning. Depending on
         # how _warn_on_fail is set, we may actually return this failed result

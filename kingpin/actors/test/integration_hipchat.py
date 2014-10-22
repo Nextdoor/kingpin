@@ -10,6 +10,7 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
 class IntegrationHipchatMessage(testing.AsyncTestCase):
+
     """Simple high level integration tests agains the HipChat API.
 
     These tests actually hit the HipChat API and test that the code
@@ -42,8 +43,8 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
 
         # Valid response test
         actor._token = 'Invalid'
-        with self.assertRaises(exceptions.InvalidCredentials):
-            yield actor.execute()
+        res = yield actor.execute()
+        self.assertEquals(res, False)
 
     @testing.gen_test
     def integration_test_execute_real(self):
