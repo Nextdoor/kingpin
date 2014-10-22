@@ -230,6 +230,10 @@ are included in the log messages. Usage examples:
     self.log.info('I am doing work')
     self.log.warning('I do not think that should have happened')
 
+#### self.option
+
+Accessing options passed to the actor from the JSON file should be done via `self.option()` method. Accessing `self._options` parameter is not recommended, and the edge cases should be handled via the `all_options` class variable.
+
 #### Exception Handling
 
 ### Postfix on Mac OSX
