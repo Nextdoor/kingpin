@@ -20,13 +20,14 @@ __author__ = 'Matt Wise (matt@nextdoor.com)'
 
 from logging import handlers
 import demjson
+import functools
 import logging
 import os
 import re
+import sys
 import time
 import traceback
-import functools
-import sys
+import yaml
 
 from tornado import gen
 from tornado import ioloop
@@ -280,4 +281,13 @@ def convert_json_to_dict(json_file):
     """
     raw = open(json_file).read()
     parsed = populate_with_env(raw)
-    return demjson.decode(parsed)
+    # demjson returns every string as <type 'unicode'>.
+    # This is technically correct in accordance to JSON but extremely
+    # inconvenient when specifying expected data type.
+    # However, demjson is significantly better at error handling and reporting
+    # and it allows for java-syntax comments in-file.
+    unicode_dict = demjson.decode(parsed)
+    # Here we encode/decode using yaml's native parser, which returns strings
+    # as <type 'str'>
+    string_dict = yaml.load(demjson.encode(unicode_dict))
+    return string_dict

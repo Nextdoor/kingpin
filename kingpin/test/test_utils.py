@@ -38,6 +38,7 @@ class TestUtils(unittest.TestCase):
         simple = '%s/simple.json' % examples
         ret = utils.convert_json_to_dict(simple)
         self.assertEquals(type(ret), dict)
+        self.assertEquals(type(ret['desc']), str)
 
     def test_exception_logger(self):
         @utils.exception_logger
