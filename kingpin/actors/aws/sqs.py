@@ -55,18 +55,23 @@ class SQSQueueNotFoundException(SQSActorException):
 
 class SQSBaseActor(base.BaseActor):
 
+    # This actor should not be instantiated, but unit testing requires that
+    # it's all options are defined properly here.
+    all_options = {
+        'name': (str, None, 'Queue name to do nothing with.'),
+        'region': (str, None, 'AWS region name like us-west-2')
+    }
+
     # Get references to existing objects that are used by the
     # tornado.concurrent.run_on_executor() decorator.
     ioloop = ioloop.IOLoop.current()
     executor = EXECUTOR
 
-    required_options = ['name', 'region']
-
     def __init__(self, *args, **kwargs):
         """Create the connection object."""
         super(SQSBaseActor, self).__init__(*args, **kwargs)
 
-        region = self._get_region(self._options['region'])
+        region = self._get_region(self.option('region'))
 
         if not (aws_settings.AWS_ACCESS_KEY_ID and
                 aws_settings.AWS_SECRET_ACCESS_KEY):
@@ -80,8 +85,6 @@ class SQSBaseActor(base.BaseActor):
             aws_settings.AWS_ACCESS_KEY_ID,
             aws_settings.AWS_SECRET_ACCESS_KEY,
             region=region)
-
-        self._options['idempotent'] = self._options.get('idempotent', False)
 
     def _get_region(self, region):
         """Return 'region' object used in SQSConnection
@@ -122,6 +125,11 @@ class Create(SQSBaseActor):
 
     """Creates a new SQS Queue."""
 
+    all_options = {
+        'name': (str, None, 'Name or pattern for SQS queues.'),
+        'region': (str, None, 'AWS region for SQS, such as us-west-2')
+    }
+
     @concurrent.run_on_executor
     @utils.exception_logger
     def _create_queue(self, name):
@@ -153,7 +161,7 @@ class Create(SQSBaseActor):
         Raises:
             gen.Return(True)
         """
-        q = yield self._create_queue(name=self._options['name'])
+        q = yield self._create_queue(name=self.option('name'))
 
         if q.__class__ == boto.sqs.queue.Queue:
             self.log.info('Queue Created: %s' % q.url)
@@ -169,6 +177,12 @@ class Create(SQSBaseActor):
 class Delete(SQSBaseActor):
 
     """Deletes an existing SQS Queue."""
+
+    all_options = {
+        'name': (str, None, 'Name or pattern for SQS queues.'),
+        'region': (str, None, 'AWS region for SQS, such as us-west-2'),
+        'idempotent': (bool, False, 'Continue if queues are already deleted.')
+    }
 
     @concurrent.run_on_executor
     @utils.exception_logger
@@ -196,11 +210,11 @@ class Delete(SQSBaseActor):
         Raises:
             gen.Return(True)
         """
-        pattern = self._options['name']
+        pattern = self.option('name')
         matched_queues = yield self._fetch_queues(pattern=pattern)
 
         not_found_condition = (not matched_queues and
-                               not self._options['idempotent'])
+                               not self.option('idempotent'))
 
         if not_found_condition:
             raise SQSQueueNotFoundException(
@@ -220,6 +234,12 @@ class Delete(SQSBaseActor):
 class WaitUntilEmpty(SQSBaseActor):
 
     """Waits for one or more SQS Queues to become empty."""
+
+    all_options = {
+        'name': (str, None, 'Name or pattern for SQS queues.'),
+        'region': (str, None, 'AWS region for SQS, such as us-west-2'),
+        'required': (bool, False, 'At least 1 queue must be found.')
+    }
 
     @concurrent.run_on_executor
     @utils.exception_logger
@@ -259,16 +279,16 @@ class WaitUntilEmpty(SQSBaseActor):
 
         raises: gen.Return(True)
         """
-        pattern = self._options['name']
+        pattern = self.option('name')
         matched_queues = yield self._fetch_queues(pattern)
 
         # Note: this does not check for dry mode.
-        if self._options.get('required') and not matched_queues:
+        if self.option('required') and not matched_queues:
             raise exceptions.ActorException(
                 'No queues like "%s" were found!' % pattern)
 
         self.log.info('Waiting for "%s" queues to become empty.' %
-                      self._options['name'])
+                      self.option('name'))
 
         sleepers = []
         for q in matched_queues:
