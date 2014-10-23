@@ -40,27 +40,19 @@ class Message(base.HTTPBaseActor):
 
     """Simple Hipchat Message sending actor."""
 
-    def __init__(self, *args, **kwargs):
-        """Initializes the Actor.
+    all_options = {
+        'room': (str, None, 'Hipchat room name'),
+        'message': (str, None, 'Message to send')
+    }
 
-        Args:
-            desc: String description of the action being executed.
-            options: Dictionary with the following settings:
-              { 'room': <hipchat room name>,
-                'message': <string of message to send>' }
-        """
+    def __init__(self, *args, **kwargs):
+        """Check required environment variables."""
         super(Message, self).__init__(*args, **kwargs)
 
         if not TOKEN:
             raise exceptions.InvalidCredentials(
                 'Missing the "HIPCHAT_TOKEN" environment variable.')
 
-        for opt in ['room', 'message']:
-            if opt not in self._options:
-                raise exceptions.InvalidOptions('Missing "%s" option.' % opt)
-
-        self._room = self._options['room']
-        self._message = self._options['message']
         self._token = TOKEN
         self._name = self._validate_from_name(NAME)
 
@@ -127,8 +119,9 @@ class Message(base.HTTPBaseActor):
         raises: gen.Return(True)
         """
         self.log.info('Sending message "%s" to Hipchat room "%s"' %
-                      (self._message, self._room))
-        res = yield self._post_message(self._room, self._message)
+                      (self.option('message'), self.option('room')))
+        res = yield self._post_message(self.option('room'),
+                                       self.option('message'))
 
         # If we got here, the result is supposed to include 'success' as a key
         # and inside that key we can dig for the actual message. If the

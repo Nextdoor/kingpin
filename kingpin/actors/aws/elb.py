@@ -53,7 +53,12 @@ class WaitUntilHealthy(base.BaseActor):
 
     """Waits till a specified number of instances are "InService"."""
 
-    required_options = ['name', 'count', 'region']
+    all_options = {
+        'name': (str, None, 'Name of the ELB'),
+        'count': ((int, str), None,
+                  'Specific count, or percentage of instances to wait for.'),
+        'region': (str, None, 'AWS region name, like us-west-2')
+    }
 
     # Get references to existing objects that are used by the
     # tornado.concurrent.run_on_executor() decorator.
@@ -71,7 +76,7 @@ class WaitUntilHealthy(base.BaseActor):
 
         super(WaitUntilHealthy, self).__init__(*args, **kwargs)
 
-        region = self._get_region(self._options['region'])
+        region = self._get_region(self.option('region'))
 
         if not (aws_settings.AWS_ACCESS_KEY_ID and
                 aws_settings.AWS_SECRET_ACCESS_KEY):
@@ -192,10 +197,10 @@ class WaitUntilHealthy(base.BaseActor):
         raises: gen.Return(True)
         """
 
-        elb = yield self._find_elb(name=self._options['name'])
+        elb = yield self._find_elb(name=self.option('name'))
 
         while True:
-            healthy = yield self._is_healthy(elb, count=self._options['count'])
+            healthy = yield self._is_healthy(elb, count=self.option('count'))
 
             if healthy is True:
                 self.log.info('ELB is healthy.')
