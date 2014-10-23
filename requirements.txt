@@ -8,9 +8,10 @@ tornado>=3.2.2,<4.0
 futures
 
 # Used to parse out the JSON and validate its format.
-simplejson
-jsonschema
+PyYAML==3.11
 demjson
+jsonschema
+simplejson
 
 # Colorize the log output!
 rainbow_logging_handler
