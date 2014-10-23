@@ -97,7 +97,8 @@ class IntegrationSQS(testing.AsyncTestCase):
     def integration_03a_delete_queue_dry(self):
         actor = sqs.Delete('Delete %s' % self.queue_name,
                            {'name': self.queue_name,
-                            'region': self.region},
+                            'region': self.region,
+                            'idempotent': True},
                            dry=True)
 
         done = yield actor.execute()
