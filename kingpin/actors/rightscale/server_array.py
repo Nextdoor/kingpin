@@ -300,12 +300,12 @@ class Terminate(ServerArrayBaseActor):
                                                     raise_on=None,
                                                     allow_mock=False)
 
-        idempotent = self._options.get('idempotent', False)
+        idempotent = self.option('idempotent')
 
         if not self.array:  # Note - no dry check.
             if idempotent:
-                self.log.info('No arrays like "%s" found, and that\'s ok' % (
-                    self._options['array']))
+                self.log.info('No arrays like "%s" found, and that\'s ok' %
+                              self.option('array'))
                 raise gen.Return(True)
             else:
                 self.log.error('No arrays like "%s" found! Exiting.')
