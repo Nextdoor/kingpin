@@ -266,7 +266,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
     def integration_07a_destroy_dry(self):
         actor = server_array.Destroy(
             'Destroy %s' % self.template_array,
-            {'array': self.clone_name, 'terminate': True},
+            {'array': self.clone_name},
             dry=True)
         ret = yield actor.execute()
         self.assertEquals(True, ret)
@@ -276,6 +276,6 @@ class IntegrationServerArray(testing.AsyncTestCase):
     def integration_07b_destroy(self):
         actor = server_array.Destroy(
             'Destroy %s' % self.template_array,
-            {'array': self.clone_name, 'terminate': True})
+            {'array': self.clone_name})
         ret = yield actor.execute()
         self.assertEquals(True, ret)
