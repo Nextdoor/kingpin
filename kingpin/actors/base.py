@@ -132,9 +132,11 @@ class BaseActor(object):
 
         self.log.debug('Checking for required options: %s' % required)
         option_errors = []
-        for option in required:
-            if option not in self._options:
-                option_errors.append('Option "%s" is required!' % option)
+        for opt in required:
+            if opt not in self._options:
+                description = self.all_options[opt][2]
+                option_errors.append('Option "%s" is required: %s' % (
+                                     opt, description))
 
         for opt, value in self._options.items():
             if opt not in self.all_options:
