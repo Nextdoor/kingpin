@@ -33,11 +33,14 @@ class FakeHTTPClientClass(object):
 class TestBaseActor(testing.AsyncTestCase):
 
     @gen.coroutine
-    def sleep(self):
-        # Basically a fake action that should take a few seconds to run for the
-        # sake of the unit tests.
-        yield utils.tornado_sleep(0.1)
+    def true(self):
+        yield utils.tornado_sleep(0.01)
         raise gen.Return(True)
+
+    @gen.coroutine
+    def false(self):
+        yield utils.tornado_sleep(0.01)
+        raise gen.Return(False)
 
     def setUp(self):
         super(TestBaseActor, self).setUp()
@@ -47,7 +50,7 @@ class TestBaseActor(testing.AsyncTestCase):
 
         # Mock out the actors ._execute() method so that we have something to
         # test
-        self.actor._execute = self.sleep
+        self.actor._execute = self.true
 
     @testing.gen_test
     def test_httplib_debugging(self):
@@ -58,26 +61,71 @@ class TestBaseActor(testing.AsyncTestCase):
         requests_logger = logging.getLogger('requests.packages.urllib3')
         self.assertEquals(10, requests_logger.level)
 
-    @testing.gen_test
     def test_validate_options(self):
-        self.actor.required_options = ['test']
+        self.actor.all_options = {'test': (str, None, '')}
+        self.actor._options = {'a': 'b'}
         with self.assertRaises(exceptions.InvalidOptions):
-            ret = self.actor._validate_options({'a': 'b'})
+            ret = self.actor._validate_options()
 
-        self.actor.required_options = ['test']
-        ret = self.actor._validate_options({'test': 'b'})
+        self.actor.all_options = {'test': (str, None, '')}
+        self.actor._options = {'test': 'b'}
+        ret = self.actor._validate_options()
         self.assertEquals(None, ret)
 
-        self.actor.required_options = ['test', 'test2']
-        ret = self.actor._validate_options({'test': 'b', 'test2': 'b'})
+        self.actor.all_options = {'test': (str, None, ''),
+                                  'test2': (str, None, '')}
+        self.actor._options = {'test': 'b', 'test2': 'b'}
+        ret = self.actor._validate_options()
         self.assertEquals(None, ret)
+
+    def test_validation_issues(self):
+        self.actor.all_options = {'needed': (str, None, ''),
+                                  'optional': (str, '', '')}
+
+        # Requirement not satisfied
+        self.actor._options = {'optional': 'b'}
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._validate_options()
+
+        # Invalid option type:
+        self.actor._options = {'needed': 1, 'optional': 'b'}
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._validate_options()
+
+        # Unexpected option passed
+        self.actor._options = {'needed': 'a', 'unexpected': 'b'}
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._validate_options()
+
+    def test_validate_defaults(self):
+        # Default is not a permitted type
+        self.actor.all_options = {'name': (str, False, 'String!')}
+        self.actor._setup_defaults()
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._validate_options()
+
+    @testing.gen_test
+    def test_option(self):
+        self.actor._options['foo'] = 'bar'
+        opt = self.actor.option('foo')
+        self.assertEquals(opt, 'bar')
 
     @testing.gen_test
     def test_execute(self):
-        # Call the executor and test it out
         res = yield self.actor.execute()
+        self.assertEquals(res, True)
 
-        # Make sure we fired off an alert.
+    @testing.gen_test
+    def test_execute_fail(self):
+        self.actor._execute = self.false
+        res = yield self.actor.execute()
+        self.assertEquals(res, False)
+
+    @testing.gen_test
+    def test_execute_fail_with_warn_on_failure(self):
+        self.actor._execute = self.false
+        self.actor._warn_on_failure = True
+        res = yield self.actor.execute()
         self.assertEquals(res, True)
 
     @testing.gen_test

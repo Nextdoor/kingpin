@@ -264,8 +264,7 @@ class TestTerminateActor(testing.AsyncTestCase):
         # Create the actor
         self.actor = server_array.Terminate(
             'Terminate',
-            {'array': 'unittestarray',
-             'terminate': True})
+            {'array': 'unittestarray'})
 
         # Patch the actor so that we use the client mock
         self.client_mock = mock.MagicMock()
@@ -380,6 +379,18 @@ class TestTerminateActor(testing.AsyncTestCase):
         # ensure that we never called the update_array method!
         yield self.actor._execute()
         initial_array.updated.assert_has_calls([])
+
+    @testing.gen_test
+    def test_execute_non_found(self):
+        self.actor._options['idempotent'] = True
+        self.actor._find_server_arrays = mock_tornado([])
+        res = yield self.actor._execute()
+        self.assertTrue(res)
+
+        self.actor._options['idempotent'] = False
+        self.actor._find_server_arrays = mock_tornado([])
+        res = yield self.actor._execute()
+        self.assertFalse(res)
 
 
 class TestDestroyActor(TestServerArrayBaseActor):

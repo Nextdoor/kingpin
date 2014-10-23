@@ -63,9 +63,20 @@ class BaseActor(object):
 
     """Abstract base class for Actor objects."""
 
-    required_options = []
+    # {
+    #     'option_name': (type, default, "Long description of the option"),
+    # }
+    #
+    # If `default` is `None` then the option requires user specified input
+    #
+    # Example:
+    # {
+    #    'room': (str, None, 'Hipchat room to notify'),
+    #    'from': (str, 'Kingpin', 'User that sends the message')
+    # }
+    all_options = {}
 
-    def __init__(self, desc, options, dry=False):
+    def __init__(self, desc, options, dry=False, warn_on_failure=False):
         """Initializes the Actor.
 
         Args:
@@ -73,14 +84,18 @@ class BaseActor(object):
             options: (Dict) Key/Value pairs that have the options
                      for this action. Values should be primitives.
             dry: (Bool) or not this Actor will actually make changes.
+            warn_on_failure: (Bool) Whether this actor ignores its return
+                             value and always returns True (but warns).
         """
         self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
         self._desc = desc
         self._options = options
         self._dry = dry
+        self._warn_on_failure = warn_on_failure
 
         self._setup_log()
-        self._validate_options(options)  # Relies on _setup_log() above
+        self._setup_defaults()
+        self._validate_options()  # Relies on _setup_log() above
 
         self.log.debug('Initialized')
 
@@ -92,7 +107,17 @@ class BaseActor(object):
 
         self.log = LogAdapter(logger, {'desc': self._desc, 'dry': dry_str})
 
-    def _validate_options(self, options):
+    def _setup_defaults(self):
+        """Populate options with defaults if they aren't set."""
+
+        for option, definition in self.all_options.items():
+            if option not in self._options:
+                default = definition[1]
+                # `None` means it's required. Don't set the default
+                if default is not None:
+                    self._options.update({option: default})
+
+    def _validate_options(self):
         """Validate that all the required options were passed in.
 
         Args:
@@ -101,18 +126,48 @@ class BaseActor(object):
         Raises:
             exceptionsInvalidOptions
         """
-        missing_options = []
-        for option in self.required_options:
-            if option not in options:
-                missing_options.append(option)
 
-        if not missing_options:
-            return
+        # Loop through all_options, and find the required ones
+        # Required options have `None` as their default value.
+        required = [opt_name
+                    for (opt_name, definition) in self.all_options.items()
+                    if definition[1] is None]
 
-        self.log.error('Unable to configure Actor with options: %s' % options)
+        self.log.debug('Checking for required options: %s' % required)
+        option_errors = []
+        for opt in required:
+            if opt not in self._options:
+                description = self.all_options[opt][2]
+                option_errors.append('Option "%s" is required: %s' % (
+                                     opt, description))
 
-        raise exceptions.InvalidOptions(
-            'Missing options: %s' % ' '.join(missing_options))
+        for opt, value in self._options.items():
+            if opt not in self.all_options:
+                option_errors.append('Option "%s" is not expected.' % opt)
+                continue
+
+            expected_type = self.all_options[opt][0]
+
+            # Unicode is not a `str` but it is a `basestring`
+            # Cast the passed value explicitly as a string
+            if isinstance(value, basestring):
+                value = str(value)
+
+            if not isinstance(value, expected_type):
+                message = 'Option "%s" has to be %s and is %s.' % (
+                    opt, expected_type, type(value))
+                option_errors.append(message)
+
+        if option_errors:
+            for e in option_errors:
+                self.log.critical(e)
+            raise exceptions.InvalidOptions(
+                'Found %s issue(s) with passed options.' % len(option_errors))
+
+    def option(self, name):
+        """Return the value for a given Actor option."""
+
+        return self._options.get(name)
 
     # TODO: Write an execution wrapper that logs the time it takes for
     # steps to finish. Wrap execute() with it.
@@ -143,10 +198,21 @@ class BaseActor(object):
             self.log.exception(e)
             raise gen.Return(False)
 
+        # Log the result. If theres a failure, throw up a warning. Depending on
+        # how _warn_on_failure is set, we may actually return this failed
+        # result ... or we may swallow it up and return True anyways.
         if result:
             self.log.debug('Finished successfully.')
         else:
             self.log.warning('Finished with errors.')
+
+        # If we are ignoring the result of the actor, then we return True no
+        # matter what.
+        if self._warn_on_failure:
+            self.log.warning(
+                'Returning True even though a failure was '
+                'detected (warn_on_failure=%s)' % self._warn_on_failure)
+            result = True
 
         raise gen.Return(result)
 

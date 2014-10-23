@@ -14,9 +14,13 @@ class TestActor(base.BaseActor):
 
     """Fake Actor for Tests"""
 
+    all_options = {
+        'return_value': (object, True, 'What this actor will return')
+    }
+
     @gen.coroutine
     def _execute(self):
-        raise gen.Return(self._options['return_value'])
+        raise gen.Return(self.option('return_value'))
 
 
 class TestBaseGroupActor(testing.AsyncTestCase):

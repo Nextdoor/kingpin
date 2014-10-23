@@ -83,7 +83,8 @@ class TestHipchatMessage(testing.AsyncTestCase):
         # Un-set the token now and make sure the init fails
         hipchat.TOKEN = None
         with self.assertRaises(exceptions.InvalidCredentials):
-            hipchat.Message('Unit Test Action', {})
+            hipchat.Message('Unit Test Action',
+                            {'room': 'test', 'message': 'test'})
 
     @testing.gen_test
     def test_init_with_missing_options(self):

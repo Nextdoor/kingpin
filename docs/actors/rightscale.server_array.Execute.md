@@ -1,7 +1,8 @@
 ##### rightscale.server_array.Execute
 
 Executes a RightScript or Recipe on a set of hosts in a ServerArray in
-RightScale using individual calls to the live running instances.
+RightScale using individual calls to the live running instances. These can be
+found in your RightScale account under Design -> RightScript or Cookbooks
 
 The RightScale API offers a `multi_run_executable` method that can be used
 to run a single script on all servers in an array -- but unfortunately this
