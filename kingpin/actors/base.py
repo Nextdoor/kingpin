@@ -76,7 +76,7 @@ class BaseActor(object):
     # }
     all_options = {}
 
-    def __init__(self, desc, options, dry=False):
+    def __init__(self, desc, options, dry=False, warn_on_fail=False):
         """Initializes the Actor.
 
         Args:
@@ -84,11 +84,14 @@ class BaseActor(object):
             options: (Dict) Key/Value pairs that have the options
                      for this action. Values should be primitives.
             dry: (Bool) or not this Actor will actually make changes.
+            warn_on_fail: (Bool) Whether this actor ignores its return
+                          value and always returns True (but warns).
         """
         self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
         self._desc = desc
         self._options = options
         self._dry = dry
+        self._warn_on_fail = warn_on_fail
 
         self._setup_log()
         self._setup_defaults()
@@ -195,10 +198,21 @@ class BaseActor(object):
             self.log.exception(e)
             raise gen.Return(False)
 
+        # Log the result. If theres a failure, throw up a warning. Depending on
+        # how _warn_on_fail is set, we may actually return this failed result
+        # ... or we may swallow it up and return True anyways.
         if result:
             self.log.debug('Finished successfully.')
         else:
             self.log.warning('Finished with errors.')
+
+        # If we are ignoring the result of the actor, then we return True no
+        # matter what.
+        if self._warn_on_fail:
+            self.log.warning(
+                'Returning True even though a failure was '
+                'detected (warn_on_fail=%s)' % self._warn_on_fail)
+            result = True
 
         raise gen.Return(result)
 

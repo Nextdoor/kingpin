@@ -109,14 +109,16 @@ execute them in a predictable order.
 
 ##### Schema Description
 
-The JSON schema is simple. We take a single JSON object that has 3 fields:
-`actor`, `desc` and `options`.
+The JSON schema is simple. We take a single JSON object that has a few fields:
 
   * `actor` - A text-string describing the name of the Actor package and class.
     For example, `kingpin.actors.rightscale.server_array.Clone`, or
     `misc.Sleep`.
   * `desc` - A text-string describing the name of the stage or action. Meant to
     ensure that the logs are very human readable.
+  * `warn_on_fail` - True/False whether or not to ignore an Actors failure and
+    return True anyways. Defaults to `False`, but if `True` a `warning` message
+    is logged.
   * `options` - A dictionary of key/value pairs that are required for the
     specific `actor` that you're instantiating. See individual Actor
     documentation below for these options.
@@ -125,6 +127,7 @@ The simples JSON file could look like this:
 
     { "desc": "Hipchat: Notify Oncall Room",
       "actor": "hipchat.Message",
+      "warn_on_fail": true,
       "options": {
         "message": "Beginning release %RELEASE%", "room": "Oncall"
       }
