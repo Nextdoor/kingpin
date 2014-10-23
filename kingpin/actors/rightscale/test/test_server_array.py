@@ -381,6 +381,18 @@ class TestTerminateActor(testing.AsyncTestCase):
         yield self.actor._execute()
         initial_array.updated.assert_has_calls([])
 
+    @testing.gen_test
+    def test_execute_non_found(self):
+        self.actor._options['idempotent'] = True
+        self.actor._find_server_arrays = mock_tornado([])
+        res = yield self.actor._execute()
+        self.assertTrue(res)
+
+        self.actor._options['idempotent'] = False
+        self.actor._find_server_arrays = mock_tornado([])
+        res = yield self.actor._execute()
+        self.assertFalse(res)
+
 
 class TestDestroyActor(TestServerArrayBaseActor):
 
