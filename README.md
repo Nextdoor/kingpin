@@ -1,13 +1,16 @@
 # Kingpin: the chief element of any system, plan, or the like.
 
 [![Build Status](https://travis-ci.org/Nextdoor/kingpin.svg?branch=master)](https://travis-ci.org/Nextdoor/kingpin)
+[![# of downloads](https://pypip.in/d/kingpin/badge.png)](https://pypi.python.org/pypi/kingpin)
+[![pypy version](https://badge.fury.io/py/kingpin.png)](https://pypi.python.org/pypi/kingpin)
 
 The Kingpin of your Deployment Model
 
 ## Installation
 
-Currently this package is not published to PyPI, so you have to install
-either by checking the code out of GitHub or via a special Pip command line.
+The simplest installation method is via [PyPI](https://pypi.python.org/pypi/kingpin).
+
+    $ pip install kingpin
 
 Note, we *strongly* recommend running the code inside a Python virtual
 environment. All of our examples below will show how to do this.
@@ -116,7 +119,7 @@ The JSON schema is simple. We take a single JSON object that has a few fields:
     `misc.Sleep`.
   * `desc` - A text-string describing the name of the stage or action. Meant to
     ensure that the logs are very human readable.
-  * `warn_on_fail` - True/False whether or not to ignore an Actors failure and
+  * `warn_on_failure` - True/False whether or not to ignore an Actors failure and
     return True anyways. Defaults to `False`, but if `True` a `warning` message
     is logged.
   * `options` - A dictionary of key/value pairs that are required for the
