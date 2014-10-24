@@ -1,5 +1,6 @@
 import logging
 
+from boto.exception import BotoServerError
 from tornado import gen
 from tornado import testing
 import mock
@@ -42,7 +43,7 @@ class TestELBActor(testing.AsyncTestCase):
                                  'region': 'us-west-2',
                                  'count': 3})
 
-        actor._find_elb = mock.Mock(return_value=tornado_value())
+        actor._find_elb = mock.Mock(return_value=tornado_value('ELB'))
         actor._is_healthy = mock.Mock(return_value=tornado_value(True))
 
         val = yield actor._execute()
@@ -58,7 +59,7 @@ class TestELBActor(testing.AsyncTestCase):
                                  'region': 'us-west-2',
                                  'count': 3})
 
-        actor._find_elb = mock.Mock(return_value=tornado_value())
+        actor._find_elb = mock.Mock(return_value=tornado_value('ELB'))
         actor._is_healthy = mock.Mock(
             side_effect=[tornado_value(False),
                          tornado_value(True)])
@@ -82,7 +83,7 @@ class TestELBActor(testing.AsyncTestCase):
                                  'count': 3},
             dry=True)
 
-        actor._find_elb = mock.Mock(return_value=tornado_value())
+        actor._find_elb = mock.Mock(return_value=tornado_value('ELB'))
         # NOTE: this is false, but assertion is True!
         actor._is_healthy = mock.Mock(return_value=tornado_value(False))
 
@@ -90,6 +91,20 @@ class TestELBActor(testing.AsyncTestCase):
         self.assertEquals(actor._find_elb.call_count, 1)
         self.assertEquals(actor._is_healthy.call_count, 1)
         self.assertTrue(val)
+
+    @testing.gen_test
+    def test_execute_fail(self):
+
+        actor = elb_actor.WaitUntilHealthy(
+            'Unit Test ACtion', {'name': 'unit-test-queue',
+                                 'region': 'us-west-2',
+                                 'count': 7})
+        # ELB not found...
+        actor.conn.get_all_load_balancers = mock.Mock(
+            side_effect=BotoServerError(400, 'Testing'))
+
+        res = yield actor.execute()
+        self.assertFalse(res)
 
     def test_get_region(self):
         actor = elb_actor.WaitUntilHealthy(
@@ -136,8 +151,8 @@ class TestELBActor(testing.AsyncTestCase):
         # Returning no elbs :(
         actor.conn.get_all_load_balancers = mock.Mock(return_value=[])
 
-        with self.assertRaises(Exception):
-            yield actor._find_elb('')
+        res = yield actor._find_elb('')
+        self.assertFalse(res)
 
     def test_get_expected_count(self):
         actor = elb_actor.WaitUntilHealthy(

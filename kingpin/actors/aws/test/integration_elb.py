@@ -42,7 +42,7 @@ class IntegrationELB(testing.AsyncTestCase):
 
     @attr('integration')
     @testing.gen_test(timeout=60)
-    def integration_01_check_elb_health(self):
+    def integration_01a_check_elb_health(self):
         actor = elb.WaitUntilHealthy(
             'Test',
             {'name': self.elb_name,
@@ -52,6 +52,19 @@ class IntegrationELB(testing.AsyncTestCase):
         done = yield actor.execute()
 
         self.assertTrue(done)
+
+    @attr('integration')
+    @testing.gen_test
+    def integration_01b_check_elb_not_found(self):
+        actor = elb.WaitUntilHealthy(
+            'Test',
+            {'name': 'Not-Found-ELB',
+             'count': 50,
+             'region': self.region})
+
+        done = yield actor.execute()
+
+        self.assertFalse(done)
 
     @attr('integration')
     @testing.gen_test(timeout=60)

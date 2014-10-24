@@ -18,6 +18,7 @@ import logging
 import math
 
 from boto.ec2 import elb as aws_elb
+from boto.exception import BotoServerError
 from concurrent import futures
 from tornado import concurrent
 from tornado import gen
@@ -125,13 +126,18 @@ class WaitUntilHealthy(base.BaseActor):
         """
         self.log.info('Searching for ELB "%s"' % name)
 
-        elbs = self.conn.get_all_load_balancers(load_balancer_names=name)
-        self.log.info('ELBs found: %s' % elbs)
+        try:
+            elbs = self.conn.get_all_load_balancers(load_balancer_names=name)
+        except BotoServerError as e:
+            self.log.critical(e.message)
+            elbs = []
+
+        self.log.debug('ELBs found: %s' % elbs)
 
         if len(elbs) != 1:
-            raise exceptions.UnrecoverableActionFailure(
-                ('Expected to find exactly 1 ELB. Found %s: %s' %
-                 (len(elbs), elbs)))
+            self.log.critical('Expected to find exactly 1 ELB. Found %s: %s'
+                              % (len(elbs), elbs))
+            return None
 
         return elbs[0]
 
@@ -171,20 +177,20 @@ class WaitUntilHealthy(base.BaseActor):
         """
         name = elb.name
 
-        self.log.info('Counting ELB InService instances for : %s' % name)
+        self.log.debug('Counting ELB InService instances for : %s' % name)
 
         # Get all instances for this ELB
         instance_list = elb.get_instance_health()
         total_count = len(instance_list)
 
-        self.log.info('All instances: %s' % instance_list)
+        self.log.debug('All instances: %s' % instance_list)
         in_service_count = [
             i.state for i in instance_list].count('InService')
 
         expected_count = self._get_expected_count(count, total_count)
 
         healthy = (in_service_count >= expected_count)
-        self.log.info('ELB "%s" healthy state: %s' % (elb.name, healthy))
+        self.log.debug('ELB "%s" healthy state: %s' % (elb.name, healthy))
         self.log.info('InService vs expected: %s / %s' %
                       (in_service_count, expected_count))
 
@@ -198,6 +204,10 @@ class WaitUntilHealthy(base.BaseActor):
         """
 
         elb = yield self._find_elb(name=self.option('name'))
+
+        if not elb:
+            self.log.critical('Cannot wait for non-existent ELB!')
+            raise gen.Return(False)
 
         while True:
             healthy = yield self._is_healthy(elb, count=self.option('count'))

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,6 +33,9 @@ from kingpin.version import __version__ as VERSION
 
 log = logging.getLogger(__name__)
 
+# We handle all the exceptions ourselves, so additional log statements from
+# BOTO are not needed.
+logging.getLogger('boto').setLevel(logging.CRITICAL)
 
 # Initial option handler to set up the basic application environment.
 usage = 'usage: %prog <options>'
@@ -96,8 +100,9 @@ def main():
             message = e
 
         if not success:
-            log.critical('Dry run failed. Reason:')
-            log.critical(message)
+            if message:
+                log.critical('Dry run failed. Reason:')
+                log.critical(message)
             sys.exit(2)
         else:
             log.info('Rehearsal OK! Performing!')
