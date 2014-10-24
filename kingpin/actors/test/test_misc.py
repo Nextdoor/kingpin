@@ -22,6 +22,19 @@ class TestSleep(testing.AsyncTestCase):
 class TestGenericHTTP(testing.AsyncTestCase):
 
     @testing.gen_test
+    def test_execute_dry(self):
+        actor = misc.GenericHTTP('Unit Test Action',
+                                 {'url': 'http://example.com'},
+                                 dry=True)
+
+        actor._fetch = mock_tornado()
+
+        res = yield actor.execute()
+        self.assertTrue(res)
+
+        self.assertEquals(actor._fetch._call_count, 0)
+
+    @testing.gen_test
     def test_execute(self):
         actor = misc.GenericHTTP('Unit Test Action',
                                  {'url': 'http://example.com'})

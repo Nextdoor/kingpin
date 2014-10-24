@@ -66,6 +66,14 @@ class GenericHTTP(base.HTTPBaseActor):
     @gen.coroutine
     def _execute(self):
 
+        if self._dry:
+            is_post = bool(self.option('data'))
+            method = ['POST', 'GET'][is_post]
+
+            self.log.info("Would do a %s request to %s"
+                          % (method, self.option('url')))
+            raise gen.Return(True)
+
         escaped_post = urllib.urlencode(self.option('data')) or None
 
         res = yield self._fetch(self.option('url'),
