@@ -279,3 +279,13 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name})
         ret = yield actor.execute()
         self.assertEquals(True, ret)
+
+    @attr('integration')
+    @testing.gen_test(timeout=600)
+    def integration_07b_destroy_missing_array(self):
+        # Re-run the same destroy.. this time it should fail
+        actor = server_array.Destroy(
+            'Destroy %s (should fail)' % self.template_array,
+            {'array': self.clone_name})
+        ret = yield actor.execute()
+        self.assertEquals(ret, False)

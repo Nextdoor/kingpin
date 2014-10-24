@@ -308,7 +308,8 @@ class Terminate(ServerArrayBaseActor):
                               self.option('array'))
                 raise gen.Return(True)
             else:
-                self.log.error('No arrays like "%s" found! Exiting.')
+                self.log.error('No arrays like "%s" found! Exiting.' %
+                               self.option('array'))
                 raise gen.Return(False)
 
         # Disable the array so that no new instances launch. Ignore the result
@@ -358,14 +359,16 @@ class Destroy(ServerArrayBaseActor):
     def _terminate(self):
         """Create and execute Terminator actor
 
-        Returns: the Terminate actor object
+        Returns: the Terminate actor object, or False
         """
         helper = Terminate(
             desc=self._desc + ' (terminate)',
             options={'array': self.option('array')},
             dry=self._dry)
 
-        yield helper._execute()
+        terminated = yield helper._execute()
+        if terminated is False:
+            raise gen.Return(False)
 
         raise gen.Return(helper)
 
@@ -376,9 +379,14 @@ class Destroy(ServerArrayBaseActor):
         self.log.info('Terminating array before destroying it.')
         helper = yield self._terminate()
 
+        # If helper is false, then the Terminate failed
+        if helper is False:
+            self.log.critical(
+                'Termination failed, cannot destroy array')
+            raise gen.Return(False)
+
         # Can grab the array object from the helper instead of re-searching
         array = helper.array
-
         yield self._destroy_array(array)
 
         raise gen.Return(True)

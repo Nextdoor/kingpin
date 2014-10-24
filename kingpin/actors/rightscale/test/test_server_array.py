@@ -401,14 +401,23 @@ class TestDestroyActor(TestServerArrayBaseActor):
             'Destroy',
             {'array': 'unittestarray'})
         with mock.patch.object(server_array, 'Terminate') as t:
-            t()._execute = mock_tornado()
+            t()._execute = mock_tornado(mock.MagicMock())
             obj = yield actor._terminate()
             self.assertEquals(t()._execute._call_count, 1)
             self.assertEquals(obj, t())
 
     @testing.gen_test
-    def test_execute(self):
+    def test_terminate_missing_array(self):
+        actor = server_array.Destroy(
+            'Destroy',
+            {'array': 'unittestarray'})
+        with mock.patch.object(server_array, 'Terminate') as t:
+            t()._execute = mock_tornado(False)
+            ret = yield actor._terminate()
+            self.assertEquals(ret, False)
 
+    @testing.gen_test
+    def test_execute(self):
         actor = server_array.Destroy(
             'Destroy',
             {'array': 'unittestarray'})
@@ -423,6 +432,15 @@ class TestDestroyActor(TestServerArrayBaseActor):
         self.assertEquals(actor._terminate._call_count, 1)
         self.assertEquals(actor._destroy_array._call_count, 1)
         self.assertTrue(ret)
+
+    @testing.gen_test
+    def test_execute_terminate_fails(self):
+        actor = server_array.Destroy(
+            'Destroy',
+            {'array': 'unittestarray'})
+        actor._terminate = mock_tornado(False)
+        ret = yield actor._execute()
+        self.assertEquals(ret, False)
 
     @testing.gen_test
     def test_destroy_array(self):
