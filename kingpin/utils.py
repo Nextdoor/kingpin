@@ -185,45 +185,43 @@ def exception_logger(func):
     return wrapper
 
 
-def retry(excs, retries=3, delay=0.25):
+def retry(retries=3, delay=0.25, backoff=1):
     """Coroutine-compatible Retry Decorator.
 
-    This decorator provides a simple retry mechanism that looks for a
-    particular set of exceptions and retries async tasks in the event that
-    those exceptions were caught.
+    This decorator provides a simple retry mechanism for failed executions
+    (those that return False)
 
     Example usage:
         >>> @gen.coroutine
-        ... @retry(excs=(Exception), retries=3)
+        ... @retry(retries=3)
         ... def login(self):
         ...     raise gen.Return()
 
     Args:
-        excs: A single (or tuple) exception type to catch.
         retries: The number of times to try the operation in total.
-        delay: Time (in seconds) to wait between retries
+        delay: Time (in seconds) to wait between retries.
+        backoff: Delay multiplier when a retry also fails.
     """
     def _retry_on_exc(f):
         def wrapper(*args, **kwargs):
-            i = 1
-            while True:
-                try:
-                    log.debug('Try (%s/%s) of %s(%s, %s)' %
-                              (i, retries, f, args, kwargs))
-                    ret = yield gen.coroutine(f)(*args, **kwargs)
-                    log.debug('Result: %s' % ret)
+            for i in xrange(retries):
+                log.debug('Try (%s/%s) of %s(%s, %s)' %
+                          (i, retries, f, args, kwargs))
+                ret = yield gen.coroutine(f)(*args, **kwargs)
+                log.debug('Result: %s' % ret)
+                if ret is not False:
                     raise gen.Return(ret)
-                except excs as e:
-                    log.error('Exception raised on try %s: %s' % (i, e))
+                elif i < (retries - 1):
+                    count = retries - i
+                    log.warning('Will retry %s %s more time(s)' % (f, count))
 
-                    if i >= retries:
-                        log.debug('Raising exception: %s' % e)
-                        raise e
+                    # Sleep grows exponentially
+                    sleep = delay * (backoff * i)
+                    yield tornado_sleep(sleep)
 
-                    i += 1
-                    log.debug('Retrying in %s...' % delay)
-                    yield tornado_sleep(delay)
-                log.debug('Retrying..')
+            # Out of the loop -- failed too many times :(
+            raise gen.Return(False)
+
         return wrapper
     return _retry_on_exc
 
@@ -235,6 +233,7 @@ def tornado_sleep(seconds=1.0):
     Args:
         seconds: Float seconds. Default 1.0
     """
+    log.debug('tornado_sleep(%s) called.' % seconds)
     yield gen.Task(ioloop.IOLoop.current().add_timeout,
                    time.time() + seconds)
 

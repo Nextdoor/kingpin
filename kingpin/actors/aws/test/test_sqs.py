@@ -153,6 +153,13 @@ class TestDeleteSQSQueueActor(SQSTestCase):
         self.assertTrue(self.conn().get_all_queues.called)
         self.assertFalse(self.conn().delete_queue.called)
 
+    @testing.gen_test
+    def test_execute_not_found_dry(self):
+        actor = sqs.Delete('Unit Test Action',
+                           {'name': 'unit-test-queue',
+                            'region': 'us-west-2'},
+                           dry=True)
+
         self.conn().get_all_queues = mock.Mock(return_value=[])
         # Should fail even in dry run, if idempotent flag is not there.
         settings.SQS_RETRY_DELAY = 0

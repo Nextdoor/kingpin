@@ -22,6 +22,7 @@ from tornado import httpclient
 
 from kingpin.actors import base
 from kingpin.actors import exceptions
+from kingpin.utils import retry
 
 log = logging.getLogger(__name__)
 
@@ -92,6 +93,7 @@ class Message(base.HTTPBaseActor):
         return potential_args
 
     @gen.coroutine
+    @retry(backoff=2)
     def _fetch_wrapper(self, *args, **kwargs):
         """Wrap the superclass _fetch method to catch known Hipchat errors."""
         try:
@@ -100,14 +102,11 @@ class Message(base.HTTPBaseActor):
             if e.code == 401:
                 # "The authentication you provided is invalid."
                 raise exceptions.InvalidCredentials(
-                    'The "HIPCHAT_TOKEN" supplied is invalid.')
+                    'The "HIPCHAT_NAME" or "HIPCHAT_TOKEN" supplied is '
+                    'invalid.')
             if e.code == 403:
-                # "You have exceeded the rate limit"
-                #
-                # TODO: Build a retry mechanism in here with a sleep timer.
-                self.log.error('Hit the HipChat API Rate Limit. '
-                               'Try again later.')
-                raise
+                self.log.error('Hit the HipChat API Rate Limit.')
+                raise gen.Return(False)
             raise
 
         raise gen.Return(res)
@@ -122,6 +121,9 @@ class Message(base.HTTPBaseActor):
                       (self.option('message'), self.option('room')))
         res = yield self._post_message(self.option('room'),
                                        self.option('message'))
+        if not res:
+            self.log.critical('Could not post message to Hipchat!')
+            raise gen.Return(False)
 
         # If we got here, the result is supposed to include 'success' as a key
         # and inside that key we can dig for the actual message. If the

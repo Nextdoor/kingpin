@@ -175,8 +175,8 @@ class TestHipchatMessage(testing.AsyncTestCase):
             m.return_value = FakeExceptionRaisingHTTPClientClass()
             m.return_value.response_value = http_response
 
-            with self.assertRaises(httpclient.HTTPError):
-                yield actor._execute()
+            res = yield actor._execute()
+            self.assertFalse(res)
 
     @testing.gen_test
     def test_execute_with_unknown_exception(self):

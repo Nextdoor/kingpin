@@ -364,9 +364,9 @@ class TestRightScale(testing.AsyncTestCase):
 
         # Test with invalid inputs raising a 422 error
         self.client.make_generic_request = fake_web_request
-        with self.assertRaises(api.ServerArrayException):
-            yield self.client.run_executable_on_instances(
-                'my::recipe', {}, [mock_instance])
+        res = yield self.client.run_executable_on_instances(
+            'my::recipe', {}, [mock_instance])
+        self.assertFalse(res)
 
     @testing.gen_test
     def test_make_generic_request(self):
