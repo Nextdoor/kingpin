@@ -43,7 +43,7 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 EXECUTOR = futures.ThreadPoolExecutor(10)
 
 
-class SQSActorException(Exception):
+class SQSActorException(exceptions.ActorException):
 
     """Raised by SQS Actor for any exception."""
 
@@ -217,8 +217,8 @@ class Delete(SQSBaseActor):
                                not self.option('idempotent'))
 
         if not_found_condition:
-            raise SQSQueueNotFoundException(
-                'No queues with pattern "%s" found.' % pattern)
+            self.log.critical('No queues with pattern "%s" found.' % pattern)
+            raise gen.Return(False)
 
         self.log.info('Deleting SQS Queues: %s' % matched_queues)
 
@@ -284,8 +284,8 @@ class WaitUntilEmpty(SQSBaseActor):
 
         # Note: this does not check for dry mode.
         if self.option('required') and not matched_queues:
-            raise exceptions.ActorException(
-                'No queues like "%s" were found!' % pattern)
+            self.log.critical('No queues like "%s" were found!' % pattern)
+            raise gen.Return(False)
 
         self.log.info('Waiting for "%s" queues to become empty.' %
                       self.option('name'))
