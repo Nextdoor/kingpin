@@ -661,6 +661,15 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.assertTrue(result)
         self.actor._client.find_right_script.assert_called_with('ut-script')
 
+    def test_input_issues(self):
+        # Correct inputs have no issues
+        self.actor._check_inputs()
+
+        # Incorrect inputs must be found
+        self.actor._options['inputs']['broken'] = 'broken'
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._check_inputs()
+
     @testing.gen_test
     def test_get_operational_instances_warn(self):
         mock_array = mock.MagicMock(name='array')
@@ -739,6 +748,7 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.actor._dry = True
         mock_array = mock.MagicMock(name='array')
 
+        # Checking script fails
         self.actor._check_script = mock_tornado(False)
         self.actor._find_server_arrays = mock_tornado(mock_array)
         self.client_mock.get_server_array_current_instances = mock_tornado([])
