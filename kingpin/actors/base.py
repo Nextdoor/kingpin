@@ -208,7 +208,7 @@ class BaseActor(object):
 
         # If we are ignoring the result of the actor, then we return True no
         # matter what.
-        if self._warn_on_failure:
+        if self._warn_on_failure and not result:
             self.log.warning(
                 'Returning True even though a failure was '
                 'detected (warn_on_failure=%s)' % self._warn_on_failure)
