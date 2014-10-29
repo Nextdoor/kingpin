@@ -180,10 +180,13 @@ class BaseActor(object):
             gen.Return(result)
         """
         self.log.debug('Beginning')
+
+        # Any exception thats raised by an actors _execute() method will
+        # automatically cause actor failure and we return right away.
         try:
-            result = yield self._execute()
+            success = yield self._execute()
         except exceptions.ActorException as e:
-            self.log.error(e)
+            self.log.critical(e)
             raise gen.Return(False)
         except Exception as e:
             # We don't like general exception catch clauses like this, but
@@ -201,20 +204,20 @@ class BaseActor(object):
         # Log the result. If theres a failure, throw up a warning. Depending on
         # how _warn_on_failure is set, we may actually return this failed
         # result ... or we may swallow it up and return True anyways.
-        if result:
+        if success:
             self.log.debug('Finished successfully.')
         else:
             self.log.warning('Finished with errors.')
 
         # If we are ignoring the result of the actor, then we return True no
         # matter what.
-        if self._warn_on_failure and not result:
+        if self._warn_on_failure and not success:
             self.log.warning(
-                'Returning True even though a failure was '
+                'Continuing execution even though a failure was '
                 'detected (warn_on_failure=%s)' % self._warn_on_failure)
-            result = True
+            success = True
 
-        raise gen.Return(result)
+        raise gen.Return(success)
 
 
 class HTTPBaseActor(BaseActor):
