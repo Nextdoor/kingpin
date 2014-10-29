@@ -159,6 +159,88 @@ RightScale ServerTemplate.
 
 ### Actor Design
 
+Kingpin Actors are self-contained python classes that execute operations
+asynchronously. Actors should follow a consistent structure (described below)
+and be written to be as fault tolerant as possible.
+
+#### Hello World Actor Example
+
+This is the basic structure for an actor class.
+
+```python
+import os
+
+from tornado import gen
+
+from kingpin.actors import base
+from kingpin.actors import exceptions
+
+# All actors must have an __author__ tag. This is used actively
+# by the Kingpin code, do not forget this!
+__author__ = 'Billy Joe Armstrong <american_idiot@broadway.com'
+
+# Perhaps you need an API token?
+TOKEN = os.getenv('HELLO_WORLD_TOKEN', None)
+
+class HelloWorld(base.BaseActor):
+    # Create an all_options dictionary that contains all of
+    # the required and optional options that can be passed into
+    # this actor.
+    all_options = {
+        'name': (str, None, 'Your name'),
+        'world': (str, None, 'World we\'re saying hello to!'),
+    }
+    
+    # Optionally, if you need to do any instantiation-level, non-blocking
+    # validation checks (for example, looking for an API token) you can do
+    # them in the __init__. Do *not* put blocking code in here.
+    def __init__(self, *args, **kwargs):
+        super(HelloWorld, self).__init__(*args, **kwargs)
+        if not TOKEN:
+            raise exceptions.InvalidCredentials(
+                'Missing the "HELLO_WORLD_TOKEN" environment variable.')
+        self._token = TOKEN
+
+    # The meat of the work happens in the _execute() method. This method
+    # is called by the BaseActor.execute() method. Your method must be
+    # wrapped in a gen.Coroutine wrapper. Note, the _execute() method takes
+    # no arguments, all arguments for the acter were passed in to the
+    # __init__() method.
+    @gen.coroutine
+    def _execute(self):
+        self.log.debug('Warming up the HelloWorld Actor')
+        
+        try:
+            res = yield my.HelloWorldSender(
+                from=self.option('name'),
+                to=self.option('world'))
+        except EndOfTheWorldAsWeKnowIt as e:
+            # Lets say that this error is completely un-handleable exception,
+            # the world is ending as we know it... Oh my!
+            self.log.critical('Some extra information about this error...')
+
+            # Now, raise an exception that is will stop execution of Kingpin,
+            # regardless of the warn_on_failure setting.
+            raise exceptions.UnrecoverableActorException('Oh my: %s' % e)
+
+        # Got a response. Did our message really go through though?
+        if not res:
+            # The world refuses to hear our message... A shame, really, but
+            # not entirely critical.
+            self.log.error('We failed to get our message out ... just '
+                           'letting you know!')
+            raise exceptions.RecoverableActorFailure(
+                'A shame, but I suppose they can listen to what they want')
+
+        # We've been heard!
+        self.log.info('%s people have heard our message!' % res)
+
+        # Indicate to Tornado that we're done with our execution.
+        raise gen.Return()
+```
+
+
+
 #### Required Options
 
 The following options are baked into our *BaseActor* model and must be
