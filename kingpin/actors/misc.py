@@ -25,6 +25,7 @@ from tornado import gen
 
 from kingpin import utils
 from kingpin.actors import base
+from kingpin.actors import exceptions
 
 log = logging.getLogger(__name__)
 
@@ -64,15 +65,19 @@ class GenericHTTP(base.HTTPBaseActor):
     }
 
     @gen.coroutine
+    def _execute_dry(self):
+        is_post = bool(self.option('data'))
+        method = ['POST', 'GET'][is_post]
+
+        self.log.info("Would do a %s request to %s"
+                      % (method, self.option('url')))
+        raise gen.Return()
+
+    @gen.coroutine
     def _execute(self):
 
         if self._dry:
-            is_post = bool(self.option('data'))
-            method = ['POST', 'GET'][is_post]
-
-            self.log.info("Would do a %s request to %s"
-                          % (method, self.option('url')))
-            raise gen.Return(True)
+            raise gen.Return(self._execute_dry())
 
         escaped_post = urllib.urlencode(self.option('data')) or None
 
@@ -82,10 +87,11 @@ class GenericHTTP(base.HTTPBaseActor):
                                 auth_password=self.option('password'))
 
         if 'success' in res and (200 <= res['success']['code'] < 300):
-            raise gen.Return(True)
+            self.log.debug('Fetch was successful!')
+            raise gen.Return()
 
         self.log.error('Request failed.')
         self.log.error('Request url: %s' % self.option('url'))
         self.log.error('Request data: %s' % escaped_post)
         self.log.debug('Response: %s' % res)
-        raise gen.Return(False)
+        raise exceptions.BadRequest(res)

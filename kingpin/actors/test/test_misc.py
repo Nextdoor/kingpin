@@ -29,8 +29,7 @@ class TestGenericHTTP(testing.AsyncTestCase):
 
         actor._fetch = mock_tornado()
 
-        res = yield actor.execute()
-        self.assertTrue(res)
+        yield actor.execute()
 
         self.assertEquals(actor._fetch._call_count, 0)
 
@@ -40,8 +39,7 @@ class TestGenericHTTP(testing.AsyncTestCase):
                                  {'url': 'http://example.com'})
         actor._fetch = mock_tornado({'success': {'code': 200}})
 
-        res = yield actor.execute()
-        self.assertTrue(res)
+        yield actor.execute()
 
     @testing.gen_test
     def test_execute_error(self):
