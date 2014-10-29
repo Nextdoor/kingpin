@@ -188,6 +188,16 @@ Your actor can take in custom options (ELB name, Route53 DNS entry name, etc)
 through a dictionary named `options` thats passed in to every actor and stored
 as `self._options`. The contents of this dictionary are entirely up to you.
 
+##### `warn_on_failure` (*optional*)
+
+If the user sets `warn_on_failure=True`, the `return` value (`True`/`False`)
+will be ignored during the run execution. This allows users to decide to ignore
+failures of their Actor during a run.
+
+However, this does not apply to exceptions that are raised by your actor.
+Any exceptions raised by your actor will cause the Kingpin script execution
+to fail.
+
 #### Required Methods
 
 ##### _execute() method
@@ -214,11 +224,12 @@ Actors must:
 Actors can:
   * Raise *kingpin.actors.exceptions.ActorException* rather than returning
     False. This is considered an unrecoverable exception and no Kingpin will
-    not execute any further actors when this happens. This is different than
-    returning False though. False should be returned when there were no
-    problems in the code or environment, but the action simpy failed (lets say
-    you tried to launch an already launched server array). Exceptions should be
-    raised when an unexpected failure occurs.
+    not execute any further actors when this happens.
+
+    This is different than returning False though. False should be returned
+    when there were no problems in the code or environment, but the action
+    simply failed (lets say you tried to launch an already launched server
+    array). Exceptions should be raised when an unexpected failure occurs.
 
 **Super simple example Actor _execute() method**
 
