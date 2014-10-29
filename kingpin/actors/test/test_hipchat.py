@@ -16,7 +16,9 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
 class FakeHTTPClientClass(object):
+
     '''Fake HTTPClient object for testing'''
+
     response_value = None
 
     @gen.coroutine
@@ -25,7 +27,9 @@ class FakeHTTPClientClass(object):
 
 
 class FakeExceptionRaisingHTTPClientClass(object):
+
     '''Fake HTTPClient object for testing'''
+
     response_value = None
 
     @gen.coroutine
@@ -34,6 +38,7 @@ class FakeExceptionRaisingHTTPClientClass(object):
 
 
 class TestHipchatMessage(testing.AsyncTestCase):
+
     """Unit tests for the Hipchat Message actor."""
 
     def setUp(self, *args, **kwargs):
@@ -174,9 +179,9 @@ class TestHipchatMessage(testing.AsyncTestCase):
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeExceptionRaisingHTTPClientClass()
             m.return_value.response_value = http_response
+            res = yield actor._execute()
 
-            with self.assertRaises(httpclient.HTTPError):
-                yield actor._execute()
+        self.assertEquals(res, False)
 
     @testing.gen_test
     def test_execute_with_unknown_exception(self):
@@ -196,6 +201,6 @@ class TestHipchatMessage(testing.AsyncTestCase):
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeExceptionRaisingHTTPClientClass()
             m.return_value.response_value = http_response
+            res = yield actor._execute()
 
-            with self.assertRaises(httpclient.HTTPError):
-                yield actor._execute()
+        self.assertEquals(res, False)

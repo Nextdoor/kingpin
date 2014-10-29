@@ -100,15 +100,13 @@ class Message(base.HTTPBaseActor):
             if e.code == 401:
                 # "The authentication you provided is invalid."
                 raise exceptions.InvalidCredentials(
-                    'The "HIPCHAT_TOKEN" supplied is invalid.')
+                    'The "HIPCHAT_NAME" or "HIPCHAT_TOKEN" supplied is '
+                    'invalid.')
             if e.code == 403:
                 # "You have exceeded the rate limit"
-                #
-                # TODO: Build a retry mechanism in here with a sleep timer.
                 self.log.error('Hit the HipChat API Rate Limit. '
                                'Try again later.')
-                raise
-            raise
+            raise gen.Return(False)
 
         raise gen.Return(res)
 
@@ -122,6 +120,10 @@ class Message(base.HTTPBaseActor):
                       (self.option('message'), self.option('room')))
         res = yield self._post_message(self.option('room'),
                                        self.option('message'))
+
+        # If we get 'None' or 'False' back, the actor failed.
+        if not res:
+            raise gen.Return(False)
 
         # If we got here, the result is supposed to include 'success' as a key
         # and inside that key we can dig for the actual message. If the
