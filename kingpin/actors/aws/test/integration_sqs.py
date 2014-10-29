@@ -19,6 +19,7 @@ logging.getLogger('boto').setLevel(logging.INFO)
 
 
 class IntegrationSQS(testing.AsyncTestCase):
+
     """High level SQS Actor testing.
 
     This suite of tests performs the following actions:
@@ -51,7 +52,7 @@ class IntegrationSQS(testing.AsyncTestCase):
              'region': self.region},
             dry=True)
         done = yield actor.execute()
-        self.assertTrue(done)
+        self.assertEquals(done, None)
 
     @attr('integration')
     @testing.gen_test(timeout=60)
@@ -61,7 +62,7 @@ class IntegrationSQS(testing.AsyncTestCase):
             {'name': self.queue_name,
              'region': self.region})
         done = yield actor.execute()
-        self.assertTrue(done)
+        self.assertEquals(done, None)
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=60)
@@ -70,10 +71,8 @@ class IntegrationSQS(testing.AsyncTestCase):
                                    {'name': self.queue_name,
                                     'region': self.region},
                                    dry=True)
-
-        success = yield actor.execute()
-
-        self.assertTrue(success)
+        done = yield actor.execute()
+        self.assertEquals(done, None)
 
     @attr('integration')
     @testing.gen_test(timeout=60)
@@ -87,10 +86,9 @@ class IntegrationSQS(testing.AsyncTestCase):
         queue = actor.conn.get_queue(self.queue_name)
         self.assertEquals(queue.count(), 0)
 
-        success = yield actor.execute()
+        done = yield actor.execute()
         yield utils.tornado_sleep()
-
-        self.assertTrue(success)
+        self.assertEquals(done, None)
 
     @attr('integration', 'dry')
     @testing.gen_test()
@@ -102,7 +100,7 @@ class IntegrationSQS(testing.AsyncTestCase):
                            dry=True)
 
         done = yield actor.execute()
-        self.assertTrue(done)
+        self.assertEquals(done, None)
 
     @attr('integration')
     @testing.gen_test(timeout=120)  # Delete actor sleeps and retries.
@@ -113,4 +111,15 @@ class IntegrationSQS(testing.AsyncTestCase):
                             'region': self.region})
 
         done = yield actor.execute()
-        self.assertTrue(done)
+        self.assertEquals(done, None)
+
+    @attr('integration')
+    @testing.gen_test(timeout=120)  # Delete actor sleeps and retries.
+    def integration_03c_delete_fake_queue(self):
+
+        actor = sqs.Delete('Delete %s' % self.queue_name,
+                           {'name': 'totally-fake-queue',
+                            'region': self.region})
+
+        with self.assertRaises(sqs.SQSQueueNotFoundException):
+            yield actor.execute()

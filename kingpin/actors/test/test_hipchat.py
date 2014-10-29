@@ -115,7 +115,7 @@ class TestHipchatMessage(testing.AsyncTestCase):
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._execute()
-            self.assertEquals(True, res)
+            self.assertEquals(res, None)
 
     @testing.gen_test
     def test_execute_dry_mode_response(self):
@@ -137,7 +137,7 @@ class TestHipchatMessage(testing.AsyncTestCase):
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._execute()
-            self.assertEquals(True, res)
+            self.assertEquals(res, None)
 
     @testing.gen_test
     def test_execute_with_401(self):

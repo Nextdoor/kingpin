@@ -41,6 +41,11 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 EXECUTOR = futures.ThreadPoolExecutor(10)
 
 
+class ELBNotFound(exceptions.RecoverableActorFailure):
+
+    """Raised when an ELB is not found"""
+
+
 # Helper function
 def p2f(string):
     """Convert percentage string into float.
@@ -105,7 +110,7 @@ class WaitUntilHealthy(base.BaseActor):
         match = [r for r in all_regions if r.name == region]
 
         if len(match) != 1:
-            raise exceptions.UnrecoverableActionFailure((
+            raise exceptions.UnrecoverableActorFailure((
                 'Expected to find exactly 1 region named %s. '
                 'Found: %s') % (region, match))
 
@@ -123,6 +128,9 @@ class WaitUntilHealthy(base.BaseActor):
 
         Returns:
             A single ELB reference object
+
+        Raises:
+            ELBNotFound
         """
         self.log.info('Searching for ELB "%s"' % name)
 
@@ -130,14 +138,13 @@ class WaitUntilHealthy(base.BaseActor):
             elbs = self.conn.get_all_load_balancers(load_balancer_names=name)
         except BotoServerError as e:
             self.log.critical(e.message)
-            elbs = []
+            raise ELBNotFound(e)
 
         self.log.debug('ELBs found: %s' % elbs)
 
         if len(elbs) != 1:
-            self.log.critical('Expected to find exactly 1 ELB. Found %s: %s'
+            raise ELBNotFound('Expected to find exactly 1 ELB. Found %s: %s'
                               % (len(elbs), elbs))
-            return None
 
         return elbs[0]
 
@@ -205,10 +212,6 @@ class WaitUntilHealthy(base.BaseActor):
 
         elb = yield self._find_elb(name=self.option('name'))
 
-        if not elb:
-            self.log.critical('Cannot wait for non-existent ELB!')
-            raise gen.Return(False)
-
         while True:
             healthy = yield self._is_healthy(elb, count=self.option('count'))
 
@@ -225,4 +228,4 @@ class WaitUntilHealthy(base.BaseActor):
             self.log.info('Retrying in 3 seconds.')
             yield utils.tornado_sleep(3)
 
-        raise gen.Return(True)
+        raise gen.Return()

@@ -122,21 +122,14 @@ class TestBaseActor(testing.AsyncTestCase):
         self.assertEquals(res, False)
 
     @testing.gen_test
-    def test_execute_fail_with_warn_on_failure(self):
-        self.actor._execute = self.false
-        self.actor._warn_on_failure = True
-        res = yield self.actor.execute()
-        self.assertEquals(res, True)
-
-    @testing.gen_test
     def test_execute_catches_expected_exception(self):
         @gen.coroutine
         def raise_exc():
             raise exceptions.ActorException('Test')
 
         self.actor._execute = raise_exc
-        res = yield self.actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(exceptions.ActorException):
+            yield self.actor.execute()
 
     @testing.gen_test
     def test_execute_catches_unexpected_exception(self):
@@ -145,8 +138,25 @@ class TestBaseActor(testing.AsyncTestCase):
             raise Exception('Test')
 
         self.actor._execute = raise_exc
+        with self.assertRaises(exceptions.ActorException):
+            yield self.actor.execute()
+
+    @testing.gen_test
+    def test_execute_with_warn_on_failure(self):
+        @gen.coroutine
+        def raise_exc():
+            raise exceptions.RecoverableActorFailure('should just warn')
+
+        self.actor._execute = raise_exc
+
+        # First test, should raise an exc...
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor.execute()
+
+        # Second test, turn on 'warn_on_failure'
+        self.actor._warn_on_failure = True
         res = yield self.actor.execute()
-        self.assertEquals(res, False)
+        self.assertEquals(res, None)
 
 
 class TestHTTPBaseActor(testing.AsyncTestCase):

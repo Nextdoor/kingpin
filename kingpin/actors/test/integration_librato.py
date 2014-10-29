@@ -59,8 +59,8 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
              'description': 'unittest',
              'name': 'unittest'}, dry=True)
 
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield actor.execute()
 
     @attr('integration', 'dry')
     @testing.gen_test
@@ -74,8 +74,8 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
              'description': 'unittest',
              'name': 'unittest'}, dry=True)
 
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield actor.execute()
 
     @attr('integration', 'dry')
     @testing.gen_test
@@ -87,7 +87,7 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
              'name': 'kingpin-integration-testing'}, dry=True)
 
         res = yield actor.execute()
-        self.assertEquals(True, res)
+        self.assertEquals(res, None)
 
     @attr('integration')
     @testing.gen_test
@@ -99,4 +99,4 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
              'name': 'kingpin-integration-testing'})
 
         res = yield actor.execute()
-        self.assertEquals(True, res)
+        self.assertEquals(res, None)

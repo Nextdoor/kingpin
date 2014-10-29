@@ -6,6 +6,7 @@ import boto.sqs.connection
 import boto.sqs.queue
 import mock
 
+from kingpin.actors import exceptions
 from kingpin.actors.aws import settings
 from kingpin.actors.aws import sqs
 
@@ -89,9 +90,8 @@ class TestCreateSQSQueueActor(SQSTestCase):
                                  'region': 'us-west-2'})
 
         self.conn().create_queue.return_value = boto.sqs.queue.Queue()
-
-        yield self.actor.execute()
-
+        ret = yield self.actor.execute()
+        self.assertEquals(ret, None)
         self.conn().create_queue.assert_called_once_with('unit-test-queue')
 
     @testing.gen_test
@@ -102,9 +102,7 @@ class TestCreateSQSQueueActor(SQSTestCase):
                                 dry=True)
 
         self.conn().create_queue.return_value = boto.sqs.queue.Queue()
-
         yield self.actor.execute()
-
         self.assertFalse(self.conn().create_queue.called)
 
     @testing.gen_test
@@ -115,12 +113,23 @@ class TestCreateSQSQueueActor(SQSTestCase):
 
         self.conn().create_queue.return_value = False
 
-        res = yield self.actor.execute()
-        self.assertEquals(False, res)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor.execute()
         self.conn().create_queue.assert_called_once_with('unit-test-queue')
 
 
 class TestDeleteSQSQueueActor(SQSTestCase):
+
+    @testing.gen_test
+    def test_delete_queue(self):
+        actor = sqs.Delete('Unit Test Action',
+                           {'name': 'unit-test-queue',
+                            'region': 'us-west-2'})
+        q = mock.Mock()
+        q.name = 'unit-test-queue'
+        self.conn().delete_queue.return_value = False
+        with self.assertRaises(sqs.SQSQueueDeletionFailed):
+            yield actor._delete_queue(q)
 
     @testing.gen_test
     def test_execute(self):
@@ -157,8 +166,8 @@ class TestDeleteSQSQueueActor(SQSTestCase):
         # Should fail even in dry run, if idempotent flag is not there.
         settings.SQS_RETRY_DELAY = 0
         reload(sqs)
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(sqs.SQSQueueNotFoundException):
+            yield actor.execute()
 
     @testing.gen_test
     def test_execute_with_failure(self):
@@ -168,8 +177,8 @@ class TestDeleteSQSQueueActor(SQSTestCase):
                            {'name': 'non-existent-queue',
                             'region': 'us-west-2'})
 
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(sqs.SQSQueueNotFoundException):
+            yield actor.execute()
 
     @testing.gen_test
     def test_execute_idempotent(self):
@@ -205,8 +214,8 @@ class TestWaitUntilQueueEmptyActor(SQSTestCase):
 
         actor._wait = mock_tornado(True)
         actor._fetch_queues = mock_tornado()
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(sqs.SQSQueueNotFoundException):
+            yield actor.execute()
 
     @testing.gen_test
     def test_wait(self):

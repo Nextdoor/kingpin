@@ -89,29 +89,19 @@ def main():
         # do a dry run first, then do real one
         dry_actor = actor_utils.get_actor(config, dry=True)
         log.info('Rehearsing... Break a leg!')
-        message = ''
         try:
-            success = yield dry_actor.execute()
-            if not success:
-                message = ('Some actors broke a leg during rehearsal. Read '
-                           'log output for more details.')
+            yield dry_actor.execute()
         except actor_exceptions.ActorException as e:
-            success = False
-            message = e
-
-        if not success:
-            if message:
-                log.critical('Dry run failed. Reason:')
-                log.critical(message)
+            log.critical('Dry run failed. Reason: %s' % e)
             sys.exit(2)
         else:
             log.info('Rehearsal OK! Performing!')
 
-    success = yield initial_actor.execute()
-
-    if not success:
+    try:
+        yield initial_actor.execute()
+    except actor_exceptions.ActorException as e:
         log.error('Kingpin encountered mistakes during the play.')
-        sys.exit(1)
+        sys.exit(2)
 
 
 def begin():

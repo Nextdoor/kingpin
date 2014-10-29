@@ -82,7 +82,7 @@ class Annotation(base.HTTPBaseActor):
     def _execute(self):
         """Executes an actor and yields the results when its finished.
 
-        raises: gen.Return(True)
+        raises: gen.Return()
         """
 
         if self._dry:
@@ -105,4 +105,4 @@ class Annotation(base.HTTPBaseActor):
 
             yield self._fetch_wrapper(url, post=args,
                                       auth_username=EMAIL, auth_password=TOKEN)
-        raise gen.Return(True)
+        raise gen.Return()

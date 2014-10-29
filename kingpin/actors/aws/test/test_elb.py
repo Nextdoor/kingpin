@@ -6,6 +6,7 @@ from tornado import testing
 import mock
 
 from kingpin import utils
+from kingpin.actors import exceptions
 from kingpin.actors.aws import elb as elb_actor
 from kingpin.actors.aws import settings
 
@@ -18,10 +19,10 @@ def tornado_value(*args):
     raise gen.Return(*args)
 
 
-class TestELBActor(testing.AsyncTestCase):
+class TestWaitUntilHealthy(testing.AsyncTestCase):
 
     def setUp(self):
-        super(TestELBActor, self).setUp()
+        super(TestWaitUntilHealthy, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
 
@@ -29,7 +30,7 @@ class TestELBActor(testing.AsyncTestCase):
     def test_require_env(self):
 
         settings.AWS_ACCESS_KEY_ID = ''
-        with self.assertRaises(Exception):
+        with self.assertRaises(exceptions.InvalidCredentials):
             elb_actor.WaitUntilHealthy('Unit Test Action', {
                 'name': 'unit-test-queue',
                 'region': 'us-west-2',
@@ -49,7 +50,7 @@ class TestELBActor(testing.AsyncTestCase):
         val = yield actor._execute()
         self.assertEquals(actor._find_elb.call_count, 1)
         self.assertEquals(actor._is_healthy.call_count, 1)
-        self.assertTrue(val)
+        self.assertEquals(val, None)
 
     @testing.gen_test
     def test_execute_retry(self):
@@ -72,7 +73,7 @@ class TestELBActor(testing.AsyncTestCase):
 
         self.assertEquals(actor._find_elb.call_count, 1)  # Don't refetch!
         self.assertEquals(actor._is_healthy.call_count, 2)  # Retry!
-        self.assertTrue(val)
+        self.assertEquals(val, None)
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -90,7 +91,7 @@ class TestELBActor(testing.AsyncTestCase):
         val = yield actor._execute()
         self.assertEquals(actor._find_elb.call_count, 1)
         self.assertEquals(actor._is_healthy.call_count, 1)
-        self.assertTrue(val)
+        self.assertEquals(val, None)
 
     @testing.gen_test
     def test_execute_fail(self):
@@ -103,8 +104,8 @@ class TestELBActor(testing.AsyncTestCase):
         actor.conn.get_all_load_balancers = mock.Mock(
             side_effect=BotoServerError(400, 'Testing'))
 
-        res = yield actor.execute()
-        self.assertFalse(res)
+        with self.assertRaises(elb_actor.ELBNotFound):
+            yield actor.execute()
 
     def test_get_region(self):
         actor = elb_actor.WaitUntilHealthy(
@@ -116,7 +117,7 @@ class TestELBActor(testing.AsyncTestCase):
         self.assertEquals(reg.name, 'us-west-2')
 
     def test_get_region_fail(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
             elb_actor.WaitUntilHealthy(
                 'Unit Test Action', {'name': 'unit-test-queue',
                                      'region': 'non-existent',  # Should fail
@@ -147,12 +148,17 @@ class TestELBActor(testing.AsyncTestCase):
                                  'region': 'us-west-2',
                                  'count': 3})
 
+        # Pretend the request worked, but there are no ELBs
         actor.conn = mock.Mock()
-        # Returning no elbs :(
         actor.conn.get_all_load_balancers = mock.Mock(return_value=[])
+        with self.assertRaises(elb_actor.ELBNotFound):
+            yield actor._find_elb('')
 
-        res = yield actor._find_elb('')
-        self.assertFalse(res)
+        # Now pretend the request failed
+        actor.conn.get_all_load_balancers = mock.Mock(
+            side_effect=BotoServerError(400, 'Testing'))
+        with self.assertRaises(elb_actor.ELBNotFound):
+            yield actor._find_elb('')
 
     def test_get_expected_count(self):
         actor = elb_actor.WaitUntilHealthy(

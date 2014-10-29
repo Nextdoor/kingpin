@@ -20,6 +20,7 @@ import logging
 from tornado import gen
 
 from kingpin.actors import base
+from kingpin.actors import exceptions
 from kingpin.actors import utils
 
 log = logging.getLogger(__name__)
@@ -75,13 +76,12 @@ class BaseGroupActor(base.BaseActor):
 
         Note: Expects the sub-class to implement self._run_actions()
 
-        If a 'False' is found anywhere in the actions, this returns
-        False. Otherwise it returns True to indicate that all Actors
-        finished successfully.
+        If an actor execution fails in _run_actions(), then that exception is
+        raised up the stack.
         """
         self.log.info('Beginning %s actions' % len(self._actions))
-        ret = yield self._run_actions()
-        raise gen.Return(all(ret))
+        yield self._run_actions()
+        raise gen.Return()
 
 
 class Sync(BaseGroupActor):
@@ -98,19 +98,15 @@ class Sync(BaseGroupActor):
         raises:
             gen.Return([ <list of return values> ])
         """
-        returns = []
         for act in self._actions:
             self.log.debug('Beginning "%s"..' % act._desc)
-            ret = yield act.execute()
-            self.log.debug('Finished "%s", success?.. %s' % (act._desc, ret))
-            returns.append(ret)
+            try:
+                yield act.execute()
+            except exceptions.ActorException:
+                self.log.error('Act "%s" failed' % act._desc)
+                raise
 
-            # When an actor fails, it returns False. If we fail any actor, we
-            # bail out and do not proceed with any futher acts.
-            if not ret:
-                break
-
-        raise gen.Return(returns)
+        raise gen.Return()
 
 
 class Async(BaseGroupActor):
@@ -129,5 +125,18 @@ class Async(BaseGroupActor):
         executions = []
         for act in self._actions:
             executions.append(act.execute())
-        ret = yield executions
-        raise gen.Return(ret)
+
+        # TODO: Figure out what to do about Recoverable vs Unrecoverable
+        # exceptions. Does the group.Async() need to take into account
+        # self._warn_on_failure so that it can avoid raising some, but actually
+        # raise Unrecoverable failures?
+        #
+        # Better, can we catch ALl the exceptions and raise them all up the
+        # stack?
+        try:
+            yield executions
+        except exceptions.ActorException:
+            self.log.error('Failures detected in group')
+            raise
+
+        raise gen.Return()

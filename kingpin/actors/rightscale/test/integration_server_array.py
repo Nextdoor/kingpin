@@ -5,6 +5,7 @@ import uuid
 
 from tornado import testing
 
+from kingpin.actors import exceptions
 from kingpin.actors.rightscale import server_array
 
 
@@ -52,7 +53,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
              'dest': self.clone_name},
             dry=True)
         ret = yield actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(ret, None)
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=60)
@@ -62,8 +63,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'source': 'unit-test-fake-array',
              'dest': self.clone_name},
             dry=True)
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor.execute()
 
     @attr('integration')
     @testing.gen_test(timeout=60)
@@ -73,7 +74,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'source': self.template_array,
              'dest': self.clone_name})
         ret = yield actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(ret, None)
 
     @attr('integration')
     @testing.gen_test(timeout=30)
@@ -82,8 +83,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Clone %s' % self.template_array,
             {'source': self.template_array,
              'dest': self.clone_name})
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor.execute()
 
     @attr('integration')
     @testing.gen_test(timeout=30)
@@ -92,8 +93,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Clone missing array',
             {'source': 'unit-test-fake-array',
              'dest': self.clone_name})
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(server_array.ArrayNotFound):
+            yield actor.execute()
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=60)
@@ -102,7 +103,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Update %s' % self.clone_name,
             {'array': self.clone_name}, dry=True)
         ret = yield actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(ret, None)
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=60)
@@ -112,7 +113,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': 'unit-test-fake-array',
              'params': {}, 'inputs': {}}, dry=True)
         ret = yield actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(ret, None)
 
     @attr('integration')
     @testing.gen_test(timeout=60)
@@ -126,7 +127,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
                         'status': 'enabled',
                         'description': 'Unit Tests: %s' % UUID}})
         ret = yield actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(ret, None)
 
     @attr('integration')
     @testing.gen_test(timeout=60)
@@ -140,7 +141,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name,
              'inputs': {'TEST_INPUT': 'text:TEST_VALUE'}})
         ret = yield actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(ret, None)
 
     @attr('integration')
     @testing.gen_test(timeout=10)
@@ -151,8 +152,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
              'params': {
                  'elasticity_params': {
                      'bounds': {'min_count': '5', 'max_count': '1'}}}})
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor.execute()
 
     @attr('integration')
     @testing.gen_test(timeout=60)
@@ -166,7 +167,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
                         'status': 'enabled',
                         'description': 'Unit Tests: %s' % UUID}})
         ret = yield actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(ret, None)
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=30)
@@ -177,7 +178,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name,
              'enable': True}, dry=True)
         ret = yield actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(ret, None)
 
     # Note: These tests can run super slow -- the server boot time
     # itself may take 5-10 minutes, and sometimes Amazon and RightScale
@@ -191,7 +192,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name,
              'enable': True})
         ret = yield actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(ret, None)
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=120)
@@ -203,7 +204,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
              'inputs': {'SLEEP': 'text:15'}},
             dry=True)
         ret = yield actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(ret, None)
 
     @attr('integration')
     @testing.gen_test(timeout=480)
@@ -214,18 +215,18 @@ class IntegrationServerArray(testing.AsyncTestCase):
              'script': self.template_script,
              'inputs': {'SLEEP': 'text:15'}})
         ret = yield actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(ret, None)
 
     @attr('integration')
     @testing.gen_test(timeout=120)
-    def integration_06c_execute_missing_script(self):
+    def integration_06c_execute_missing_script_dry(self):
         actor = server_array.Execute(
             'Execute %s' % self.clone_name,
             {'array': self.clone_name,
              'script': 'bogus script',
-             'inputs': {'SLEEP': 'text:15'}})
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+             'inputs': {'SLEEP': 'text:15'}}, dry=True)
+        with self.assertRaises(exceptions.InvalidOptions):
+            yield actor.execute()
 
     @attr('integration')
     @testing.gen_test(timeout=120)
@@ -235,8 +236,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name,
              'script': self.template_script,
              'inputs': {'SLEEP': 'bogus field'}})
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor.execute()
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=120)
@@ -247,8 +248,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
              'script': 'missing::recipe',
              'inputs': {}},
             dry=True)
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(exceptions.InvalidOptions):
+            yield actor.execute()
 
     @attr('integration')
     @testing.gen_test(timeout=120)
@@ -258,8 +259,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name,
              'script': 'missing::recipe',
              'inputs': {}})
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor.execute()
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=120)
@@ -269,7 +270,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name},
             dry=True)
         ret = yield actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(ret, None)
 
     @attr('integration')
     @testing.gen_test(timeout=600)
@@ -278,7 +279,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Destroy %s' % self.template_array,
             {'array': self.clone_name})
         ret = yield actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(ret, None)
 
     @attr('integration')
     @testing.gen_test(timeout=600)
@@ -287,5 +288,5 @@ class IntegrationServerArray(testing.AsyncTestCase):
         actor = server_array.Destroy(
             'Destroy %s (should fail)' % self.template_array,
             {'array': self.clone_name})
-        ret = yield actor.execute()
-        self.assertEquals(ret, False)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor.execute()

@@ -114,7 +114,7 @@ class Message(base.HTTPBaseActor):
     def _execute(self):
         """Executes an actor and yields the results when its finished.
 
-        raises: gen.Return(True)
+        raises: gen.Return()
         """
         self.log.info('Sending message "%s" to Hipchat room "%s"' %
                       (self.option('message'), self.option('room')))
@@ -134,7 +134,7 @@ class Message(base.HTTPBaseActor):
                 self.log.info('API Token Validated: %s' %
                               res['success']['message'])
 
-        raise gen.Return(True)
+        raise gen.Return()
 
     @gen.coroutine
     def _post_message(self, room_id, message,
