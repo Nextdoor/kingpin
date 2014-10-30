@@ -147,26 +147,26 @@ class Async(BaseGroupActor):
         # each of the acts asynchronously into the IOLoop, and we record
         # references to those tasks. However, we don't yield (wait) on them to
         # finish.
-        actor_map = []
+        tasks = []
         for act in self._actions:
-            actor_map.append((act, act.execute()))
+            tasks.append(act.execute())
 
         # Now that we've fired them off, we walk through them one-by-one and
         # check on their status. If they've raised an exception, we catch it
         # and log it into a list for further processing.
-        to_raise = []
-        for (actor, exe) in actor_map:
+        errors = []
+        for t in tasks:
             try:
-                yield exe
+                yield t
             except exceptions.ActorException as e:
-                to_raise.append(e)
+                errors.append(e)
 
         # Now, if there are exceptions in the list, we generate the appropriate
         # exception type (recoverable vs unrecoverable), and raise it up the
         # stack. The individual exceptions are swallowed here, but thats OK
         # because the BaseActor for each of the acts that failed has already
         # handled printing out the log message with the failure.
-        if to_raise:
-            raise self._get_exc_type(to_raise)(
-                ('Exceptions raised by %s actors in the group.' %
-                 len(to_raise)))
+        if errors:
+            ExcType = self._get_exc_type(errors)
+            raise ExcType('Exceptions raised by %s actors in the group.' %
+                          len(errors))
