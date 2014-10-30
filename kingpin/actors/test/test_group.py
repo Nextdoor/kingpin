@@ -17,12 +17,15 @@ class TestActor(base.BaseActor):
     """Fake Actor for Tests"""
 
     all_options = {
-        'return_value': (object, True, 'What this actor will return')
+        'value': (object, True, 'Intermediate value to be used'),
     }
+
+    last_value = None
 
     @gen.coroutine
     def _execute(self):
-        raise gen.Return(self.option('return_value'))
+        TestActor.last_value = self.option('value')
+        raise gen.Return(None)
 
 
 class TestActorRaises(base.BaseActor):
@@ -42,10 +45,11 @@ class TestGroupActorBaseClass(testing.AsyncTestCase):
 
     def setUp(self, *args, **kwargs):
         super(TestGroupActorBaseClass, self).setUp(*args, **kwargs)
+        TestActor.last_value = None
         self.actor_returns = {
             'desc': 'returns',
             'actor': 'kingpin.actors.test.test_group.TestActor',
-            'options': {'return_value': None}}
+            'options': {'value': None}}
         self.actor_with_a_problem = {
             'desc': 'Problematic',
             'actor': 'kingpin.actors.test.test_group.TestActor',
@@ -137,13 +141,18 @@ class TestSyncGroupActor(TestGroupActorBaseClass):
     @testing.gen_test
     def test_run_actions_with_two_acts_one_fails_unrecoverable(self):
         # Call the executor and test it out
+        self.actor_returns['options']['value'] = '123'
         actor = group.Sync(
             'Unit Test Action',
             {'acts': [
+                dict(self.actor_raises_unrecoverable_exception),
                 dict(self.actor_returns),
-                dict(self.actor_raises_unrecoverable_exception)]})
+                ]})
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
             yield actor._run_actions()
+
+        # If the second actor gets executed this value would be 123.
+        self.assertEquals(TestActor.last_value, None)
 
     @testing.gen_test
     def test_run_actions_with_two_acts_one_fails_recoverable(self):
@@ -157,7 +166,7 @@ class TestSyncGroupActor(TestGroupActorBaseClass):
             yield actor._run_actions()
 
 
-class TestASyncGroupActor(TestGroupActorBaseClass):
+class TestAsyncGroupActor(TestGroupActorBaseClass):
 
     @testing.gen_test
     def test_get_exc_type_with_only_unrecoverable(self):
@@ -216,7 +225,7 @@ class TestASyncGroupActor(TestGroupActorBaseClass):
         """Make sure this actor starts all processes in parallel!"""
         sleeper = {'actor': 'misc.Sleep',
                    'desc': 'Sleep',
-                   'options': {'sleep': 0.5}}
+                   'options': {'sleep': 0.1}}
         actor = group.Async('Unit Test Action', {'acts': [
             sleeper, sleeper, sleeper]})
 
@@ -224,7 +233,8 @@ class TestASyncGroupActor(TestGroupActorBaseClass):
         yield actor.execute()
         stop = time.time()
         exe_time = stop - start
-        self.assertTrue(0.5 < exe_time < 1.5)
+        # Parallel execution of sleep should not take 3x as long!
+        self.assertTrue(0.1 < exe_time < 0.3)
 
     @testing.gen_test
     def test_run_actions_with_two_acts(self):
@@ -241,14 +251,19 @@ class TestASyncGroupActor(TestGroupActorBaseClass):
     @testing.gen_test
     def test_run_actions_with_two_acts_one_fails_unrecoverable(self):
         # Call the executor and test it out
+        self.actor_returns['options']['value'] = '123'
         actor = group.Async(
             'Unit Test Action',
             {'acts': [
+                dict(self.actor_raises_unrecoverable_exception),
                 dict(self.actor_returns),
-                dict(self.actor_raises_unrecoverable_exception)]})
+                ]})
 
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
             yield actor._run_actions()
+
+        # If the second actor does not get executed this value would be None
+        self.assertEquals(TestActor.last_value, '123')
 
     @testing.gen_test
     def test_run_actions_with_two_acts_one_fails_recoverable(self):
