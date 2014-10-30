@@ -137,7 +137,7 @@ class WaitUntilHealthy(base.BaseActor):
         try:
             elbs = self.conn.get_all_load_balancers(load_balancer_names=name)
         except BotoServerError as e:
-            self.log.critical(e.message)
+            # Re-raise this as an ELBNotFound exception
             raise ELBNotFound(e)
 
         self.log.debug('ELBs found: %s' % elbs)

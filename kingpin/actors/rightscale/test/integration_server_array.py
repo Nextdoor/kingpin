@@ -217,7 +217,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration')
+    @attr('integration', 'dry')
     @testing.gen_test(timeout=120)
     def integration_06c_execute_missing_script_dry(self):
         actor = server_array.Execute(

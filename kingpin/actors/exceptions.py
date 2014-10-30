@@ -52,7 +52,12 @@ class InvalidActor(UnrecoverableActorFailure):
 
 class InvalidOptions(UnrecoverableActorFailure):
 
-    """Invalid option arguments passed into the Actor object."""
+    """Invalid option arguments passed into the Actor object.
+
+    This can be used both for the actual options dict passed into the actor,
+    as well as if a the wrong options were used when connecting to a remote
+    API.
+    """
 
 
 class InvalidCredentials(UnrecoverableActorFailure):

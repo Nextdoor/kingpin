@@ -99,7 +99,7 @@ def main():
 
     try:
         yield initial_actor.execute()
-    except actor_exceptions.ActorException as e:
+    except actor_exceptions.ActorException:
         log.error('Kingpin encountered mistakes during the play.')
         sys.exit(2)
 

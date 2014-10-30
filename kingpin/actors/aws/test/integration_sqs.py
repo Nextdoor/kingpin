@@ -121,5 +121,5 @@ class IntegrationSQS(testing.AsyncTestCase):
                            {'name': 'totally-fake-queue',
                             'region': self.region})
 
-        with self.assertRaises(sqs.SQSQueueNotFoundException):
+        with self.assertRaises(sqs.QueueNotFound):
             yield actor.execute()
