@@ -1,4 +1,5 @@
 import logging
+import time
 
 from tornado import gen
 from tornado import testing
@@ -176,6 +177,21 @@ class TestASyncGroupActor(TestGroupActorBaseClass):
 
         res = yield actor._run_actions()
         self.assertEquals(res, None)
+
+    @testing.gen_test
+    def test_execute_async(self):
+        """Make sure this actor starts all processes in parallel!"""
+        sleeper = {'actor': 'misc.Sleep',
+                   'desc': 'Sleep',
+                   'options': {'sleep': 0.5}}
+        actor = group.Async('Unit Test Action', {'acts': [
+            sleeper, sleeper, sleeper]})
+
+        start = time.time()
+        yield actor.execute()
+        stop = time.time()
+        exe_time = stop - start
+        self.assertTrue(0.5 < exe_time < 1.5)
 
     @testing.gen_test
     def test_run_actions_with_two_acts(self):
