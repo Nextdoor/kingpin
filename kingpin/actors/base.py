@@ -224,8 +224,8 @@ class BaseActor(object):
                          sys.modules[__name__].__author__)
             self.log.exception(e)
             raise exceptions.ActorException(e)
-
-        self.log.debug('Finished successfully, return value: %s' % result)
+        else:
+            self.log.debug('Finished successfully, return value: %s' % result)
 
         # If we got here, we're exiting the actor cleanly and moving on.
         raise gen.Return(result)
