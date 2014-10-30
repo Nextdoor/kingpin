@@ -179,9 +179,9 @@ class TestHipchatMessage(testing.AsyncTestCase):
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeExceptionRaisingHTTPClientClass()
             m.return_value.response_value = http_response
-            res = yield actor._execute()
 
-        self.assertEquals(res, False)
+            with self.assertRaises(exceptions.RecoverableActorFailure):
+                yield actor._execute()
 
     @testing.gen_test
     def test_execute_with_unknown_exception(self):
@@ -201,6 +201,22 @@ class TestHipchatMessage(testing.AsyncTestCase):
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeExceptionRaisingHTTPClientClass()
             m.return_value.response_value = http_response
-            res = yield actor._execute()
 
-        self.assertEquals(res, False)
+            with self.assertRaises(exceptions.RecoverableActorFailure):
+                yield actor._execute()
+
+    @testing.gen_test
+    def test_execute_with_empty_response(self):
+        message = 'Unit test message'
+        room = 'unit_room'
+        actor = hipchat.Message(
+            'Unit Test Action',
+            {'message': message, 'room': room})
+
+        @gen.coroutine
+        def fake_post_message(*args, **kwargs):
+            raise gen.Return(None)
+        actor._post_message = fake_post_message
+
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor._execute()
