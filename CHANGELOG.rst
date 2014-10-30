@@ -1,3 +1,6 @@
+## Version 0.1.2
+  * #120: Don't warn unless a warning is actually necessary
+
 ## Version 0.1.1
  * #118: Bugfix: Destroying a non existent server array should return False
  * #117: Catch BotoExceptions and return False from Actors
