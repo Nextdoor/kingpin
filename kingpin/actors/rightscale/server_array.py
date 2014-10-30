@@ -674,6 +674,7 @@ class Execute(ServerArrayBaseActor):
 
         # If not all of the executions succeeded, raise an exception.
         if not all(success):
+            self.log.critical('One or more tasks failed.')
             raise TaskExecutionFailed()
 
         raise gen.Return()

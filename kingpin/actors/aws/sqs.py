@@ -43,12 +43,12 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 EXECUTOR = futures.ThreadPoolExecutor(10)
 
 
-class SQSQueueNotFoundException(exceptions.RecoverableActorFailure):
+class QueueNotFound(exceptions.RecoverableActorFailure):
 
     """Raised by SQS Actor when a needed queue is not found."""
 
 
-class SQSQueueDeletionFailed(exceptions.RecoverableActorFailure):
+class QueueDeletionFailed(exceptions.RecoverableActorFailure):
 
     """Raised if Boto fails to delete an SQS queue.
 
@@ -172,7 +172,7 @@ class Create(SQSBaseActor):
         elif self._dry:
             self.log.info('Fake Queue: %s' % q)
         else:
-            raise exceptions.RecoverableActorFailure(
+            raise exceptions.UnrecoverableActorFailure(
                 'All hell broke loose: %s' % q)
 
         raise gen.Return()
@@ -199,7 +199,7 @@ class Delete(SQSBaseActor):
           True if successful in deletion, or is Dry run.
 
         Raises:
-          SQSQueueDeletionFailed if queue deletion failed.
+          QueueDeletionFailed if queue deletion failed.
         """
         if not self._dry:
             self.log.info('Deleting Queue: %s...' % queue.url)
@@ -210,18 +210,18 @@ class Delete(SQSBaseActor):
 
         # Raise an exception if the tasks failed
         if not ok:
-            raise SQSQueueDeletionFailed('Failed to delete "%s"' % queue.url)
+            raise QueueDeletionFailed('Failed to delete "%s"' % queue.url)
 
         return ok
 
     @gen.coroutine
-    @utils.retry(SQSQueueNotFoundException, delay=aws_settings.SQS_RETRY_DELAY)
+    @utils.retry(QueueNotFound, delay=aws_settings.SQS_RETRY_DELAY)
     def _execute(self):
         """Executes an actor and yields the results when its finished.
 
         Raises:
             gen.Return()
-            SQSQueueNotFoundException()
+            QueueNotFound()
         """
         pattern = self.option('name')
         matched_queues = yield self._fetch_queues(pattern=pattern)
@@ -230,7 +230,7 @@ class Delete(SQSBaseActor):
                                not self.option('idempotent'))
 
         if not_found_condition:
-            raise SQSQueueNotFoundException(
+            raise QueueNotFound(
                 'No queues with pattern "%s" found.' % pattern)
 
         self.log.info('Deleting SQS Queues: %s' % matched_queues)
@@ -296,7 +296,7 @@ class WaitUntilEmpty(SQSBaseActor):
 
         # Note: this does not check for dry mode.
         if self.option('required') and not matched_queues:
-            raise SQSQueueNotFoundException(
+            raise QueueNotFound(
                 'No queues like "%s" were found!' % pattern)
 
         self.log.info('Waiting for "%s" queues to become empty.' %

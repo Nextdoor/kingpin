@@ -113,7 +113,7 @@ class TestCreateSQSQueueActor(SQSTestCase):
 
         self.conn().create_queue.return_value = False
 
-        with self.assertRaises(exceptions.RecoverableActorFailure):
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
             yield self.actor.execute()
         self.conn().create_queue.assert_called_once_with('unit-test-queue')
 
@@ -128,7 +128,7 @@ class TestDeleteSQSQueueActor(SQSTestCase):
         q = mock.Mock()
         q.name = 'unit-test-queue'
         self.conn().delete_queue.return_value = False
-        with self.assertRaises(sqs.SQSQueueDeletionFailed):
+        with self.assertRaises(sqs.QueueDeletionFailed):
             yield actor._delete_queue(q)
 
     @testing.gen_test
@@ -166,7 +166,7 @@ class TestDeleteSQSQueueActor(SQSTestCase):
         # Should fail even in dry run, if idempotent flag is not there.
         settings.SQS_RETRY_DELAY = 0
         reload(sqs)
-        with self.assertRaises(sqs.SQSQueueNotFoundException):
+        with self.assertRaises(sqs.QueueNotFound):
             yield actor.execute()
 
     @testing.gen_test
@@ -177,7 +177,7 @@ class TestDeleteSQSQueueActor(SQSTestCase):
                            {'name': 'non-existent-queue',
                             'region': 'us-west-2'})
 
-        with self.assertRaises(sqs.SQSQueueNotFoundException):
+        with self.assertRaises(sqs.QueueNotFound):
             yield actor.execute()
 
     @testing.gen_test
@@ -214,7 +214,7 @@ class TestWaitUntilQueueEmptyActor(SQSTestCase):
 
         actor._wait = mock_tornado(True)
         actor._fetch_queues = mock_tornado()
-        with self.assertRaises(sqs.SQSQueueNotFoundException):
+        with self.assertRaises(sqs.QueueNotFound):
             yield actor.execute()
 
     @testing.gen_test
