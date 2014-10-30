@@ -103,7 +103,8 @@ class Sync(BaseGroupActor):
             try:
                 yield act.execute()
             except exceptions.ActorException:
-                self.log.error('Act "%s" failed' % act._desc)
+                self.log.error('Not executing any following actions because '
+                               '"%s" failed' % act._desc)
                 raise
 
         raise gen.Return()
