@@ -6,6 +6,7 @@ from tornado import gen
 import requests
 
 from kingpin.actors import exceptions
+from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import base
 from kingpin.actors.rightscale import server_array
 
@@ -140,7 +141,7 @@ class TestCloneActor(testing.AsyncTestCase):
         self.client_mock.update_server_array = mock_tornado()
 
         ret = yield self.actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(None, ret)
 
     @testing.gen_test
     def test_execute_in_dry_mode(self):
@@ -153,7 +154,7 @@ class TestCloneActor(testing.AsyncTestCase):
         self.client_mock.update_server_array = mock_tornado()
 
         ret = yield self.actor.execute()
-        self.assertEquals(True, ret)
+        self.assertEquals(None, ret)
 
 
 class TestUpdateActor(testing.AsyncTestCase):
@@ -177,16 +178,31 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.client_mock.login = mock_tornado()
 
     @testing.gen_test
-    def test_check_inputs(self):
+    def test_check_inputs_empty(self):
         array = mock.Mock()
+        array.soul = {'name': 'real array'}
         inputs = {}
         self.actor._client.get_server_array_inputs = mock_tornado([])
         ok = yield self.actor._check_array_inputs(array, inputs)
-        self.assertTrue(ok)
+        self.assertEquals(ok, None)
 
-        inputs = {'key': 'value'}
-        fail = yield self.actor._check_array_inputs(array, inputs)
-        self.assertFalse(fail)
+    @testing.gen_test
+    def test_check_inputs_missing(self):
+        array = mock.Mock()
+        array.soul = {'name': 'real array'}
+        inputs = {'foo': 'bar'}
+        self.actor._client.get_server_array_inputs = mock_tornado([])
+        with self.assertRaises(server_array.InvalidInputs):
+            yield self.actor._check_array_inputs(array, inputs)
+
+    @testing.gen_test
+    def test_check_inputs_on_mock(self):
+        array = mock.Mock()
+        array.soul = {'fake': True}
+        inputs = {}
+        self.actor._client.get_server_array_inputs = mock_tornado([])
+        ok = yield self.actor._check_array_inputs(array, inputs)
+        self.assertEquals(ok, None)
 
     @testing.gen_test
     def test_execute(self):
@@ -208,7 +224,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.client_mock.update_server_array_inputs.assert_called_once_with(
             mocked_array, {'inputs[test]': 'text:test'})
 
-        self.assertEquals(True, ret)
+        self.assertEquals(None, ret)
 
     @testing.gen_test
     def test_execute_422_error(self):
@@ -223,8 +239,8 @@ class TestUpdateActor(testing.AsyncTestCase):
         error = requests.exceptions.HTTPError(msg, response=mocked_response)
         self.client_mock.update_server_array.side_effect = error
 
-        res = yield self.actor.execute()
-        self.assertEquals(False, res)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor.execute()
 
         self.client_mock.update_server_array.assert_called_once_with(
             mocked_array, {'server_array[name]': 'newunitarray'})
@@ -238,8 +254,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
         ret = yield self.actor.execute()
-
-        self.assertEquals(True, ret)
+        self.assertEquals(None, ret)
 
     @testing.gen_test
     def test_execute_dry_with_missing_array(self):
@@ -251,8 +266,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
         ret = yield self.actor.execute()
-
-        self.assertEquals(True, ret)
+        self.assertEquals(None, ret)
 
 
 class TestTerminateActor(testing.AsyncTestCase):
@@ -363,7 +377,7 @@ class TestTerminateActor(testing.AsyncTestCase):
         # all called.
         self.assertEquals(self.actor._wait_until_empty._call_count, 1)
         self.assertEquals(self.actor._terminate_all_instances._call_count, 1)
-        self.assertEquals(ret, True)
+        self.assertEquals(ret, None)
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -380,18 +394,6 @@ class TestTerminateActor(testing.AsyncTestCase):
         yield self.actor._execute()
         initial_array.updated.assert_has_calls([])
 
-    @testing.gen_test
-    def test_execute_non_found(self):
-        self.actor._options['idempotent'] = True
-        self.actor._find_server_arrays = mock_tornado([])
-        res = yield self.actor._execute()
-        self.assertTrue(res)
-
-        self.actor._options['idempotent'] = False
-        self.actor._find_server_arrays = mock_tornado([])
-        res = yield self.actor._execute()
-        self.assertFalse(res)
-
 
 class TestDestroyActor(TestServerArrayBaseActor):
 
@@ -405,16 +407,6 @@ class TestDestroyActor(TestServerArrayBaseActor):
             obj = yield actor._terminate()
             self.assertEquals(t()._execute._call_count, 1)
             self.assertEquals(obj, t())
-
-    @testing.gen_test
-    def test_terminate_missing_array(self):
-        actor = server_array.Destroy(
-            'Destroy',
-            {'array': 'unittestarray'})
-        with mock.patch.object(server_array, 'Terminate') as t:
-            t()._execute = mock_tornado(False)
-            ret = yield actor._terminate()
-            self.assertEquals(ret, False)
 
     @testing.gen_test
     def test_execute(self):
@@ -431,16 +423,21 @@ class TestDestroyActor(TestServerArrayBaseActor):
 
         self.assertEquals(actor._terminate._call_count, 1)
         self.assertEquals(actor._destroy_array._call_count, 1)
-        self.assertTrue(ret)
+        self.assertEquals(ret, None)
 
     @testing.gen_test
     def test_execute_terminate_fails(self):
         actor = server_array.Destroy(
             'Destroy',
             {'array': 'unittestarray'})
-        actor._terminate = mock_tornado(False)
-        ret = yield actor._execute()
-        self.assertEquals(ret, False)
+
+        @gen.coroutine
+        def raise_exc():
+            raise exceptions.UnrecoverableActorFailure('fail')
+        actor._terminate = raise_exc
+
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            yield actor._execute()
 
     @testing.gen_test
     def test_destroy_array(self):
@@ -580,11 +577,6 @@ class TestLaunchActor(testing.AsyncTestCase):
         yield self.actor._launch_instances(array_mock, count=2)
         self.client_mock.launch_server_array.assert_has_calls(two_mock_calls)
 
-        # Async function call
-        self.client_mock.launch_server_array.reset_mock()
-        yield self.actor._launch_instances(array_mock, async=True)
-        self.client_mock.launch_server_array.assert_has_calls(four_mock_calls)
-
         # Dry call
         self.actor._dry = True
         self.client_mock.launch_server_array.reset_mock()
@@ -620,7 +612,7 @@ class TestLaunchActor(testing.AsyncTestCase):
         # all called.
         self.assertEquals(self.actor._launch_instances._call_count, 1)
         self.assertEquals(self.actor._wait_until_healthy._call_count, 1)
-        self.assertEquals(ret, True)
+        self.assertEquals(ret, None)
 
         # Dry
         self.actor._dry = True
@@ -632,7 +624,7 @@ class TestLaunchActor(testing.AsyncTestCase):
         self.assertEquals(
             self.actor._client.get_server_array_current_instances._call_count,
             0)
-        self.assertEquals(ret, True)
+        self.assertEquals(ret, None)
 
 
 class TestExecuteActor(testing.AsyncTestCase):
@@ -704,10 +696,9 @@ class TestExecuteActor(testing.AsyncTestCase):
         wait = tornado_value(True)
         self.client_mock.wait_for_task.return_value = wait
 
+        # Now verify that each of the expected steps were called in a
+        # successful execution.
         ret = yield self.actor._execute()
-
-        # Now verify that each of the steps (terminate, wait, destroyed) were
-        # all called.
         (self.client_mock.get_server_array_current_instances
             .assert_called_twice_with(mock_array))
         (self.client_mock.run_executable_on_instances
@@ -717,8 +708,18 @@ class TestExecuteActor(testing.AsyncTestCase):
                 [mock_op_instance]))
         (self.client_mock.wait_for_task
             .assert_called_once_with(mock_task))
+        self.assertEquals(ret, None)
 
-        self.assertEquals(ret, True)
+        # Now mock out a failure of the script execution
+        self.client_mock.wait_for_task = mock_tornado(False)
+        with self.assertRaises(server_array.TaskExecutionFailed):
+            yield self.actor._execute()
+
+        # Finally, a test that mocks out an http error on bad inputs
+        error = api.ServerArrayException()
+        self.client_mock.run_executable_on_instances.side_effect = error
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._execute()
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -731,8 +732,7 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.client_mock.get_server_array_current_instances = mock_tornado([])
 
         ret = yield self.actor._execute()
-
-        self.assertTrue(ret)
+        self.assertEquals(ret, None)
 
     @testing.gen_test
     def test_execute_dry_fail(self):
@@ -741,8 +741,7 @@ class TestExecuteActor(testing.AsyncTestCase):
 
         self.actor._check_script = mock_tornado(False)
         self.actor._find_server_arrays = mock_tornado(mock_array)
-
         self.client_mock.get_server_array_current_instances = mock_tornado([])
 
-        ret = yield self.actor._execute()
-        self.assertFalse(ret)
+        with self.assertRaises(exceptions.InvalidOptions):
+            yield self.actor._execute()

@@ -6,6 +6,7 @@ import logging
 from tornado import testing
 
 from kingpin import utils
+from kingpin.actors import exceptions
 from kingpin.actors.aws import elb
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
@@ -15,6 +16,7 @@ logging.getLogger('boto').setLevel(logging.INFO)
 
 
 class IntegrationELB(testing.AsyncTestCase):
+
     """High level ELB Actor testing.
 
     These tests will check two things:
@@ -51,7 +53,7 @@ class IntegrationELB(testing.AsyncTestCase):
 
         done = yield actor.execute()
 
-        self.assertTrue(done)
+        self.assertEquals(done, None)
 
     @attr('integration')
     @testing.gen_test
@@ -62,9 +64,8 @@ class IntegrationELB(testing.AsyncTestCase):
              'count': 50,
              'region': self.region})
 
-        done = yield actor.execute()
-
-        self.assertFalse(done)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor.execute()
 
     @attr('integration')
     @testing.gen_test(timeout=60)

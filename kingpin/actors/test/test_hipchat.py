@@ -16,7 +16,9 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
 class FakeHTTPClientClass(object):
+
     '''Fake HTTPClient object for testing'''
+
     response_value = None
 
     @gen.coroutine
@@ -25,7 +27,9 @@ class FakeHTTPClientClass(object):
 
 
 class FakeExceptionRaisingHTTPClientClass(object):
+
     '''Fake HTTPClient object for testing'''
+
     response_value = None
 
     @gen.coroutine
@@ -34,6 +38,7 @@ class FakeExceptionRaisingHTTPClientClass(object):
 
 
 class TestHipchatMessage(testing.AsyncTestCase):
+
     """Unit tests for the Hipchat Message actor."""
 
     def setUp(self, *args, **kwargs):
@@ -110,7 +115,7 @@ class TestHipchatMessage(testing.AsyncTestCase):
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._execute()
-            self.assertEquals(True, res)
+            self.assertEquals(res, None)
 
     @testing.gen_test
     def test_execute_dry_mode_response(self):
@@ -132,7 +137,7 @@ class TestHipchatMessage(testing.AsyncTestCase):
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._execute()
-            self.assertEquals(True, res)
+            self.assertEquals(res, None)
 
     @testing.gen_test
     def test_execute_with_401(self):
@@ -175,7 +180,7 @@ class TestHipchatMessage(testing.AsyncTestCase):
             m.return_value = FakeExceptionRaisingHTTPClientClass()
             m.return_value.response_value = http_response
 
-            with self.assertRaises(httpclient.HTTPError):
+            with self.assertRaises(exceptions.RecoverableActorFailure):
                 yield actor._execute()
 
     @testing.gen_test
@@ -197,5 +202,21 @@ class TestHipchatMessage(testing.AsyncTestCase):
             m.return_value = FakeExceptionRaisingHTTPClientClass()
             m.return_value.response_value = http_response
 
-            with self.assertRaises(httpclient.HTTPError):
+            with self.assertRaises(exceptions.RecoverableActorFailure):
                 yield actor._execute()
+
+    @testing.gen_test
+    def test_execute_with_empty_response(self):
+        message = 'Unit test message'
+        room = 'unit_room'
+        actor = hipchat.Message(
+            'Unit Test Action',
+            {'message': message, 'room': room})
+
+        @gen.coroutine
+        def fake_post_message(*args, **kwargs):
+            raise gen.Return(None)
+        actor._post_message = fake_post_message
+
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor._execute()

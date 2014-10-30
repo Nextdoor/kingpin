@@ -43,8 +43,8 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
 
         # Valid response test
         actor._token = 'Invalid'
-        res = yield actor.execute()
-        self.assertEquals(res, False)
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield actor.execute()
 
     @testing.gen_test
     def integration_test_execute_real(self):
@@ -54,4 +54,4 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
             'Unit Test Action',
             {'message': message, 'room': room}, dry=True)
         res = yield actor.execute()
-        self.assertEquals(True, res)
+        self.assertEquals(res, None)

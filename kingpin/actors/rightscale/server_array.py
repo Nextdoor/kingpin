@@ -23,11 +23,32 @@ import requests
 
 from kingpin import utils
 from kingpin.actors import exceptions
+from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import base
 
 log = logging.getLogger(__name__)
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
+
+
+class ArrayNotFound(exceptions.RecoverableActorFailure):
+
+    """Raised when a ServerArray could not be found."""
+
+
+class ArrayAlreadyExists(exceptions.RecoverableActorFailure):
+
+    """Raised when a ServerArray already exists by a given name."""
+
+
+class InvalidInputs(exceptions.InvalidOptions):
+
+    """Raised when supplied inputs are invalid for a ServerArray."""
+
+
+class TaskExecutionFailed(exceptions.RecoverableActorFailure):
+
+    """Raised when one or more RightScale Task executions fail."""
 
 
 class ServerArrayBaseActor(base.RightScaleBaseActor):
@@ -48,7 +69,8 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
 
         Raises:
             gen.Return(<rightscale.Resource of Server Array>)
-            api.ServerArrayException()
+            ArrayNotFound()
+            ArrayAlreadyExists()
         """
         if raise_on == 'notfound':
             msg = 'Verifying that array "%s" exists' % array_name
@@ -57,8 +79,8 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
         elif not raise_on:
             msg = 'Searching for array named "%s"' % array_name
         else:
-            raise exceptions.UnrecoverableActionFailure(
-                'Invalid "raise_on" setting.')
+            raise exceptions.UnrecoverableActorFailure(
+                'Invalid "raise_on" setting in actor code.')
 
         self.log.debug(msg)
         array = yield self._client.find_server_arrays(array_name, exact=True)
@@ -72,6 +94,10 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
             # Give the mock a real identity and give it valid elasticity
             # parameters so the Launch() actor can behave properly.
             array.soul = {
+                # Used elsewhere to know whether we're working on a mock
+                'fake': True,
+
+                # Fake out common server array object properties
                 'name': '<mocked array %s>' % array_name,
                 'elasticity_params': {'bounds': {'min_count': 4}}
             }
@@ -79,12 +105,10 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
             array.self.show.return_value = array
 
         if array and raise_on == 'found':
-            raise exceptions.UnrecoverableActionFailure(
-                'Dest array "%s" already exists! Exiting!' % array_name)
+            raise ArrayAlreadyExists('Array "%s" already exists!' % array_name)
 
         if not array and raise_on == 'notfound':
-            raise exceptions.UnrecoverableActionFailure(
-                'Array "%s" not found! Exiting!' % array_name)
+            raise ArrayNotFound('Array "%s" not found!' % array_name)
 
         raise gen.Return(array)
 
@@ -106,7 +130,7 @@ class Clone(ServerArrayBaseActor):
         # decorator.
         yield self._client.login()
 
-        # First, find the array we're copying from.
+        # Find the array we're copying from
         source_array = yield self._find_server_arrays(self.option('source'),
                                                       allow_mock=False)
 
@@ -122,11 +146,11 @@ class Clone(ServerArrayBaseActor):
             # We're really doin this!
             new_array = yield self._client.clone_server_array(source_array)
         else:
-            # In dry run mode. Don't really clone the array, just return back
-            # 'True' as if the array-clone worked.
+            # In dry run mode. Don't really clone the array, instead we create
+            # a mock object and pass that back as if its the new array.
             new_array = mock.MagicMock(name=self.option('dest'))
-            new_array.soul = {
-                'name': '<mocked clone of %s>' % self.option('source')}
+            new_array_name = '<mocked clone of %s>' % self.option('source')
+            new_array.soul = {'name': new_array_name}
 
         # Lastly, rename the array
         params = self._generate_rightscale_params(
@@ -134,8 +158,7 @@ class Clone(ServerArrayBaseActor):
         self.log.info('Renaming array "%s" to "%s"' % (new_array.soul['name'],
                                                        self.option('dest')))
         yield self._client.update_server_array(new_array, params)
-
-        raise gen.Return(True)
+        raise gen.Return()
 
 
 class Update(ServerArrayBaseActor):
@@ -161,6 +184,21 @@ class Update(ServerArrayBaseActor):
 
     @gen.coroutine
     def _check_array_inputs(self, array, inputs):
+        """Checks the inputs supplied against the ServerArray being updated.
+
+        Verifies that the supplied inputs are actually found in the ServerArray
+        that we are going to be updating.
+
+        Raises:
+            InvalidInputs()
+        """
+        # Quick sanity check, make sure we weren't handed a mock object created
+        # by the _find_server_array() method. If we were, then the inputs are
+        # not checkable. Just warn, and move on.
+        if 'fake' in array.soul:
+            self.log.warning('Cannot check inputs for non-existent array.')
+            raise gen.Return()
+
         all_inputs = yield self._client.get_server_array_inputs(array)
         all_input_names = [i.soul['name'] for i in all_inputs]
 
@@ -171,7 +209,10 @@ class Update(ServerArrayBaseActor):
                 self.log.error('Input not found: "%s"' % input_name)
                 success = False
 
-        raise gen.Return(success)
+        if not success:
+            raise InvalidInputs('Some inputs supplied were incorrect.')
+
+        raise gen.Return()
 
     @gen.coroutine
     def _execute(self):
@@ -186,24 +227,14 @@ class Update(ServerArrayBaseActor):
 
         # In dry run, just comment that we would have made the change.
         if self._dry:
-            ok = True
-            self.log.info('Not making any changes.')
+            self.log.debug('Not making any changes.')
             if self.option('params'):
-                self.log.info('New params: %s' % self.option('params'))
+                self.log.info('Params would be: %s' % self.option('params'))
             if self.option('inputs'):
-                self.log.info('New inputs: %s' % self.option('inputs'))
+                self.log.info('Inputs would be: %s' % self.option('inputs'))
+                yield self._check_array_inputs(array, self.option('inputs'))
 
-                if isinstance(array, mock.Mock):
-                    self.log.warning(
-                        'Cannot check inputs for non-existent array.')
-                    inputs_ok = True
-                else:
-                    inputs_ok = yield self._check_array_inputs(
-                        array, self.option('inputs'))
-
-                ok = ok and inputs_ok
-
-            raise gen.Return(ok)
+            raise gen.Return()
 
         # Update the ServerArray Parameters
         if self.option('params'):
@@ -217,9 +248,9 @@ class Update(ServerArrayBaseActor):
                 if e.response.status_code == 422:
                     msg = ('Invalid parameters supplied to patch array "%s"' %
                            self.option('array'))
-                    raise exceptions.UnrecoverableActionFailure(msg)
+                    raise exceptions.RecoverableActorFailure(msg)
 
-        # Update the ServerArray Next-Instane Inputs
+        # Update the ServerArray Next-Instance Inputs
         if self.option('inputs'):
             inputs = self._generate_rightscale_params(
                 'inputs', self.option('inputs'))
@@ -227,7 +258,7 @@ class Update(ServerArrayBaseActor):
                           (array.soul['name'], inputs))
             yield self._client.update_server_array_inputs(array, inputs)
 
-        raise gen.Return(True)
+        raise gen.Return()
 
 
 class Terminate(ServerArrayBaseActor):
@@ -297,20 +328,8 @@ class Terminate(ServerArrayBaseActor):
 
         # First, find the array we're going to be terminating.
         self.array = yield self._find_server_arrays(self.option('array'),
-                                                    raise_on=None,
+                                                    raise_on='notfound',
                                                     allow_mock=False)
-
-        idempotent = self.option('idempotent')
-
-        if not self.array:  # Note - no dry check.
-            if idempotent:
-                self.log.info('No arrays like "%s" found, and that\'s ok' %
-                              self.option('array'))
-                raise gen.Return(True)
-            else:
-                self.log.error('No arrays like "%s" found! Exiting.' %
-                               self.option('array'))
-                raise gen.Return(False)
 
         # Disable the array so that no new instances launch. Ignore the result
         # of this opertaion -- as long as it succeeds, we're happy. No need to
@@ -330,12 +349,15 @@ class Terminate(ServerArrayBaseActor):
         # Wait...
         yield self._wait_until_empty(self.array)
 
-        raise gen.Return(True)
+        raise gen.Return()
 
 
 class Destroy(ServerArrayBaseActor):
 
-    """Destroy the array"""
+    """Destroy a ServerArray.
+
+    First terminates all of the running instances, then destroys the actual
+    ServerArray in RightScale."""
 
     all_options = {
         'array': (str, None, 'ServerArray name to Destroy')
@@ -359,37 +381,31 @@ class Destroy(ServerArrayBaseActor):
     def _terminate(self):
         """Create and execute Terminator actor
 
-        Returns: the Terminate actor object, or False
+        Raises: <the Terminate actor object>
         """
         helper = Terminate(
             desc=self._desc + ' (terminate)',
             options={'array': self.option('array')},
+            warn_on_failure=self._warn_on_failure,
             dry=self._dry)
 
-        terminated = yield helper._execute()
-        if terminated is False:
-            raise gen.Return(False)
-
+        yield helper._execute()
         raise gen.Return(helper)
 
     @gen.coroutine
     def _execute(self):
-
-        # Terminate all instances
-        self.log.info('Terminating array before destroying it.')
-        helper = yield self._terminate()
-
-        # If helper is false, then the Terminate failed
-        if helper is False:
-            self.log.critical(
-                'Termination failed, cannot destroy array')
-            raise gen.Return(False)
+        # Terminate all instances. If it fails, catch and log the error, then
+        # re-raise it.
+        try:
+            self.log.info('Terminating array before destroying it.')
+            helper = yield self._terminate()
+        except exceptions.ActorException as e:
+            self.log.critical('Termination failed, cannot destroy: %s' % e)
+            raise
 
         # Can grab the array object from the helper instead of re-searching
-        array = helper.array
-        yield self._destroy_array(array)
-
-        raise gen.Return(True)
+        yield self._destroy_array(helper.array)
+        raise gen.Return()
 
 
 class Launch(ServerArrayBaseActor):
@@ -464,28 +480,22 @@ class Launch(ServerArrayBaseActor):
             self.log.debug('Sleeping..')
             yield utils.tornado_sleep(sleep)
 
-#        **DO NOT USE async=True METHOD**
-#
-#        NOTE: The smart thing to do here is to simultaneously click 'launch'
-#        for every necessary instance so they all launch at once. These API
-#        calls take 5-7 seconds to complete, so this would be much faster than
-#        doing these calls synchronously.
-#
-#        Unfortunately, RightScales ServerArray API only allows a single call
-#        to /launch at any time on a single ServerArray. This means that these
-#        calls must be synchronous for now.
     @gen.coroutine
-    def _launch_instances(self, array, count=False, async=False):
+    def _launch_instances(self, array, count=False):
         """Launch new instances in a specified array.
 
         Instructs RightScale to launch instances, specified amount, or array's
         autoscaling 'min' value, in a syncronous or async way.
 
+        TODO: Ensure that if 'count' is supplied, its *added* to the current
+        array 'server instance count'. This allows the actor to launch 10 new
+        servers in an already existing array, and wait until all 10 + the
+        original group of servers are Operational.
+
         Args:
             array - rightscale ServerArray object
             count - `False` to use array's _min_ value
                     `int` to launch a specific number of instances
-            async - Boolean, launch all and wait, or launch one at a time.
         """
         if not count:
             # Get the current min_count setting from the ServerArray object
@@ -499,19 +509,11 @@ class Launch(ServerArrayBaseActor):
         self.log.info('Launching %s instances of array %s' % (
                       count, array.soul['name']))
 
-        if async:
-            tasks = []
-            for i in xrange(0, count):
-                # Make all the launch calls quickly
-                tasks.append(self._client.launch_server_array(array))
-
-            # Wait for all of them to finish.
-            yield tasks
-
-        if not async:
-            for i in xrange(0, count):
-                # Launch one server at a time
-                yield self._client.launch_server_array(array)
+        # Note, RightScale does not support asynchronously calling the launch
+        # API method multiple times. Must do this sycnhronously.
+        for i in xrange(0, count):
+            # Launch one server at a time
+            yield self._client.launch_server_array(array)
 
         self.log.info('Launched %s instances for array %s' % (
                       count, array.soul['name']))
@@ -559,7 +561,7 @@ class Launch(ServerArrayBaseActor):
         # the min_count (or is greater than) of that array.
         yield self._wait_until_healthy(array)
 
-        raise gen.Return(True)
+        raise gen.Return()
 
 
 class Execute(ServerArrayBaseActor):
@@ -642,28 +644,37 @@ class Execute(ServerArrayBaseActor):
             script_found = yield self._check_script(self.option('script'))
 
             if not script_found:
-                self.log.error(
-                    'Script "%s" not found!' % self.option('script'))
-                raise gen.Return(False)
+                msg = 'Script "%s" not found!' % self.option('script')
+                raise exceptions.InvalidOptions(msg)
 
             self.log.info(
                 'Would have executed "%s" with inputs "%s" on "%s".'
                 % (self.option('script'), inputs, array.soul['name']))
-            raise gen.Return(True)
+            raise gen.Return()
 
         # Execute the script on all of the servers in the array and store the
         # task status resource records.
         self.log.info(
             'Executing "%s" on %s instances in the array "%s"' %
             (self.option('script'), len(instances), array.soul['name']))
-        tasks = yield self._client.run_executable_on_instances(
-            self.option('script'), inputs, instances)
+        try:
+            tasks = yield self._client.run_executable_on_instances(
+                self.option('script'), inputs, instances)
+        except api.ServerArrayException as e:
+            self.log.critical('Script execution error: %s' % e)
+            raise exceptions.RecoverableActorFailure(
+                'Invalid parameters supplied to execute script.')
 
         # Finally, monitor all of the tasks for completion.
         actions = []
         for task in tasks:
             actions.append(self._client.wait_for_task(task))
         self.log.info('Waiting for %s tasks to finish.' % len(tasks))
-        ret = yield actions
+        success = yield actions
 
-        raise gen.Return(all(ret))
+        # If not all of the executions succeeded, raise an exception.
+        if not all(success):
+            self.log.critical('One or more tasks failed.')
+            raise TaskExecutionFailed()
+
+        raise gen.Return()

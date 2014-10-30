@@ -20,6 +20,7 @@ import logging
 from tornado import gen
 
 from kingpin.actors import base
+from kingpin.actors import exceptions
 from kingpin.actors import utils
 
 log = logging.getLogger(__name__)
@@ -75,13 +76,12 @@ class BaseGroupActor(base.BaseActor):
 
         Note: Expects the sub-class to implement self._run_actions()
 
-        If a 'False' is found anywhere in the actions, this returns
-        False. Otherwise it returns True to indicate that all Actors
-        finished successfully.
+        If an actor execution fails in _run_actions(), then that exception is
+        raised up the stack.
         """
         self.log.info('Beginning %s actions' % len(self._actions))
-        ret = yield self._run_actions()
-        raise gen.Return(all(ret))
+        yield self._run_actions()
+        raise gen.Return()
 
 
 class Sync(BaseGroupActor):
@@ -98,24 +98,41 @@ class Sync(BaseGroupActor):
         raises:
             gen.Return([ <list of return values> ])
         """
-        returns = []
         for act in self._actions:
             self.log.debug('Beginning "%s"..' % act._desc)
-            ret = yield act.execute()
-            self.log.debug('Finished "%s", success?.. %s' % (act._desc, ret))
-            returns.append(ret)
+            try:
+                yield act.execute()
+            except exceptions.ActorException:
+                self.log.error('Not executing any following actions because '
+                               '"%s" failed' % act._desc)
+                raise
 
-            # When an actor fails, it returns False. If we fail any actor, we
-            # bail out and do not proceed with any futher acts.
-            if not ret:
-                break
-
-        raise gen.Return(returns)
+        raise gen.Return()
 
 
 class Async(BaseGroupActor):
 
     """Asynchronously executes all Actors at once"""
+
+    def _get_exc_type(self, exc_list):
+        """Returns either a Recoverable or UnrecoverableActorFailure obj.
+
+        Takes in a list of exceptions, and returns either a
+        RecoverableActorFailure or an UnrecoverableActorFailure based on the
+        exceptions that were passed in.
+
+        Args:
+            exc_list: List of Exception objects
+
+        Returns:
+            RecoverableActorFailure or UnrecoverableActorFailure
+        """
+        # Start by assuming we're going to be a RecoverableActorFailure
+        wrapper_base = exceptions.RecoverableActorFailure
+        for exc in exc_list:
+            if isinstance(exc, exceptions.UnrecoverableActorFailure):
+                wrapper_base = exceptions.UnrecoverableActorFailure
+        return wrapper_base
 
     @gen.coroutine
     def _run_actions(self):
@@ -126,8 +143,31 @@ class Async(BaseGroupActor):
         based on whether or not all actors succeeded (True) or if one-or-more
         failed (False).
         """
-        executions = []
+
+        # This is an interesting tornado-ism. Here we generate and fire off
+        # each of the acts asynchronously into the IOLoop, and we record
+        # references to those tasks. However, we don't yield (wait) on them to
+        # finish.
+        tasks = []
         for act in self._actions:
-            executions.append(act.execute())
-        ret = yield executions
-        raise gen.Return(ret)
+            tasks.append(act.execute())
+
+        # Now that we've fired them off, we walk through them one-by-one and
+        # check on their status. If they've raised an exception, we catch it
+        # and log it into a list for further processing.
+        errors = []
+        for t in tasks:
+            try:
+                yield t
+            except exceptions.ActorException as e:
+                errors.append(e)
+
+        # Now, if there are exceptions in the list, we generate the appropriate
+        # exception type (recoverable vs unrecoverable), and raise it up the
+        # stack. The individual exceptions are swallowed here, but thats OK
+        # because the BaseActor for each of the acts that failed has already
+        # handled printing out the log message with the failure.
+        if errors:
+            ExcType = self._get_exc_type(errors)
+            raise ExcType('Exceptions raised by %s actors in the group.' %
+                          len(errors))

@@ -20,6 +20,7 @@ import os
 from tornado import gen
 from tornado import httpclient
 
+from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
 
@@ -92,47 +93,32 @@ class Message(base.HTTPBaseActor):
         return potential_args
 
     @gen.coroutine
+    @utils.retry(excs=(httpclient.HTTPError), retries=3)
     def _fetch_wrapper(self, *args, **kwargs):
         """Wrap the superclass _fetch method to catch known Hipchat errors."""
         try:
             res = yield self._fetch(*args, **kwargs)
         except httpclient.HTTPError as e:
+            # These are HTTPErrors that we know about, and can log specific
+            # error messages for.
+
             if e.code == 401:
                 # "The authentication you provided is invalid."
                 raise exceptions.InvalidCredentials(
-                    'The "HIPCHAT_TOKEN" supplied is invalid.')
-            if e.code == 403:
+                    'The "HIPCHAT_NAME" or "HIPCHAT_TOKEN" supplied is '
+                    'invalid.')
+            elif e.code == 403:
                 # "You have exceeded the rate limit"
-                #
-                # TODO: Build a retry mechanism in here with a sleep timer.
-                self.log.error('Hit the HipChat API Rate Limit. '
-                               'Try again later.')
-                raise
-            raise
+                raise exceptions.RecoverableActorFailure(
+                    'Hit the HipChat API Rate Limit. Try again later.')
+            else:
+                # We ran into a problem we can't handle. Also, keep in mind
+                # that @utils.retry() was used, so this error happened several
+                # times before getting here. Raise it.
+                raise exceptions.RecoverableActorFailure(
+                    'Unexpected error from Hipchat API: %s' % e)
 
         raise gen.Return(res)
-
-    @gen.coroutine
-    def _execute(self):
-        """Executes an actor and yields the results when its finished.
-
-        raises: gen.Return(True)
-        """
-        self.log.info('Sending message "%s" to Hipchat room "%s"' %
-                      (self.option('message'), self.option('room')))
-        res = yield self._post_message(self.option('room'),
-                                       self.option('message'))
-
-        # If we got here, the result is supposed to include 'success' as a key
-        # and inside that key we can dig for the actual message. If the
-        # response code is 202, we know that we didn't actually execute the
-        # message send, but just validated the API token against the API.
-        if 'success' in res:
-            if res['success']['code'] == 202:
-                self.log.info('API Token Validated: %s' %
-                              res['success']['message'])
-
-        raise gen.Return(True)
 
     @gen.coroutine
     def _post_message(self, room_id, message,
@@ -165,3 +151,30 @@ class Message(base.HTTPBaseActor):
         url = self._generate_escaped_url(API_MESSAGE_PATH, args)
         res = yield self._fetch_wrapper(url)
         raise gen.Return(res)
+
+    @gen.coroutine
+    def _execute(self):
+        """Executes an actor and yields the results when its finished.
+
+        raises: gen.Return()
+        """
+        self.log.info('Sending message "%s" to Hipchat room "%s"' %
+                      (self.option('message'), self.option('room')))
+        res = yield self._post_message(self.option('room'),
+                                       self.option('message'))
+
+        # If we get 'None' or 'False' back, the actor failed.
+        if not res:
+            raise exceptions.RecoverableActorFailure(
+                'Failed to send message to HipChat: %s' % res)
+
+        # If we got here, the result is supposed to include 'success' as a key
+        # and inside that key we can dig for the actual message. If the
+        # response code is 202, we know that we didn't actually execute the
+        # message send, but just validated the API token against the API.
+        if 'success' in res:
+            if res['success']['code'] == 202:
+                self.log.info('API Token Validated: %s' %
+                              res['success']['message'])
+
+        raise gen.Return()

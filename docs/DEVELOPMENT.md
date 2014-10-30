@@ -159,6 +159,115 @@ RightScale ServerTemplate.
 
 ### Actor Design
 
+Kingpin Actors are self-contained python classes that execute operations
+asynchronously. Actors should follow a consistent structure (described below)
+and be written to be as fault tolerant as possible.
+
+#### Hello World Actor Example
+
+This is the basic structure for an actor class.
+
+```python
+import os
+
+from tornado import gen
+
+from kingpin.actors import base
+from kingpin.actors import exceptions
+
+# All actors must have an __author__ tag. This is used actively
+# by the Kingpin code, do not forget this!
+__author__ = 'Billy Joe Armstrong <american_idiot@broadway.com'
+
+# Perhaps you need an API token?
+TOKEN = os.getenv('HELLO_WORLD_TOKEN', None)
+
+class HelloWorld(base.BaseActor):
+    # Create an all_options dictionary that contains all of
+    # the required and optional options that can be passed into
+    # this actor.
+    all_options = {
+        'name': (str, None, 'Your name'),
+        'world': (str, None, 'World we\'re saying hello to!'),
+    }
+    
+    # Optionally, if you need to do any instantiation-level, non-blocking
+    # validation checks (for example, looking for an API token) you can do
+    # them in the __init__. Do *not* put blocking code in here.
+    def __init__(self, *args, **kwargs):
+        super(HelloWorld, self).__init__(*args, **kwargs)
+        if not TOKEN:
+            raise exceptions.InvalidCredentials(
+                'Missing the "HELLO_WORLD_TOKEN" environment variable.')
+
+        # Initialize our hello world sender object. This is non-blocking.
+        self._hello_world = my.HelloWorldSender(token=TOKEN)
+
+    # Its nice to wrap some of your logic into separate methods. This
+    # method handles sending the message, or pretends to send the
+    # message if we're in a dry run.
+    @gen.coroutine
+    def _send_message(self, name, world):
+        # Attempt to log into the API to sanity check our credentials
+        try:
+            yield self._hello_world.login()
+        except Shoplifter:
+            msg = 'Could not log into the world!'
+            raise exceptions.UnrecoverableActorFailure(msg)
+
+        # Make sure to support DRY mode all the time!
+        if self._dry:
+            self.log.info('Would have said Hi to %s' % world)
+            raise gen.Return()
+
+        # Finally, send the message!
+        try:
+            res = yield self._hello_world.send(
+                from=name, to=world)
+        except WalkingAlone as e:
+            # Lets say that this error is completely un-handleable exception,
+            # there's no one to say hello to!
+            self.log.critical('Some extra information about this error...')
+
+            # Now, raise an exception that is will stop execution of Kingpin,
+            # regardless of the warn_on_failure setting.
+            raise exceptions.UnrecoverableActorException('Oh my: %s' % e)
+
+        # Return the value back to the execute method
+        raise gen.Return(res)
+
+    # The meat of the work happens in the _execute() method. This method
+    # is called by the BaseActor.execute() method. Your method must be
+    # wrapped in a gen.Coroutine wrapper. Note, the _execute() method takes
+    # no arguments, all arguments for the acter were passed in to the
+    # __init__() method.
+    @gen.coroutine
+    def _execute(self):
+        self.log.debug('Warming up the HelloWorld Actor')
+        
+        # Fire off an async request to a our private method for sending
+        # hello world messages. Get the response and evaluate
+        res = yield self._send_message(
+            self.option('name'), self.option('world')) 
+
+        # Got a response. Did our message really go through though?
+        if not res:
+            # The world refuses to hear our message... A shame, really, but
+            # not entirely critical.
+            self.log.error('We failed to get our message out ... just '
+                           'letting you know!')
+            raise exceptions.RecoverableActorFailure(
+                'A shame, but I suppose they can listen to what they want')
+
+        # We've been heard!
+        self.log.info('%s people have heard our message!' % res)
+
+        # Indicate to Tornado that we're done with our execution.
+        raise gen.Return()
+```
+
+
+
 #### Required Options
 
 The following options are baked into our *BaseActor* model and must be
@@ -188,6 +297,16 @@ Your actor can take in custom options (ELB name, Route53 DNS entry name, etc)
 through a dictionary named `options` thats passed in to every actor and stored
 as `self._options`. The contents of this dictionary are entirely up to you.
 
+##### `warn_on_failure` (*optional*)
+
+If the user sets `warn_on_failure=True`, any raised exceptions that subclass
+`kingpin.actors.exceptions.RecoverableActorFailure` will be swallowed up and
+warned about, but will not cause the execution of the kingpin script to end.
+
+Exceptions that subclass `kingpin.actors.exceptions.UnrecoverableActorFailure`
+(or uncaught third party exceptions) will cause the actor to fail and the
+script to be aborted **no matter what!**
+
 #### Required Methods
 
 ##### _execute() method
@@ -198,6 +317,7 @@ yielded), and that it never calls any blocking operations.
 
 Actors must *not*:
   * Call a blocking operation ever
+  * Call an async operation from inside the __init__() method
   * Bypass normal logging methods
   * `return` a result (should `raise gen.Return(...)`)
 
@@ -207,18 +327,18 @@ Actors must:
     listed in it.
   * Implement a *_execute()* method
   * Handle as many possible exceptions of third-party libraries as possible
-  * Return True/False based on whether the action has succeeded. False
-    indicates that the Actor failed, and currently stops execution of the rest
-    of the program.
+  * Return None when the actor has succeeded.
 
 Actors can:
-  * Raise *kingpin.actors.exceptions.ActorException* rather than returning
-    False. This is considered an unrecoverable exception and no Kingpin will
-    not execute any further actors when this happens. This is different than
-    returning False though. False should be returned when there were no
-    problems in the code or environment, but the action simpy failed (lets say
-    you tried to launch an already launched server array). Exceptions should be
-    raised when an unexpected failure occurs.
+  * Raise *kingpin.actors.exceptions.UnrecoverableActorFailure*.
+    This is considered an unrecoverable exception and no Kingpin will not
+    execute any further actors when this happens.
+
+  * Raise *kingpin.actors.exceptions.RecoverableActorFailure*.
+    This is considered an error in execution, but is either expected or at
+    least cleanly handled in the code. It allows the user to specify
+    `warn_on_failure=True`, where they can then continue on in the script even
+    if an actor fails.
 
 **Super simple example Actor _execute() method**
 

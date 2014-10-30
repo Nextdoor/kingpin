@@ -85,7 +85,7 @@ class BaseActor(object):
                      for this action. Values should be primitives.
             dry: (Bool) or not this Actor will actually make changes.
             warn_on_failure: (Bool) Whether this actor ignores its return
-                             value and always returns True (but warns).
+                             value and always succeeds (but warns).
         """
         self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
         self._desc = desc
@@ -97,7 +97,7 @@ class BaseActor(object):
         self._setup_defaults()
         self._validate_options()  # Relies on _setup_log() above
 
-        self.log.debug('Initialized')
+        self.log.debug('Initialized (warn_on_failure=%s)' % warn_on_failure)
 
     def _setup_log(self):
         """Create a customized logging object based on the LogAdapter."""
@@ -124,7 +124,7 @@ class BaseActor(object):
             options: A dictionary of options.
 
         Raises:
-            exceptionsInvalidOptions
+            exceptions.InvalidOptions
         """
 
         # Loop through all_options, and find the required ones
@@ -176,15 +176,42 @@ class BaseActor(object):
     def execute(self):
         """Executes an actor and yields the results when its finished.
 
+        Calls an actors private _execute() method and either returns the result
+        (through gen.Return) or handles any exceptions that are raised.
+
+        RecoverableActorFailure exceptions are potentially swallowed up (and
+        warned) if the self._warn_on_failure flag is set. Otherwise, they're
+        logged and re-raised. All other ActorException exceptions are caught,
+        logged and re-raised.
+
+        We have a generic catch-all exception handling block as well, because
+        third party Actor classes may or may not catch all appropriate
+        exceptions. This block is mainly here to prevent the entire app from
+        failing due to a poorly written Actor.
+
         Raises:
             gen.Return(result)
         """
         self.log.debug('Beginning')
+
+        # Any exception thats raised by an actors _execute() method will
+        # automatically cause actor failure and we return right away.
+        result = None
         try:
             result = yield self._execute()
         except exceptions.ActorException as e:
-            self.log.error(e)
-            raise gen.Return(False)
+            # If exception is not RecoverableActorFailure
+            # or if warn_on_failure is not set, then escalate.
+            recover = isinstance(e, exceptions.RecoverableActorFailure)
+            if not recover or not self._warn_on_failure:
+                self.log.critical(e)
+                raise
+
+            # Otherwise - flag this failure as a warning, and continue
+            self.log.warning(e)
+            self.log.warning(
+                'Continuing execution even though a failure was '
+                'detected (warn_on_failure=%s)' % self._warn_on_failure)
         except Exception as e:
             # We don't like general exception catch clauses like this, but
             # because actors can be written by third parties and automatically
@@ -196,24 +223,11 @@ class BaseActor(object):
                          'with this stacktrace' %
                          sys.modules[__name__].__author__)
             self.log.exception(e)
-            raise gen.Return(False)
-
-        # Log the result. If theres a failure, throw up a warning. Depending on
-        # how _warn_on_failure is set, we may actually return this failed
-        # result ... or we may swallow it up and return True anyways.
-        if result:
-            self.log.debug('Finished successfully.')
+            raise exceptions.ActorException(e)
         else:
-            self.log.warning('Finished with errors.')
+            self.log.debug('Finished successfully, return value: %s' % result)
 
-        # If we are ignoring the result of the actor, then we return True no
-        # matter what.
-        if self._warn_on_failure and not result:
-            self.log.warning(
-                'Returning True even though a failure was '
-                'detected (warn_on_failure=%s)' % self._warn_on_failure)
-            result = True
-
+        # If we got here, we're exiting the actor cleanly and moving on.
         raise gen.Return(result)
 
 
