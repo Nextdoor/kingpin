@@ -131,7 +131,14 @@ class TestCloneActor(testing.AsyncTestCase):
 
         source_array = mock.MagicMock(name='unittestarray')
         source_array.self.path = '/fo/bar/123'
-        self.actor._find_server_arrays = mock_tornado(source_array)
+
+        return_values = [[], source_array]
+
+        @gen.coroutine
+        def fsa(*args, **kwargs):
+            raise gen.Return(return_values.pop())
+
+        self.actor._find_server_arrays = fsa
 
         new_array = mock.MagicMock(name='unittestarray v1')
         new_array.self.path = '/foo/bar/124'
@@ -148,7 +155,14 @@ class TestCloneActor(testing.AsyncTestCase):
 
         source_array = mock.MagicMock(name='unittestarray')
         source_array.self.path = '/fo/bar/123'
-        self.actor._find_server_arrays = mock_tornado(source_array)
+
+        return_values = [[], source_array]
+
+        @gen.coroutine
+        def fsa(*args, **kwargs):
+            raise gen.Return(return_values.pop())
+
+        self.actor._find_server_arrays = fsa
 
         self.client_mock.update_server_array = mock_tornado()
 

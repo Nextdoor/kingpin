@@ -108,13 +108,20 @@ class Clone(ServerArrayBaseActor):
 
         # First, find the array we're copying from.
         source_array = yield self._find_server_arrays(self.option('source'),
+                                                      raise_on=None,
                                                       allow_mock=False)
+        if not source_array:
+            self.log.critical('Could not find "%s".' % self.option('source'))
+            raise gen.Return(False)
 
         # Sanity-check -- make sure that the destination server array doesn't
         # already exist. If it does, bail out!
-        yield self._find_server_arrays(self.option('dest'),
-                                       raise_on='found',
-                                       allow_mock=False)
+        dest = yield self._find_server_arrays(self.option('dest'),
+                                              raise_on=None,
+                                              allow_mock=False)
+        if dest:
+            self.log.critical('"%s" already exists!' % self.option('dest'))
+            raise gen.Return(False)
 
         # Now, clone the array!
         self.log.info('Cloning array "%s"' % source_array.soul['name'])
@@ -217,7 +224,8 @@ class Update(ServerArrayBaseActor):
                 if e.response.status_code == 422:
                     msg = ('Invalid parameters supplied to patch array "%s"' %
                            self.option('array'))
-                    raise exceptions.UnrecoverableActionFailure(msg)
+                    self.log.critical(msg)
+                    raise gen.Return(False)
 
         # Update the ServerArray Next-Instane Inputs
         if self.option('inputs'):

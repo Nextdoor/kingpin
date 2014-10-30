@@ -5,11 +5,11 @@ import time
 from tornado import gen
 from tornado import testing
 from tornado.testing import unittest
-import requests
 import rainbow_logging_handler
 
 from kingpin import exceptions
 from kingpin import utils
+from kingpin.actors.test import helper
 
 
 class TestUtils(unittest.TestCase):
@@ -112,22 +112,30 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
     def test_retry_with_backoff(self):
 
         # Define a method that will fail every time
-        @gen.coroutine
-        @utils.retry(excs=(requests.exceptions.HTTPError), retries=3)
-        def raise_exception():
-            raise requests.exceptions.HTTPError('Failed')
+        counter = helper.mock_tornado()
 
-        with self.assertRaises(requests.exceptions.HTTPError):
-            yield raise_exception()
+        @gen.coroutine
+        @utils.retry(retries=3)
+        def always_fail():
+            yield counter()
+            raise gen.Return(False)
+
+        res = yield always_fail()
+        self.assertFalse(res)  # Should alwyays return false
+        self.assertEquals(counter._call_count, 3)  # should retry 3 times.
 
         # Now a method that works
+        counter = helper.mock_tornado()
+
         @gen.coroutine
-        @utils.retry(excs=(requests.exceptions.HTTPError), retries=3)
+        @utils.retry(retries=3)
         def work():
+            yield counter()
             raise gen.Return(True)
 
         ret = yield work()
-        self.assertEquals(ret, True)
+        self.assertTrue(ret)
+        self.assertEquals(counter._call_count, 1)  # Shouldn't be retried
 
     @testing.gen_test
     def testTornadoSleep(self):

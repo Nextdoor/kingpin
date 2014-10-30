@@ -203,7 +203,7 @@ class Delete(SQSBaseActor):
         return ok
 
     @gen.coroutine
-    @utils.retry(SQSQueueNotFoundException, delay=aws_settings.SQS_RETRY_DELAY)
+    @utils.retry(delay=aws_settings.SQS_RETRY_DELAY)
     def _execute(self):
         """Executes an actor and yields the results when its finished.
 
@@ -217,8 +217,8 @@ class Delete(SQSBaseActor):
                                not self.option('idempotent'))
 
         if not_found_condition:
-            raise SQSQueueNotFoundException(
-                'No queues with pattern "%s" found.' % pattern)
+            self.log.critical('No queues with pattern "%s" found.' % pattern)
+            raise gen.Return(False)
 
         self.log.info('Deleting SQS Queues: %s' % matched_queues)
 

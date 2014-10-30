@@ -514,7 +514,8 @@ class RightScale(object):
         try:
             ret = yield tasks
         except requests.exceptions.HTTPError as e:
-            raise ServerArrayException('Script Execution Error: %s' % e)
+            log.critical('Script Execution Error: %s' % e)
+            raise gen.Return(False)
 
         raise gen.Return(ret)
 
