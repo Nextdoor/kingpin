@@ -122,21 +122,17 @@ class Async(BaseGroupActor):
         based on whether or not all actors succeeded (True) or if one-or-more
         failed (False).
         """
-        executions = []
+        actor_map = []
         for act in self._actions:
-            executions.append(act.execute())
+            actor_map.append((act, act.execute()))
 
-        # TODO: Figure out what to do about Recoverable vs Unrecoverable
-        # exceptions. Does the group.Async() need to take into account
-        # self._warn_on_failure so that it can avoid raising some, but actually
-        # raise Unrecoverable failures?
-        #
-        # Better, can we catch ALl the exceptions and raise them all up the
-        # stack?
-        try:
-            yield executions
-        except exceptions.ActorException:
-            self.log.error('Failures detected in group')
-            raise
+        to_raise = None
+        for (actor, exe) in actor_map:
+            try:
+                yield exe
+            except exceptions.ActorException as e:
+                actor.log.critical(e.message)
+                to_raise = e
 
-        raise gen.Return()
+        if to_raise:
+            raise to_raise
