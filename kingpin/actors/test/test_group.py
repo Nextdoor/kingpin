@@ -1,4 +1,5 @@
 import logging
+import time
 
 from tornado import gen
 from tornado import testing
@@ -159,6 +160,39 @@ class TestSyncGroupActor(TestGroupActorBaseClass):
 class TestASyncGroupActor(TestGroupActorBaseClass):
 
     @testing.gen_test
+    def test_get_exc_type_with_only_unrecoverable(self):
+        exc_list = [
+            exceptions.UnrecoverableActorFailure(),
+            exceptions.UnrecoverableActorFailure(),
+            exceptions.UnrecoverableActorFailure()
+        ]
+        actor = group.Async('Unit Test Action', {'acts': []})
+        ret = actor._get_exc_type(exc_list)
+        self.assertEquals(ret, exceptions.UnrecoverableActorFailure)
+
+    @testing.gen_test
+    def test_get_exc_type_with_only_recoverable(self):
+        exc_list = [
+            exceptions.RecoverableActorFailure(),
+            exceptions.RecoverableActorFailure(),
+            exceptions.RecoverableActorFailure()
+        ]
+        actor = group.Async('Unit Test Action', {'acts': []})
+        ret = actor._get_exc_type(exc_list)
+        self.assertEquals(ret, exceptions.RecoverableActorFailure)
+
+    @testing.gen_test
+    def test_get_exc_type_with_both(self):
+        exc_list = [
+            exceptions.RecoverableActorFailure(),
+            exceptions.UnrecoverableActorFailure(),
+            exceptions.RecoverableActorFailure()
+        ]
+        actor = group.Async('Unit Test Action', {'acts': []})
+        ret = actor._get_exc_type(exc_list)
+        self.assertEquals(ret, exceptions.UnrecoverableActorFailure)
+
+    @testing.gen_test
     def test_run_actions_with_no_acts(self):
         # Call the executor and test it out
         actor = group.Async(
@@ -176,6 +210,21 @@ class TestASyncGroupActor(TestGroupActorBaseClass):
 
         res = yield actor._run_actions()
         self.assertEquals(res, None)
+
+    @testing.gen_test
+    def test_execute_async(self):
+        """Make sure this actor starts all processes in parallel!"""
+        sleeper = {'actor': 'misc.Sleep',
+                   'desc': 'Sleep',
+                   'options': {'sleep': 0.5}}
+        actor = group.Async('Unit Test Action', {'acts': [
+            sleeper, sleeper, sleeper]})
+
+        start = time.time()
+        yield actor.execute()
+        stop = time.time()
+        exe_time = stop - start
+        self.assertTrue(0.5 < exe_time < 1.5)
 
     @testing.gen_test
     def test_run_actions_with_two_acts(self):
@@ -196,6 +245,32 @@ class TestASyncGroupActor(TestGroupActorBaseClass):
             'Unit Test Action',
             {'acts': [
                 dict(self.actor_returns),
+                dict(self.actor_raises_unrecoverable_exception)]})
+
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            yield actor._run_actions()
+
+    @testing.gen_test
+    def test_run_actions_with_two_acts_one_fails_recoverable(self):
+        # Call the executor and test it out
+        actor = group.Async(
+            'Unit Test Action',
+            {'acts': [
+                dict(self.actor_returns),
+                dict(self.actor_raises_recoverable_exception),
+                dict(self.actor_raises_recoverable_exception)]})
+
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor._run_actions()
+
+    @testing.gen_test
+    def test_run_actions_with_two_acts_one_fails_with_both(self):
+        # Call the executor and test it out
+        actor = group.Async(
+            'Unit Test Action',
+            {'acts': [
+                dict(self.actor_returns),
+                dict(self.actor_raises_recoverable_exception),
                 dict(self.actor_raises_unrecoverable_exception)]})
 
         with self.assertRaises(exceptions.UnrecoverableActorFailure):

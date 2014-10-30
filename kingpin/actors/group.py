@@ -113,6 +113,26 @@ class Async(BaseGroupActor):
 
     """Asynchronously executes all Actors at once"""
 
+    def _get_exc_type(self, exc_list):
+        """Returns either a Recoverable or UnrecoverableActorFailure obj.
+
+        Takes in a list of exceptions, and returns either a
+        RecoverableActorFailure or an UnrecoverableActorFailure based on the
+        exceptions that were passed in.
+
+        Args:
+            exc_list: List of Exception objects
+
+        Returns:
+            RecoverableActorFailure or UnrecoverableActorFailure
+        """
+        # Start by assuming we're going to be a RecoverableActorFailure
+        wrapper_base = exceptions.RecoverableActorFailure
+        for exc in exc_list:
+            if isinstance(exc, exceptions.UnrecoverableActorFailure):
+                wrapper_base = exceptions.UnrecoverableActorFailure
+        return wrapper_base
+
     @gen.coroutine
     def _run_actions(self):
         """Asynchronously executes all of the Actor.execute() methods.
@@ -122,21 +142,31 @@ class Async(BaseGroupActor):
         based on whether or not all actors succeeded (True) or if one-or-more
         failed (False).
         """
-        executions = []
+
+        # This is an interesting tornado-ism. Here we generate and fire off
+        # each of the acts asynchronously into the IOLoop, and we record
+        # references to those tasks. However, we don't yield (wait) on them to
+        # finish.
+        actor_map = []
         for act in self._actions:
-            executions.append(act.execute())
+            actor_map.append((act, act.execute()))
 
-        # TODO: Figure out what to do about Recoverable vs Unrecoverable
-        # exceptions. Does the group.Async() need to take into account
-        # self._warn_on_failure so that it can avoid raising some, but actually
-        # raise Unrecoverable failures?
-        #
-        # Better, can we catch ALl the exceptions and raise them all up the
-        # stack?
-        try:
-            yield executions
-        except exceptions.ActorException:
-            self.log.error('Failures detected in group')
-            raise
+        # Now that we've fired them off, we walk through them one-by-one and
+        # check on their status. If they've raised an exception, we catch it
+        # and log it into a list for further processing.
+        to_raise = []
+        for (actor, exe) in actor_map:
+            try:
+                yield exe
+            except exceptions.ActorException as e:
+                to_raise.append(e)
 
-        raise gen.Return()
+        # Now, if there are exceptions in the list, we generate the appropriate
+        # exception type (recoverable vs unrecoverable), and raise it up the
+        # stack. The individual exceptions are swallowed here, but thats OK
+        # because the BaseActor for each of the acts that failed has already
+        # handled printing out the log message with the failure.
+        if to_raise:
+            raise self._get_exc_type(to_raise)(
+                ('Exceptions raised by %s actors in the group.' %
+                 len(to_raise)))

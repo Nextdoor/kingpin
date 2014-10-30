@@ -199,22 +199,19 @@ class BaseActor(object):
         result = None
         try:
             result = yield self._execute()
-            self.log.debug('Finished successfully, return value: %s' % result)
-        except exceptions.RecoverableActorFailure as e:
-            # RecoverableActorFailure can be caught and re-raised (default
-            # behavior), or they can be swallowed up (warn_on_failure=True)
-            if self._warn_on_failure:
-                self.log.warning(e)
-                self.log.warning(
-                    'Continuing execution even though a failure was '
-                    'detected (warn_on_failure=%s)' % self._warn_on_failure)
-            else:
+        except exceptions.ActorException as e:
+            # If exception is not RecoverableActorFailure
+            # or if warn_on_failure is not set, then escalate.
+            recover = isinstance(e, exceptions.RecoverableActorFailure)
+            if not recover or not self._warn_on_failure:
                 self.log.critical(e)
                 raise
-        except exceptions.ActorException as e:
-            # All other ActorExceptions are immediately logged and raised
-            self.log.critical(e)
-            raise
+
+            # Otherwise - flag this failure as a warning, and continue
+            self.log.warning(e)
+            self.log.warning(
+                'Continuing execution even though a failure was '
+                'detected (warn_on_failure=%s)' % self._warn_on_failure)
         except Exception as e:
             # We don't like general exception catch clauses like this, but
             # because actors can be written by third parties and automatically
@@ -227,6 +224,8 @@ class BaseActor(object):
                          sys.modules[__name__].__author__)
             self.log.exception(e)
             raise exceptions.ActorException(e)
+
+        self.log.debug('Finished successfully, return value: %s' % result)
 
         # If we got here, we're exiting the actor cleanly and moving on.
         raise gen.Return(result)
