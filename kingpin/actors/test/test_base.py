@@ -53,6 +53,26 @@ class TestBaseActor(testing.AsyncTestCase):
         self.actor._execute = self.true
 
     @testing.gen_test
+    def test_timer(self):
+        # Create a function and wrap it in our timer
+        self.actor._execute = self.true
+
+        # Mock out the logger so we can track it
+        self.actor.log = mock.MagicMock()
+
+        # Now call the execute() wrapper that leverages the @timer decorator.
+        yield self.actor.execute()
+
+        # Search for a logged message. Don't explicitly set the execution time
+        # because some computers and compilers are slow.
+        msg = 'kingpin.actors.base.BaseActor.execute() execution time'
+        msg_is_in_calls = False
+        for call in self.actor.log.debug.mock_calls:
+            if msg in str(call):
+                msg_is_in_calls = True
+        self.assertEquals(msg_is_in_calls, True)
+
+    @testing.gen_test
     def test_httplib_debugging(self):
         # Override the environment setting and reload the class
         os.environ['URLLIB_DEBUG'] = '1'
