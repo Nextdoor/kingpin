@@ -248,6 +248,7 @@ the messages.
 **Actor-specific Documentation**
 
   * [hipchat.Message](docs/actors/hipchat.Message.md)
+  * [hipchat.Topic](docs/actors/hipchat.Topic.md)
 
 #### Librato
 

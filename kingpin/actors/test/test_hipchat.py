@@ -37,13 +37,13 @@ class FakeExceptionRaisingHTTPClientClass(object):
         raise self.response_value
 
 
-class TestHipchatMessage(testing.AsyncTestCase):
+class TestHipchatBase(testing.AsyncTestCase):
 
     """Unit tests for the Hipchat Message actor."""
 
     def setUp(self, *args, **kwargs):
         # For most tests, mock out the TOKEN
-        super(TestHipchatMessage, self).setUp()
+        super(TestHipchatBase, self).setUp()
         hipchat.TOKEN = 'Unittest'
 
     def test_validate_from_name(self):
@@ -95,6 +95,16 @@ class TestHipchatMessage(testing.AsyncTestCase):
     def test_init_with_missing_options(self):
         with self.assertRaises(exceptions.InvalidOptions):
             hipchat.Message('Unit Test Action', {})
+
+
+class TestHipchatMessage(testing.AsyncTestCase):
+
+    """Unit tests for the Hipchat Message actor."""
+
+    def setUp(self, *args, **kwargs):
+        # For most tests, mock out the TOKEN
+        super(TestHipchatMessage, self).setUp()
+        hipchat.TOKEN = 'Unittest'
 
     @testing.gen_test
     def test_execute(self):
@@ -217,6 +227,141 @@ class TestHipchatMessage(testing.AsyncTestCase):
         def fake_post_message(*args, **kwargs):
             raise gen.Return(None)
         actor._post_message = fake_post_message
+
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor._execute()
+
+
+class TestHipchatTopic(testing.AsyncTestCase):
+
+    """Unit tests for the Hipchat Message actor."""
+
+    def setUp(self, *args, **kwargs):
+        # For most tests, mock out the TOKEN
+        super(TestHipchatTopic, self).setUp()
+        hipchat.TOKEN = 'Unittest'
+
+    @testing.gen_test
+    def test_execute(self):
+        topic = 'Unit test topic'
+        room = 'unit_room'
+        actor = hipchat.Topic(
+            'Unit Test Action',
+            {'topic': topic, 'room': room})
+
+        # Valid response test
+        response_dict = {'status': 'sent'}
+        response_body = json.dumps(response_dict)
+        http_response = httpclient.HTTPResponse(
+            httpclient.HTTPRequest('/'), code=200,
+            buffer=StringIO.StringIO(response_body))
+
+        with mock.patch.object(actor, '_get_http_client') as m:
+            m.return_value = FakeHTTPClientClass()
+            m.return_value.response_value = http_response
+            res = yield actor._execute()
+            self.assertEquals(res, None)
+
+    @testing.gen_test
+    def test_execute_dry_mode_response(self):
+        topic = 'Unit test topic'
+        room = 'unit_room'
+        actor = hipchat.Topic(
+            'Unit Test Action',
+            {'topic': topic, 'room': room})
+
+        # Valid response test
+        response_dict = {'success': {'code': 202, 'type': 'Accepted',
+                         'message': 'It worked'}}
+        response_body = json.dumps(response_dict)
+        http_response = httpclient.HTTPResponse(
+            httpclient.HTTPRequest('/'), code=202,
+            buffer=StringIO.StringIO(response_body))
+
+        with mock.patch.object(actor, '_get_http_client') as m:
+            m.return_value = FakeHTTPClientClass()
+            m.return_value.response_value = http_response
+            res = yield actor._execute()
+            self.assertEquals(res, None)
+
+    @testing.gen_test
+    def test_execute_with_401(self):
+        topic = 'Unit test topic'
+        room = 'unit_room'
+        actor = hipchat.Topic(
+            'Unit Test Action',
+            {'topic': topic, 'room': room})
+
+        # Valid response test
+        response_dict = {'error': {'code': 401, 'type': 'Unauthorized',
+                         'message': 'Auth token not found'}}
+        response_body = json.dumps(response_dict)
+        http_response = httpclient.HTTPError(
+            code=401, response=response_body)
+
+        with mock.patch.object(actor, '_get_http_client') as m:
+            m.return_value = FakeExceptionRaisingHTTPClientClass()
+            m.return_value.response_value = http_response
+
+            with self.assertRaises(exceptions.InvalidCredentials):
+                yield actor._execute()
+
+    @testing.gen_test
+    def test_execute_with_403(self):
+        topic = 'Unit test topic'
+        room = 'unit_room'
+        actor = hipchat.Topic(
+            'Unit Test Action',
+            {'topic': topic, 'room': room})
+
+        # Valid response test
+        response_dict = {'error': {'code': 403, 'type': 'Forbidden',
+                         'message': 'Hit the rate limit'}}
+        response_body = json.dumps(response_dict)
+        http_response = httpclient.HTTPError(
+            code=403, response=response_body)
+
+        with mock.patch.object(actor, '_get_http_client') as m:
+            m.return_value = FakeExceptionRaisingHTTPClientClass()
+            m.return_value.response_value = http_response
+
+            with self.assertRaises(exceptions.RecoverableActorFailure):
+                yield actor._execute()
+
+    @testing.gen_test
+    def test_execute_with_unknown_exception(self):
+        topic = 'Unit test topic'
+        room = 'unit_room'
+        actor = hipchat.Topic(
+            'Unit Test Action',
+            {'topic': topic, 'room': room})
+
+        # Valid response test
+        response_dict = {'error': {'code': 123, 'type': 'Unknown',
+                         'message': 'Auth token not found'}}
+        response_body = json.dumps(response_dict)
+        http_response = httpclient.HTTPError(
+            code=123, response=response_body)
+
+        with mock.patch.object(actor, '_get_http_client') as m:
+            m.return_value = FakeExceptionRaisingHTTPClientClass()
+            m.return_value.response_value = http_response
+
+            with self.assertRaises(exceptions.RecoverableActorFailure):
+                yield actor._execute()
+
+    @testing.gen_test
+    def test_execute_with_empty_response(self):
+        topic = 'Unit test topic'
+        room = 'unit_room'
+        actor = hipchat.Topic(
+            'Unit Test Action',
+            {'topic': topic, 'room': room})
+
+        @gen.coroutine
+        def fake_set_topic(*args, **kwargs):
+            raise gen.Return(None)
+        actor._set_topic = fake_set_topic
 
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield actor._execute()
