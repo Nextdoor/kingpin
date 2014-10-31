@@ -33,6 +33,9 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
                 'Unit Test Action',
                 {'message': message, 'room': room}, dry=True)
 
+        # Reload the hipchat library to re-get the token
+        reload(hipchat)
+
     @testing.gen_test
     def integration_test_execute_with_invalid_creds(self):
         message = 'Unit test message'
@@ -80,6 +83,9 @@ class IntegrationHipchatTopic(testing.AsyncTestCase):
             hipchat.Topic(
                 'Unit Test Action',
                 {'topic': topic, 'room': room}, dry=True)
+
+        # Reload the hipchat library to re-get the token
+        reload(hipchat)
 
     @testing.gen_test
     def integration_test_execute_with_invalid_creds(self):
