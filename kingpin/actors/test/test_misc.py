@@ -1,6 +1,7 @@
 import logging
 
 from tornado import testing
+from tornado import httpclient
 
 from kingpin.actors import exceptions
 from kingpin.actors import misc
@@ -43,10 +44,11 @@ class TestGenericHTTP(testing.AsyncTestCase):
         yield actor.execute()
 
     @testing.gen_test
-    def test_execute_error(self):
+    def test_execute_fail(self):
         actor = misc.GenericHTTP('Unit Test Action',
                                  {'url': 'http://example.com'})
-        actor._fetch = mock_tornado({'success': {'code': 404}})
+        error = httpclient.HTTPError(code=401, response={})
+        actor._fetch = mock_tornado(exc=error)
 
-        with self.assertRaises(exceptions.BadRequest):
+        with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()

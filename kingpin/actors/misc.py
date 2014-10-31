@@ -22,6 +22,7 @@ import logging
 import urllib
 
 from tornado import gen
+from tornado import httpclient
 
 from kingpin import utils
 from kingpin.actors import base
@@ -78,17 +79,11 @@ class GenericHTTP(base.HTTPBaseActor):
 
         escaped_post = urllib.urlencode(self.option('data')) or None
 
-        res = yield self._fetch(self.option('url'),
-                                post=escaped_post,
-                                auth_username=self.option('username'),
-                                auth_password=self.option('password'))
-
-        if 'success' in res and (200 <= res['success']['code'] < 300):
-            self.log.debug('Fetch was successful!')
-            raise gen.Return()
-
-        self.log.error('Request failed.')
-        self.log.error('Request url: %s' % self.option('url'))
-        self.log.error('Request data: %s' % escaped_post)
-        self.log.debug('Response: %s' % res)
-        raise exceptions.BadRequest(res)
+        try:
+            yield self._fetch(self.option('url'),
+                              post=escaped_post,
+                              auth_username=self.option('username'),
+                              auth_password=self.option('password'))
+        except httpclient.HTTPError as e:
+            if e.code == 401:
+                raise exceptions.InvalidCredentials(e.message)
