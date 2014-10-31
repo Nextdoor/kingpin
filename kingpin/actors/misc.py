@@ -42,15 +42,12 @@ class Sleep(base.BaseActor):
 
     @gen.coroutine
     def _execute(self):
-        """Executes an actor and yields the results when its finished.
+        """Executes an actor and yields the results when its finished."""
 
-        raises: gen.Return(True)
-        """
         self.log.debug('Sleeping for %s seconds' % self.option('sleep'))
+
         if not self._dry:
             yield utils.tornado_sleep(seconds=self.option('sleep'))
-
-        raise gen.Return(True)
 
 
 class GenericHTTP(base.HTTPBaseActor):

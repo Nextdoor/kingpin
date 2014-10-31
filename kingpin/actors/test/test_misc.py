@@ -2,6 +2,7 @@ import logging
 
 from tornado import testing
 
+from kingpin.actors import exceptions
 from kingpin.actors import misc
 from kingpin.actors.test.helper import mock_tornado
 
@@ -16,7 +17,7 @@ class TestSleep(testing.AsyncTestCase):
         res = yield actor.execute()
 
         # Make sure we fired off an alert.
-        self.assertEquals(res, True)
+        self.assertEquals(res, None)
 
 
 class TestGenericHTTP(testing.AsyncTestCase):
@@ -47,5 +48,5 @@ class TestGenericHTTP(testing.AsyncTestCase):
                                  {'url': 'http://example.com'})
         actor._fetch = mock_tornado({'success': {'code': 404}})
 
-        res = yield actor.execute()
-        self.assertFalse(res)
+        with self.assertRaises(exceptions.BadRequest):
+            yield actor.execute()
