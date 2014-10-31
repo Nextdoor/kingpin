@@ -19,11 +19,14 @@ dedicated packages. Things like sleep timers, loggers, etc.
 """
 
 import logging
+import urllib
 
 from tornado import gen
+from tornado import httpclient
 
 from kingpin import utils
 from kingpin.actors import base
+from kingpin.actors import exceptions
 
 log = logging.getLogger(__name__)
 
@@ -40,12 +43,47 @@ class Sleep(base.BaseActor):
 
     @gen.coroutine
     def _execute(self):
-        """Executes an actor and yields the results when its finished.
+        """Executes an actor and yields the results when its finished."""
 
-        raises: gen.Return(True)
-        """
         self.log.debug('Sleeping for %s seconds' % self.option('sleep'))
+
         if not self._dry:
             yield utils.tornado_sleep(seconds=self.option('sleep'))
 
-        raise gen.Return(True)
+
+class GenericHTTP(base.HTTPBaseActor):
+
+    """Simple HTTP get/post sending actor."""
+
+    all_options = {
+        'url': (str, None, 'Domain name + query string to fetch'),
+        'data': (dict, {}, 'Data to attach as a POST query'),
+        'username': (str, '', 'HTTPAuth username'),
+        'password': (str, '', 'HTTPAuth password')
+    }
+
+    @gen.coroutine
+    def _execute_dry(self):
+        is_post = bool(self.option('data'))
+        method = ['POST', 'GET'][is_post]
+
+        self.log.info("Would do a %s request to %s"
+                      % (method, self.option('url')))
+        raise gen.Return()
+
+    @gen.coroutine
+    def _execute(self):
+
+        if self._dry:
+            raise gen.Return(self._execute_dry())
+
+        escaped_post = urllib.urlencode(self.option('data')) or None
+
+        try:
+            yield self._fetch(self.option('url'),
+                              post=escaped_post,
+                              auth_username=self.option('username'),
+                              auth_password=self.option('password'))
+        except httpclient.HTTPError as e:
+            if e.code == 401:
+                raise exceptions.InvalidCredentials(e.message)

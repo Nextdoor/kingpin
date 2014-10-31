@@ -30,8 +30,8 @@ any live changes. It is up to the developer of the Actor to define what
 import json
 import logging
 import os
-import time
 import sys
+import time
 
 from tornado import gen
 from tornado import httpclient
