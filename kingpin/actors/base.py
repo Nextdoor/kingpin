@@ -77,7 +77,8 @@ class BaseActor(object):
     # }
     all_options = {}
 
-    def __init__(self, desc, options, dry=False, warn_on_failure=False):
+    def __init__(self, desc, options, dry=False, warn_on_failure=False,
+                 condition=True):
         """Initializes the Actor.
 
         Args:
@@ -87,12 +88,14 @@ class BaseActor(object):
             dry: (Bool) or not this Actor will actually make changes.
             warn_on_failure: (Bool) Whether this actor ignores its return
                              value and always succeeds (but warns).
+            condition: (Bool) Whether to run this actor.
         """
         self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
         self._desc = desc
         self._options = options
         self._dry = dry
         self._warn_on_failure = warn_on_failure
+        self._condition = condition
 
         self._setup_log()
         self._setup_defaults()
@@ -225,6 +228,12 @@ class BaseActor(object):
         # Any exception thats raised by an actors _execute() method will
         # automatically cause actor failure and we return right away.
         result = None
+
+        if not self._condition:
+            self.log.warning('Skipping execution. Condition: %s' %
+                             self._condition)
+            raise gen.Return()
+
         try:
             result = yield self._execute()
         except exceptions.ActorException as e:
@@ -253,7 +262,7 @@ class BaseActor(object):
             self.log.exception(e)
             raise exceptions.ActorException(e)
         else:
-            self.log.debug('Finished successfully, return value: %s' % result)
+            self.log.warning('Finished with errors.')
 
         # If we got here, we're exiting the actor cleanly and moving on.
         raise gen.Return(result)

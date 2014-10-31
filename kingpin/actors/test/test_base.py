@@ -13,6 +13,7 @@ import mock
 from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
+from kingpin.actors.test.helper import mock_tornado
 
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
@@ -134,6 +135,13 @@ class TestBaseActor(testing.AsyncTestCase):
     def test_execute(self):
         res = yield self.actor.execute()
         self.assertEquals(res, True)
+
+    @testing.gen_test
+    def test_execute_skip(self):
+        self.actor._condition = False
+        self.actor._execute = mock_tornado()
+        yield self.actor.execute()
+        self.assertEquals(self.actor._execute._call_count, 0)
 
     @testing.gen_test
     def test_execute_fail(self):
