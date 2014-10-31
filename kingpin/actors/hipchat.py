@@ -37,18 +37,13 @@ TOKEN = os.getenv('HIPCHAT_TOKEN', None)
 NAME = os.getenv('HIPCHAT_NAME', 'Kingpin')
 
 
-class Message(base.HTTPBaseActor):
+class HipchatBase(base.HTTPBaseActor):
 
-    """Simple Hipchat Message sending actor."""
-
-    all_options = {
-        'room': (str, None, 'Hipchat room name'),
-        'message': (str, None, 'Message to send')
-    }
+    """Simple Hipchat Abstract Base Object"""
 
     def __init__(self, *args, **kwargs):
         """Check required environment variables."""
-        super(Message, self).__init__(*args, **kwargs)
+        super(HipchatBase, self).__init__(*args, **kwargs)
 
         if not TOKEN:
             raise exceptions.InvalidCredentials(
@@ -119,6 +114,16 @@ class Message(base.HTTPBaseActor):
                     'Unexpected error from Hipchat API: %s' % e)
 
         raise gen.Return(res)
+
+
+class Message(HipchatBase):
+
+    """Simple Hipchat Message sending actor."""
+
+    all_options = {
+        'room': (str, None, 'Hipchat room name'),
+        'message': (str, None, 'Message to send')
+    }
 
     @gen.coroutine
     def _post_message(self, room_id, message,

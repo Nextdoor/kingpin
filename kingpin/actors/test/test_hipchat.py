@@ -37,13 +37,13 @@ class FakeExceptionRaisingHTTPClientClass(object):
         raise self.response_value
 
 
-class TestHipchatMessage(testing.AsyncTestCase):
+class TestHipchatBase(testing.AsyncTestCase):
 
     """Unit tests for the Hipchat Message actor."""
 
     def setUp(self, *args, **kwargs):
         # For most tests, mock out the TOKEN
-        super(TestHipchatMessage, self).setUp()
+        super(TestHipchatBase, self).setUp()
         hipchat.TOKEN = 'Unittest'
 
     def test_validate_from_name(self):
@@ -95,6 +95,16 @@ class TestHipchatMessage(testing.AsyncTestCase):
     def test_init_with_missing_options(self):
         with self.assertRaises(exceptions.InvalidOptions):
             hipchat.Message('Unit Test Action', {})
+
+
+class TestHipchatMessage(testing.AsyncTestCase):
+
+    """Unit tests for the Hipchat Message actor."""
+
+    def setUp(self, *args, **kwargs):
+        # For most tests, mock out the TOKEN
+        super(TestHipchatMessage, self).setUp()
+        hipchat.TOKEN = 'Unittest'
 
     @testing.gen_test
     def test_execute(self):
