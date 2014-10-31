@@ -32,6 +32,7 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 API_CONTENT_TYPE = 'application/json'
 API_URL = 'https://api.hipchat.com/v1'
 API_MESSAGE_PATH = '%s/rooms/message' % API_URL
+API_TOPIC_PATH = '%s/rooms/topic' % API_URL
 
 TOKEN = os.getenv('HIPCHAT_TOKEN', None)
 NAME = os.getenv('HIPCHAT_NAME', 'Kingpin')
@@ -172,6 +173,68 @@ class Message(HipchatBase):
         if not res:
             raise exceptions.RecoverableActorFailure(
                 'Failed to send message to HipChat: %s' % res)
+
+        # If we got here, the result is supposed to include 'success' as a key
+        # and inside that key we can dig for the actual message. If the
+        # response code is 202, we know that we didn't actually execute the
+        # message send, but just validated the API token against the API.
+        if 'success' in res:
+            if res['success']['code'] == 202:
+                self.log.info('API Token Validated: %s' %
+                              res['success']['message'])
+
+        raise gen.Return()
+
+
+class Topic(HipchatBase):
+
+    """Simple Hipchat Room Topic Setter"""
+
+    all_options = {
+        'room': (str, None, 'Hipchat room name'),
+        'topic': (str, None, 'Topic to set')
+    }
+
+    @gen.coroutine
+    def _set_topic(self, room_id, topic):
+        """Posts a message to Hipchat.
+
+        https://www.hipchat.com/docs/api/method/rooms/topic
+
+        Args:
+            room_id: (Str/Int) Name or ID of the room to post to.
+            topic: (Str) Required. The topic string, 250 char max
+
+        Raises:
+            gen.Return(<Dictionary of the response from Hipchat>)
+        """
+        args = self._build_potential_args({
+            'room_id': room_id,
+            'topic': topic,
+            'format': 'json',
+        })
+        url = self._generate_escaped_url(API_TOPIC_PATH, args)
+
+        # Note, we set post='' here to make sure we send a POST message, even
+        # though were passing all of our arguments on the actual request line.
+        res = yield self._fetch_wrapper(url, post='')
+        raise gen.Return(res)
+
+    @gen.coroutine
+    def _execute(self):
+        """Executes an actor and yields the results when its finished.
+
+        raises: gen.Return()
+        """
+        self.log.info('Setting room "%s" topic to: %s' %
+                       (self.option('room'), self.option('topic')))
+        res = yield self._set_topic(self.option('room'),
+                                    self.option('topic'))
+
+        # If we get 'None' or 'False' back, the actor failed.
+        if not res:
+            raise exceptions.RecoverableActorFailure(
+                'Failed to set room topic: %s' % res)
 
         # If we got here, the result is supposed to include 'success' as a key
         # and inside that key we can dig for the actual message. If the
