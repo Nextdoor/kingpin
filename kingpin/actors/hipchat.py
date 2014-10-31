@@ -227,7 +227,7 @@ class Topic(HipchatBase):
         raises: gen.Return()
         """
         self.log.info('Setting room "%s" topic to: %s' %
-                       (self.option('room'), self.option('topic')))
+                      (self.option('room'), self.option('topic')))
         res = yield self._set_topic(self.option('room'),
                                     self.option('topic'))
 
