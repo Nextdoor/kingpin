@@ -265,6 +265,20 @@ cause/effect analysis.
 
   * [librato.Annotation](docs/actors/librato.Annotation.md)
 
+#### Rollbar
+
+The Rollbar Actor allows you to post Deploy messages to Rollbar when you
+execute a code deployment.
+
+**Required Environment Variables**
+
+  * `ROLLBAR_TOKEN` - Rollbar API Token
+
+**Actor-specific Documentation**
+
+  * [rollbar.Deploy](docs/actors/rollbar.Deploy.md)
+
+
 #### RightScale
 
 The RightScale Actors allow you to interact with resources inside your
