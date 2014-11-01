@@ -232,6 +232,15 @@ below for using each actor.
   * [aws.sqs.WaitUntilEmpty](docs/actors/aws.sqs.WaitUntilEmpty.md)
   * [aws.sqs.Delete](docs/actors/aws.sqs.Delete.md)
 
+#### GenericHTTP
+
+A very simple actor that allows GET/POST methods over HTTP. Also includes
+"Basic-Auth" authentication.
+
+**Actor-specific Documentation**
+
+  * [misc.GenericHTTP](docs/actors/misc.GenericHTTP.md)
+
 #### HipChat
 
 The Hipchat Actors allow you to send messages to a HipChat room at stages during
