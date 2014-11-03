@@ -77,7 +77,8 @@ class BaseActor(object):
     # }
     all_options = {}
 
-    def __init__(self, desc, options, dry=False, warn_on_failure=False):
+    def __init__(self, desc, options, dry=False, warn_on_failure=False,
+                 condition=True):
         """Initializes the Actor.
 
         Args:
@@ -87,12 +88,14 @@ class BaseActor(object):
             dry: (Bool) or not this Actor will actually make changes.
             warn_on_failure: (Bool) Whether this actor ignores its return
                              value and always succeeds (but warns).
+            condition: (Bool) Whether to run this actor.
         """
         self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
         self._desc = desc
         self._options = options
         self._dry = dry
         self._warn_on_failure = warn_on_failure
+        self._condition = condition
 
         self._setup_log()
         self._setup_defaults()
@@ -199,6 +202,23 @@ class BaseActor(object):
             raise gen.Return(ret)
         return _wrap_in_timer
 
+    def _check_condition(self):
+        """Check if specified condition allows this actor to run.
+
+        Evaluate self._condition to figure out if this actor should run.
+        The only exception to simply casting this variable to bool is if
+        the value of self._condition is a string "False" or string "0".
+        """
+
+        try:  # Treat as string
+            value = self._condition.lower()
+            check = (value not in ('false', '0'))
+        except AttributeError:  # Not a string
+            value = self._condition
+            check = bool(value)
+
+        return check
+
     @gen.coroutine
     @timer
     def execute(self):
@@ -225,6 +245,12 @@ class BaseActor(object):
         # Any exception thats raised by an actors _execute() method will
         # automatically cause actor failure and we return right away.
         result = None
+
+        if not self._check_condition():
+            self.log.warning('Skipping execution. Condition: %s' %
+                             self._condition)
+            raise gen.Return()
+
         try:
             result = yield self._execute()
         except exceptions.ActorException as e:
