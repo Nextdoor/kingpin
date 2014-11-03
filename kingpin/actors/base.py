@@ -202,6 +202,23 @@ class BaseActor(object):
             raise gen.Return(ret)
         return _wrap_in_timer
 
+    def _check_condition(self):
+        """Check if specified condition allows this actor to run.
+
+        Evaluate self._condition to figure out if this actor should run.
+        The only exception to simply casting this variable to bool is if
+        the value of self._condition is a string "False" or string "0".
+        """
+
+        try:  # Treat as string
+            value = self._condition.lower()
+            check = (value not in ('false', '0'))
+        except AttributeError:  # Not a string
+            value = self._condition
+            check = bool(value)
+
+        return check
+
     @gen.coroutine
     @timer
     def execute(self):
@@ -229,7 +246,7 @@ class BaseActor(object):
         # automatically cause actor failure and we return right away.
         result = None
 
-        if not self._condition:
+        if not self._check_condition():
             self.log.warning('Skipping execution. Condition: %s' %
                              self._condition)
             raise gen.Return()

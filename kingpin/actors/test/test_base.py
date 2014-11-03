@@ -137,11 +137,31 @@ class TestBaseActor(testing.AsyncTestCase):
         self.assertEquals(res, True)
 
     @testing.gen_test
-    def test_execute_skip(self):
-        self.actor._condition = False
-        self.actor._execute = mock_tornado()
-        yield self.actor.execute()
-        self.assertEquals(self.actor._execute._call_count, 0)
+    def test_check_condition(self):
+        conditions = {
+            'FOobar': True,
+            'True': True,
+            'TRUE': True,
+            1: True,
+            '1': True,
+            0: False,
+            '0': False,
+            'False': False,
+            'FALSE': False,
+            }
+        for value, should_execute in conditions.items():
+            self.actor._condition = value
+            self.actor._execute = mock_tornado()
+            yield self.actor.execute()
+            str_value = json.dumps(value)
+            if should_execute:
+                self.assertEquals(
+                    self.actor._execute._call_count, 1,
+                    'Value `%s` should allow actor execution' % str_value)
+            else:
+                self.assertEquals(
+                    self.actor._execute._call_count, 0,
+                    'Value `%s` should not allow actor execution' % str_value)
 
     @testing.gen_test
     def test_execute_fail(self):

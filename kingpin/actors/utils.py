@@ -32,10 +32,13 @@ def get_actor(config, dry):
         config: A dictionary of configuration data that conforms to our v1
                 schema in kingpin.schema. Looks like this:
 
-                {'actor': <string name of actor>
-                 'options': <dict of options to pass to actor>
+                {
                  'desc': <string description of actor>,
-                 'warn_on_failure': <bool>}
+                 'actor': <string name of actor>
+                 'options': <dict of options to pass to actor>
+                 'warn_on_failure': <bool>
+                 'condition': <string or bool>
+                 }
 
         dry: Boolean whether or not in Dry mode
         warn_on_failure: Boolean
@@ -51,7 +54,8 @@ def get_actor(config, dry):
     actor_string = config.pop('actor')
 
     log.debug('Building Actor "%s" with args: %s' % (actor_string, config))
-    return get_actor_class(actor_string)(dry=dry, **config)
+    ActorClass = get_actor_class(actor_string)
+    return ActorClass(dry=dry, **config)
 
 
 def get_actor_class(actor):
