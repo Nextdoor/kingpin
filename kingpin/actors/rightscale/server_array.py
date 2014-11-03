@@ -620,6 +620,27 @@ class Execute(ServerArrayBaseActor):
 
         raise gen.Return(bool(script))
 
+    def _check_inputs(self):
+        """Check that rightscale inputs are formatted properly.
+
+        For more information read:
+        http://reference.rightscale.com/api1.5/resources/ResourceInputs.html
+
+        Raises:
+            InvalidOptions
+        """
+        inputs = self.option('inputs')
+        issues = False
+        types = ('text', 'ignore', 'env', 'cred', 'key', 'array')
+        for key, value in inputs.items():
+            if value.split(':')[0] not in types:
+                issues = True
+                self.log.error('Value for %s needs to begin with %s'
+                               % (key, types))
+
+        if issues:
+            raise exceptions.InvalidOptions('One or more inputs has a problem')
+
     @gen.coroutine
     def _execute(self):
         # First things first, login to RightScale asynchronously to
@@ -646,6 +667,8 @@ class Execute(ServerArrayBaseActor):
             if not script_found:
                 msg = 'Script "%s" not found!' % self.option('script')
                 raise exceptions.InvalidOptions(msg)
+
+            self._check_inputs()
 
             self.log.info(
                 'Would have executed "%s" with inputs "%s" on "%s".'

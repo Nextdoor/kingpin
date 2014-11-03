@@ -31,8 +31,8 @@
       { "desc": "Join New Arrays to ELB",
         "actor": "group.Async",
         "options": { "acts": [
-          { "desc": "Join Tools", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-tools-%OLD_RELEASE%", "script": "Connect instance to ELB", "inputs": { "ELB_NAME": "prod-tools" } } },
-          { "desc": "Join Photos", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-photos-%OLD_RELEASE%", "script": "Connect instance to ELB", "inputs": { "ELB_NAME": "prod-photos" } } }
+          { "desc": "Join Tools", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-tools-%OLD_RELEASE%", "script": "Connect instance to ELB", "inputs": { "ELB_NAME": "text:prod-tools" } } },
+          { "desc": "Join Photos", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-photos-%OLD_RELEASE%", "script": "Connect instance to ELB", "inputs": { "ELB_NAME": "text:prod-photos" } } }
         ] }
       },
 
@@ -43,8 +43,8 @@
       { "desc": "Remove Old Arrays from ELB",
         "actor": "group.Async",
         "options": { "acts": [
-          { "desc": "Remove Old Tools", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-tools-%OLD_RELEASE%", "script": "Disconnect instance from ELB", "inputs": { "ELB_NAME": "prod-tools" } } },
-          { "desc": "Remove Old Photos", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-photos-%OLD_RELEASE%", "script": "Disconnect instance from ELB", "inputs": { "ELB_NAME": "prod-photos" } } }
+          { "desc": "Remove Old Tools", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-tools-%OLD_RELEASE%", "script": "Disconnect instance from ELB", "inputs": { "ELB_NAME": "text:prod-tools" } } },
+          { "desc": "Remove Old Photos", "actor": "rightscale.server_array.Execute", "options": { "array": "prod-photos-%OLD_RELEASE%", "script": "Disconnect instance from ELB", "inputs": { "ELB_NAME": "text:prod-photos" } } }
         ] }
       }
     ]
