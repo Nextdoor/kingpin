@@ -21,6 +21,7 @@ import urllib
 from tornado import gen
 from tornado import httpclient
 
+from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
 
@@ -61,6 +62,7 @@ class Annotation(base.HTTPBaseActor):
                 'Missing the "LIBRATO_EMAIL" environment variable.')
 
     @gen.coroutine
+    @utils.retry(excs=(httpclient.HTTPError), retries=3)
     def _fetch_wrapper(self, *args, **kwargs):
         """Wrap the superclass _fetch method to catch known Librato errors."""
         try:
