@@ -89,7 +89,7 @@ class HipchatBase(base.HTTPBaseActor):
         return potential_args
 
     @gen.coroutine
-    @utils.retry(excs=(httpclient.HTTPError), retries=3)
+    @utils.retry(excs=exceptions.RecoverableActorFailure, retries=3)
     def _fetch_wrapper(self, *args, **kwargs):
         """Wrap the superclass _fetch method to catch known Hipchat errors."""
         try:

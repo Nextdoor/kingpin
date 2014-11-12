@@ -10,6 +10,7 @@ from tornado import testing
 
 from kingpin.actors import hipchat
 from kingpin.actors import exceptions
+from kingpin.actors.test.helper import mock_tornado
 
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
@@ -321,12 +322,13 @@ class TestHipchatTopic(testing.AsyncTestCase):
         http_response = httpclient.HTTPError(
             code=403, response=response_body)
 
-        with mock.patch.object(actor, '_get_http_client') as m:
-            m.return_value = FakeExceptionRaisingHTTPClientClass()
-            m.return_value.response_value = http_response
+        actor._fetch = mock_tornado(exc=http_response)
 
-            with self.assertRaises(exceptions.RecoverableActorFailure):
-                yield actor._execute()
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor._execute()
+
+        # Assert that the call is retried multiple times.
+        self.assertEquals(actor._fetch._call_count, 3)
 
     @testing.gen_test
     def test_execute_with_unknown_exception(self):
