@@ -211,9 +211,13 @@ class TestWaitUntilQueueEmptyActor(SQSTestCase):
                                    {'name': 'unit-test-queue',
                                     'region': 'us-west-2'})
         queue = mock.Mock()
-        queue.count.side_effect = [1, 0]
+        queue.count.side_effect = [1, 0, 0]
+        attr = 'ApproximateNumberOfMessagesNotVisible'
+        queue.get_attributes.side_effect = [{attr: u'0'},
+                                            {attr: u'1'},
+                                            {attr: u'0'}]
         yield actor._wait(queue, sleep=0)
-        self.assertEqual(queue.count.call_count, 2)
+        self.assertEqual(queue.count.call_count, 3)
 
     @testing.gen_test
     def test_wait_dry(self):

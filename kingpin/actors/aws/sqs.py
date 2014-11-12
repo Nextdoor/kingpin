@@ -270,7 +270,10 @@ class WaitUntilEmpty(SQSBaseActor):
         while True:
             if not self._dry:
                 self.log.debug('Counting %s' % queue.url)
-                count = queue.count()
+                visible = queue.count()
+                attr = 'ApproximateNumberOfMessagesNotVisible'
+                invisible = int(queue.get_attributes(attr)[attr])
+                count = visible + invisible
             else:
                 self.log.info('Pretending that count is 0 for %s' % queue.url)
                 count = 0
