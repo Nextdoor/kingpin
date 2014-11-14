@@ -23,14 +23,72 @@ import urllib
 
 from tornado import gen
 from tornado import httpclient
+import demjson
+from kingpin.actors import utils as actor_utils
+from kingpin import exceptions as kingpin_exceptions
 
 from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
+from kingpin import schema
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Matt Wise <matt@nextdoor.com>'
+__author__ = ('Matt Wise <matt@nextdoor.com>',
+              'Mikhail Simin <mikhail@nextdoor.com>')
+
+
+class Macro(base.BaseActor):
+
+    """Execute a kingpin JSON file."""
+
+    all_options = {
+        'file': (str, None, "Kingpin JSON file."),
+        'tokens': (dict, {}, "Tokens passed into the JSON file.")
+    }
+
+    def __init__(self, *args, **kwargs):
+        """Pre-parse the json file and compile actors."""
+
+        super(Macro, self).__init__(*args, **kwargs)
+
+        # Run the JSON dictionary through our environment parser and return
+        # back a dictionary with all of the %XX%% keys swapped out with
+        # environment variables.
+        self.log.debug('Parsing %s' % self.option('file'))
+        try:
+            config = utils.convert_json_to_dict(
+                json_file=self.option('file'),
+                tokens=self.option('tokens'))
+        except kingpin_exceptions.InvalidEnvironment as e:
+            self.log.critical('Invalid Configuration Detected.')
+            raise exceptions.UnrecoverableActorFailure(e)
+        except demjson.JSONDecodeError as e:
+            self.log.critical('Invalid JSON Syntax.')
+            raise exceptions.UnrecoverableActorFailure(e)
+
+        # Run the dict through our schema validator quickly
+        self.log.debug('Validating schema for %s' % self.option('file'))
+        try:
+            schema.validate(config)
+        except kingpin_exceptions.InvalidJSON as e:
+            self.log.critical('Invalid JSON Schema.')
+            raise exceptions.UnrecoverableActorFailure(e)
+
+        # Instantiate the first actor, but don't execute it. By doing this, we
+        # can do a pre-flight-check of all of the actors to make sure they
+        # instantiate properly.
+        # Any errors raised by this actor should be attributed to it, and not
+        # this Macro actor. No try/catch here
+        initial_actor = actor_utils.get_actor(config, dry=self._dry)
+
+        self.initial_actor = initial_actor
+
+    @gen.coroutine
+    def _execute(self):
+        # initial_actor is configured with same dry parameter as this actor.
+        # Just execute it and the rest will be handled internally.
+        yield self.initial_actor.execute()
 
 
 class Sleep(base.BaseActor):
