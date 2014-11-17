@@ -13,13 +13,13 @@ class IntegrationGenericHTTP(testing.AsyncTestCase):
 
     integration = True
 
-    @testing.gen_test
+    @testing.gen_test(timeout=60)
     def integration_get(self):
         actor = misc.GenericHTTP('Test', {'url': 'http://httpbin.org/get'})
 
         yield actor.execute()
 
-    @testing.gen_test
+    @testing.gen_test(timeout=60)
     def integration_post(self):
         actor = misc.GenericHTTP('Test', {
             'url': 'http://httpbin.org/post',
@@ -27,7 +27,7 @@ class IntegrationGenericHTTP(testing.AsyncTestCase):
 
         yield actor.execute()
 
-    @testing.gen_test
+    @testing.gen_test(timeout=60)
     def integration_auth(self):
         actor = misc.GenericHTTP('Test', {
             'url': 'http://httpbin.org/basic-auth/unit/test',
@@ -36,7 +36,7 @@ class IntegrationGenericHTTP(testing.AsyncTestCase):
 
         yield actor.execute()
 
-    @testing.gen_test
+    @testing.gen_test(timeout=60)
     def integration_auth_fail(self):
         actor = misc.GenericHTTP('Test', {
             'url': 'http://httpbin.org/basic-auth/unit/test',
