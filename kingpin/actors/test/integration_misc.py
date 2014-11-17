@@ -48,6 +48,7 @@ class IntegrationGenericHTTP(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
+
 class IntegrationMacro(testing.AsyncTestCase):
 
     integration = True
@@ -55,7 +56,7 @@ class IntegrationMacro(testing.AsyncTestCase):
     @testing.gen_test
     def integration_execute(self):
         actor = misc.Macro('Test', {
-            'file': 'examples/test/sleep.json' })
+            'file': 'examples/test/sleep.json'})
 
         start = time.time()
         yield actor.execute()
