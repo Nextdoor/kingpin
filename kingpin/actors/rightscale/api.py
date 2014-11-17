@@ -425,7 +425,7 @@ class RightScale(object):
         failure.
 
         Args:
-            array: ServerArray Resource Object
+            task: RightScale Task resource object
 
         Args:
             sleep: Integer of time to wait between status checks
@@ -433,6 +433,11 @@ class RightScale(object):
         Returns:
             <booelan>
         """
+
+        if not task:
+            # If there is no task to wait on - don't wait!
+            return True
+
         while True:
             # Get the task status
             output = task.self.show()
