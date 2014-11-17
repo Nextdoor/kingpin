@@ -16,16 +16,14 @@
 
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
-from tornado import ioloop
 import logging
 import optparse
+import os
 import sys
 
 from tornado import gen
-import demjson
+from tornado import ioloop
 
-from kingpin import exceptions
-from kingpin import schema
 from kingpin import utils
 from kingpin.actors import exceptions as actor_exceptions
 from kingpin.actors import utils as actor_utils
@@ -60,34 +58,19 @@ parser.add_option('-c', '--color', dest='color', default=False,
 
 @gen.coroutine
 def main():
-    try:
-        # Run the JSON dictionary through our environment parser and return
-        # back a dictionary with all of the %XX%% keys swapped out with
-        # environment variables.
-        config = utils.convert_json_to_dict(options.json)
-        # Run the dict through our schema validator quickly
-        schema.validate(config)
-    except exceptions.InvalidEnvironment as e:
-        log.error('Invalid Configuration Detected: %s' % e)
-        sys.exit(1)
-    except (exceptions.InvalidJSON, demjson.JSONDecodeError) as e:
-        log.error('Invalid JSON Detected')
-        log.error(e)
-        sys.exit(1)
 
-    # Instantiate the first actor, but don't execute it. By doing this, we can
-    # do a pre-flight-check of all of the actors to make sure they instantiate
-    # properly.
-    try:
-        initial_actor = actor_utils.get_actor(config, dry=options.dry)
-    except actor_exceptions.ActorException as e:
-        log.error('Invalid Actor Configuration Detected: %s' % e)
-        sys.exit(1)
+    Macro = actor_utils.get_actor_class('misc.Macro')
+    env_tokens = dict(os.environ)
+    runner = Macro(desc='Kingpin',
+                   options={'file': options.json,
+                            'tokens': env_tokens})
 
     # Begin doing real stuff!
     if not options.dry:
-        # do a dry run first, then do real one
-        dry_actor = actor_utils.get_actor(config, dry=True)
+        dry_actor = Macro(desc='Kingpin',
+                          options={'file': options.json,
+                                   'tokens': env_tokens},
+                          dry=True)
         log.info('Rehearsing... Break a leg!')
         try:
             yield dry_actor.execute()
@@ -98,7 +81,7 @@ def main():
             log.info('Rehearsal OK! Performing!')
 
     try:
-        yield initial_actor.execute()
+        yield runner.execute()
     except actor_exceptions.ActorException:
         log.error('Kingpin encountered mistakes during the play.')
         sys.exit(2)

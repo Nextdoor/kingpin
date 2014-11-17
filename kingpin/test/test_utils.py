@@ -20,23 +20,23 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(testing.AsyncTestCase, returned_class)
 
     def test_populate_with_env(self):
-        os.environ['UNIT_TEST'] = 'FOOBAR'
+        tokens = {'UNIT_TEST': 'FOOBAR'}
         string = 'Unit %UNIT_TEST% Test'
         expect = 'Unit FOOBAR Test'
-        result = utils.populate_with_env(string)
+        result = utils.populate_with_tokens(string, tokens)
         self.assertEquals(result, expect)
 
     def test_populate_with_env_with_missing_variables(self):
         os.environ['UNIT_TEST'] = 'FOOBAR'
         string = 'Unit %UNIT_TEST% Test %NOTFOUNDVARIABLE%'
         with self.assertRaises(exceptions.InvalidEnvironment):
-            utils.populate_with_env(string)
+            utils.populate_with_tokens(string, os.environ)
 
     def test_convert_json_to_dict(self):
         dirname, filename = os.path.split(os.path.abspath(__file__))
         examples = '%s/../../examples' % dirname
         simple = '%s/simple.json' % examples
-        ret = utils.convert_json_to_dict(simple)
+        ret = utils.convert_json_to_dict(simple, {})
         self.assertEquals(type(ret), dict)
 
     def test_exception_logger(self):
