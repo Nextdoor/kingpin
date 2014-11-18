@@ -19,6 +19,7 @@ dedicated packages. Things like sleep timers, loggers, etc.
 """
 
 import logging
+import tempfile
 import urllib
 
 from tornado import gen
@@ -43,7 +44,9 @@ class Macro(base.BaseActor):
     """Execute a kingpin JSON file."""
 
     all_options = {
-        'file': (str, None, "Kingpin JSON file."),
+        'macro': (str, None,
+            "Path to a Kingpin JSON file. http(s)://, file:///, "
+            "absolute or relative file paths.")),
         'tokens': (dict, {}, "Tokens passed into the JSON file.")
     }
 
@@ -52,13 +55,32 @@ class Macro(base.BaseActor):
 
         super(Macro, self).__init__(*args, **kwargs)
 
+        self.log.info('Preparing actors from %s' % self.option('macro'))
+
+        # `urlretrieve` can handle http, https, file, and ftp equivalently it
+        # also handles relative file paths! For now we are limiting the
+        # functionality to file only.
+        allowed_starts = ('file://', '/', '.')
+        if not self.option('macro').startswith(allowed_starts):
+            raise exceptions.UnrecoverableActorFailure(
+                'Macro actor only supports file processing at the moment')
+
+        # Download / Copy the macro into a temp file.
+        (_, tmp_json) = tempfile.mkstemp('.json')
+        self.log.debug("Downloading %s to %s" % (self.option('macro'),
+                                                 tmp_json))
+        try:
+            urllib.urlretrieve(self.option('macro'), tmp_json)
+        except IOError as e:
+            raise exceptions.UnrecoverableActorFailure(e)
+
         # Run the JSON dictionary through our environment parser and return
-        # back a dictionary with all of the %XX%% keys swapped out with
+        # back a dictionary with all of the %XX% keys swapped out with
         # environment variables.
-        self.log.debug('Parsing %s' % self.option('file'))
+        self.log.debug('Parsing %s' % tmp_json)
         try:
             config = utils.convert_json_to_dict(
-                json_file=self.option('file'),
+                json_file=tmp_json,
                 tokens=self.option('tokens'))
         except kingpin_exceptions.InvalidEnvironment as e:
             self.log.critical('Invalid Configuration Detected.')
@@ -68,7 +90,7 @@ class Macro(base.BaseActor):
             raise exceptions.UnrecoverableActorFailure(e)
 
         # Run the dict through our schema validator quickly
-        self.log.debug('Validating schema for %s' % self.option('file'))
+        self.log.debug('Validating schema for %s' % tmp_json)
         try:
             schema.validate(config)
         except kingpin_exceptions.InvalidJSON as e:

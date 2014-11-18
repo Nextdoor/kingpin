@@ -61,18 +61,15 @@ def main():
 
     Macro = actor_utils.get_actor_class('misc.Macro')
     env_tokens = dict(os.environ)
-    runner = Macro(desc='Kingpin',
-                   options={'file': options.json,
-                            'tokens': env_tokens})
 
     # Begin doing real stuff!
     if not options.dry:
-        dry_actor = Macro(desc='Kingpin',
-                          options={'file': options.json,
-                                   'tokens': env_tokens},
-                          dry=True)
         log.info('Rehearsing... Break a leg!')
         try:
+            dry_actor = Macro(desc='Kingpin',
+                              options={'macro': options.json,
+                                       'tokens': env_tokens},
+                              dry=True)
             yield dry_actor.execute()
         except actor_exceptions.ActorException as e:
             log.critical('Dry run failed. Reason: %s' % e)
@@ -81,6 +78,9 @@ def main():
             log.info('Rehearsal OK! Performing!')
 
     try:
+        runner = Macro(desc='Kingpin',
+                       options={'macro': options.json,
+                                'tokens': env_tokens})
         yield runner.execute()
     except actor_exceptions.ActorException:
         log.error('Kingpin encountered mistakes during the play.')
