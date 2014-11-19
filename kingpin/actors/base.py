@@ -219,6 +219,11 @@ class BaseActor(object):
 
         return check
 
+    def set_dry(self, new_dry):
+        """Change the value of _dry flag."""
+
+        self._dry = new_dry
+
     @gen.coroutine
     @timer
     def execute(self):
