@@ -63,6 +63,19 @@ class TestGroupActorBaseClass(testing.AsyncTestCase):
             'actor': 'kingpin.actors.test.test_group.TestActorRaises',
             'options': {'exception': exceptions.RecoverableActorFailure()}}
 
+    def test_set_dry(self):
+        actor = group.BaseGroupActor('Test!', {'acts': [
+            dict(self.actor_returns),
+            dict(self.actor_returns),
+            ]}, dry=True)
+
+        self.assertTrue(actor._actions[0]._dry)
+        self.assertTrue(actor._actions[1]._dry)
+
+        actor.set_dry(False)
+        self.assertFalse(actor._actions[0]._dry)
+        self.assertFalse(actor._actions[1]._dry)
+
 
 class TestBaseGroupActor(TestGroupActorBaseClass):
 

@@ -70,6 +70,11 @@ class BaseGroupActor(base.BaseActor):
             actions.append(utils.get_actor(act, dry=self._dry))
         return actions
 
+    def set_dry(self, new_dry):
+        self._dry = new_dry
+        for actor in self._actions:
+            actor.set_dry(new_dry)
+
     @gen.coroutine
     def _execute(self):
         """Executes the actions configured, and returns.
