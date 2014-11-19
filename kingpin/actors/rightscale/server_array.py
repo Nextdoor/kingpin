@@ -23,6 +23,7 @@ import requests
 
 from kingpin import utils
 from kingpin.actors import exceptions
+from kingpin.actors import utils as actor_utils
 from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import base
 
@@ -693,11 +694,13 @@ class Execute(ServerArrayBaseActor):
         for task in tasks:
             actions.append(self._client.wait_for_task(task))
         self.log.info('Waiting for %s tasks to finish.' % len(tasks))
-        success = yield actions
+        success = yield actor_utils.wait_for_coroutines(self, actions, 10)
 
         # If not all of the executions succeeded, raise an exception.
         if not all(success):
             self.log.critical('One or more tasks failed.')
             raise TaskExecutionFailed()
+        else:
+            self.log.info('Finished successfully.')
 
         raise gen.Return()
