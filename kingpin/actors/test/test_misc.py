@@ -2,10 +2,8 @@ import logging
 
 from tornado import httpclient
 from tornado import testing
-import demjson
 import mock
 
-from kingpin import exceptions as kingpin_exceptions
 from kingpin.actors import exceptions
 from kingpin.actors import misc
 from kingpin.actors.test.helper import mock_tornado
@@ -15,7 +13,13 @@ log = logging.getLogger(__name__)
 
 class TestMacro(testing.AsyncTestCase):
 
+    def setUp(self):
+        super(TestMacro, self).setUp()
+        reload(misc)
+
     def test_init(self):
+        misc.Macro._check_macro = mock.Mock()
+        misc.Macro._download_macro = mock.Mock(return_value='unit-test-macro')
 
         with mock.patch('kingpin.utils.convert_json_to_dict') as j2d, \
                 mock.patch('kingpin.schema.validate') as schema_validate, \
@@ -27,14 +31,18 @@ class TestMacro(testing.AsyncTestCase):
                 'options': {}
                 }
 
-            actor = misc.Macro('Unit Test', {'file': 'test.json',
+            actor = misc.Macro('Unit Test', {'macro': 'test.json',
                                              'tokens': {}})
 
-            j2d.assert_called_with(json_file='test.json', tokens={})
+            j2d.assert_called_with(json_file='unit-test-macro', tokens={})
             self.assertEquals(schema_validate.call_count, 1)
             self.assertEquals(actor.initial_actor, get_actor())
 
     def test_init_dry(self):
+        misc.Macro._check_macro = mock.Mock()
+        misc.Macro._download_macro = mock.Mock()
+        misc.Macro._get_config_from_json = mock.Mock()
+        misc.Macro._check_schema = mock.Mock()
 
         with mock.patch('kingpin.utils.convert_json_to_dict') as j2d, \
                 mock.patch('kingpin.schema.validate'), \
@@ -45,7 +53,7 @@ class TestMacro(testing.AsyncTestCase):
                 'options': {}
                 }
 
-            actor = misc.Macro('Unit Test', {'file': 'test.json',
+            actor = misc.Macro('Unit Test', {'macro': 'test.json',
                                              'tokens': {}},
                                dry=True)
 
@@ -53,42 +61,49 @@ class TestMacro(testing.AsyncTestCase):
 
     def test_init_with_errors(self):
 
-        with mock.patch('kingpin.utils.convert_json_to_dict') as j2d, \
-                mock.patch('kingpin.actors.utils.get_actor'):
+        # Remote files are prohibited for now
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            misc.Macro('Unit Test', {'macro': 'http://fail.test.json',
+                                     'tokens': {}})
+
+        # Non-existent file
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            misc.Macro('Unit Test', {'macro': 'dontcreatethis.json',
+                                     'tokens': {}})
+
+        # We don't want the rest of the tests failing on downloading this file.
+        misc.Macro._download_macro = mock.Mock(return_value='unit-test-file')
+
+        # Schema failure
+        with mock.patch('kingpin.utils.convert_json_to_dict') as j2d:
             j2d.return_value = {
                 'desc': 'unit test',
                 'options': {}  # `actor` keyword is missing
                 }
 
             with self.assertRaises(exceptions.UnrecoverableActorFailure):
-                misc.Macro('Unit Test', {'file': 'test.json',
+                misc.Macro('Unit Test', {'macro': 'test.json',
                                          'tokens': {}})
 
-            j2d.side_effect = kingpin_exceptions.InvalidEnvironment('test')
+        # JSON syntax error
+        with mock.patch('kingpin.utils.convert_json_to_dict') as j2d:
+
+            j2d.side_effect = Exception('Something failed with JSON')
 
             with self.assertRaises(exceptions.UnrecoverableActorFailure):
-                misc.Macro('Unit Test', {'file': 'test.json',
-                                         'tokens': {}})
-
-            j2d.side_effect = demjson.JSONDecodeError('test')
-
-            with self.assertRaises(exceptions.UnrecoverableActorFailure):
-                misc.Macro('Unit Test', {'file': 'test.json',
+                misc.Macro('Unit Test', {'macro': 'test.json',
                                          'tokens': {}})
 
     @testing.gen_test
     def test_execute(self):
 
-        with mock.patch('kingpin.utils.convert_json_to_dict') as j2d, \
-                mock.patch('kingpin.schema.validate'), \
-                mock.patch('kingpin.actors.utils.get_actor') as get_actor:
-            j2d.return_value = {
-                'desc': 'unit test',
-                'actor': 'unit test',
-                'options': {}
-                }
+        misc.Macro._check_macro = mock.Mock()
+        misc.Macro._download_macro = mock.Mock()
+        misc.Macro._get_config_from_json = mock.Mock()
+        misc.Macro._check_schema = mock.Mock()
 
-            actor = misc.Macro('Unit Test', {'file': 'test.json',
+        with mock.patch('kingpin.actors.utils.get_actor') as get_actor:
+            actor = misc.Macro('Unit Test', {'macro': 'test.json',
                                              'tokens': {}},
                                dry=True)
 

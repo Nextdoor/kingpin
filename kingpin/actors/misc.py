@@ -24,7 +24,6 @@ import urllib
 
 from tornado import gen
 from tornado import httpclient
-import demjson
 from kingpin.actors import utils as actor_utils
 from kingpin import exceptions as kingpin_exceptions
 
@@ -45,8 +44,8 @@ class Macro(base.BaseActor):
 
     all_options = {
         'macro': (str, None,
-            "Path to a Kingpin JSON file. http(s)://, file:///, "
-            "absolute or relative file paths.")),
+                  "Path to a Kingpin JSON file. http(s)://, file:///, "
+                  "absolute or relative file paths."),
         'tokens': (dict, {}, "Tokens passed into the JSON file.")
     }
 
@@ -55,56 +54,67 @@ class Macro(base.BaseActor):
 
         super(Macro, self).__init__(*args, **kwargs)
 
+        # Temporary check that macro is a local file.
+        self._check_macro()
+
         self.log.info('Preparing actors from %s' % self.option('macro'))
 
-        # `urlretrieve` can handle http, https, file, and ftp equivalently it
-        # also handles relative file paths! For now we are limiting the
-        # functionality to file only.
-        allowed_starts = ('file://', '/', '.')
-        if not self.option('macro').startswith(allowed_starts):
-            raise exceptions.UnrecoverableActorFailure(
-                'Macro actor only supports file processing at the moment')
+        # Copy the tmp file / download a remote macro
+        macro_file = self._download_macro()
 
+        # Parse json, and insert tokens.
+        config = self._get_config_from_json(macro_file)
+
+        # Check schema for compatibility
+        self._check_schema(config)
+
+        # Instantiate the first actor, but don't execute it.
+        # Any errors raised by this actor should be attributed to it, and not
+        # this Macro actor. No try/catch here
+        self.initial_actor = actor_utils.get_actor(config, dry=self._dry)
+
+    def _check_macro(self):
+        """For now we are limiting the functionality to file only."""
+
+        prohibited = ('http://', 'https://', 'ftp://')
+        if self.option('macro').startswith(prohibited):
+            raise exceptions.UnrecoverableActorFailure(
+                'Macro actor is limited to local files only at the moment.')
+
+    def _download_macro(self):
         # Download / Copy the macro into a temp file.
         (_, tmp_json) = tempfile.mkstemp('.json')
         self.log.debug("Downloading %s to %s" % (self.option('macro'),
                                                  tmp_json))
         try:
-            urllib.urlretrieve(self.option('macro'), tmp_json)
+            # `urlretrieve` can handle http, https, file, and ftp equivalently
+            # it also handles relative file paths!
+            return urllib.urlretrieve(self.option('macro'), tmp_json)
         except IOError as e:
             raise exceptions.UnrecoverableActorFailure(e)
 
+    def _get_config_from_json(self, json_file):
         # Run the JSON dictionary through our environment parser and return
         # back a dictionary with all of the %XX% keys swapped out with
         # environment variables.
-        self.log.debug('Parsing %s' % tmp_json)
+        self.log.debug('Parsing %s' % json_file)
         try:
             config = utils.convert_json_to_dict(
-                json_file=tmp_json,
+                json_file=json_file,
                 tokens=self.option('tokens'))
-        except kingpin_exceptions.InvalidEnvironment as e:
-            self.log.critical('Invalid Configuration Detected.')
-            raise exceptions.UnrecoverableActorFailure(e)
-        except demjson.JSONDecodeError as e:
-            self.log.critical('Invalid JSON Syntax.')
+        except Exception as e:
             raise exceptions.UnrecoverableActorFailure(e)
 
+        return config
+
+    def _check_schema(self, config):
         # Run the dict through our schema validator quickly
-        self.log.debug('Validating schema for %s' % tmp_json)
+        self.log.debug('Validating schema for %s' % self.option('macro'))
         try:
             schema.validate(config)
         except kingpin_exceptions.InvalidJSON as e:
             self.log.critical('Invalid JSON Schema.')
             raise exceptions.UnrecoverableActorFailure(e)
-
-        # Instantiate the first actor, but don't execute it. By doing this, we
-        # can do a pre-flight-check of all of the actors to make sure they
-        # instantiate properly.
-        # Any errors raised by this actor should be attributed to it, and not
-        # this Macro actor. No try/catch here
-        initial_actor = actor_utils.get_actor(config, dry=self._dry)
-
-        self.initial_actor = initial_actor
 
     @gen.coroutine
     def _execute(self):

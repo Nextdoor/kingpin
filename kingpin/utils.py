@@ -33,8 +33,6 @@ from tornado import ioloop
 import httplib
 import rainbow_logging_handler
 
-from kingpin import exceptions
-
 log = logging.getLogger(__name__)
 
 # Constants for some of the utilities below
@@ -264,7 +262,7 @@ def populate_with_tokens(string, tokens):
     # Now, see if we missed anything. If we did, raise an exception and fail.
     missed_tokens = list(set(re.findall(r'%[\w]+%', string)))
     if missed_tokens:
-        raise exceptions.InvalidEnvironment(
+        raise LookupError(
             'Found un-matched tokens in JSON string: %s' % missed_tokens)
 
     return string

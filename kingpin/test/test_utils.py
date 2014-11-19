@@ -8,7 +8,6 @@ from tornado.testing import unittest
 import requests
 import rainbow_logging_handler
 
-from kingpin import exceptions
 from kingpin import utils
 
 
@@ -29,7 +28,7 @@ class TestUtils(unittest.TestCase):
     def test_populate_with_env_with_missing_variables(self):
         os.environ['UNIT_TEST'] = 'FOOBAR'
         string = 'Unit %UNIT_TEST% Test %NOTFOUNDVARIABLE%'
-        with self.assertRaises(exceptions.InvalidEnvironment):
+        with self.assertRaises(LookupError):
             utils.populate_with_tokens(string, os.environ)
 
     def test_convert_json_to_dict(self):
