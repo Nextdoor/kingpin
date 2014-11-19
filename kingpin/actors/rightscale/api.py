@@ -431,7 +431,7 @@ class RightScale(object):
             task: RightScale Task resource object
 
         Args:
-            sleep: Integer of time to wait between status checks
+            sleep: Integer of time to wait before the first status check
 
         Returns:
             <booelan>
@@ -441,6 +441,7 @@ class RightScale(object):
             # If there is no task to wait on - don't wait!
             return True
 
+        time.sleep(sleep)
         while True:
             # Get the task status
             output = task.self.show()
@@ -461,7 +462,7 @@ class RightScale(object):
             if message and logger:
                 logger(message)
 
-            time.sleep(sleep)
+            time.sleep(5)
 
         log.debug('Task finished, return value: %s, summary: %s' %
                   (status, summary))

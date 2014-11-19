@@ -19,14 +19,15 @@ Common package for utility functions.
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
 from logging import handlers
+import datetime
 import demjson
+import functools
 import logging
 import os
 import re
+import sys
 import time
 import traceback
-import functools
-import sys
 
 from tornado import gen
 from tornado import ioloop
@@ -281,3 +282,38 @@ def convert_json_to_dict(json_file):
     raw = open(json_file).read()
     parsed = populate_with_env(raw)
     return demjson.decode(parsed)
+
+def create_repeating_log(logger, message, handle=None, **kwargs):
+    """Create a repeating log message.
+
+    Args:
+        message: String to pass to log.info()
+        **kwargs: values accepted by datetime.timedelta
+                  namely seconds, and milliseconds.
+
+    Must be cleared via _clear_repeating_log()
+    Only handles one interval per actor.
+    """
+
+    class OpaqueHandle(object):
+        """Tornado async io handler."""
+        def __init__(self):
+            self.timeout_id = None
+
+    if not handle:
+        handle = OpaqueHandle()
+
+    def log_and_queue():
+        logger(message)
+        create_repeating_log(logger, message, handle, **kwargs)
+
+    deadline = datetime.timedelta(**kwargs)
+    # Here we only queue the call, we don't want to wait on it!
+    timeout_id = ioloop.IOLoop.current().add_timeout(deadline, log_and_queue)
+    handle.timeout_id = timeout_id
+
+    return handle
+
+def clear_repeating_log(handle):
+    """Stops the timeout function from being called."""
+    ioloop.IOLoop.current().remove_timeout(handle.timeout_id)
