@@ -347,6 +347,9 @@ class RightScale(object):
         return self._client.server_arrays.launch(res_id=array_id)
 
     @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=10,
+                wait_exponential_multiplier=1000,
+                wait_exponential_max=10000)
     @utils.exception_logger
     def get_server_array_current_instances(
             self, array, filters=['state<>terminated']):
