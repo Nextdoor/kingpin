@@ -317,9 +317,9 @@ class RightScale(object):
         next_inst.inputs.multi_update(params=inputs)
 
     @concurrent.run_on_executor
-    @sync_retry(stop_max_attempt_number=3,
-                wait_exponential_multiplier=1000,
-                wait_exponential_max=10000)
+    @sync_retry(stop_max_attempt_number=10,
+                wait_exponential_multiplier=5000,
+                wait_exponential_max=60000)
     @utils.exception_logger
     def launch_server_array(self, array):
         """Launches an instance of a ServerArray..
