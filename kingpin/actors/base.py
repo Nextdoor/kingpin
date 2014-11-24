@@ -32,10 +32,12 @@ import logging
 import os
 import sys
 import time
+import datetime
 
 from tornado import gen
 from tornado import httpclient
 from tornado import httputil
+from tornado.ioloop import IOLoop
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -218,6 +220,30 @@ class BaseActor(object):
             check = bool(value)
 
         return check
+
+    def _create_repeating_log(self, message, **kwargs):
+        """Create a repeating log message.
+
+        Args:
+            message: String to pass to log.info()
+            **kwargs: values accepted by datetime.timedelta
+                      namely seconds, and milliseconds.
+
+        Must be cleared via _clear_repeating_log()
+        Only handles one interval per actor.
+        """
+        def log_and_queue():
+            self.log.info(message)
+            self._create_repeating_log(message, **kwargs)
+
+        deadline = datetime.timedelta(**kwargs)
+        # Here we only queue the call, we don't want to wait on it!
+        self._repeating_log_id = IOLoop.current().add_timeout(
+            deadline, log_and_queue)
+
+    def _clear_repeating_log(self):
+        """Stops the timeout function from being called."""
+        IOLoop.current().remove_timeout(self._repeating_log_id)
 
     @gen.coroutine
     @timer

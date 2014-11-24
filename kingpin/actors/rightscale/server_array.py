@@ -693,11 +693,15 @@ class Execute(ServerArrayBaseActor):
         for task in tasks:
             actions.append(self._client.wait_for_task(task))
         self.log.info('Waiting for %s tasks to finish.' % len(tasks))
+        self._create_repeating_log('Still waiting...', seconds=10)
         success = yield actions
+        self._clear_repeating_log()
 
         # If not all of the executions succeeded, raise an exception.
         if not all(success):
             self.log.critical('One or more tasks failed.')
             raise TaskExecutionFailed()
+        else:
+            self.log.info('Finished successfully.')
 
         raise gen.Return()
