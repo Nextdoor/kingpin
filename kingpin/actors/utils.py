@@ -16,6 +16,8 @@
 
 import logging
 
+from tornado import gen
+
 from kingpin import utils
 from kingpin.actors import exceptions
 
@@ -23,6 +25,26 @@ log = logging.getLogger(__name__)
 
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
+
+
+@gen.coroutine
+def wait_for_coroutines(actor, Futures, sleep=1):
+    """Wait for multiple coroutines to complete with periodic updates.
+
+    Args:
+        actor: Actor object whose log.inf() will be invoked.
+        Futures: list of Tornado Future objects (coroutine decorated calls)
+        sleep: number of seconds to sleep between checking and logging.
+    """
+
+    while True:
+        incomplete = sum(f.running() for f in Futures)
+        if not incomplete:
+            success = yield Futures  # Grab results. Should be instant.
+            raise gen.Return(success)
+
+        actor.log.info('Still waiting on %s tasks.' % incomplete)
+        yield utils.tornado_sleep(sleep)
 
 
 def get_actor(config, dry):

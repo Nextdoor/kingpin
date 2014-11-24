@@ -298,6 +298,11 @@ class TestRightScale(testing.AsyncTestCase):
             [mock.call.self.show(), mock.call.self.show(),
              mock.call.self.show()])
 
+        # task is empty
+        mock_task = None
+        ret = yield self.client.wait_for_task(mock_task, sleep=0.01)
+        self.assertEquals(ret, True)
+
     @testing.gen_test
     def test_run_executable_on_instances(self):
         mock_instance = mock.MagicMock(name='unittest-instance')
