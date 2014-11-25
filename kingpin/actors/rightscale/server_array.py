@@ -575,6 +575,7 @@ class Execute(ServerArrayBaseActor):
     all_options = {
         'array': (str, None, 'ServerArray name on which to execute a script.'),
         'script': (str, None, 'RightScale RightScript or Recipe to execute.'),
+        'expected_runtime': (int, 5, 'Expected number of seconds to execute.'),
         'inputs': (dict, {}, ('Inputs needed by the script. '
                               'Read _generate_rightscale_params.'))
     }
@@ -681,7 +682,7 @@ class Execute(ServerArrayBaseActor):
             'Executing "%s" on %s instances in the array "%s"' %
             (self.option('script'), len(instances), array.soul['name']))
         try:
-            tasks = yield self._client.run_executable_on_instances(
+            task_pairs = yield self._client.run_executable_on_instances(
                 self.option('script'), inputs, instances)
         except api.ServerArrayException as e:
             self.log.critical('Script execution error: %s' % e)
@@ -690,14 +691,23 @@ class Execute(ServerArrayBaseActor):
 
         # Finally, monitor all of the tasks for completion.
         actions = []
-        for task in tasks:
-            actions.append(self._client.wait_for_task(task))
-        self.log.info('Waiting for %s tasks to finish.' % len(tasks))
+        for instance, task in task_pairs:
+            message = '%s is waiting on %s' % (self._desc,
+                                               instance.soul['name'])
+            actions.append(self._client.wait_for_task(
+                task=task,
+                sleep=self.option('expected_runtime'),
+                message=message,
+                logger=self.log.info))
+
+        self.log.info('Waiting for %s tasks to finish.' % len(task_pairs))
         success = yield actions
 
         # If not all of the executions succeeded, raise an exception.
         if not all(success):
             self.log.critical('One or more tasks failed.')
             raise TaskExecutionFailed()
+        else:
+            self.log.info('Completed %s tasks.' % len(task_pairs))
 
         raise gen.Return()

@@ -414,7 +414,7 @@ class RightScale(object):
                 wait_exponential_multiplier=1000,
                 wait_exponential_max=10000)
     @utils.exception_logger
-    def wait_for_task(self, task, sleep=5):
+    def wait_for_task(self, task, sleep=5, message=None, logger=None):
         """Monitors a RightScale task for completion.
 
         RightScale tasks are provided as URLs that we can query for the
@@ -457,6 +457,9 @@ class RightScale(object):
 
             log.debug('Task (%s) status: %s (updated at: %s)' %
                       (output.path, output.soul['summary'], stamp))
+
+            if message and logger:
+                logger(message)
 
             time.sleep(sleep)
 
@@ -513,18 +516,21 @@ class RightScale(object):
 
         # Generate all the tasks and store them in a list so that we can yield
         # them all at once (thus, making it asynchronous)
+        task_pairs = []
         tasks = []
         for i in instances:
             log.debug('Executing %s on %s' % (name, i.soul['name']))
             url = '%s/run_executable' % i.links['self']
-            tasks.append(self.make_generic_request(url, post=params))
+            req = self.make_generic_request(url, post=params)
+            task_pairs.append((i, req))
+            tasks.append(req)
 
         try:
-            ret = yield tasks
+            yield tasks
         except requests.exceptions.HTTPError as e:
             raise ServerArrayException('Script Execution Error: %s' % e)
 
-        raise gen.Return(ret)
+        raise gen.Return(task_pairs)
 
     @concurrent.run_on_executor
     @utils.exception_logger
