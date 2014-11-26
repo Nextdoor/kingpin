@@ -692,8 +692,7 @@ class Execute(ServerArrayBaseActor):
         # Finally, monitor all of the tasks for completion.
         actions = []
         for instance, task in task_pairs:
-            message = '%s is waiting on %s' % (self._desc,
-                                               instance.soul['name'])
+            message = 'Waiting on %s' % instance.soul['name']
             actions.append(self._client.wait_for_task(
                 task=task,
                 sleep=self.option('expected_runtime'),

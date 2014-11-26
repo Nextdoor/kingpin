@@ -530,7 +530,14 @@ class RightScale(object):
         except requests.exceptions.HTTPError as e:
             raise ServerArrayException('Script Execution Error: %s' % e)
 
-        raise gen.Return(task_pairs)
+        # At this point all the tasks are executed, but the reference
+        # that we store in task_pairs are still to the Future objects.
+        yielded_tasks = []
+        for (i, task) in task_pairs:
+            result = yield task  # Should be a no-op since it's completed above
+            yielded_tasks.append((i, result))
+
+        raise gen.Return(yielded_tasks)
 
     @concurrent.run_on_executor
     @utils.exception_logger
