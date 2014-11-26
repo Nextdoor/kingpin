@@ -409,11 +409,7 @@ class RightScale(object):
 
         return task
 
-    @concurrent.run_on_executor
-    @sync_retry(stop_max_attempt_number=20,
-                wait_exponential_multiplier=1000,
-                wait_exponential_max=10000)
-    @utils.exception_logger
+    @gen.coroutine
     def wait_for_task(self, task, sleep=5, message=None, logger=None):
         """Monitors a RightScale task for completion.
 
@@ -439,12 +435,17 @@ class RightScale(object):
 
         if not task:
             # If there is no task to wait on - don't wait!
-            return True
+            raise gen.Return(True)
 
-        time.sleep(sleep)
+        if logger and message:
+            timeout_id = utils.create_repeating_log(
+                logger, message, seconds=sleep)
+        else:
+            timeout_id = None
+
         while True:
             # Get the task status
-            output = task.self.show()
+            output = yield self._get_task_info(task)
             summary = output.soul['summary']
             stamp = datetime.datetime.now()
 
@@ -459,15 +460,23 @@ class RightScale(object):
             log.debug('Task (%s) status: %s (updated at: %s)' %
                       (output.path, output.soul['summary'], stamp))
 
-            if message and logger:
-                logger(message)
+            yield utils.tornado_sleep(5)
 
-            time.sleep(5)
+        if timeout_id: 
+            utils.clear_repeating_log(timeout_id)
 
         log.debug('Task finished, return value: %s, summary: %s' %
                   (status, summary))
 
-        return status
+        raise gen.Return(status)
+
+    @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=20,
+                wait_exponential_multiplier=1000,
+                wait_exponential_max=10000)
+    @utils.exception_logger
+    def _get_task_info(self, task):
+        return task.self.show()
 
     @gen.coroutine
     def run_executable_on_instances(self, name, inputs, instances):
