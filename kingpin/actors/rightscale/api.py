@@ -46,7 +46,6 @@ translation.
 from os import path
 import datetime
 import logging
-import time
 
 from concurrent import futures
 from retrying import retry as sync_retry
@@ -460,9 +459,9 @@ class RightScale(object):
             log.debug('Task (%s) status: %s (updated at: %s)' %
                       (output.path, output.soul['summary'], stamp))
 
-            yield utils.tornado_sleep(5)
+            yield utils.tornado_sleep(min(sleep, 5))
 
-        if timeout_id: 
+        if timeout_id:
             utils.clear_repeating_log(timeout_id)
 
         log.debug('Task finished, return value: %s, summary: %s' %

@@ -701,8 +701,8 @@ class TestExecuteActor(testing.AsyncTestCase):
                 [mock_op_instance]))
         self.client_mock.wait_for_task.assert_called_once_with(
             task=mock_task,
+            task_name='unit-test-instance executing test_script',
             sleep=5,
-            message='Execute is waiting on unit-test-instance',
             logger=self.actor.log.info)
         self.assertEquals(ret, None)
 

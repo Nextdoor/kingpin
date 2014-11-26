@@ -283,6 +283,7 @@ def convert_json_to_dict(json_file):
     parsed = populate_with_env(raw)
     return demjson.decode(parsed)
 
+
 def create_repeating_log(logger, message, handle=None, **kwargs):
     """Create a repeating log message.
 
@@ -313,6 +314,7 @@ def create_repeating_log(logger, message, handle=None, **kwargs):
     handle.timeout_id = timeout_id
 
     return handle
+
 
 def clear_repeating_log(handle):
     """Stops the timeout function from being called."""

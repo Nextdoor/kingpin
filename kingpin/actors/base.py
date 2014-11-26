@@ -32,7 +32,6 @@ import logging
 import os
 import sys
 import time
-import datetime
 
 from tornado import gen
 from tornado import httpclient

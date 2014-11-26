@@ -164,20 +164,6 @@ class TestBaseActor(testing.AsyncTestCase):
                     'Value `%s` should not allow actor execution' % str_value)
 
     @testing.gen_test
-    def test_repeating_log(self):
-        self.actor.log = mock.Mock()  # used for tracking
-
-        # Repeat this message 10 times per second
-        self.actor._create_repeating_log('test', seconds=0.1)
-        yield utils.tornado_sleep(0.45)  # Some process takes .4 <> .5 seconds
-        self.actor._clear_repeating_log()
-        self.assertEquals(self.actor.log.info.call_count, 4)
-
-        # Let's make sure that we don't keep looping our log message.
-        yield utils.tornado_sleep(0.2)
-        self.assertEquals(self.actor.log.info.call_count, 4)
-
-    @testing.gen_test
     def test_execute_fail(self):
         self.actor._execute = self.false
         res = yield self.actor.execute()
