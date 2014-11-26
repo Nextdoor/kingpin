@@ -410,7 +410,7 @@ class RightScale(object):
         return task
 
     @gen.coroutine
-    def wait_for_task(self, task, sleep=5, message=None, logger=None):
+    def wait_for_task(self, task, task_name=None, sleep=5, logger=None):
         """Monitors a RightScale task for completion.
 
         RightScale tasks are provided as URLs that we can query for the
@@ -437,9 +437,9 @@ class RightScale(object):
             # If there is no task to wait on - don't wait!
             raise gen.Return(True)
 
-        if logger and message:
+        if logger and task_name:
             timeout_id = utils.create_repeating_log(
-                logger, message, seconds=sleep)
+                logger, 'Still waiting on %s' % task_name, seconds=sleep)
         else:
             timeout_id = None
 
