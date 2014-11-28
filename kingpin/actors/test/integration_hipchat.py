@@ -21,7 +21,7 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
 
     integration = True
 
-    @testing.gen_test
+    @testing.gen_test(timeout=60)
     def integration_test_init_without_environment_creds(self):
         message = 'Unit test message'
         room = 'Operations'
@@ -36,7 +36,7 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
         # Reload the hipchat library to re-get the token
         reload(hipchat)
 
-    @testing.gen_test
+    @testing.gen_test(timeout=60)
     def integration_test_execute_with_invalid_creds(self):
         message = 'Unit test message'
         room = 'unit_room'
@@ -49,7 +49,7 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
-    @testing.gen_test
+    @testing.gen_test(timeout=60)
     def integration_test_execute_real(self):
         message = 'Unit test message'
         room = 'Operations'
@@ -72,7 +72,7 @@ class IntegrationHipchatTopic(testing.AsyncTestCase):
 
     integration = True
 
-    @testing.gen_test
+    @testing.gen_test(timeout=60)
     def integration_test_init_without_environment_creds(self):
         topic = 'Unit test topic'
         room = 'Operations'
@@ -87,7 +87,7 @@ class IntegrationHipchatTopic(testing.AsyncTestCase):
         # Reload the hipchat library to re-get the token
         reload(hipchat)
 
-    @testing.gen_test
+    @testing.gen_test(timeout=60)
     def integration_test_execute_with_invalid_creds(self):
         topic = 'Unit test topic'
         room = 'unit_room'
@@ -100,7 +100,7 @@ class IntegrationHipchatTopic(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
-    @testing.gen_test
+    @testing.gen_test(timeout=60)
     def integration_test_execute_real(self):
         topic = 'Unit test topic'
         room = 'Operations'
