@@ -554,14 +554,23 @@ class TestLaunchActor(testing.AsyncTestCase):
             mock.call(array_mock), mock.call(array_mock)]
 
         # Regular function call
+        self.client_mock.launch_server_array.reset_mock()
         yield self.actor._launch_instances(array_mock)
         self.client_mock.launch_server_array.assert_has_calls(four_mock_calls)
 
+        # Regular function call with some servers already existing.
         self.client_mock.get_server_array_current_instances = mock_tornado([
             1, 2])
-        # Regular function call with some servers already existing.
+        self.client_mock.launch_server_array.reset_mock()
         yield self.actor._launch_instances(array_mock)
         self.client_mock.launch_server_array.assert_has_calls(two_mock_calls)
+
+        # Regular function call more arrays than min_count
+        self.client_mock.get_server_array_current_instances = mock_tornado([
+            1, 2, 3, 4, 5])
+        self.client_mock.launch_server_array.reset_mock()
+        yield self.actor._launch_instances(array_mock)
+        self.assertEquals(self.client_mock.launch_server_array.call_count, 0)
 
         # Count-specific function call
         self.client_mock.launch_server_array.reset_mock()
