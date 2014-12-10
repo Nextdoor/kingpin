@@ -410,18 +410,13 @@ class Destroy(ServerArrayBaseActor):
 
 class Launch(ServerArrayBaseActor):
 
-    """Launches the min_instances in a RightScale Server Array.
-
-    Actor Options: {
-        'array': <server array name>,
-        'count': <optional number to launch. Default array's "min" count>,
-        'enable': bool - if true - will enable the autoscaling of the array.
-    }
-    """
+    """Launches the min_instances in a RightScale Server Array."""
 
     all_options = {
         'array': (str, None, 'ServerArray name to launch'),
-        'count': (int, False, 'Number of server to launch.'),
+        'count': (
+            int, False,
+            "Number of server to launch. Default: up to array's min count"),
         'enable': (bool, False, 'Enable autoscaling?')
     }
 
@@ -499,11 +494,25 @@ class Launch(ServerArrayBaseActor):
         """
         if not count:
             # Get the current min_count setting from the ServerArray object
-            count = int(array.soul['elasticity_params']['bounds']['min_count'])
+            min_count = int(
+                array.soul['elasticity_params']['bounds']['min_count'])
+
+            instances = yield self._client.get_server_array_current_instances(
+                array, filters=['state==operational'])
+            current_count = len(instances)
+
+            # Launch *up to* min_count. Not *new* min_count.
+            count = min_count - current_count
 
         if self._dry:
             self.log.info('Would have launched %s instances of array %s' % (
                           count, array.soul['name']))
+            raise gen.Return()
+
+        if count < 0:
+            self.log.warning((
+                'This array already has %s instances, and '
+                'min_count is set to %s') % (current_count, min_count))
             raise gen.Return()
 
         self.log.info('Launching %s instances of array %s' % (
