@@ -56,7 +56,7 @@ class IntegrationMacro(testing.AsyncTestCase):
     @testing.gen_test
     def integration_execute(self):
         actor = misc.Macro('Test', {
-            'file': 'examples/test/sleep.json'})
+            'macro': 'examples/test/sleep.json'})
 
         start = time.time()
         yield actor.execute()
@@ -65,9 +65,15 @@ class IntegrationMacro(testing.AsyncTestCase):
         self.assertTrue(runtime > 0.1)
 
     @testing.gen_test
+    def integration_execute_remote(self):
+        misc.Macro('Test', {
+            'macro': 'https://raw.githubusercontent.com/Nextdoor/kingpin/'
+                     'macro_actor/examples/test/sleep.json'})
+
+    @testing.gen_test
     def integration_execute_dry(self):
         actor = misc.Macro('Test', {
-            'file': 'examples/test/sleep.json'},
+            'macro': 'examples/test/sleep.json'},
             dry=True)
 
         start = time.time()

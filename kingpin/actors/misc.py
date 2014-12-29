@@ -18,8 +18,9 @@ These are common utility Actors that don't really need their own
 dedicated packages. Things like sleep timers, loggers, etc.
 """
 
+import StringIO
 import logging
-import tempfile
+import requests
 import urllib
 
 from tornado import gen
@@ -60,7 +61,7 @@ class Macro(base.BaseActor):
         self.log.info('Preparing actors from %s' % self.option('macro'))
 
         # Copy the tmp file / download a remote macro
-        macro_file = self._download_macro()
+        macro_file = self._get_macro()
 
         # Parse json, and insert tokens.
         config = self._get_config_from_json(macro_file)
@@ -76,22 +77,31 @@ class Macro(base.BaseActor):
     def _check_macro(self):
         """For now we are limiting the functionality to file only."""
 
-        prohibited = ('http://', 'https://', 'ftp://')
+        prohibited = ('https://', 'ftp://')
         if self.option('macro').startswith(prohibited):
             raise exceptions.UnrecoverableActorFailure(
                 'Macro actor is limited to local files only at the moment.')
 
-    def _download_macro(self):
-        # Download / Copy the macro into a temp file.
-        (_, tmp_json) = tempfile.mkstemp('.json')
-        self.log.debug("Downloading %s to %s" % (self.option('macro'),
-                                                 tmp_json))
+    def _get_macro(self):
+        """Return a buffer to the macro file.
+
+        Will download a remote file in-memory and return a buffer, or
+        open the local file and return a buffer to that file.
+        """
+
+        remote = ('http://', 'https://', 'ftp://')
+        if self.option('macro').startswith(remote):
+            R = requests.get(self.option('macro'))
+            buf = StringIO.StringIO()
+            buf.write(R.content)
+            buf.seek(0)
+            return buf
+
         try:
-            # `urlretrieve` can handle http, https, file, and ftp equivalently
-            # it also handles relative file paths!
-            return urllib.urlretrieve(self.option('macro'), tmp_json)
+            instance = open(self.option('macro'))
         except IOError as e:
             raise exceptions.UnrecoverableActorFailure(e)
+        return instance
 
     def _get_config_from_json(self, json_file):
         # Run the JSON dictionary through our environment parser and return

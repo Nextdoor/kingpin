@@ -1,5 +1,6 @@
 import logging
 
+import requests
 from tornado import httpclient
 from tornado import testing
 import mock
@@ -19,7 +20,7 @@ class TestMacro(testing.AsyncTestCase):
 
     def test_init(self):
         misc.Macro._check_macro = mock.Mock()
-        misc.Macro._download_macro = mock.Mock(return_value='unit-test-macro')
+        misc.Macro._get_macro = mock.Mock(return_value='unit-test-macro')
 
         with mock.patch('kingpin.utils.convert_json_to_dict') as j2d, \
                 mock.patch('kingpin.schema.validate') as schema_validate, \
@@ -38,9 +39,16 @@ class TestMacro(testing.AsyncTestCase):
             self.assertEquals(schema_validate.call_count, 1)
             self.assertEquals(actor.initial_actor, get_actor())
 
+    def test_init_remote(self):
+        misc.Macro._get_config_from_json = mock.Mock()
+        misc.Macro._check_schema = mock.Mock()
+        with mock.patch('kingpin.actors.utils.get_actor'):
+            with mock.patch.object(requests, 'get'):
+                misc.Macro('Unit Test', {'macro': 'http://test.json',
+                                         'tokens': {}})
+
     def test_init_dry(self):
         misc.Macro._check_macro = mock.Mock()
-        misc.Macro._download_macro = mock.Mock()
         misc.Macro._get_config_from_json = mock.Mock()
         misc.Macro._check_schema = mock.Mock()
 
@@ -53,8 +61,9 @@ class TestMacro(testing.AsyncTestCase):
                 'options': {}
                 }
 
-            actor = misc.Macro('Unit Test', {'macro': 'test.json',
-                                             'tokens': {}},
+            actor = misc.Macro('Unit Test',
+                               {'macro': 'examples/test/sleep.json',
+                                'tokens': {}},
                                dry=True)
 
             self.assertTrue(actor.initial_actor._dry)
@@ -63,7 +72,7 @@ class TestMacro(testing.AsyncTestCase):
 
         # Remote files are prohibited for now
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
-            misc.Macro('Unit Test', {'macro': 'http://fail.test.json',
+            misc.Macro('Unit Test', {'macro': 'https://fail.test.json',
                                      'tokens': {}})
 
         # Non-existent file
@@ -72,7 +81,7 @@ class TestMacro(testing.AsyncTestCase):
                                      'tokens': {}})
 
         # We don't want the rest of the tests failing on downloading this file.
-        misc.Macro._download_macro = mock.Mock(return_value='unit-test-file')
+        misc.Macro._get_macro = mock.Mock(return_value='unit-test-file')
 
         # Schema failure
         with mock.patch('kingpin.utils.convert_json_to_dict') as j2d:
@@ -98,7 +107,7 @@ class TestMacro(testing.AsyncTestCase):
     def test_execute(self):
 
         misc.Macro._check_macro = mock.Mock()
-        misc.Macro._download_macro = mock.Mock()
+        misc.Macro._get_macro = mock.Mock()
         misc.Macro._get_config_from_json = mock.Mock()
         misc.Macro._check_schema = mock.Mock()
 

@@ -275,12 +275,16 @@ def convert_json_to_dict(json_file, tokens):
     have been used inside the JSON, and then returns a dictionary.
 
     Args:
-        json_file: Path to the JSON file to import
+        json_file: Path to the JSON file to import, or file instance.
         tokens: dictionary to pass to populate_with_tokens.
 
     Returns:
         <Dictonary of Config Data>
     """
-    raw = open(json_file).read()
+    if type(json_file) in (str, unicode):
+        instance = open(json_file)
+    else:
+        instance = json_file
+    raw = instance.read()
     parsed = populate_with_tokens(raw, tokens)
     return demjson.decode(parsed)
