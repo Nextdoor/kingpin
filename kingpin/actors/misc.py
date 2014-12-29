@@ -20,7 +20,6 @@ dedicated packages. Things like sleep timers, loggers, etc.
 
 import StringIO
 import logging
-import requests
 import urllib
 
 from tornado import gen
@@ -75,12 +74,12 @@ class Macro(base.BaseActor):
         self.initial_actor = actor_utils.get_actor(config, dry=self._dry)
 
     def _check_macro(self):
-        """For now we are limiting the functionality to file only."""
+        """For now we are limiting the functionality."""
 
-        prohibited = ('https://', 'ftp://')
+        prohibited = ('ftp://',)
         if self.option('macro').startswith(prohibited):
             raise exceptions.UnrecoverableActorFailure(
-                'Macro actor is limited to local files only at the moment.')
+                'Macro actor is cannot handle ftp fetching yet..')
 
     def _get_macro(self):
         """Return a buffer to the macro file.
@@ -89,12 +88,19 @@ class Macro(base.BaseActor):
         open the local file and return a buffer to that file.
         """
 
-        remote = ('http://', 'https://', 'ftp://')
+        remote = ('http://', 'https://')
         if self.option('macro').startswith(remote):
-            R = requests.get(self.option('macro'))
+            client = httpclient.HTTPClient()
+            try:
+                R = client.fetch(self.option('macro'))
+            except Exception as e:
+                raise exceptions.UnrecoverableActorFailure(e)
+            finally:
+                client.close()
             buf = StringIO.StringIO()
-            buf.write(R.content)
+            buf.write(R.body)
             buf.seek(0)
+            client.close()
             return buf
 
         try:

@@ -1,6 +1,5 @@
 import logging
 
-import requests
 from tornado import httpclient
 from tornado import testing
 import mock
@@ -43,7 +42,7 @@ class TestMacro(testing.AsyncTestCase):
         misc.Macro._get_config_from_json = mock.Mock()
         misc.Macro._check_schema = mock.Mock()
         with mock.patch('kingpin.actors.utils.get_actor'):
-            with mock.patch.object(requests, 'get'):
+            with mock.patch.object(httpclient.HTTPClient, 'fetch'):
                 misc.Macro('Unit Test', {'macro': 'http://test.json',
                                          'tokens': {}})
 
@@ -72,7 +71,12 @@ class TestMacro(testing.AsyncTestCase):
 
         # Remote files are prohibited for now
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
-            misc.Macro('Unit Test', {'macro': 'https://fail.test.json',
+            misc.Macro('Unit Test', {'macro': 'ftp://fail.test.json',
+                                     'tokens': {}})
+
+        # Remote file with bad URL
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            misc.Macro('Unit Test', {'macro': 'http://fail.test.json',
                                      'tokens': {}})
 
         # Non-existent file

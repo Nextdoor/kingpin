@@ -32,10 +32,19 @@ class TestUtils(unittest.TestCase):
             utils.populate_with_tokens(string, os.environ)
 
     def test_convert_json_to_dict(self):
+        # Should work with string path to a file
         dirname, filename = os.path.split(os.path.abspath(__file__))
         examples = '%s/../../examples' % dirname
         simple = '%s/simple.json' % examples
         ret = utils.convert_json_to_dict(simple, {})
+        self.assertEquals(type(ret), dict)
+
+        # Should work with file instance also
+        dirname, filename = os.path.split(os.path.abspath(__file__))
+        examples = '%s/../../examples' % dirname
+        simple = '%s/simple.json' % examples
+        instance = open(simple)
+        ret = utils.convert_json_to_dict(instance, {})
         self.assertEquals(type(ret), dict)
 
     def test_exception_logger(self):

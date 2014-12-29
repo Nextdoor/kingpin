@@ -285,6 +285,7 @@ def convert_json_to_dict(json_file, tokens):
         instance = open(json_file)
     else:
         instance = json_file
+
     raw = instance.read()
     parsed = populate_with_tokens(raw, tokens)
     return demjson.decode(parsed)
