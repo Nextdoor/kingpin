@@ -18,11 +18,6 @@ class KingpinException(Exception):
     """Base Exception """
 
 
-class InvalidEnvironment(KingpinException):
-
-    """Raised when something is wrong with the environment variables"""
-
-
 class InvalidJSON(KingpinException):
 
     """Raised when an invalid JSON schema was detected"""
