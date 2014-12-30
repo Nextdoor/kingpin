@@ -66,9 +66,10 @@ class IntegrationMacro(testing.AsyncTestCase):
 
     @testing.gen_test
     def integration_execute_remote(self):
+        gh_src = 'https://raw.githubusercontent.com/Nextdoor/kingpin/master'
+        # Successful __init__ on this actor validates downloading and parsing.
         misc.Macro('Test', {
-            'macro': 'https://raw.githubusercontent.com/Nextdoor/kingpin/'
-                     'macro_actor/examples/test/sleep.json'})
+            'macro': gh_src + '/examples/test/sleep.json'})
 
     @testing.gen_test
     def integration_execute_dry(self):
