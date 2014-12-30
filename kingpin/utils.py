@@ -281,11 +281,18 @@ def convert_json_to_dict(json_file, tokens):
     Returns:
         <Dictonary of Config Data>
     """
+    filename = ''
     if type(json_file) in (str, unicode):
+        filename = json_file
         instance = open(json_file)
     else:
+        filename = json_file.name
         instance = json_file
 
     raw = instance.read()
     parsed = populate_with_tokens(raw, tokens)
-    return demjson.decode(parsed)
+    try:
+        decoded = demjson.decode(parsed)
+    except demjson.JSONError as e:
+        raise ValueError('JSON in `%s` has an error: %s' % (filename, e))
+    return decoded
