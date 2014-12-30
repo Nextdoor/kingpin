@@ -98,6 +98,9 @@ class Macro(base.BaseActor):
             finally:
                 client.close()
             buf = StringIO.StringIO()
+            # Set buffer representation for debug printing.
+            buf.__repr__ = lambda: (
+                '<In-memory file from "%s">' % self.option('macro'))
             buf.write(R.body)
             buf.seek(0)
             client.close()
@@ -110,9 +113,23 @@ class Macro(base.BaseActor):
         return instance
 
     def _get_config_from_json(self, json_file):
-        # Run the JSON dictionary through our environment parser and return
-        # back a dictionary with all of the %XX% keys swapped out with
-        # environment variables.
+        """Convert a json file into a dict() with inserted ENV vars.
+
+        Run the JSON dictionary through our environment parser and return
+        back a dictionary with all of the %XX% keys swapped out with
+        environment variables.
+
+        Args:
+            json_file: A path string to a file, or an open() file stream.
+
+        Returns:
+            Dictionary adhering to our schema.
+
+        Raises:
+            UnrecoverableActorFailure -
+                if parsing json or inserting env vars fails.
+        """
+
         self.log.debug('Parsing %s' % json_file)
         try:
             config = utils.convert_json_to_dict(
