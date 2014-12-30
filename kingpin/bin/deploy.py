@@ -37,7 +37,7 @@ log = logging.getLogger(__name__)
 logging.getLogger('boto').setLevel(logging.CRITICAL)
 
 # Initial option handler to set up the basic application environment.
-usage = 'usage: %prog <options>'
+usage = 'usage: %prog [json file] <options>'
 parser = optparse.OptionParser(usage=usage, version=VERSION,
                                add_help_option=True)
 parser.set_defaults(verbose=True)
@@ -57,17 +57,29 @@ parser.add_option('-c', '--color', dest='color', default=False,
 (options, args) = parser.parse_args()
 
 
+def kingpin_fail(message):
+    parser.print_help()
+    sys.stderr.write('\nError: %s\n' % message)
+    sys.exit(1)
+
+
 @gen.coroutine
 def main():
 
     env_tokens = dict(os.environ)
+
+    try:
+        json_file = options.json or sys.argv[1] if sys.argv else None
+    except Exception as e:
+        kingpin_fail(('%s You must specify --json or provide it as first '
+            'argument.') % e)
 
     # Begin doing real stuff!
     if not options.dry:
         log.info('Rehearsing... Break a leg!')
         try:
             dry_actor = Macro(desc='Kingpin',
-                              options={'macro': options.json,
+                              options={'macro': json_file,
                                        'tokens': env_tokens},
                               dry=True)
             yield dry_actor.execute()
@@ -96,7 +108,7 @@ def begin():
     except KeyboardInterrupt:
         log.info('CTRL-C Caught, shutting down')
     except Exception as e:
-        # Skip traceback that involves site-packages.
+        # Skip traceback that involves tornado's libraries.
         import traceback
         trace_lines = traceback.format_exc(e).splitlines()
         skip_next = False
