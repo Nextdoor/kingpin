@@ -27,6 +27,7 @@ from tornado import ioloop
 from kingpin import utils
 from kingpin.actors import exceptions as actor_exceptions
 from kingpin.actors import utils as actor_utils
+from kingpin.actors.misc import Macro
 from kingpin.version import __version__ as VERSION
 
 log = logging.getLogger(__name__)
@@ -59,7 +60,6 @@ parser.add_option('-c', '--color', dest='color', default=False,
 @gen.coroutine
 def main():
 
-    Macro = actor_utils.get_actor_class('misc.Macro')
     env_tokens = dict(os.environ)
 
     # Begin doing real stuff!
