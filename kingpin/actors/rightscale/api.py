@@ -317,9 +317,9 @@ class RightScale(object):
         next_inst.inputs.multi_update(params=inputs)
 
     @concurrent.run_on_executor
-    @sync_retry(stop_max_attempt_number=3,
-                wait_exponential_multiplier=1000,
-                wait_exponential_max=10000)
+    @sync_retry(stop_max_attempt_number=10,
+                wait_exponential_multiplier=5000,
+                wait_exponential_max=60000)
     @utils.exception_logger
     def launch_server_array(self, array):
         """Launches an instance of a ServerArray..
@@ -347,6 +347,9 @@ class RightScale(object):
         return self._client.server_arrays.launch(res_id=array_id)
 
     @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=10,
+                wait_exponential_multiplier=1000,
+                wait_exponential_max=10000)
     @utils.exception_logger
     def get_server_array_current_instances(
             self, array, filters=['state<>terminated']):
@@ -425,7 +428,7 @@ class RightScale(object):
         failure.
 
         Args:
-            array: ServerArray Resource Object
+            task: RightScale Task resource object
 
         Args:
             sleep: Integer of time to wait between status checks
@@ -433,6 +436,11 @@ class RightScale(object):
         Returns:
             <booelan>
         """
+
+        if not task:
+            # If there is no task to wait on - don't wait!
+            return True
+
         while True:
             # Get the task status
             output = task.self.show()
