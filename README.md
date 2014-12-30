@@ -94,7 +94,7 @@ Schema](kingpin/schema.py).
 *Validation*
 The JSON file will be validated for schema-conformity as one of the first
 things that happens at load-time when the app starts up. If it fails, you will
-be notified immediately.
+be notified immediately. This is performed in `misc.Macro` actor.
 
 #### The Script
 Definition: _The blueprint or roadmap that outlines a movie story through
@@ -164,7 +164,7 @@ it works just fine.
 ##### Token-replacement
 
 In an effort to allow for more re-usable JSON files, _tokens_ can be inserted
-into the raw JSON file like this `%TOKEN_NAME`. These will then be dynamically
+into the raw JSON file like this `%TOKEN_NAME%`. These will then be dynamically
 swapped with environment variables found at execution time. Any missing
 environment variables will cause the JSON parsing to fail and will notify you
 immediately.
@@ -209,6 +209,7 @@ and reliable groups of actions to be executed.
 
 **Actor-specific Documentation**
 
+  * [misc.Macro](docs/actors/misc.Macro.md)
   * [misc.Sleep](docs/actors/misc.Sleep.md)
   * [group.Sync](docs/actors/group.Sync.md)
   * [group.Async](docs/actors/group.Async.md)

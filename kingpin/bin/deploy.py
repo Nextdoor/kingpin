@@ -16,19 +16,17 @@
 
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
-from tornado import ioloop
 import logging
 import optparse
+import os
 import sys
 
 from tornado import gen
-import demjson
+from tornado import ioloop
 
-from kingpin import exceptions
-from kingpin import schema
 from kingpin import utils
 from kingpin.actors import exceptions as actor_exceptions
-from kingpin.actors import utils as actor_utils
+from kingpin.actors.misc import Macro
 from kingpin.version import __version__ as VERSION
 
 log = logging.getLogger(__name__)
@@ -38,7 +36,7 @@ log = logging.getLogger(__name__)
 logging.getLogger('boto').setLevel(logging.CRITICAL)
 
 # Initial option handler to set up the basic application environment.
-usage = 'usage: %prog <options>'
+usage = 'usage: %prog [json file] <options>'
 parser = optparse.OptionParser(usage=usage, version=VERSION,
                                add_help_option=True)
 parser.set_defaults(verbose=True)
@@ -58,38 +56,31 @@ parser.add_option('-c', '--color', dest='color', default=False,
 (options, args) = parser.parse_args()
 
 
+def kingpin_fail(message):
+    parser.print_help()
+    sys.stderr.write('\nError: %s\n' % message)
+    sys.exit(1)
+
+
 @gen.coroutine
 def main():
-    try:
-        # Run the JSON dictionary through our environment parser and return
-        # back a dictionary with all of the %XX%% keys swapped out with
-        # environment variables.
-        config = utils.convert_json_to_dict(options.json)
-        # Run the dict through our schema validator quickly
-        schema.validate(config)
-    except exceptions.InvalidEnvironment as e:
-        log.error('Invalid Configuration Detected: %s' % e)
-        sys.exit(1)
-    except (exceptions.InvalidJSON, demjson.JSONDecodeError) as e:
-        log.error('Invalid JSON Detected')
-        log.error(e)
-        sys.exit(1)
 
-    # Instantiate the first actor, but don't execute it. By doing this, we can
-    # do a pre-flight-check of all of the actors to make sure they instantiate
-    # properly.
+    env_tokens = dict(os.environ)
+
     try:
-        initial_actor = actor_utils.get_actor(config, dry=options.dry)
-    except actor_exceptions.ActorException as e:
-        log.error('Invalid Actor Configuration Detected: %s' % e)
-        sys.exit(1)
+        json_file = options.json or sys.argv[1] if sys.argv else None
+    except Exception as e:
+        kingpin_fail(
+            '%s You must specify --json or provide it as first argument.' % e)
 
     # Begin doing real stuff!
     if not options.dry:
-        # do a dry run first, then do real one
-        dry_actor = actor_utils.get_actor(config, dry=True)
         log.info('Rehearsing... Break a leg!')
         try:
+            dry_actor = Macro(desc='Kingpin',
+                              options={'macro': json_file,
+                                       'tokens': env_tokens},
+                              dry=True)
             yield dry_actor.execute()
         except actor_exceptions.ActorException as e:
             log.critical('Dry run failed. Reason: %s' % e)
@@ -98,7 +89,10 @@ def main():
             log.info('Rehearsal OK! Performing!')
 
     try:
-        yield initial_actor.execute()
+        runner = Macro(desc='Kingpin',
+                       options={'macro': options.json,
+                                'tokens': env_tokens})
+        yield runner.execute()
     except actor_exceptions.ActorException:
         log.error('Kingpin encountered mistakes during the play.')
         sys.exit(2)
@@ -113,7 +107,7 @@ def begin():
     except KeyboardInterrupt:
         log.info('CTRL-C Caught, shutting down')
     except Exception as e:
-        # Skip traceback that involves site-packages.
+        # Skip traceback that involves tornado's libraries.
         import traceback
         trace_lines = traceback.format_exc(e).splitlines()
         skip_next = False
