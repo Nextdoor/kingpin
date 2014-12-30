@@ -1,3 +1,4 @@
+import StringIO
 import logging
 import os
 import time
@@ -46,6 +47,12 @@ class TestUtils(unittest.TestCase):
         instance = open(simple)
         ret = utils.convert_json_to_dict(instance, {})
         self.assertEquals(type(ret), dict)
+
+    def test_convert_json_to_dict_error(self):
+        instance = StringIO.StringIO()  # Empty buffer will fail demjson.
+
+        with self.assertRaises(ValueError):
+            utils.convert_json_to_dict(instance, {})
 
     def test_exception_logger(self):
         @utils.exception_logger

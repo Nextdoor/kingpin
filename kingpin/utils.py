@@ -286,7 +286,7 @@ def convert_json_to_dict(json_file, tokens):
         filename = json_file
         instance = open(json_file)
     else:
-        filename = json_file.name
+        filename = str(json_file)
         instance = json_file
 
     raw = instance.read()
