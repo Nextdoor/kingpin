@@ -1,3 +1,4 @@
+import StringIO
 import logging
 import os
 import time
@@ -9,7 +10,6 @@ import mock
 import rainbow_logging_handler
 import requests
 
-from kingpin import exceptions
 from kingpin import utils
 
 
@@ -21,24 +21,39 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(testing.AsyncTestCase, returned_class)
 
     def test_populate_with_env(self):
-        os.environ['UNIT_TEST'] = 'FOOBAR'
+        tokens = {'UNIT_TEST': 'FOOBAR'}
         string = 'Unit %UNIT_TEST% Test'
         expect = 'Unit FOOBAR Test'
-        result = utils.populate_with_env(string)
+        result = utils.populate_with_tokens(string, tokens)
         self.assertEquals(result, expect)
 
     def test_populate_with_env_with_missing_variables(self):
         os.environ['UNIT_TEST'] = 'FOOBAR'
         string = 'Unit %UNIT_TEST% Test %NOTFOUNDVARIABLE%'
-        with self.assertRaises(exceptions.InvalidEnvironment):
-            utils.populate_with_env(string)
+        with self.assertRaises(LookupError):
+            utils.populate_with_tokens(string, os.environ)
 
     def test_convert_json_to_dict(self):
+        # Should work with string path to a file
         dirname, filename = os.path.split(os.path.abspath(__file__))
         examples = '%s/../../examples' % dirname
         simple = '%s/simple.json' % examples
-        ret = utils.convert_json_to_dict(simple)
+        ret = utils.convert_json_to_dict(simple, {})
         self.assertEquals(type(ret), dict)
+
+        # Should work with file instance also
+        dirname, filename = os.path.split(os.path.abspath(__file__))
+        examples = '%s/../../examples' % dirname
+        simple = '%s/simple.json' % examples
+        instance = open(simple)
+        ret = utils.convert_json_to_dict(instance, {})
+        self.assertEquals(type(ret), dict)
+
+    def test_convert_json_to_dict_error(self):
+        instance = StringIO.StringIO()  # Empty buffer will fail demjson.
+
+        with self.assertRaises(ValueError):
+            utils.convert_json_to_dict(instance, {})
 
     def test_exception_logger(self):
         @utils.exception_logger

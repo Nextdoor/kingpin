@@ -1,5 +1,7 @@
 """Tests for the misc actors"""
 
+import time
+
 from tornado import testing
 
 from kingpin.actors import exceptions
@@ -45,3 +47,38 @@ class IntegrationGenericHTTP(testing.AsyncTestCase):
 
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
+
+
+class IntegrationMacro(testing.AsyncTestCase):
+
+    integration = True
+
+    @testing.gen_test
+    def integration_execute(self):
+        actor = misc.Macro('Test', {
+            'macro': 'examples/test/sleep.json'})
+
+        start = time.time()
+        yield actor.execute()
+        end = time.time()
+        runtime = end - start
+        self.assertTrue(runtime > 0.1)
+
+    @testing.gen_test
+    def integration_execute_remote(self):
+        gh_src = 'https://raw.githubusercontent.com/Nextdoor/kingpin/master'
+        # Successful __init__ on this actor validates downloading and parsing.
+        misc.Macro('Test', {
+            'macro': gh_src + '/examples/test/sleep.json'})
+
+    @testing.gen_test
+    def integration_execute_dry(self):
+        actor = misc.Macro('Test', {
+            'macro': 'examples/test/sleep.json'},
+            dry=True)
+
+        start = time.time()
+        yield actor.execute()
+        end = time.time()
+        runtime = end - start
+        self.assertTrue(runtime < 0.1)

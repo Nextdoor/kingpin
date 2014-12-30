@@ -34,8 +34,6 @@ from tornado import ioloop
 import httplib
 import rainbow_logging_handler
 
-from kingpin import exceptions
-
 log = logging.getLogger(__name__)
 
 # Constants for some of the utilities below
@@ -240,48 +238,66 @@ def tornado_sleep(seconds=1.0):
                    time.time() + seconds)
 
 
-def populate_with_env(string):
-    """Insert env variables into the string.
+def populate_with_tokens(string, tokens):
+    """Insert token variables into the string.
 
-    Will match any environment key wrapped in '%'s and replace it with the
-    value of that env var.
+    Will match any token wrapped in '%'s and replace it with the value of that
+    token.
+
+    Args:
+        string: string to modify.
+        tokens: dictionary of key:value pairs to inject into the string.
 
     Example:
         export ME=biz
 
         string='foo %ME% %bar%'
-        populate_with_env(string)  # 'foo biz %bar%'
+        populate_with_tokens(string, os.environ)  # 'foo biz %bar%'
     """
 
     # First things first, swap out all instances of %<str>% with any matching
-    # environment variables found in os.environ.
-    for k, v in os.environ.iteritems():
+    # token variables found.
+    for k, v in tokens.iteritems():
         string = string.replace(('%%%s%%' % k), v)
 
     # Now, see if we missed anything. If we did, raise an exception and fail.
     missed_tokens = list(set(re.findall(r'%[\w]+%', string)))
     if missed_tokens:
-        raise exceptions.InvalidEnvironment(
+        raise LookupError(
             'Found un-matched tokens in JSON string: %s' % missed_tokens)
 
     return string
 
 
-def convert_json_to_dict(json_file):
+def convert_json_to_dict(json_file, tokens):
     """Converts a JSON file to a config dict.
 
     Reads in a JSON file, swaps out any environment variables that
     have been used inside the JSON, and then returns a dictionary.
 
     Args:
-        json_file: Path to the JSON file to import
+        json_file: Path to the JSON file to import, or file instance.
+        tokens: dictionary to pass to populate_with_tokens.
 
     Returns:
         <Dictonary of Config Data>
     """
-    raw = open(json_file).read()
-    parsed = populate_with_env(raw)
-    return demjson.decode(parsed)
+
+    filename = ''
+    if type(json_file) in (str, unicode):
+        filename = json_file
+        instance = open(json_file)
+    else:
+        filename = str(json_file)
+        instance = json_file
+
+    raw = instance.read()
+    parsed = populate_with_tokens(raw, tokens)
+    try:
+        decoded = demjson.decode(parsed)
+    except demjson.JSONError as e:
+        raise ValueError('JSON in `%s` has an error: %s' % (filename, e))
+    return decoded
 
 
 def create_repeating_log(logger, message, handle=None, **kwargs):
