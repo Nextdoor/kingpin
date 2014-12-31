@@ -423,10 +423,12 @@ class RightScale(object):
         failure.
 
         Args:
-            task: RightScale Task resource object
-
-        Args:
-            sleep: Integer of time to wait before the first status check
+            task: RightScale Task resource object.
+            task_name: Human-readable name of the task to be executed.
+            sleep: Integer of seconds to wait before the first status check.
+            logger: logger object to be used to log task status.
+                    This is useful when this API call is called from a Kingpin
+                    actor, and you want to use the actor's specific logger.
 
         Returns:
             <booelan>
@@ -475,6 +477,11 @@ class RightScale(object):
                 wait_exponential_max=10000)
     @utils.exception_logger
     def _get_task_info(self, task):
+        """Fetch data for a particular RightScale task.
+
+        This is a blocking, non-tornado operation. It's separated into its own
+        function to be run on a separate thread.
+        """
         return task.self.show()
 
     @gen.coroutine
