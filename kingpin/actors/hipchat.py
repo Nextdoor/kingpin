@@ -23,6 +23,7 @@ from tornado import httpclient
 from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
+from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
@@ -122,8 +123,8 @@ class Message(HipchatBase):
     """Simple Hipchat Message sending actor."""
 
     all_options = {
-        'room': (str, None, 'Hipchat room name'),
-        'message': (str, None, 'Message to send')
+        'room': (str, REQUIRED, 'Hipchat room name'),
+        'message': (str, REQUIRED, 'Message to send')
     }
 
     @gen.coroutine
@@ -191,8 +192,8 @@ class Topic(HipchatBase):
     """Simple Hipchat Room Topic Setter"""
 
     all_options = {
-        'room': (str, None, 'Hipchat room name'),
-        'topic': (str, None, 'Topic to set')
+        'room': (str, REQUIRED, 'Hipchat room name'),
+        'topic': (str, REQUIRED, 'Topic to set')
     }
 
     @gen.coroutine

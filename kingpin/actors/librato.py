@@ -24,6 +24,7 @@ from tornado import httpclient
 from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
+from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
@@ -44,9 +45,9 @@ class Annotation(base.HTTPBaseActor):
     http://dev.librato.com/v1/post/annotations/:name"""
 
     all_options = {
-        'title': (str, None, "Annotation title"),
-        'description': (str, None, "Annotation description"),
-        'name': (str, None, "Name of the metric to annotate")
+        'title': (str, REQUIRED, "Annotation title"),
+        'description': (str, REQUIRED, "Annotation description"),
+        'name': (str, REQUIRED, "Name of the metric to annotate")
     }
 
     def __init__(self, *args, **kwargs):

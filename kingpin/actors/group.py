@@ -22,6 +22,7 @@ from tornado import gen
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors import utils
+from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ class BaseGroupActor(base.BaseActor):
     """
 
     all_options = {
-        'acts': (list, None, "Array of actor definitions.")
+        'acts': (list, REQUIRED, "Array of actor definitions.")
     }
 
     def __init__(self, *args, **kwargs):

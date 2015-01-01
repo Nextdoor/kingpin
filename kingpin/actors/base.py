@@ -39,6 +39,7 @@ from tornado import httputil
 
 from kingpin import utils
 from kingpin.actors import exceptions
+from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
@@ -68,11 +69,11 @@ class BaseActor(object):
     #     'option_name': (type, default, "Long description of the option"),
     # }
     #
-    # If `default` is `None` then the option requires user specified input
+    # If `default` is REQUIRED then the option requires user specified input
     #
     # Example:
     # {
-    #    'room': (str, None, 'Hipchat room to notify'),
+    #    'room': (str, REQUIRED, 'Hipchat room to notify'),
     #    'from': (str, 'Kingpin', 'User that sends the message')
     # }
     all_options = {}
@@ -117,8 +118,7 @@ class BaseActor(object):
         for option, definition in self.all_options.items():
             if option not in self._options:
                 default = definition[1]
-                # `None` means it's required. Don't set the default
-                if default is not None:
+                if default is not REQUIRED:
                     self._options.update({option: default})
 
     def _validate_options(self):
@@ -132,10 +132,9 @@ class BaseActor(object):
         """
 
         # Loop through all_options, and find the required ones
-        # Required options have `None` as their default value.
         required = [opt_name
                     for (opt_name, definition) in self.all_options.items()
-                    if definition[1] is None]
+                    if definition[1] == REQUIRED]
 
         self.log.debug('Checking for required options: %s' % required)
         option_errors = []

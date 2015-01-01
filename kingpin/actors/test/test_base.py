@@ -1,4 +1,5 @@
 """Tests for the actors.base package."""
+from __future__ import absolute_import
 import StringIO
 import json
 import os
@@ -14,6 +15,7 @@ from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors.test.helper import mock_tornado
+from kingpin.constants import REQUIRED
 
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
@@ -83,24 +85,24 @@ class TestBaseActor(testing.AsyncTestCase):
         self.assertEquals(10, requests_logger.level)
 
     def test_validate_options(self):
-        self.actor.all_options = {'test': (str, None, '')}
+        self.actor.all_options = {'test': (str, REQUIRED, '')}
         self.actor._options = {'a': 'b'}
         with self.assertRaises(exceptions.InvalidOptions):
             ret = self.actor._validate_options()
 
-        self.actor.all_options = {'test': (str, None, '')}
+        self.actor.all_options = {'test': (str, REQUIRED, '')}
         self.actor._options = {'test': 'b'}
         ret = self.actor._validate_options()
         self.assertEquals(None, ret)
 
-        self.actor.all_options = {'test': (str, None, ''),
-                                  'test2': (str, None, '')}
+        self.actor.all_options = {'test': (str, REQUIRED, ''),
+                                  'test2': (str, REQUIRED, '')}
         self.actor._options = {'test': 'b', 'test2': 'b'}
         ret = self.actor._validate_options()
         self.assertEquals(None, ret)
 
     def test_validation_issues(self):
-        self.actor.all_options = {'needed': (str, None, ''),
+        self.actor.all_options = {'needed': (str, REQUIRED, ''),
                                   'optional': (str, '', '')}
 
         # Requirement not satisfied
