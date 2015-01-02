@@ -180,7 +180,8 @@ class BaseActor(object):
             if isinstance(value, basestring):
                 value = str(value)
 
-            if not isinstance(value, expected_type):
+            # Allow None to be allowed regardless of expected_type
+            if not isinstance(value, expected_type) and value is not None:
                 message = 'Option "%s" has to be %s and is %s.' % (
                     opt, expected_type, type(value))
                 option_errors.append(message)
