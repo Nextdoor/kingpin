@@ -27,10 +27,11 @@ from tornado import httpclient
 from kingpin.actors import utils as actor_utils
 from kingpin import exceptions as kingpin_exceptions
 
+from kingpin import schema
 from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
-from kingpin import schema
+from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ class Macro(base.BaseActor):
     """Execute a kingpin JSON file."""
 
     all_options = {
-        'macro': (str, None,
+        'macro': (str, REQUIRED,
                   "Path to a Kingpin JSON file. http(s)://, file:///, "
                   "absolute or relative file paths."),
         'tokens': (dict, {}, "Tokens passed into the JSON file.")
@@ -161,7 +162,7 @@ class Sleep(base.BaseActor):
     """Simple actor that just sleeps for an arbitrary amount of time."""
 
     all_options = {
-        'sleep': ((int, float), None, 'Number of seconds to do nothing.')
+        'sleep': ((int, float), REQUIRED, 'Number of seconds to do nothing.')
     }
 
     @gen.coroutine
@@ -179,7 +180,7 @@ class GenericHTTP(base.HTTPBaseActor):
     """Simple HTTP get/post sending actor."""
 
     all_options = {
-        'url': (str, None, 'Domain name + query string to fetch'),
+        'url': (str, REQUIRED, 'Domain name + query string to fetch'),
         'data': (dict, {}, 'Data to attach as a POST query'),
         'username': (str, '', 'HTTPAuth username'),
         'password': (str, '', 'HTTPAuth password')
