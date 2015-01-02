@@ -44,12 +44,6 @@ EXECUTOR = futures.ThreadPoolExecutor(10)
 
 class IAMBaseActor(base.BaseActor):
 
-    # This actor should not be instantiated, but unit testing requires that
-    # it's all options are defined properly here.
-    all_options = {
-        'region': (str, REQUIRED, 'AWS region name like us-west-2')
-    }
-
     # Get references to existing objects that are used by the
     # tornado.concurrent.run_on_executor() decorator.
     ioloop = ioloop.IOLoop.current()
@@ -58,8 +52,6 @@ class IAMBaseActor(base.BaseActor):
     def __init__(self, *args, **kwargs):
         """Create the connection object."""
         super(IAMBaseActor, self).__init__(*args, **kwargs)
-
-        region = self._get_region(self.option('region'))
 
         if not (aws_settings.AWS_ACCESS_KEY_ID and
                 aws_settings.AWS_SECRET_ACCESS_KEY):
@@ -71,27 +63,7 @@ class IAMBaseActor(base.BaseActor):
 
         self.conn = boto.iam.connection.IAMConnection(
             aws_settings.AWS_ACCESS_KEY_ID,
-            aws_settings.AWS_SECRET_ACCESS_KEY,
-            region=region)
-
-    def _get_region(self, region):
-        """Return 'region' object used in IAMConnection
-
-        Args:
-            region: string - AWS region name, like us-west-2
-        Returns:
-            RegionInfo object from boto.iam
-        """
-
-        all_regions = boto.iam.regions()
-        match = [r for r in all_regions if r.name == region]
-
-        if len(match) != 1:
-            raise exceptions.UnrecoverableActorFailure((
-                'Expected to find exactly 1 region named %s. '
-                'Found: %s') % (region, match))
-
-        return match[0]
+            aws_settings.AWS_SECRET_ACCESS_KEY)
 
 
 class UploadCert(IAMBaseActor):
@@ -103,7 +75,6 @@ class UploadCert(IAMBaseActor):
     """
 
     all_options = {
-        'region': (str, REQUIRED, 'AWS region for IAM, such as us-west-2'),
         'name': (str, REQUIRED, 'The name for the server certificate.'),
         'public_key_path': (str, REQUIRED, 'Path to the public key certificate.'),
         'private_key_path': (str, REQUIRED, 'Path to the private key.'),
