@@ -15,16 +15,12 @@
 """AWS IAM Actors"""
 
 import logging
-import re
-import time
 
 from concurrent import futures
-from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
 import boto.iam.connection
 
-from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings as aws_settings
@@ -69,17 +65,18 @@ class IAMBaseActor(base.BaseActor):
 class UploadCert(IAMBaseActor):
 
     """Uploads a new SSL Cert to AWS IAM.
-    
+
     http://boto.readthedocs.org/en/latest/ref/iam.html
     #boto.iam.connection.IAMConnection.upload_server_cert
     """
 
     all_options = {
         'name': (str, REQUIRED, 'The name for the server certificate.'),
-        'public_key_path': (str, REQUIRED, 'Path to the public key certificate.'),
+        'public_key_path': (str, REQUIRED,
+                            'Path to the public key certificate.'),
         'private_key_path': (str, REQUIRED, 'Path to the private key.'),
         'cert_chain_path': (str, None, 'Path to the certificate chain.'),
-        'body_path': (str, None, 'The path for the server certificate.')
+        'path': (str, None, 'The path for the server certificate.')
     }
 
     @gen.coroutine
@@ -88,6 +85,6 @@ class UploadCert(IAMBaseActor):
             cert_name=self.option('name'),
             cert_body=open(self.option('public_key_path')).read(),
             private_key=open(self.option('private_key_path')).read(),
-            cert_chain=open(self.option('cert_chain_path')).read(),
-            path=open(self.option('body_path')).read())
-
+            cert_chain=None,  # open(self.option('cert_chain_path')).read(),
+            path=self.option('path')
+            )
