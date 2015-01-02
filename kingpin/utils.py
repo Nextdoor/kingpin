@@ -69,6 +69,7 @@ def str_to_class(string):
     module_name = '.'.join(string_elements)
 
     # load the module, will raise ImportError if module cannot be loaded
+    # or if that module has a failed import inside of it.
     m = __import__(module_name, globals(), locals(), class_name)
     # get the class, will raise AttributeError if class cannot be found
     c = getattr(m, class_name)
@@ -300,6 +301,9 @@ def convert_json_to_dict(json_file, tokens):
     if type(json_file) in (str, unicode):
         filename = json_file
         instance = open(json_file)
+    elif type(json_file) is file:
+        filename = json_file.name
+        instance = json_file
     else:
         filename = str(json_file)
         instance = json_file
@@ -309,7 +313,10 @@ def convert_json_to_dict(json_file, tokens):
     try:
         decoded = demjson.decode(parsed)
     except demjson.JSONError as e:
-        raise ValueError('JSON in `%s` has an error: %s' % (filename, e))
+        # demjson exceptions have `pretty_description()` method with
+        # much more useful info.
+        raise ValueError('JSON in `%s` has an error: %s' % (
+            filename, e.pretty_description()))
     return decoded
 
 
