@@ -346,7 +346,7 @@ class BaseActor(object):
             log.critical('Unexpected exception caught! '
                          'Please contact the author (%s) and provide them '
                          'with this stacktrace' %
-                         sys.modules[__name__].__author__)
+                         sys.modules[self.__module__].__author__)
             self.log.exception(e)
             raise exceptions.ActorException(e)
         else:
