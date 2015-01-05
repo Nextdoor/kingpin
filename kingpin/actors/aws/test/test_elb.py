@@ -107,22 +107,6 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
         with self.assertRaises(elb_actor.ELBNotFound):
             yield actor.execute()
 
-    def test_get_region(self):
-        actor = elb_actor.WaitUntilHealthy(
-            'Unit Test Action', {'name': 'unit-test-queue',
-                                 'region': 'us-west-2',
-                                 'count': 3})
-
-        reg = actor._get_region('us-west-2')
-        self.assertEquals(reg.name, 'us-west-2')
-
-    def test_get_region_fail(self):
-        with self.assertRaises(exceptions.UnrecoverableActorFailure):
-            elb_actor.WaitUntilHealthy(
-                'Unit Test Action', {'name': 'unit-test-queue',
-                                     'region': 'non-existent',  # Should fail
-                                     'count': 3})
-
     @testing.gen_test
     def test_find_elb(self):
         actor = elb_actor.WaitUntilHealthy(

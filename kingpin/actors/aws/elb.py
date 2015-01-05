@@ -23,6 +23,7 @@ from concurrent import futures
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
+import boto.iam.connection
 
 from kingpin import utils
 from kingpin.actors import base
@@ -42,7 +43,7 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 EXECUTOR = futures.ThreadPoolExecutor(10)
 
 
-class ELBNotFound(exceptions.RecoverableActorFailure):
+class ELBNotFound(exceptions.UnrecoverableActorFailure):
 
     """Raised when an ELB is not found"""
 
@@ -56,9 +57,9 @@ def p2f(string):
     return float(string.strip('%')) / 100
 
 
-class WaitUntilHealthy(base.BaseActor):
+class ELBBaseActor(base.BaseActor):
 
-    """Waits till a specified number of instances are "InService"."""
+    """Base class for ELB actors."""
 
     all_options = {
         'name': (str, REQUIRED, 'Name of the ELB'),
@@ -81,9 +82,7 @@ class WaitUntilHealthy(base.BaseActor):
             region: string - AWS region name, like us-west-2.
         """
 
-        super(WaitUntilHealthy, self).__init__(*args, **kwargs)
-
-        region = self._get_region(self.option('region'))
+        super(ELBBaseActor, self).__init__(*args, **kwargs)
 
         if not (aws_settings.AWS_ACCESS_KEY_ID and
                 aws_settings.AWS_SECRET_ACCESS_KEY):
@@ -93,31 +92,13 @@ class WaitUntilHealthy(base.BaseActor):
                     aws_settings.AWS_ACCESS_KEY_ID,
                     aws_settings.AWS_SECRET_ACCESS_KEY))
 
-        self.conn = aws_elb.ELBConnection(
-            aws_settings.AWS_ACCESS_KEY_ID,
-            aws_settings.AWS_SECRET_ACCESS_KEY,
-            region=region)
-
-    def _get_region(self, region):
-        """Return 'region' object used in ELBConnection
-
-        Args:
-            region: string - AWS region name, like us-west-2
-        Returns:
-            RegionInfo object from boto.ec2.elb
-        """
-
-        all_regions = aws_elb.regions()
-        match = [r for r in all_regions if r.name == region]
-
-        if len(match) != 1:
-            raise exceptions.UnrecoverableActorFailure((
-                'Expected to find exactly 1 region named %s. '
-                'Found: %s') % (region, match))
-
-        return match[0]
+        self.conn = aws_elb.connect_to_region(
+            self.option('region'),
+            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
 
     @concurrent.run_on_executor
+    @utils.exception_logger
     def _find_elb(self, name):
         """Return an ELB with the matching name.
 
@@ -132,7 +113,7 @@ class WaitUntilHealthy(base.BaseActor):
         Raises:
             ELBNotFound
         """
-        self.log.info('Searching for ELB "%s"' % name)
+        self.log.debug('Searching for ELB "%s"' % name)
 
         try:
             elbs = self.conn.get_all_load_balancers(load_balancer_names=name)
@@ -146,6 +127,11 @@ class WaitUntilHealthy(base.BaseActor):
                               % (len(elbs), elbs))
 
         return elbs[0]
+
+
+class WaitUntilHealthy(ELBBaseActor):
+
+    """Waits till a specified number of instances are "InService"."""
 
     def _get_expected_count(self, count, total_count):
         """Calculate the expected count for a given percentage.
@@ -232,3 +218,47 @@ class WaitUntilHealthy(base.BaseActor):
         utils.clear_repeating_log(repeating_log)
 
         raise gen.Return()
+
+
+class UseCert(ELBBaseActor):
+
+    """Find a server cert in IAM and use it for a specified ELB."""
+
+    all_options = {
+        'name': (str, REQUIRED, 'Name of the ELB'),
+        'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
+        'cert_name': (str, REQUIRED, 'Unique IAM certificate name, or ARN'),
+    }
+
+    def __init__(self, *args, **kwargs):
+        """Set up additional IAM connection."""
+        super(UseCert, self).__init__(*args, **kwargs)
+        self.iam_conn = boto.iam.connection.IAMConnection()
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    def _find_cert(self, name):
+        self.log.debug('Searching for cert "%s"...' % name)
+        try:
+            cert = self.iam_conn.get_server_certificate(name)
+        except BotoServerError:
+            raise exceptions.UnrecoverableActorFailure(
+                'Could not find cert %s' % name)
+        return cert
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    def _use_cert(self, elb, cert):
+        arn = cert['get_server_certificate_response'].get(
+            'get_server_certificate_result').get(
+            'server_certificate').get(
+            'server_certificate_metadata').get('arn')
+        self.log.info('Setting ELB "%s" to use cert arn: %s' % (elb, arn))
+        elb.set_listener_SSL_certificate(443, cert.arn)
+
+    @gen.coroutine
+    def _execute(self):
+        elb = yield self._find_elb(self.option('name'))
+        cert = yield self._find_cert(self.option('cert_name'))
+
+        yield self._use_cert(elb, cert)
