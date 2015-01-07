@@ -51,7 +51,7 @@ class IntegrationRollbarDeploy(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
-    @testing.gen_test
+    @testing.gen_test(timeout=60)
     def integration_test_2b_execute_dry(self):
         actor = rollbar.Deploy(
             'Unit Test Action',
