@@ -507,8 +507,8 @@ class RightScale(object):
             inputs: Dict of Key/Value Input Pairs
             instances: A list of rightscale.Resource instances objects.
 
-        Raises:
-            gen.Return(<list of rightscale.Resource task objects>)
+        Returns:
+            list of tuples - (instance, <rightscale.Resource task object>)
         """
         # Create a new copy of the inputs that were passed in so that we can
         # modify them correctly and safely.
