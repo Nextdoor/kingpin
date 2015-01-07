@@ -16,9 +16,10 @@ execution of those tasks from start to finish and returns the results.
 
 **Options**
 
-  * `array`    - The name of the ServerArray to operate on
-  * `script`   - The name of the RightScript or Recipe to execute
-  * `inputs`   - Dictionary of Key/Value pairs to use as inputs for the script
+  * `array` - The name of the ServerArray to operate on
+  * `script` - The name of the RightScript or Recipe to execute
+  * `execute_runtime` - Expected number of seconds to execute. Default: 5.
+  * `inputs` - Dictionary of Key/Value pairs to use as inputs for the script
 
 Examples
 
@@ -26,6 +27,7 @@ Examples
     # input named ELB_NAME.
     { 'array': 'my-array',
       'script': 'connect to elb',
+      'expected_runtime': 3,
       'inputs': { 'ELB_NAME': 'text:my-elb' } }
 
 **Dry Mode**
