@@ -30,6 +30,7 @@ from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings as aws_settings
+from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
@@ -62,8 +63,8 @@ class SQSBaseActor(base.BaseActor):
     # This actor should not be instantiated, but unit testing requires that
     # it's all options are defined properly here.
     all_options = {
-        'name': (str, None, 'Queue name to do nothing with.'),
-        'region': (str, None, 'AWS region name like us-west-2')
+        'name': (str, REQUIRED, 'Queue name to do nothing with.'),
+        'region': (str, REQUIRED, 'AWS region name like us-west-2')
     }
 
     # Get references to existing objects that are used by the
@@ -130,8 +131,8 @@ class Create(SQSBaseActor):
     """Creates a new SQS Queue."""
 
     all_options = {
-        'name': (str, None, 'Name or pattern for SQS queues.'),
-        'region': (str, None, 'AWS region for SQS, such as us-west-2')
+        'name': (str, REQUIRED, 'Name or pattern for SQS queues.'),
+        'region': (str, REQUIRED, 'AWS region for SQS, such as us-west-2')
     }
 
     @concurrent.run_on_executor
@@ -183,8 +184,8 @@ class Delete(SQSBaseActor):
     """Deletes an existing SQS Queue."""
 
     all_options = {
-        'name': (str, None, 'Name or pattern for SQS queues.'),
-        'region': (str, None, 'AWS region for SQS, such as us-west-2'),
+        'name': (str, REQUIRED, 'Name or pattern for SQS queues.'),
+        'region': (str, REQUIRED, 'AWS region for SQS, such as us-west-2'),
         'idempotent': (bool, False, 'Continue if queues are already deleted.')
     }
 
@@ -248,8 +249,8 @@ class WaitUntilEmpty(SQSBaseActor):
     """Waits for one or more SQS Queues to become empty."""
 
     all_options = {
-        'name': (str, None, 'Name or pattern for SQS queues.'),
-        'region': (str, None, 'AWS region for SQS, such as us-west-2'),
+        'name': (str, REQUIRED, 'Name or pattern for SQS queues.'),
+        'region': (str, REQUIRED, 'AWS region for SQS, such as us-west-2'),
         'required': (bool, False, 'At least 1 queue must be found.')
     }
 

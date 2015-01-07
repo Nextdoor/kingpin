@@ -24,6 +24,7 @@ from tornado import httpclient
 from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
+from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
@@ -131,8 +132,8 @@ class Deploy(RollbarBase):
 
     """
     all_options = {
-        'environment': (str, None, 'Name of the environment being deployed'),
-        'revision': (str, None, 'Revision number/sha being deployed'),
+        'environment': (str, REQUIRED, 'Name of the environment to deploy'),
+        'revision': (str, REQUIRED, 'Revision number/sha being deployed'),
         'local_username': (str, 'Kingpin', 'User who deployed'),
         'rollbar_username': (str, '', 'Rollbar username'),
         'comment': (str, '', 'Deploy comment')

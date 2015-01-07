@@ -25,6 +25,7 @@ from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.rightscale import api
 from kingpin.actors.rightscale import base
+from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
@@ -118,8 +119,8 @@ class Clone(ServerArrayBaseActor):
     """Clones a RightScale Server Array."""
 
     all_options = {
-        'source': (str, None, 'Name of the ServerArray to clone.'),
-        'dest': (str, None, 'Name to give the cloned ServerArray.')
+        'source': (str, REQUIRED, 'Name of the ServerArray to clone.'),
+        'dest': (str, REQUIRED, 'Name to give the cloned ServerArray.')
     }
 
     @gen.coroutine
@@ -177,7 +178,7 @@ class Update(ServerArrayBaseActor):
     """
 
     all_options = {
-        'array': (str, None, 'ServerArray name to Update'),
+        'array': (str, REQUIRED, 'ServerArray name to Update'),
         'params': (dict, {}, 'ServerArray RightScale parameters'),
         'inputs': (dict, {}, 'ServerArray inputs for launching.')
     }
@@ -266,7 +267,7 @@ class Terminate(ServerArrayBaseActor):
     """Terminate all instances in a RightScale Server Array."""
 
     all_options = {
-        'array': (str, None, 'ServerArray name to Terminate')
+        'array': (str, REQUIRED, 'ServerArray name to Terminate')
     }
 
     @gen.coroutine
@@ -360,7 +361,7 @@ class Destroy(ServerArrayBaseActor):
     ServerArray in RightScale."""
 
     all_options = {
-        'array': (str, None, 'ServerArray name to Destroy')
+        'array': (str, REQUIRED, 'ServerArray name to Destroy')
     }
 
     @gen.coroutine
@@ -413,7 +414,7 @@ class Launch(ServerArrayBaseActor):
     """Launches the min_instances in a RightScale Server Array."""
 
     all_options = {
-        'array': (str, None, 'ServerArray name to launch'),
+        'array': (str, REQUIRED, 'ServerArray name to launch'),
         'count': (
             int, False,
             "Number of server to launch. Default: up to array's min count"),
@@ -582,11 +583,13 @@ class Execute(ServerArrayBaseActor):
     """
 
     all_options = {
-        'array': (str, None, 'ServerArray name on which to execute a script.'),
-        'script': (str, None, 'RightScale RightScript or Recipe to execute.'),
+        'array': (str, REQUIRED,
+                  'ServerArray name on which to execute a script.'),
+        'script': (str, REQUIRED,
+                   'RightScale RightScript or Recipe to execute.'),
         'expected_runtime': (int, 5, 'Expected number of seconds to execute.'),
-        'inputs': (dict, {}, ('Inputs needed by the script. '
-                              'Read _generate_rightscale_params.'))
+        'inputs': (dict, {}, (
+            'Inputs needed by the script. Read _generate_rightscale_params.'))
     }
 
     @gen.coroutine

@@ -28,6 +28,7 @@ from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings as aws_settings
+from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
@@ -60,10 +61,10 @@ class WaitUntilHealthy(base.BaseActor):
     """Waits till a specified number of instances are "InService"."""
 
     all_options = {
-        'name': (str, None, 'Name of the ELB'),
-        'count': ((int, str), None,
+        'name': (str, REQUIRED, 'Name of the ELB'),
+        'count': ((int, str), REQUIRED,
                   'Specific count, or percentage of instances to wait for.'),
-        'region': (str, None, 'AWS region name, like us-west-2')
+        'region': (str, REQUIRED, 'AWS region name, like us-west-2')
     }
 
     # Get references to existing objects that are used by the
