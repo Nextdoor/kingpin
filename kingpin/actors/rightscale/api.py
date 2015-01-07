@@ -46,7 +46,6 @@ translation.
 from os import path
 import datetime
 import logging
-import time
 
 from concurrent import futures
 from retrying import retry as sync_retry
@@ -409,12 +408,8 @@ class RightScale(object):
 
         return task
 
-    @concurrent.run_on_executor
-    @sync_retry(stop_max_attempt_number=20,
-                wait_exponential_multiplier=1000,
-                wait_exponential_max=10000)
-    @utils.exception_logger
-    def wait_for_task(self, task, sleep=5):
+    @gen.coroutine
+    def wait_for_task(self, task, task_name=None, sleep=5, logger=None):
         """Monitors a RightScale task for completion.
 
         RightScale tasks are provided as URLs that we can query for the
@@ -428,10 +423,12 @@ class RightScale(object):
         failure.
 
         Args:
-            task: RightScale Task resource object
-
-        Args:
-            sleep: Integer of time to wait between status checks
+            task: RightScale Task resource object.
+            task_name: Human-readable name of the task to be executed.
+            sleep: Integer of seconds to wait before the first status check.
+            logger: logger object to be used to log task status.
+                    This is useful when this API call is called from a Kingpin
+                    actor, and you want to use the actor's specific logger.
 
         Returns:
             <booelan>
@@ -439,11 +436,17 @@ class RightScale(object):
 
         if not task:
             # If there is no task to wait on - don't wait!
-            return True
+            raise gen.Return(True)
+
+        if logger and task_name:
+            timeout_id = utils.create_repeating_log(
+                logger, 'Still waiting on %s' % task_name, seconds=sleep)
+        else:
+            timeout_id = None
 
         while True:
             # Get the task status
-            output = task.self.show()
+            output = yield self._get_task_info(task)
             summary = output.soul['summary']
             stamp = datetime.datetime.now()
 
@@ -458,12 +461,28 @@ class RightScale(object):
             log.debug('Task (%s) status: %s (updated at: %s)' %
                       (output.path, output.soul['summary'], stamp))
 
-            time.sleep(sleep)
+            yield utils.tornado_sleep(min(sleep, 5))
+
+        if timeout_id:
+            utils.clear_repeating_log(timeout_id)
 
         log.debug('Task finished, return value: %s, summary: %s' %
                   (status, summary))
 
-        return status
+        raise gen.Return(status)
+
+    @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=20,
+                wait_exponential_multiplier=1000,
+                wait_exponential_max=10000)
+    @utils.exception_logger
+    def _get_task_info(self, task):
+        """Fetch data for a particular RightScale task.
+
+        This is a blocking, non-tornado operation. It's separated into its own
+        function to be run on a separate thread.
+        """
+        return task.self.show()
 
     @gen.coroutine
     def run_executable_on_instances(self, name, inputs, instances):
@@ -488,8 +507,8 @@ class RightScale(object):
             inputs: Dict of Key/Value Input Pairs
             instances: A list of rightscale.Resource instances objects.
 
-        Raises:
-            gen.Return(<list of rightscale.Resource task objects>)
+        Returns:
+            list of tuples - (instance, <rightscale.Resource task object>)
         """
         # Create a new copy of the inputs that were passed in so that we can
         # modify them correctly and safely.
@@ -513,18 +532,28 @@ class RightScale(object):
 
         # Generate all the tasks and store them in a list so that we can yield
         # them all at once (thus, making it asynchronous)
+        task_pairs = []
         tasks = []
         for i in instances:
             log.debug('Executing %s on %s' % (name, i.soul['name']))
             url = '%s/run_executable' % i.links['self']
-            tasks.append(self.make_generic_request(url, post=params))
+            req = self.make_generic_request(url, post=params)
+            task_pairs.append((i, req))
+            tasks.append(req)
 
         try:
-            ret = yield tasks
+            yield tasks
         except requests.exceptions.HTTPError as e:
             raise ServerArrayException('Script Execution Error: %s' % e)
 
-        raise gen.Return(ret)
+        # At this point all the tasks are executed, but the reference
+        # that we store in task_pairs are still to the Future objects.
+        yielded_tasks = []
+        for (i, task) in task_pairs:
+            result = yield task  # Should be a no-op since it's completed above
+            yielded_tasks.append((i, result))
+
+        raise gen.Return(yielded_tasks)
 
     @concurrent.run_on_executor
     @utils.exception_logger

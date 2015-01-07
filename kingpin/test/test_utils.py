@@ -6,8 +6,9 @@ import time
 from tornado import gen
 from tornado import testing
 from tornado.testing import unittest
-import requests
+import mock
 import rainbow_logging_handler
+import requests
 
 from kingpin import utils
 
@@ -150,3 +151,17 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
         yield utils.tornado_sleep(0.1)
         stop = time.time()
         self.assertTrue(stop - start > 0.1)
+
+    @testing.gen_test
+    def test_repeating_log(self):
+        logger = mock.Mock()  # used for tracking
+
+        # Repeat this message 10 times per second
+        logid = utils.create_repeating_log(logger.info, 'test', seconds=0.1)
+        yield utils.tornado_sleep(0.45)  # Some process takes .4 <> .5 seconds
+        utils.clear_repeating_log(logid)
+        self.assertEquals(logger.info.call_count, 4)
+
+        # Let's make sure that we don't keep looping our log message.
+        yield utils.tornado_sleep(0.2)
+        self.assertEquals(logger.info.call_count, 4)

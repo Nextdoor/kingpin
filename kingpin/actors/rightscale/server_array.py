@@ -587,6 +587,7 @@ class Execute(ServerArrayBaseActor):
                   'ServerArray name on which to execute a script.'),
         'script': (str, REQUIRED,
                    'RightScale RightScript or Recipe to execute.'),
+        'expected_runtime': (int, 5, 'Expected number of seconds to execute.'),
         'inputs': (dict, {}, (
             'Inputs needed by the script. Read _generate_rightscale_params.'))
     }
@@ -687,13 +688,14 @@ class Execute(ServerArrayBaseActor):
                 % (self.option('script'), inputs, array.soul['name']))
             raise gen.Return()
 
+        count = len(instances)
         # Execute the script on all of the servers in the array and store the
         # task status resource records.
         self.log.info(
             'Executing "%s" on %s instances in the array "%s"' %
-            (self.option('script'), len(instances), array.soul['name']))
+            (self.option('script'), count, array.soul['name']))
         try:
-            tasks = yield self._client.run_executable_on_instances(
+            task_pairs = yield self._client.run_executable_on_instances(
                 self.option('script'), inputs, instances)
         except api.ServerArrayException as e:
             self.log.critical('Script execution error: %s' % e)
@@ -701,15 +703,26 @@ class Execute(ServerArrayBaseActor):
                 'Invalid parameters supplied to execute script.')
 
         # Finally, monitor all of the tasks for completion.
-        actions = []
-        for task in tasks:
-            actions.append(self._client.wait_for_task(task))
-        self.log.info('Waiting for %s tasks to finish.' % len(tasks))
-        success = yield actions
+        self.log.info('Queueing %s tasks' % count)
+        task_waiting = []
+        for instance, task in task_pairs:
+            task_name = '%s executing %s' % (instance.soul['name'],
+                                             self.option('script'))
+            task_waiting.append(self._client.wait_for_task(
+                task=task,
+                task_name=task_name,
+                sleep=self.option('expected_runtime'),
+                logger=self.log.info
+            ))
+
+        self.log.info('Waiting for %s tasks to finish.' % count)
+        success = yield task_waiting
 
         # If not all of the executions succeeded, raise an exception.
         if not all(success):
             self.log.critical('One or more tasks failed.')
             raise TaskExecutionFailed()
+        else:
+            self.log.info('Completed %s tasks.' % count)
 
         raise gen.Return()

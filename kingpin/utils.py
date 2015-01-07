@@ -19,14 +19,15 @@ Common package for utility functions.
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
 from logging import handlers
+import datetime
 import demjson
+import functools
 import logging
 import os
 import re
+import sys
 import time
 import traceback
-import functools
-import sys
 
 from tornado import gen
 from tornado import ioloop
@@ -281,6 +282,7 @@ def convert_json_to_dict(json_file, tokens):
     Returns:
         <Dictonary of Config Data>
     """
+
     filename = ''
     if type(json_file) in (str, unicode):
         filename = json_file
@@ -296,3 +298,50 @@ def convert_json_to_dict(json_file, tokens):
     except demjson.JSONError as e:
         raise ValueError('JSON in `%s` has an error: %s' % (filename, e))
     return decoded
+
+
+def create_repeating_log(logger, message, handle=None, **kwargs):
+    """Create a repeating log message.
+
+    This function sets up tornado to repeatedly log a message in a way that
+    does not need to be `yield`ed.
+    Example:
+    >>> yield do_tornado_stuff(1)
+    >>> log_handle = create_repeating_log('Computing...')
+    >>> yield do_slow_computation_with_insufficient_logging()
+    >>> clear_repeating_log(log_handle)
+
+    This is similar to javascript's setInterval() and clearInterval().
+
+    Args:
+        message: String to pass to log.info()
+        **kwargs: values accepted by datetime.timedelta
+                  namely seconds, and milliseconds.
+
+    Must be cleared via clear_repeating_log()
+    Only handles one interval per actor.
+    """
+
+    class OpaqueHandle(object):
+        """Tornado async io handler."""
+        def __init__(self):
+            self.timeout_id = None
+
+    if not handle:
+        handle = OpaqueHandle()
+
+    def log_and_queue():
+        logger(message)
+        create_repeating_log(logger, message, handle, **kwargs)
+
+    deadline = datetime.timedelta(**kwargs)
+    # Here we only queue the call, we don't want to wait on it!
+    timeout_id = ioloop.IOLoop.current().add_timeout(deadline, log_and_queue)
+    handle.timeout_id = timeout_id
+
+    return handle
+
+
+def clear_repeating_log(handle):
+    """Stops the timeout function from being called."""
+    ioloop.IOLoop.current().remove_timeout(handle.timeout_id)
