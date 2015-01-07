@@ -178,9 +178,9 @@ def exception_logger(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            log.error('Exception caught in %s(%s, %s): %s' %
+            log.debug('Exception caught in %s(%s, %s): %s' %
                       (func, args, kwargs, e))
-            log.error(traceback.format_exc())
+            log.debug(traceback.format_exc())
             raise
     return wrapper
 

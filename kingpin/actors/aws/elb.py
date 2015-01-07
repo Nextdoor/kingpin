@@ -48,6 +48,11 @@ class ELBNotFound(exceptions.UnrecoverableActorFailure):
     """Raised when an ELB is not found"""
 
 
+class CertNotFound(exceptions.UnrecoverableActorFailure):
+
+    """Raised when an ELB is not found"""
+
+
 # Helper function
 def p2f(string):
     """Convert percentage string into float.
@@ -76,10 +81,7 @@ class ELBBaseActor(base.BaseActor):
     def __init__(self, *args, **kwargs):
         """Set up connection object.
 
-        Option Arguments:
-            name: string - name of the ELB
-            count: int, or string with %. (i.e. 4, or '80%')
-            region: string - AWS region name, like us-west-2.
+        Expected Arguments: region
         """
 
         super(ELBBaseActor, self).__init__(*args, **kwargs)
@@ -238,17 +240,25 @@ class UseCert(ELBBaseActor):
     @concurrent.run_on_executor
     @utils.exception_logger
     def _find_cert(self, name):
+        """Return a boto IAM object for a certificate."""
         self.log.debug('Searching for cert "%s"...' % name)
         try:
             cert = self.iam_conn.get_server_certificate(name)
-        except BotoServerError:
-            raise exceptions.UnrecoverableActorFailure(
-                'Could not find cert %s' % name)
+        except BotoServerError as e:
+            raise CertNotFound(
+                'Could not find cert %s. Reason: %s' % (name, e))
         return cert
 
     @concurrent.run_on_executor
     @utils.exception_logger
     def _use_cert(self, elb, cert):
+        """Assign an ssl cert to a given ELB.
+
+        Args:
+            elb: boto elb object
+            cert: boto iam server_certificate object
+        """
+
         arn = cert['get_server_certificate_response'].get(
             'get_server_certificate_result').get(
             'server_certificate').get(
@@ -258,7 +268,12 @@ class UseCert(ELBBaseActor):
 
     @gen.coroutine
     def _execute(self):
+        """Find ELB, and a Cert, then apply it."""
         elb = yield self._find_elb(self.option('name'))
         cert = yield self._find_cert(self.option('cert_name'))
 
-        yield self._use_cert(elb, cert)
+        if self._dry:
+            self.log.info('Would instruct %s to use %s' % (
+                self.option('name'), self.option('cert_name')))
+        else:
+            yield self._use_cert(elb, cert)

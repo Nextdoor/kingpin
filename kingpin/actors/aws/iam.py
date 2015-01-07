@@ -17,10 +17,12 @@
 import logging
 
 from concurrent import futures
+from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
 import boto.iam.connection
 
+from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings as aws_settings
@@ -79,12 +81,40 @@ class UploadCert(IAMBaseActor):
         'path': (str, None, 'The path for the server certificate.')
     }
 
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    def _upload(self, cert_name, cert_body, private_key, cert_chain, path):
+        """Create a new server certificate in AWS IAM."""
+        self.conn.upload_server_cert(
+            cert_name=cert_name,
+            cert_body=cert_body,
+            private_key=private_key,
+            cert_chain=cert_chain,
+            path=path)
+
     @gen.coroutine
     def _execute(self):
-        self.conn.upload_server_cert(
-            cert_name=self.option('name'),
-            cert_body=open(self.option('public_key_path')).read(),
-            private_key=open(self.option('private_key_path')).read(),
-            cert_chain=None,  # open(self.option('cert_chain_path')).read(),
-            path=self.option('path')
-            )
+        """Gather all the cert data and upload it.
+
+        The `boto` library requires actual cert contents, but this actor
+        expects paths to files.
+        """
+        # Gather needed cert data
+        cert_chain_body = None
+        if self.option('cert_chain_path'):
+            cert_chain_body = open(self.option('cert_chain_path')).read()
+
+        cert_body = open(self.option('public_key_path')).read()
+        private_key = open(self.option('private_key_path')).read()
+
+        # Upload it
+        if self._dry:
+            self.log.info('Would upload cert "%s"' % self.option('name'))
+        else:
+            self.log.info('Uploading cert "%s"' % self.option('name'))
+            yield self._upload(
+                cert_name=self.option('name'),
+                cert_body=cert_body,
+                private_key=private_key,
+                cert_chain=cert_chain_body,
+                path=self.option('path'))
