@@ -232,48 +232,81 @@ class UseCert(ELBBaseActor):
         'cert_name': (str, REQUIRED, 'Unique IAM certificate name, or ARN'),
     }
 
+    # Local copy of {cert_name: cert_arn} dictionary
+    cert_arn_cache = {}
+
     def __init__(self, *args, **kwargs):
         """Set up additional IAM connection."""
         super(UseCert, self).__init__(*args, **kwargs)
-        self.iam_conn = boto.iam.connection.IAMConnection()
+        self.iam_conn = boto.iam.connection.IAMConnection(
+            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
 
     @concurrent.run_on_executor
     @utils.exception_logger
-    def _find_cert(self, name):
-        """Return a boto IAM object for a certificate."""
+    def _check_access(self, elb):
+        try:
+            # A blank ARN value should have code 'CertificateNotFound'
+            # We're only checking if credentials have sufficient access
+            elb.set_listener_SSL_certificate(443, '')
+        except BotoServerError as e:
+            if e.error_code == 'AccessDenied':
+                raise exceptions.UnrecoverableActorFailure(e)
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    def _get_cert_arn(self, name):
+        """Return a server_certificate ARN."""
+
+        # Check cache first
+        if UseCert.cert_arn_cache.get(name):
+            self.log.debug('Using cached ARN value for "%s"' % name)
+            return UseCert.cert_arn_cache.get(name)
+
+        # If it's not in cache, find it through IAM
         self.log.debug('Searching for cert "%s"...' % name)
         try:
             cert = self.iam_conn.get_server_certificate(name)
         except BotoServerError as e:
             raise CertNotFound(
                 'Could not find cert %s. Reason: %s' % (name, e))
-        return cert
 
-    @concurrent.run_on_executor
-    @utils.exception_logger
-    def _use_cert(self, elb, cert):
-        """Assign an ssl cert to a given ELB.
-
-        Args:
-            elb: boto elb object
-            cert: boto iam server_certificate object
-        """
-
+        # Get the ARN of this cert
         arn = cert['get_server_certificate_response'].get(
             'get_server_certificate_result').get(
             'server_certificate').get(
             'server_certificate_metadata').get('arn')
+
+        # Store it in the cache for future use
+        UseCert.cert_arn_cache[name] = arn
+        return arn
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    def _use_cert(self, elb, arn):
+        """Assign an ssl cert to a given ELB.
+
+        Args:
+            elb: boto elb object.
+            arn: ARN for server certificate to use.
+        """
+
         self.log.info('Setting ELB "%s" to use cert arn: %s' % (elb, arn))
-        elb.set_listener_SSL_certificate(443, cert.arn)
+        try:
+            elb.set_listener_SSL_certificate(443, arn)
+        except BotoServerError as e:
+            raise exceptions.UnrecoverableActorFailure(
+                'Applying new SSL cert to %s failed: %s' % (elb, e))
 
     @gen.coroutine
     def _execute(self):
         """Find ELB, and a Cert, then apply it."""
         elb = yield self._find_elb(self.option('name'))
-        cert = yield self._find_cert(self.option('cert_name'))
+        cert_arn = yield self._get_cert_arn(self.option('cert_name'))
 
         if self._dry:
+            yield self._check_access(elb)
             self.log.info('Would instruct %s to use %s' % (
                 self.option('name'), self.option('cert_name')))
         else:
-            yield self._use_cert(elb, cert)
+            yield self._use_cert(elb, cert_arn)

@@ -1,7 +1,6 @@
 import logging
 
 from boto.exception import BotoServerError
-from tornado import gen
 from tornado import testing
 import mock
 
@@ -9,14 +8,9 @@ from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import elb as elb_actor
 from kingpin.actors.aws import settings
+from kingpin.actors.test import helper
 
 log = logging.getLogger(__name__)
-
-
-@gen.coroutine
-def tornado_value(*args):
-    """Returns whatever is passed in. Used for testing."""
-    raise gen.Return(*args)
 
 
 class TestWaitUntilHealthy(testing.AsyncTestCase):
@@ -44,12 +38,12 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
                                  'region': 'us-west-2',
                                  'count': 3})
 
-        actor._find_elb = mock.Mock(return_value=tornado_value('ELB'))
-        actor._is_healthy = mock.Mock(return_value=tornado_value(True))
+        actor._find_elb = helper.mock_tornado('ELB')
+        actor._is_healthy = helper.mock_tornado(True)
 
         val = yield actor._execute()
-        self.assertEquals(actor._find_elb.call_count, 1)
-        self.assertEquals(actor._is_healthy.call_count, 1)
+        self.assertEquals(actor._find_elb._call_count, 1)
+        self.assertEquals(actor._is_healthy._call_count, 1)
         self.assertEquals(val, None)
 
     @testing.gen_test
@@ -60,10 +54,10 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
                                  'region': 'us-west-2',
                                  'count': 3})
 
-        actor._find_elb = mock.Mock(return_value=tornado_value('ELB'))
+        actor._find_elb = helper.mock_tornado('ELB')
         actor._is_healthy = mock.Mock(
-            side_effect=[tornado_value(False),
-                         tornado_value(True)])
+            side_effect=[helper.tornado_value(False),
+                         helper.tornado_value(True)])
 
         # Optional mock -- making the test quicker.
         short_sleep = utils.tornado_sleep(0)
@@ -71,7 +65,7 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
             ts.return_value = short_sleep
             val = yield actor._execute()
 
-        self.assertEquals(actor._find_elb.call_count, 1)  # Don't refetch!
+        self.assertEquals(actor._find_elb._call_count, 1)  # Don't refetch!
         self.assertEquals(actor._is_healthy.call_count, 2)  # Retry!
         self.assertEquals(val, None)
 
@@ -84,13 +78,13 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
                                  'count': 3},
             dry=True)
 
-        actor._find_elb = mock.Mock(return_value=tornado_value('ELB'))
+        actor._find_elb = helper.mock_tornado('ELB')
         # NOTE: this is false, but assertion is True!
-        actor._is_healthy = mock.Mock(return_value=tornado_value(False))
+        actor._is_healthy = helper.mock_tornado(False)
 
         val = yield actor._execute()
-        self.assertEquals(actor._find_elb.call_count, 1)
-        self.assertEquals(actor._is_healthy.call_count, 1)
+        self.assertEquals(actor._find_elb._call_count, 1)
+        self.assertEquals(actor._is_healthy._call_count, 1)
         self.assertEquals(val, None)
 
     @testing.gen_test
@@ -171,3 +165,131 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
         val = yield actor._is_healthy(elb, 3)
 
         self.assertTrue(val)
+
+
+class TestUseCert(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestUseCert, self).setUp()
+        settings.AWS_ACCESS_KEY_ID = 'unit-test'
+        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+
+    @testing.gen_test
+    def test_check_access(self):
+        elb = mock.Mock()
+        botoerror = BotoServerError('Fail', 'Unit test')
+        botoerror.error_code = 'AccessDenied'
+        elb.set_listener_SSL_certificate = mock.Mock(
+            side_effect=botoerror)
+
+        actor = elb_actor.UseCert(
+            'Unit Test', {'name': 'unit-test',
+                          'region': 'unit-region',
+                          'cert_name': 'unit-cert'}
+            )
+
+        # AccessDenied means check has failed.
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            yield actor._check_access(elb)
+
+        # Anything else means the check has passed.
+        botoerror.error_code = 'Cert Not Found'
+        yield actor._check_access(elb)
+
+    @testing.gen_test
+    def test_get_cert_arn(self):
+        cert = {
+            'get_server_certificate_response': {
+                'get_server_certificate_result': {
+                    'server_certificate': {
+                        'server_certificate_metadata': {
+                            'arn': 'unit-test-arn-value'}}}}}
+
+        actor = elb_actor.UseCert(
+            'Unit Test', {'name': 'unit-test',
+                          'region': 'unit-region',
+                          'cert_name': 'unit-cert'}
+            )
+        actor.iam_conn = mock.Mock()
+        actor.iam_conn.get_server_certificate = mock.Mock(return_value=cert)
+
+        arn = yield actor._get_cert_arn('test')
+
+        self.assertEquals(actor.iam_conn.get_server_certificate.call_count, 1)
+        self.assertEquals(arn, 'unit-test-arn-value')
+
+        yield actor._get_cert_arn('test')
+        # Value should be cached, call count still 1
+        self.assertEquals(actor.iam_conn.get_server_certificate.call_count, 1)
+
+        yield actor._get_cert_arn('test-new')
+        # New name supplied, call count should be 2
+        self.assertEquals(actor.iam_conn.get_server_certificate.call_count, 2)
+
+    @testing.gen_test
+    def test_get_cert_arn_fail(self):
+        actor = elb_actor.UseCert(
+            'Unit Test', {'name': 'unit-test',
+                          'region': 'unit-region',
+                          'cert_name': 'unit-cert'}
+            )
+
+        actor.iam_conn = mock.Mock()
+        error = BotoServerError(400, 'test')
+        actor.iam_conn.get_server_certificate.side_effect = error
+
+        with self.assertRaises(elb_actor.CertNotFound):
+            # Note -- cannot use 'test' here because it's cached above
+            yield actor._get_cert_arn('broken-test')
+
+    @testing.gen_test
+    def test_use_cert(self):
+        actor = elb_actor.UseCert(
+            'Unit Test', {'name': 'unit-test',
+                          'region': 'unit-region',
+                          'cert_name': 'unit-cert'}
+            )
+        elb = mock.Mock()
+
+        yield actor._use_cert(elb, 'test')
+        self.assertEquals(elb.set_listener_SSL_certificate.call_count, 1)
+
+        error = BotoServerError(400, 'test')
+        elb.set_listener_SSL_certificate.side_effect = error
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            yield actor._use_cert(elb, 'test')
+
+    @testing.gen_test
+    def test_execute(self):
+        actor = elb_actor.UseCert(
+            'Unit Test', {'name': 'unit-test',
+                          'region': 'unit-region',
+                          'cert_name': 'unit-cert'}
+            )
+        actor._find_elb = helper.mock_tornado('elb')
+        actor._get_cert_arn = helper.mock_tornado('arn')
+        actor._check_access = helper.mock_tornado()
+        actor._use_cert = helper.mock_tornado()
+
+        yield actor._execute()
+
+        self.assertEquals(actor._check_access._call_count, 0)
+        self.assertEquals(actor._use_cert._call_count, 1)
+
+    @testing.gen_test
+    def test_execute_dry(self):
+        actor = elb_actor.UseCert(
+            'Unit Test', {'name': 'unit-test',
+                          'region': 'unit-region',
+                          'cert_name': 'unit-cert'},
+            dry=True
+            )
+        actor._find_elb = helper.mock_tornado('elb')
+        actor._get_cert_arn = helper.mock_tornado('arn')
+        actor._check_access = helper.mock_tornado()
+        actor._use_cert = helper.mock_tornado()
+
+        yield actor._execute()
+
+        self.assertEquals(actor._check_access._call_count, 1)
+        self.assertEquals(actor._use_cert._call_count, 0)
