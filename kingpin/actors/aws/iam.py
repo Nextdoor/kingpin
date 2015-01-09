@@ -110,11 +110,12 @@ class UploadCert(IAMBaseActor):
         # Upload it
         if self._dry:
             self.log.info('Would upload cert "%s"' % self.option('name'))
-        else:
-            self.log.info('Uploading cert "%s"' % self.option('name'))
-            yield self._upload(
-                cert_name=self.option('name'),
-                cert_body=cert_body,
-                private_key=private_key,
-                cert_chain=cert_chain_body,
-                path=self.option('path'))
+            raise gen.Return()
+
+        self.log.info('Uploading cert "%s"' % self.option('name'))
+        yield self._upload(
+            cert_name=self.option('name'),
+            cert_body=cert_body,
+            private_key=private_key,
+            cert_chain=cert_chain_body,
+            path=self.option('path'))
