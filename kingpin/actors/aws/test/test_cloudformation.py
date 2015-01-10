@@ -5,8 +5,6 @@ from tornado import gen
 from tornado import testing
 import mock
 
-from kingpin import utils
-from kingpin.actors import exceptions
 from kingpin.actors.aws import cloudformation
 from kingpin.actors.aws import settings
 
@@ -35,6 +33,16 @@ class TestCreate(testing.AsyncTestCase):
              'template': 'examples/test/aws.cloudformation/cf.unittest.json'})
         # TODO: Fill this in with some real content
         self.assertEquals(actor._template_body, '')
+        self.assertEquals(actor._template_url, None)
+
+        # Should return None
+        actor = cloudformation.Create(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2',
+             'template': 'http://foobar.json'})
+        self.assertEquals(actor._template_body, None)
+        self.assertEquals(actor._template_url, 'http://foobar.json')
 
         # Should raise exception
         with self.assertRaises(cloudformation.InvalidTemplateException):
@@ -43,3 +51,41 @@ class TestCreate(testing.AsyncTestCase):
                 {'name': 'unit-test-cf',
                  'region': 'us-west-2',
                  'template': 'missing'})
+
+    @testing.gen_test()
+    def test_validate_template_body(self):
+        actor = cloudformation.Create(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2',
+             'template': 'examples/test/aws.cloudformation/cf.unittest.json'})
+        actor.conn.validate_template = mock.MagicMock()
+        yield actor._validate_template()
+        actor.conn.validate_template.assert_called_with(
+            template_body='', template_url=None)
+
+    @testing.gen_test()
+    def test_validate_template_url(self):
+        actor = cloudformation.Create(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2',
+             'template': 'http://foobar.json'})
+        actor.conn.validate_template = mock.MagicMock()
+        yield actor._validate_template()
+        actor.conn.validate_template.assert_called_with(
+            template_body=None, template_url='http://foobar.json')
+
+    @testing.gen_test()
+    def test_validate_template_raises_boto_error(self):
+        actor = cloudformation.Create(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2',
+             'template': 'http://foobar.json'})
+        actor.conn.validate_template = mock.MagicMock()
+        actor.conn.validate_template.side_effect = BotoServerError(
+            'ValidationError', 'Invalid template property or properties')
+
+        with self.assertRaises(cloudformation.InvalidTemplateException):
+            yield actor._validate_template()

@@ -93,8 +93,8 @@ def main():
                        options={'macro': options.json,
                                 'tokens': env_tokens})
         yield runner.execute()
-    except actor_exceptions.ActorException:
-        log.error('Kingpin encountered mistakes during the play.')
+    except actor_exceptions.ActorException as e:
+        log.error('Kingpin encountered mistakes during the play: %s' % e)
         sys.exit(2)
 
 

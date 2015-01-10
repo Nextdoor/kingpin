@@ -98,7 +98,8 @@ class Create(CloudFormationBaseActor):
 
         # Check if the supplied CF template is a local file. If it is, read it
         # into memory.
-        self._template_body = self._get_template_body(self.option('template'))
+        (self._template_body, self._template_url) = self._get_template_body(
+            self.option('template'))
 
     def _get_template_body(self, template):
         """Reads in a local template file and returns the contents.
@@ -110,19 +111,48 @@ class Create(CloudFormationBaseActor):
         Args:
             template: String with a reference to a template location.
 
-        Returns
-            None/Contents of template file.
+        Returns:
+            Tuple with:
+              (None/Contents of template file,
+               None/URL of template)
+
+        Raises:
+            InvalidTemplateException
         """
         remote_types = ('http://', 'https://')
 
         if self.option('template').startswith(remote_types):
-            return None
+            return (None, template)
 
         try:
-            return open(template, 'r').read()
+            return (open(template, 'r').read(), None)
         except IOError as e:
             raise InvalidTemplateException(e)
 
+    # @utils.retry(Exception, delay=aws_settings.CF_RETRY_DELAY)
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    def _validate_template(self):
+        """Validates the CloudFormation template.
+
+        Raises:
+            InvalidTemplateException
+        """
+        if self._template_body is not None:
+            log.debug('Validating template with AWS...')
+        else:
+            log.debug('Validating template (%s) with AWS...' %
+                      self._template_url)
+
+        try:
+            self.conn.validate_template(
+                template_body=self._template_body,
+                template_url=self._template_url)
+        except BotoServerError as e:
+            msg = '%s: %s' % (e.error_code, e.message)
+            raise InvalidTemplateException(msg)
+
     @gen.coroutine
     def _execute(self):
+        yield self._validate_template()
         raise gen.Return()
