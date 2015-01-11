@@ -6,7 +6,7 @@
   "Resources" : {
     "IntegrationTestBucket": {
       "Type" : "AWS::S3::Bucket",
-      "Properties" : {
+      "roperties" : {
         "Tags" : [ { "Kingpin": { "Ref": "TestParam" } } ]
       }
     }

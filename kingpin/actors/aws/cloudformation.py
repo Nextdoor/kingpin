@@ -19,6 +19,7 @@ import logging
 from boto import cloudformation
 from boto.exception import BotoServerError
 from concurrent import futures
+from retrying import retry
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
@@ -40,8 +41,19 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 # do this.
 EXECUTOR = futures.ThreadPoolExecutor(10)
 
+# Maximum wait time for any @retry-decorated method. Here for easy overriding
+# in the unit tests.
+WAIT_EXPONENTIAL_MAX = 30000
+MAX_RETRIES = 3
+
+
+# Used by the retrying.retry decorator
+def retry_if_transient_error(exception):
+    return isinstance(exception, BotoServerError)
+
 
 class InvalidTemplateException(exceptions.UnrecoverableActorFailure):
+
     """An invalid CloudFormation template was supplied."""
 
 
@@ -129,8 +141,11 @@ class Create(CloudFormationBaseActor):
         except IOError as e:
             raise InvalidTemplateException(e)
 
-    # @utils.retry(Exception, delay=aws_settings.CF_RETRY_DELAY)
     @concurrent.run_on_executor
+    @retry(retry_on_exception=retry_if_transient_error,
+           stop_max_attempt_number=MAX_RETRIES,
+           wait_exponential_multiplier=500,
+           wait_exponential_max=WAIT_EXPONENTIAL_MAX)
     @utils.exception_logger
     def _validate_template(self):
         """Validates the CloudFormation template.
@@ -149,6 +164,9 @@ class Create(CloudFormationBaseActor):
                 template_body=self._template_body,
                 template_url=self._template_url)
         except BotoServerError as e:
+            if not e.status == 400:
+                raise
+
             msg = '%s: %s' % (e.error_code, e.message)
             raise InvalidTemplateException(msg)
 

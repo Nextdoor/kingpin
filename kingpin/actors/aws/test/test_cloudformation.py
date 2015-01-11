@@ -10,6 +10,13 @@ from kingpin.actors.aws import settings
 
 log = logging.getLogger(__name__)
 
+# Make the retry decorator super fast in unit tests
+#
+# ## NOTE: THIS DOES NOT WORK RIGHT NOW. NOT SURE WHY.
+cloudformation.WAIT_EXPONENTIAL_MAX = 1
+cloudformation.MAX_RETRIES = 3
+reload(cloudformation)
+
 
 @gen.coroutine
 def tornado_value(*args):
@@ -85,7 +92,11 @@ class TestCreate(testing.AsyncTestCase):
              'template': 'http://foobar.json'})
         actor.conn.validate_template = mock.MagicMock()
         actor.conn.validate_template.side_effect = BotoServerError(
-            'ValidationError', 'Invalid template property or properties')
-
+            400, 'Invalid template property or properties')
         with self.assertRaises(cloudformation.InvalidTemplateException):
+            yield actor._validate_template()
+
+        actor.conn.validate_template.side_effect = BotoServerError(
+            500, 'Some other error')
+        with self.assertRaises(BotoServerError):
             yield actor._validate_template()
