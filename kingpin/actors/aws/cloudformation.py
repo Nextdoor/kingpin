@@ -67,6 +67,11 @@ class CloudFormationBaseActor(base.BaseActor):
 
     executor = EXECUTOR
 
+    # Used mainly for unit testing..
+    all_options = {
+        'region': (str, REQUIRED, 'AWS region name, like us-west-2')
+    }
+
     def __init__(self, *args, **kwargs):
         """Create the connection object."""
         super(CloudFormationBaseActor, self).__init__(*args, **kwargs)
@@ -83,6 +88,43 @@ class CloudFormationBaseActor(base.BaseActor):
             self.option('region'),
             aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
+
+    @concurrent.run_on_executor
+    @retry(retry_on_exception=retry_if_transient_error,
+           stop_max_attempt_number=MAX_RETRIES,
+           wait_exponential_multiplier=500,
+           wait_exponential_max=WAIT_EXPONENTIAL_MAX)
+    @utils.exception_logger
+    def _get_stacks(self):
+        """Gets a list of existing CloudFormation stacks.
+
+        Gets a list of all of the stacks currently in the account, that are not
+        in the status 'DELETE_COMPLETE'.
+
+        Returns:
+            A list of boto.cloudformation.stack.StackSummary objects.
+        """
+        # Get the list of all possible stack statuses from the Boto module,
+        # then pull out the few that indicate a stack is no longer in
+        # existence.
+        self.log.debug('Getting list of stacks from Amazon..')
+        statuses = list(self.conn.valid_states)
+        statuses.remove('DELETE_COMPLETE')
+        return self.conn.list_stacks(stack_status_filters=statuses)
+
+    @gen.coroutine
+    def _does_stack_exist(self, stack):
+        """Checks whether a CF stack already exists or not.
+
+        Args:
+            stack: String name of the stack to look for.
+
+        Returns:
+            Boolean
+        """
+        stacks = yield self._get_stacks()
+        new_list = [s for s in stacks if s.stack_name == stack]
+        raise gen.Return(len(new_list) > 0)
 
 
 class Create(CloudFormationBaseActor):
@@ -154,10 +196,10 @@ class Create(CloudFormationBaseActor):
             InvalidTemplateException
         """
         if self._template_body is not None:
-            log.debug('Validating template with AWS...')
+            self.log.debug('Validating template with AWS...')
         else:
-            log.debug('Validating template (%s) with AWS...' %
-                      self._template_url)
+            self.log.debug('Validating template (%s) with AWS...' %
+                           self._template_url)
 
         try:
             self.conn.validate_template(

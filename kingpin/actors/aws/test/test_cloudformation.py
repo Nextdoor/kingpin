@@ -24,6 +24,43 @@ def tornado_value(*args):
     raise gen.Return(*args)
 
 
+class TestCloudFormationBaseActor(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestCloudFormationBaseActor, self).setUp()
+        settings.AWS_ACCESS_KEY_ID = 'unit-test'
+        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+
+    @testing.gen_test
+    def test_get_stacks(self):
+        actor = cloudformation.CloudFormationBaseActor(
+            'unittest', {'region': 'us-east-1'})
+        actor.conn.list_stacks = mock.MagicMock()
+        actor.conn.list_stacks.return_value = [1, 2, 3]
+        ret = yield actor._get_stacks()
+        self.assertEquals([1, 2, 3], ret)
+
+    @testing.gen_test
+    def test_does_stack_exist(self):
+        actor = cloudformation.CloudFormationBaseActor(
+            'unittest', {'region': 'us-east-1'})
+
+        actor.conn.list_stacks = mock.MagicMock()
+        s1 = mock.MagicMock()
+        s1.stack_name = 'stack-1'
+        s2 = mock.MagicMock()
+        s2.stack_name = 'stack-2'
+        s3 = mock.MagicMock()
+        s3.stack_name = 'stack-3'
+        actor.conn.list_stacks.return_value = [s1, s2, s3]
+
+        ret = yield actor._does_stack_exist('stack-1')
+        self.assertEquals(ret, True)
+
+        ret = yield actor._does_stack_exist('stack-5')
+        self.assertEquals(ret, False)
+
+
 class TestCreate(testing.AsyncTestCase):
 
     def setUp(self):
