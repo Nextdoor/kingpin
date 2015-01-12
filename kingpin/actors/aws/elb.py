@@ -228,6 +228,7 @@ class UseCert(ELBBaseActor):
 
     all_options = {
         'name': (str, REQUIRED, 'Name of the ELB'),
+        'port': (int, 443, 'Port associated with the cert'),
         'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
         'cert_name': (str, REQUIRED, 'Unique IAM certificate name, or ARN'),
     }
@@ -248,7 +249,7 @@ class UseCert(ELBBaseActor):
         try:
             # A blank ARN value should have code 'CertificateNotFound'
             # We're only checking if credentials have sufficient access
-            elb.set_listener_SSL_certificate(443, '')
+            elb.set_listener_SSL_certificate(self.option('port'), '')
         except BotoServerError as e:
             if e.error_code == 'AccessDenied':
                 raise exceptions.UnrecoverableActorFailure(e)
@@ -293,7 +294,7 @@ class UseCert(ELBBaseActor):
 
         self.log.info('Setting ELB "%s" to use cert arn: %s' % (elb, arn))
         try:
-            elb.set_listener_SSL_certificate(443, arn)
+            elb.set_listener_SSL_certificate(self.option('port'), arn)
         except BotoServerError as e:
             raise exceptions.UnrecoverableActorFailure(
                 'Applying new SSL cert to %s failed: %s' % (elb, e))
