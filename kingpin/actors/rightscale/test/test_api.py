@@ -274,11 +274,22 @@ class TestRightScale(testing.AsyncTestCase):
         # task succeeds
         mock_task = mock.MagicMock(name='fake task')
         mock_task.self.show.side_effect = [queued, in_process, success]
-        ret = yield self.client.wait_for_task(mock_task, sleep=0.01)
+        mock_logger = mock.Mock()
+        repeat_patcher = mock.patch.object(api.utils,
+                                           'create_repeating_log')
+        with repeat_patcher as repeat_mock:
+            ret = yield self.client.wait_for_task(
+                mock_task, task_name='ut-fake-task',
+                sleep=0.01, logger=mock_logger)
         self.assertEquals(ret, True)
         mock_task.assert_has_calls(
             [mock.call.self.show(), mock.call.self.show(),
              mock.call.self.show()])
+
+        repeat_mock.assert_called_with(
+            mock_logger,
+            'Still waiting on ut-fake-task',
+            seconds=0.01)
 
         # task completed
         mock_task = mock.MagicMock(name='fake task')
