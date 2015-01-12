@@ -27,18 +27,16 @@ class TestUploadCert(testing.AsyncTestCase):
         )
         actor.conn = mock.Mock()
 
-        open_patcher = mock.patch('%s.open' % actor.__module__,
-                                  create=True)
-        with open_patcher as mocked_open:
-            yield actor._execute()
+        actor.readfile = mock.Mock()
+        yield actor._execute()
 
         self.assertEquals(actor.conn.upload_server_cert.call_count, 1)
         actor.conn.upload_server_cert.assert_called_with(
             path=None,
-            private_key=mocked_open().read(),
-            cert_body=mocked_open().read(),
+            private_key=actor.readfile(),
+            cert_body=actor.readfile(),
             cert_name='test',
-            cert_chain=mocked_open().read())
+            cert_chain=actor.readfile())
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -52,6 +50,7 @@ class TestUploadCert(testing.AsyncTestCase):
         )
         actor.conn = mock.Mock()
 
+        actor.readfile = mock.Mock()
         open_patcher = mock.patch('%s.open' % actor.__module__,
                                   create=True)
         with open_patcher:

@@ -133,6 +133,18 @@ class TestBaseActor(testing.AsyncTestCase):
         opt = self.actor.option('foo')
         self.assertEquals(opt, 'bar')
 
+    def test_readfile(self):
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor.readfile('notfound')
+
+        open_patcher = mock.patch('%s.open' % self.actor.__module__,
+                                  create=True)
+        with open_patcher as mock_open:
+            self.actor.readfile('somefile')
+            self.assertEquals(mock_open.call_count, 1)
+            # using __enter__ here because it's opened as a context manager.
+            self.assertEquals(mock_open().__enter__().read.call_count, 1)
+
     @testing.gen_test
     def test_execute(self):
         res = yield self.actor.execute()

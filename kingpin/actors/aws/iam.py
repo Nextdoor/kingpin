@@ -16,6 +16,7 @@
 
 import logging
 
+from boto.exception import BotoServerError
 from concurrent import futures
 from tornado import concurrent
 from tornado import gen
@@ -81,6 +82,8 @@ class UploadCert(IAMBaseActor):
         'path': (str, None, 'The path for the server certificate.')
     }
 
+    @gen.coroutine
+    @utils.retry(BotoServerError)
     @concurrent.run_on_executor
     @utils.exception_logger
     def _upload(self, cert_name, cert_body, private_key, cert_chain, path):
@@ -102,10 +105,10 @@ class UploadCert(IAMBaseActor):
         # Gather needed cert data
         cert_chain_body = None
         if self.option('cert_chain_path'):
-            cert_chain_body = open(self.option('cert_chain_path')).read()
+            cert_chain_body = self.readfile(self.option('cert_chain_path'))
 
-        cert_body = open(self.option('public_key_path')).read()
-        private_key = open(self.option('private_key_path')).read()
+        cert_body = self.readfile(self.option('public_key_path'))
+        private_key = self.readfile(self.option('private_key_path'))
 
         # Upload it
         if self._dry:

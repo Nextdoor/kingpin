@@ -197,6 +197,21 @@ class BaseActor(object):
 
         return self._options.get(name)
 
+    def readfile(self, path):
+        """Return file contents as a string.
+
+        Raises:
+            InvalidOptions if file is not found, or readable.
+        """
+
+        try:
+            with open(path) as f:
+                contents = f.read()
+        except IOError as e:
+            raise exceptions.InvalidOptions(e)
+
+        return contents
+
     def timer(f):
         """Coroutine-compatible function timer.
 
