@@ -308,7 +308,7 @@ class Create(CloudFormationBaseActor):
            wait_exponential_max=aws_settings.CF_WAIT_MAX)
     @utils.exception_logger
     def _create_stack(self):
-        """Executes the stack creation and then waits."""
+        """Executes the stack creation."""
         # Create the stack, and get its ID.
         self.log.info('Creating stack %s' % self.option('name'))
         try:
@@ -358,5 +358,77 @@ class Create(CloudFormationBaseActor):
 
         # Now wait until the stack creation has finished
         yield self._wait_until_state(COMPLETE)
+
+        raise gen.Return()
+
+
+class Delete(CloudFormationBaseActor):
+
+    """Deletes an Amazon CF Stack.
+
+    http://boto.readthedocs.org/en/latest/ref/cloudformation.html
+    #boto.cloudformation.connection.CloudFormationConnection.delete_stack
+
+    """
+
+    all_options = {
+        'name': (str, REQUIRED, 'Name of the stack'),
+        'region': (str, REQUIRED, 'AWS region name, like us-west-2')
+    }
+
+    @concurrent.run_on_executor
+    @retry(retry_on_exception=retry_if_transient_error,
+           stop_max_attempt_number=5,
+           wait_exponential_multiplier=500,
+           wait_exponential_max=aws_settings.CF_WAIT_MAX)
+    @utils.exception_logger
+    def _delete_stack(self):
+        """Executes the stack deletion."""
+        # Create the stack, and get its ID.
+        self.log.info('Deleting stack %s' % self.option('name'))
+        try:
+            ret = self.conn.delete_stack(self.option('name'))
+        except BotoServerError as e:
+            msg = '%s: %s' % (e.error_code, e.message)
+
+            if e.status == 403:
+                raise exceptions.InvalidCredentials(msg)
+
+            if e.status == 400:
+                raise CloudFormationError(msg)
+
+            raise
+        self.log.info('Stack %s delete requested: %s' %
+                      (self.option('name'), ret))
+        return ret
+
+    @gen.coroutine
+    def _execute(self):
+        stack_name = self.option('name')
+
+        # If the stack doesn't exist, let the user know.
+        exists = yield self._get_stack(stack_name)
+        if not exists:
+            raise StackNotFound('Stack %s does not exist!' % stack_name)
+
+        # If we're in dry mode, exit at this point. We can't do anything
+        # further to validate that the creation process will work.
+        if self._dry:
+            self.log.info('Skipping CloudFormation Stack deletion.')
+            raise gen.Return()
+
+        # Delete
+        yield self._delete_stack()
+
+        # Now wait until the stack creation has finished
+        try:
+            yield self._wait_until_state(DELETED)
+        except StackNotFound:
+            # Pass here because a stack not found exception is totally
+            # reasonable since we're deleting the stack. Sometimes Amazon
+            # actually deletes the stack immediately, and othertimes it lists
+            # the stack as a 'deleted' state, but we still get that state back.
+            # Either case is fine.
+            pass
 
         raise gen.Return()

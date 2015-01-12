@@ -37,3 +37,5 @@ Examples
 
 **Dry Mode**
 
+Validates the template, verifies that an existing stack with that name does not
+exist. Does not create the stack.

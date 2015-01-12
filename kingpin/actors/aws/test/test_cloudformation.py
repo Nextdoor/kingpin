@@ -229,3 +229,139 @@ class TestCreate(testing.AsyncTestCase):
             500, 'Some unexpected failure')
         with self.assertRaises(BotoServerError):
             yield actor._create_stack()
+
+    @testing.gen_test
+    def test_execute(self):
+        actor = cloudformation.Create(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2',
+             'template':
+                 'examples/test/aws.cloudformation/cf.integration.json'})
+
+        actor._validate_template = mock.MagicMock()
+        actor._validate_template.side_effect = [tornado_value(True)]
+
+        actor._get_stack = mock.MagicMock()
+        actor._get_stack.side_effect = [tornado_value(None)]
+
+        actor._create_stack = mock.MagicMock()
+        actor._create_stack.side_effect = [tornado_value(None)]
+
+        actor._wait_until_state = mock.MagicMock()
+        actor._wait_until_state.side_effect = [tornado_value(None)]
+        yield actor._execute()
+
+    @testing.gen_test
+    def test_execute_exists(self):
+        actor = cloudformation.Create(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2',
+             'template':
+                 'examples/test/aws.cloudformation/cf.integration.json'})
+
+        actor._validate_template = mock.MagicMock()
+        actor._validate_template.side_effect = [tornado_value(True)]
+
+        actor._get_stack = mock.MagicMock()
+        actor._get_stack.side_effect = [tornado_value(True)]
+
+        with self.assertRaises(cloudformation.StackAlreadyExists):
+            yield actor._execute()
+
+    @testing.gen_test
+    def test_execute_dry(self):
+        actor = cloudformation.Create(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2',
+             'template':
+                 'examples/test/aws.cloudformation/cf.integration.json'},
+            dry=True)
+
+        actor._validate_template = mock.MagicMock()
+        actor._validate_template.side_effect = [tornado_value(True)]
+
+        actor._get_stack = mock.MagicMock()
+        actor._get_stack.side_effect = [tornado_value(None)]
+
+        yield actor._execute()
+
+
+class TestDelete(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestDelete, self).setUp()
+        settings.AWS_ACCESS_KEY_ID = 'unit-test'
+        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+
+    @testing.gen_test
+    def test_delete_stack(self):
+        actor = cloudformation.Delete(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2'})
+        actor.conn.delete_stack = mock.MagicMock(name='delete_stack_mock')
+        actor.conn.delete_stack.return_value = 'req-id-1'
+        ret = yield actor._delete_stack()
+        self.assertEquals(ret, 'req-id-1')
+
+    @testing.gen_test
+    def test_delete_stack_raises_boto_error(self):
+        actor = cloudformation.Delete(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2'})
+        actor.conn.delete_stack = mock.MagicMock()
+
+        actor.conn.delete_stack.side_effect = BotoServerError(
+            400, 'Some error')
+        with self.assertRaises(cloudformation.CloudFormationError):
+            yield actor._delete_stack()
+
+        actor.conn.delete_stack.side_effect = BotoServerError(
+            403, 'Invalid credentials')
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield actor._delete_stack()
+
+        actor.conn.delete_stack.side_effect = BotoServerError(
+            500, 'Some unexpected failure')
+        with self.assertRaises(BotoServerError):
+            yield actor._delete_stack()
+
+    @testing.gen_test
+    def test_execute(self):
+        actor = cloudformation.Delete(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2'})
+        actor._get_stack = mock.MagicMock()
+        actor._get_stack.side_effect = [tornado_value(True)]
+        actor._delete_stack = mock.MagicMock()
+        actor._delete_stack.side_effect = [tornado_value(None)]
+        actor._wait_until_state = mock.MagicMock()
+        actor._wait_until_state.side_effect = cloudformation.StackNotFound()
+        yield actor._execute()
+
+    @testing.gen_test
+    @testing.gen_test
+    def test_execute_dry(self):
+        actor = cloudformation.Delete(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2'}, dry=True)
+        actor._get_stack = mock.MagicMock()
+        actor._get_stack.side_effect = [tornado_value(True)]
+        yield actor._execute()
+
+    @testing.gen_test
+    def test_execute_not_exists(self):
+        actor = cloudformation.Delete(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2'})
+        actor._get_stack = mock.MagicMock()
+        actor._get_stack.side_effect = [tornado_value(None)]
+        with self.assertRaises(cloudformation.StackNotFound):
+            yield actor._execute()

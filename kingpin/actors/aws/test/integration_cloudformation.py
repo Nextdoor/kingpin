@@ -74,3 +74,25 @@ class IntegrationCreate(testing.AsyncTestCase):
 
         with self.assertRaises(cloudformation.StackAlreadyExists):
             yield actor.execute()
+
+    @attr('integration')
+    @testing.gen_test(timeout=60)
+    def integration_03_delete_stack(self):
+        actor = cloudformation.Delete(
+            'Delete Stack',
+            {'region': self.region,
+             'name': self.bucket_name})
+
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('integration')
+    @testing.gen_test(timeout=60)
+    def integration_04_delete_missing_stack_should_fail(self):
+        actor = cloudformation.Delete(
+            'Delete Stack',
+            {'region': self.region,
+             'name': self.bucket_name})
+
+        with self.assertRaises(cloudformation.StackNotFound):
+            yield actor.execute()
