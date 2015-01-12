@@ -41,20 +41,45 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 # do this.
 EXECUTOR = futures.ThreadPoolExecutor(10)
 
-# Maximum wait time for any @retry-decorated method. Here for easy overriding
-# in the unit tests.
-WAIT_EXPONENTIAL_MAX = 30000
-MAX_RETRIES = 3
-
 
 # Used by the retrying.retry decorator
 def retry_if_transient_error(exception):
     return isinstance(exception, BotoServerError)
 
 
-class InvalidTemplateException(exceptions.UnrecoverableActorFailure):
+class CloudFormationError(exceptions.RecoverableActorFailure):
+
+    """Raised on any generic CloudFormation error."""
+
+
+class InvalidTemplate(exceptions.UnrecoverableActorFailure):
 
     """An invalid CloudFormation template was supplied."""
+
+
+class StackAlreadyExists(exceptions.RecoverableActorFailure):
+
+    """The requested CloudFormation stack already exists."""
+
+
+class StackNotFound(exceptions.RecoverableActorFailure):
+
+    """The requested CloudFormation stack does not exist."""
+
+
+# CloudFormation has over a dozen different 'stack states'... but for the
+# purposes of these actors, we really only care about a few logical states.
+# Here we map the raw states into logical states.
+COMPLETE = ('CREATE_COMPLETE', 'UPDATE_COMPLETE')
+DELETED = ('DELETE_COMPLETE', 'ROLLBACK_COMPLETE')
+IN_PROGRESS = (
+    'CREATE_IN_PROGRESS', 'DELETE_IN_PROGRESS',
+    'ROLLBACK_IN_PROGRESS', 'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS',
+    'UPDATE_IN_PROGRESS', 'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS',
+    'UPDATE_ROLLBACK_IN_PROGRESS')
+FAILED = (
+    'CREATE_FAILED', 'DELETE_FAILED', 'ROLLBACK_FAILED',
+    'UPDATE_ROLLBACK_FAILED')
 
 
 class CloudFormationBaseActor(base.BaseActor):
@@ -91,9 +116,9 @@ class CloudFormationBaseActor(base.BaseActor):
 
     @concurrent.run_on_executor
     @retry(retry_on_exception=retry_if_transient_error,
-           stop_max_attempt_number=MAX_RETRIES,
+           stop_max_attempt_number=5,
            wait_exponential_multiplier=500,
-           wait_exponential_max=WAIT_EXPONENTIAL_MAX)
+           wait_exponential_max=aws_settings.CF_WAIT_MAX)
     @utils.exception_logger
     def _get_stacks(self):
         """Gets a list of existing CloudFormation stacks.
@@ -113,18 +138,68 @@ class CloudFormationBaseActor(base.BaseActor):
         return self.conn.list_stacks(stack_status_filters=statuses)
 
     @gen.coroutine
-    def _does_stack_exist(self, stack):
-        """Checks whether a CF stack already exists or not.
+    def _get_stack(self, stack):
+        """Returns a cloudformation.Stack object of the requested stack.
 
         Args:
-            stack: String name of the stack to look for.
+            stack: String name
 
-        Returns:
-            Boolean
+        Returns
+            <Stack Object> or <None>
         """
         stacks = yield self._get_stacks()
+        self.log.debug('Checking whether stack %s exists.' % stack)
         new_list = [s for s in stacks if s.stack_name == stack]
-        raise gen.Return(len(new_list) > 0)
+
+        if len(new_list) > 0:
+            raise gen.Return(new_list[0])
+
+        raise gen.Return(None)
+
+    @gen.coroutine
+    def _wait_until_state(self, desired_states, sleep=15):
+        """Indefinite loop until a stack has finished creating/deleting.
+
+        Whether the stack has failed, suceeded or been rolled back... this
+        method loops until the process has finished. If the final status is a
+        failure (rollback/failed) then an exception is raised.
+
+        Args:
+            desired_states: (tuple/list) States that indicate a successful
+                            operation.
+            sleep: (int) Time in seconds between stack status checks
+
+        Raises:
+            StackNotFound: If the stack doesn't exist.
+        """
+        while True:
+            stack = yield self._get_stack(self.option('name'))
+
+            if not stack:
+                msg = 'Stack %s not found?' % self.option('name')
+                raise StackNotFound(msg)
+
+            self.log.debug('Got stack %s status: %s' %
+                           (stack.stack_name, stack.stack_status))
+
+            # First, lets see if the stack is still in progress (either
+            # creation, deletion, or rollback .. doesn't really matter)
+            if stack.stack_status in IN_PROGRESS:
+                self.log.info('Stack is in %s, waiting %s(s)...' %
+                              (stack.stack_status, sleep))
+                yield utils.tornado_sleep(sleep)
+                continue
+
+            # If the stack is in the desired state, then return
+            if stack.stack_status in desired_states:
+                self.log.info('Stack execution completed, final state: %s' %
+                              stack.stack_status)
+                raise gen.Return()
+
+            # Lastly, if we get here, then something is very wrong and we got
+            # some funky status back. Throw an exception.
+            msg = 'Unxpected stack state received (%s)' % stack.stack_status
+            raise CloudFormationError(msg)
 
 
 class Create(CloudFormationBaseActor):
@@ -137,13 +212,22 @@ class Create(CloudFormationBaseActor):
     """
 
     all_options = {
+        'capabilities': (list, [],
+                         'The list of capabilities that you want to allow '
+                         'in the stack'),
+        'disable_rollback': (bool, False,
+                             'Set to `True` to disable rollback of the stack '
+                             'if stack creation failed.'),
         'name': (str, REQUIRED, 'Name of the stack'),
+        'parameters': (dict, {}, 'Parameters passed into the CF '
+                                 'template execution'),
+        'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
         'template': (str, REQUIRED,
                      'Path to the AWS CloudFormation File. http(s)://, '
                      'file:///, absolute or relative file paths.'),
-        'parameters': (dict, {}, 'Parameters passed into the CF '
-                                 'template execution'),
-        'region': (str, REQUIRED, 'AWS region name, like us-west-2')
+        'timeout_in_minutes': (int, 60,
+                               'The amount of time that can pass before the '
+                               'stack status becomes CREATE_FAILED'),
     }
 
     def __init__(self, *args, **kwargs):
@@ -171,7 +255,7 @@ class Create(CloudFormationBaseActor):
                None/URL of template)
 
         Raises:
-            InvalidTemplateException
+            InvalidTemplate
         """
         remote_types = ('http://', 'https://')
 
@@ -181,19 +265,20 @@ class Create(CloudFormationBaseActor):
         try:
             return (open(template, 'r').read(), None)
         except IOError as e:
-            raise InvalidTemplateException(e)
+            raise InvalidTemplate(e)
 
     @concurrent.run_on_executor
     @retry(retry_on_exception=retry_if_transient_error,
-           stop_max_attempt_number=MAX_RETRIES,
+           stop_max_attempt_number=5,
            wait_exponential_multiplier=500,
-           wait_exponential_max=WAIT_EXPONENTIAL_MAX)
+           wait_exponential_max=aws_settings.CF_WAIT_MAX)
     @utils.exception_logger
     def _validate_template(self):
         """Validates the CloudFormation template.
 
         Raises:
-            InvalidTemplateException
+            InvalidTemplate
+            exceptions.InvalidCredentials
         """
         if self._template_body is not None:
             self.log.debug('Validating template with AWS...')
@@ -206,13 +291,72 @@ class Create(CloudFormationBaseActor):
                 template_body=self._template_body,
                 template_url=self._template_url)
         except BotoServerError as e:
-            if not e.status == 400:
-                raise
-
             msg = '%s: %s' % (e.error_code, e.message)
-            raise InvalidTemplateException(msg)
+
+            if e.status == 403:
+                raise exceptions.InvalidCredentials(msg)
+
+            if e.status == 400:
+                raise InvalidTemplate(msg)
+
+            raise
+
+    @concurrent.run_on_executor
+    @retry(retry_on_exception=retry_if_transient_error,
+           stop_max_attempt_number=5,
+           wait_exponential_multiplier=500,
+           wait_exponential_max=aws_settings.CF_WAIT_MAX)
+    @utils.exception_logger
+    def _create_stack(self):
+        """Executes the stack creation and then waits."""
+        # Create the stack, and get its ID.
+        self.log.info('Creating stack %s' % self.option('name'))
+        try:
+            stack_id = self.conn.create_stack(
+                self.option('name'),
+                template_body=self._template_body,
+                template_url=self._template_url,
+                parameters=self.option('parameters').items(),
+                disable_rollback=self.option('disable_rollback'),
+                timeout_in_minutes=self.option('timeout_in_minutes'),
+                capabilities=self.option('capabilities'))
+        except BotoServerError as e:
+            msg = '%s: %s' % (e.error_code, e.message)
+
+            if e.status == 403:
+                raise exceptions.InvalidCredentials(msg)
+
+            if e.status == 400:
+                raise CloudFormationError(msg)
+
+            raise
+
+        self.log.info('Stack %s created: %s' % (self.option('name'), stack_id))
+        return stack_id
 
     @gen.coroutine
     def _execute(self):
+        stack_name = self.option('name')
+
         yield self._validate_template()
+
+        # If a stack already exists, we cannot re-create it. Raise a
+        # recoverable exception and let the end user decide whether this is bad
+        # or not.
+        exists = yield self._get_stack(stack_name)
+        if exists:
+            raise StackAlreadyExists('Stack %s already exists!' % stack_name)
+
+        # If we're in dry mode, exit at this point. We can't do anything
+        # further to validate that the creation process will work.
+        if self._dry:
+            self.log.info('Skipping CloudFormation Stack creation.')
+            raise gen.Return()
+
+        # Create the stack
+        yield self._create_stack()
+
+        # Now wait until the stack creation has finished
+        yield self._wait_until_state(COMPLETE)
+
         raise gen.Return()

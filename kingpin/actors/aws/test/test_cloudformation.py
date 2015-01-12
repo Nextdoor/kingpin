@@ -5,16 +5,14 @@ from tornado import gen
 from tornado import testing
 import mock
 
+from kingpin.actors import exceptions
 from kingpin.actors.aws import cloudformation
 from kingpin.actors.aws import settings
 
 log = logging.getLogger(__name__)
 
 # Make the retry decorator super fast in unit tests
-#
-# ## NOTE: THIS DOES NOT WORK RIGHT NOW. NOT SURE WHY.
-cloudformation.WAIT_EXPONENTIAL_MAX = 1
-cloudformation.MAX_RETRIES = 3
+settings.CF_WAIT_MAX = 0
 reload(cloudformation)
 
 
@@ -31,6 +29,13 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
 
+    def test_init_with_bad_creds(self):
+        settings.AWS_ACCESS_KEY_ID = None
+        settings.AWS_SECRET_ACCESS_KEY = None
+        with self.assertRaises(exceptions.InvalidCredentials):
+            cloudformation.CloudFormationBaseActor(
+                'unittest', {'region': 'us-east-1'})
+
     @testing.gen_test
     def test_get_stacks(self):
         actor = cloudformation.CloudFormationBaseActor(
@@ -41,7 +46,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         self.assertEquals([1, 2, 3], ret)
 
     @testing.gen_test
-    def test_does_stack_exist(self):
+    def test_get_stack(self):
         actor = cloudformation.CloudFormationBaseActor(
             'unittest', {'region': 'us-east-1'})
 
@@ -54,11 +59,55 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         s3.stack_name = 'stack-3'
         actor.conn.list_stacks.return_value = [s1, s2, s3]
 
-        ret = yield actor._does_stack_exist('stack-1')
-        self.assertEquals(ret, True)
+        ret = yield actor._get_stack('stack-1')
+        self.assertEquals(ret, s1)
 
-        ret = yield actor._does_stack_exist('stack-5')
-        self.assertEquals(ret, False)
+        ret = yield actor._get_stack('stack-5')
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_wait_until_state(self):
+        create_in_progress = mock.MagicMock(name='create_in_progress')
+        create_in_progress.stack_status = 'CREATE_IN_PROGRESS'
+        create_in_progress.stack_name = 'unittest'
+
+        create_complete = mock.MagicMock(name='CREATE_COMPLETE')
+        create_complete.stack_status = 'CREATE_COMPLETE'
+        create_complete.stack_name = 'unittest'
+
+        rollback_complete = mock.MagicMock(name='ROLLBACK_COMPLETE')
+        rollback_complete.stack_status = 'ROLLBACK_COMPLETE'
+        rollback_complete.stack_name = 'unittest'
+
+        actor = cloudformation.CloudFormationBaseActor(
+            'unittest', {'region': 'us-east-1'})
+        actor._get_stack = mock.MagicMock()
+
+        # Make _get_stack() yield back 2 in-progress states, then yield a
+        # successfull execution.
+        actor._get_stack.side_effect = [
+            tornado_value(create_in_progress),
+            tornado_value(create_in_progress),
+            tornado_value(create_complete)
+        ]
+        ret = yield actor._wait_until_state(cloudformation.COMPLETE, sleep=0.1)
+        self.assertEquals(ret, None)
+
+        # Make sure a cloudformationerror is raised if we ask for a deleted
+        # state rather than a created one.
+        actor._get_stack.side_effect = [
+            tornado_value(create_in_progress),
+            tornado_value(create_in_progress),
+            tornado_value(create_complete)
+        ]
+        with self.assertRaises(cloudformation.CloudFormationError):
+            yield actor._wait_until_state(cloudformation.DELETED, sleep=0.1)
+
+        # Lastly, test that if wait_until_state returns no actor, we bail
+        # appropriately.
+        actor._get_stack.side_effect = [tornado_value(None)]
+        with self.assertRaises(cloudformation.StackNotFound):
+            yield actor._wait_until_state(cloudformation.COMPLETE, sleep=0.1)
 
 
 class TestCreate(testing.AsyncTestCase):
@@ -76,7 +125,7 @@ class TestCreate(testing.AsyncTestCase):
              'region': 'us-west-2',
              'template': 'examples/test/aws.cloudformation/cf.unittest.json'})
         # TODO: Fill this in with some real content
-        self.assertEquals(actor._template_body, '')
+        self.assertNotEquals(actor._template_body, '#BLANK\r\n')
         self.assertEquals(actor._template_url, None)
 
         # Should return None
@@ -89,14 +138,14 @@ class TestCreate(testing.AsyncTestCase):
         self.assertEquals(actor._template_url, 'http://foobar.json')
 
         # Should raise exception
-        with self.assertRaises(cloudformation.InvalidTemplateException):
+        with self.assertRaises(cloudformation.InvalidTemplate):
             actor = cloudformation.Create(
                 'Unit Test Action',
                 {'name': 'unit-test-cf',
                  'region': 'us-west-2',
                  'template': 'missing'})
 
-    @testing.gen_test()
+    @testing.gen_test
     def test_validate_template_body(self):
         actor = cloudformation.Create(
             'Unit Test Action',
@@ -106,9 +155,9 @@ class TestCreate(testing.AsyncTestCase):
         actor.conn.validate_template = mock.MagicMock()
         yield actor._validate_template()
         actor.conn.validate_template.assert_called_with(
-            template_body='', template_url=None)
+            template_body='#BLANK\n', template_url=None)
 
-    @testing.gen_test()
+    @testing.gen_test
     def test_validate_template_url(self):
         actor = cloudformation.Create(
             'Unit Test Action',
@@ -120,7 +169,7 @@ class TestCreate(testing.AsyncTestCase):
         actor.conn.validate_template.assert_called_with(
             template_body=None, template_url='http://foobar.json')
 
-    @testing.gen_test()
+    @testing.gen_test
     def test_validate_template_raises_boto_error(self):
         actor = cloudformation.Create(
             'Unit Test Action',
@@ -130,10 +179,53 @@ class TestCreate(testing.AsyncTestCase):
         actor.conn.validate_template = mock.MagicMock()
         actor.conn.validate_template.side_effect = BotoServerError(
             400, 'Invalid template property or properties')
-        with self.assertRaises(cloudformation.InvalidTemplateException):
+        with self.assertRaises(cloudformation.InvalidTemplate):
+            yield actor._validate_template()
+
+        actor.conn.validate_template.side_effect = BotoServerError(
+            403, 'Invalid Credentials')
+        with self.assertRaises(exceptions.InvalidCredentials):
             yield actor._validate_template()
 
         actor.conn.validate_template.side_effect = BotoServerError(
             500, 'Some other error')
         with self.assertRaises(BotoServerError):
             yield actor._validate_template()
+
+    @testing.gen_test
+    def test_create_stack(self):
+        actor = cloudformation.Create(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2',
+             'template':
+                 'examples/test/aws.cloudformation/cf.integration.json'})
+        actor.conn.create_stack = mock.MagicMock(name='create_stack_mock')
+        actor.conn.create_stack.return_value = 'arn:123'
+        ret = yield actor._create_stack()
+        self.assertEquals(ret, 'arn:123')
+
+    @testing.gen_test
+    def test_create_stack_raises_boto_error(self):
+        actor = cloudformation.Create(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2',
+             'template':
+                 'examples/test/aws.cloudformation/cf.integration.json'})
+        actor.conn.create_stack = mock.MagicMock()
+
+        actor.conn.create_stack.side_effect = BotoServerError(
+            400, 'Invalid template property or properties')
+        with self.assertRaises(cloudformation.CloudFormationError):
+            yield actor._create_stack()
+
+        actor.conn.create_stack.side_effect = BotoServerError(
+            403, 'Invalid credentials')
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield actor._create_stack()
+
+        actor.conn.create_stack.side_effect = BotoServerError(
+            500, 'Some unexpected failure')
+        with self.assertRaises(BotoServerError):
+            yield actor._create_stack()
