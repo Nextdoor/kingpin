@@ -228,6 +228,8 @@ below for using each actor.
 
 **Actor-specific Documentation**
 
+  * [aws.cloudformation.Create](docs/actors/aws.cloudformation.Create.md)
+  * [aws.cloudformation.Delete](docs/actors/aws.cloudformation.Delete.md)
   * [aws.elb.WaitUntilHealthy](docs/actors/aws.elb.WaitUntilHealthy.md)
   * [aws.sqs.Create](docs/actors/aws.sqs.Create.md)
   * [aws.sqs.WaitUntilEmpty](docs/actors/aws.sqs.WaitUntilEmpty.md)
