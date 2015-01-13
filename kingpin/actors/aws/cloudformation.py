@@ -176,7 +176,7 @@ class CloudFormationBaseActor(base.BaseActor):
             stack = yield self._get_stack(self.option('name'))
 
             if not stack:
-                msg = 'Stack %s not found?' % self.option('name')
+                msg = 'Stack "%s" not found.' % self.option('name')
                 raise StackNotFound(msg)
 
             self.log.debug('Got stack %s status: %s' %
@@ -250,19 +250,20 @@ class Create(CloudFormationBaseActor):
             template: String with a reference to a template location.
 
         Returns:
-            Tuple with:
-              (None/Contents of template file,
-               None/URL of template)
+            One tuple of:
+              (Contents of template file, None)
+              (None, URL of template)
 
         Raises:
             InvalidTemplate
         """
         remote_types = ('http://', 'https://')
 
-        if self.option('template').startswith(remote_types):
+        if template.startswith(remote_types):
             return (None, template)
 
         try:
+            # TODO: leverage self.readfile()
             return (open(template, 'r').read(), None)
         except IOError as e:
             raise InvalidTemplate(e)
@@ -281,10 +282,10 @@ class Create(CloudFormationBaseActor):
             exceptions.InvalidCredentials
         """
         if self._template_body is not None:
-            self.log.debug('Validating template with AWS...')
+            self.log.info('Validating template with AWS...')
         else:
-            self.log.debug('Validating template (%s) with AWS...' %
-                           self._template_url)
+            self.log.info('Validating template (%s) with AWS...' %
+                          self._template_url)
 
         try:
             self.conn.validate_template(
