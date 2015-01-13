@@ -28,9 +28,14 @@ class TestUploadCert(testing.AsyncTestCase):
         actor.conn = mock.Mock()
 
         actor.readfile = mock.Mock()
+        actor.conn.upload_server_cert.side_effect = [
+            Exception('400: unit-test'),
+            None
+        ]
         yield actor._execute()
 
-        self.assertEquals(actor.conn.upload_server_cert.call_count, 1)
+        # call count is 2 -- one extra retry due to BotoServerError above.
+        self.assertEquals(actor.conn.upload_server_cert.call_count, 2)
         actor.conn.upload_server_cert.assert_called_with(
             path=None,
             private_key=actor.readfile(),

@@ -16,8 +16,8 @@
 
 import logging
 
-from boto.exception import BotoServerError
 from concurrent import futures
+from retrying import retry
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
@@ -82,9 +82,10 @@ class UploadCert(IAMBaseActor):
         'path': (str, None, 'The path for the server certificate.')
     }
 
-    @gen.coroutine
-    @utils.retry(BotoServerError)
     @concurrent.run_on_executor
+    @retry(stop_max_attempt_number=3,
+           wait_exponential_multiplier=2,
+           wait_exponential_max=60)
     @utils.exception_logger
     def _upload(self, cert_name, cert_body, private_key, cert_chain, path):
         """Create a new server certificate in AWS IAM."""
