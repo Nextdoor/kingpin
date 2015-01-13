@@ -438,11 +438,10 @@ class RightScale(object):
             # If there is no task to wait on - don't wait!
             raise gen.Return(True)
 
+        timeout_id = None
         if logger and task_name:
             timeout_id = utils.create_repeating_log(
                 logger, 'Still waiting on %s' % task_name, seconds=sleep)
-        else:
-            timeout_id = None
 
         while True:
             # Get the task status
