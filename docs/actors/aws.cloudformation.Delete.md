@@ -19,3 +19,4 @@ Examples
 
 **Dry Mode**
 
+Validates that the CF stack exists, but does not delete it.
