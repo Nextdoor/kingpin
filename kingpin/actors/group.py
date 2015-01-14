@@ -37,7 +37,7 @@ class BaseGroupActor(base.BaseActor):
     """
 
     all_options = {
-        'contexts': (list, [], "List of matrix hashes."),
+        'contexts': (list, [], "List of contextual hashes."),
         'acts': (list, REQUIRED, "Array of actor definitions.")
     }
 
@@ -81,8 +81,8 @@ class BaseGroupActor(base.BaseActor):
             return self._build_action_group(self._init_context)
 
         actions = []
-        for matrix in self.option('contexts'):
-            combined_context = dict(self._init_context.items() + matrix.items())
+        for context in self.option('contexts'):
+            combined_context = dict(self._init_context.items() + context.items())
             self.log.debug('Building acts with parameters: %s' % combined_context)
             for action in self._build_action_group(context=combined_context):
                 actions.append(action)
