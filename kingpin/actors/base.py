@@ -107,16 +107,22 @@ class BaseActor(object):
                 This is usually driven by the group.Sync/Async actors.
         """
         self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
-        self._desc = utils.populate_with_tokens(
-            desc, init_context,
-            self.left_context_separator,
-            self.right_context_separator)
         self._options = options
         self._dry = dry
         self._warn_on_failure = warn_on_failure
         self._condition = condition
         self._init_context = init_context
 
+        # Patch our actor description. This needs to happen separately from the
+        # _fill_in_context() method because it has to happen before we setup
+        # our logger object.
+        try:
+            self._desc = utils.populate_with_tokens(
+                desc, init_context,
+                self.left_context_separator,
+                self.right_context_separator)
+        except LookupError as e:
+            raise exceptions.InvalidOptions(e)
 
         self._setup_log()
         self._setup_defaults()

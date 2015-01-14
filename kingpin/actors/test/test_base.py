@@ -150,7 +150,7 @@ class TestBaseActor(testing.AsyncTestCase):
             '0': False,
             'False': False,
             'FALSE': False,
-            }
+        }
         for value, should_execute in conditions.items():
             self.actor._condition = value
             self.actor._execute = mock_tornado()
@@ -207,6 +207,18 @@ class TestBaseActor(testing.AsyncTestCase):
         self.actor._warn_on_failure = True
         res = yield self.actor.execute()
         self.assertEquals(res, None)
+
+    def test_fill_in_contexts(self):
+        self.actor = base.BaseActor(
+            desc='Unit Test Action - {NAME}',
+            options={},
+            init_context={'NAME': 'TEST'})
+        self.assertEquals('Unit Test Action - TEST', self.actor._desc)
+
+    def test_fill_in_contexts_bad_context(self):
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor = base.BaseActor(
+                desc='Unit Test Action - {NAME}', options={}, init_context={})
 
 
 class TestHTTPBaseActor(testing.AsyncTestCase):
