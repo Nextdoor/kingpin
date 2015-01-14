@@ -91,7 +91,8 @@ def main():
     try:
         runner = Macro(desc='Kingpin',
                        options={'macro': options.json,
-                                'tokens': env_tokens})
+                                'tokens': env_tokens},
+                       dry=options.dry)
         yield runner.execute()
     except actor_exceptions.ActorException as e:
         log.error('Kingpin encountered mistakes during the play: %s' % e)

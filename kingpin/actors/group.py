@@ -1,4 +1,3 @@
-
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,8 +37,15 @@ class BaseGroupActor(base.BaseActor):
     """
 
     all_options = {
+        'contexts': (list, [], "List of matrix hashes."),
         'acts': (list, REQUIRED, "Array of actor definitions.")
     }
+
+    # Override the BaseActor strict_init_context setting. Since there may be
+    # nested-groups that have their own context parameters, we do not require
+    # that all of the {KEY}'s inside of the self._options dict are filled in
+    # the moment that this actor is instantiated.
+    strict_init_context = False
 
     def __init__(self, *args, **kwargs):
         """Initializes all of the sub actors.
@@ -57,6 +63,33 @@ class BaseGroupActor(base.BaseActor):
         self._actions = self._build_actions()
 
     def _build_actions(self):
+        """Builds either a single set of actions, or multiple sets.
+
+        If no 'contexts' were passed in, then we simply build the actors that
+        are defined in the 'acts' option for the group.
+
+        If any 'contexts' were passed in, then this method will create as many
+        groups of actions as there are in the list of contexts. For each dict
+        in the 'contexts' list, a new group of actors is created with that
+        information.
+
+        Note: Because groups may contain nested group actors, any options
+        passed into this actors 'init_context' are also passed into the
+        actors that we're intantiating.
+        """
+        if not self.option('contexts'):
+            return self._build_action_group(self._init_context)
+
+        actions = []
+        for matrix in self.option('contexts'):
+            combined_context = dict(self._init_context.items() + matrix.items())
+            self.log.debug('Building acts with parameters: %s' % combined_context)
+            for action in self._build_action_group(context=combined_context):
+                actions.append(action)
+
+        return actions
+
+    def _build_action_group(self, context=None):
         """Build up all of the actors we need to execute.
 
         Builds a list of actors to execute and returns the list. The list can
@@ -68,6 +101,7 @@ class BaseGroupActor(base.BaseActor):
         """
         actions = []
         for act in self.option('acts'):
+            act['init_context'] = context
             actions.append(utils.get_actor(act, dry=self._dry))
         return actions
 
