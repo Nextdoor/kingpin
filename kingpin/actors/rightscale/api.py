@@ -409,7 +409,12 @@ class RightScale(object):
         return task
 
     @gen.coroutine
-    def wait_for_task(self, task, task_name=None, sleep=5, logger=None):
+    def wait_for_task(self,
+                      task,
+                      task_name=None,
+                      sleep=5,
+                      logger=None,
+                      meta_data=None):
         """Monitors a RightScale task for completion.
 
         RightScale tasks are provided as URLs that we can query for the
@@ -429,9 +434,12 @@ class RightScale(object):
             logger: logger object to be used to log task status.
                     This is useful when this API call is called from a Kingpin
                     actor, and you want to use the actor's specific logger.
+            meta_data: Additional data to be returned along with success
 
         Returns:
-            <booelan>
+            bool: success status
+            or if meta_data is supplied,
+            tuple: (success, meta_data)
         """
 
         if not task:
@@ -468,6 +476,9 @@ class RightScale(object):
         log.debug('Task finished, return value: %s, summary: %s' %
                   (status, summary))
 
+        if meta_data:
+            raise gen.Return((status, meta_data))
+
         raise gen.Return(status)
 
     @concurrent.run_on_executor
@@ -482,6 +493,38 @@ class RightScale(object):
         function to be run on a separate thread.
         """
         return task.self.show()
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    def get_audit_logs(self, instance, start, end, match=None):
+        """Fetch a set of audit logs belonging to an instance."""
+
+        href = instance.links['self']
+        all_entries = self._client.audit_entries.index(params={
+            'filter[]': ['auditee_href==%s' % href],
+            'limit': 10,
+            'start_date': start,
+            'end_date': end
+        })
+
+        log.debug('Found %s audit logs.' % len(all_entries))
+
+        logs = []
+        for entry in all_entries:
+            summary = entry.soul['summary']
+            if match and match not in summary:
+                log.debug('Skipping details for "%s"' % summary)
+                continue
+            log.debug('Fetching details for "%s"' % summary)
+
+            # grabbing raw output because RightScale doesn't reply via JSON
+            # when accessing details of a log.
+            detail_res = self._client.client.get(entry.detail.path)
+            details = detail_res.raw_response.text
+
+            logs.append(details)
+
+        return logs
 
     @gen.coroutine
     def run_executable_on_instances(self, name, inputs, instances):

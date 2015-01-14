@@ -278,10 +278,11 @@ class TestRightScale(testing.AsyncTestCase):
         repeat_patcher = mock.patch.object(api.utils,
                                            'create_repeating_log')
         with repeat_patcher as repeat_mock:
-            ret = yield self.client.wait_for_task(
+            ret, meta = yield self.client.wait_for_task(
                 mock_task, task_name='ut-fake-task',
-                sleep=0.01, logger=mock_logger)
+                sleep=0.01, logger=mock_logger, meta_data='extra')
         self.assertEquals(ret, True)
+        self.assertEquals(meta, 'extra')
         mock_task.assert_has_calls(
             [mock.call.self.show(), mock.call.self.show(),
              mock.call.self.show()])
@@ -313,6 +314,33 @@ class TestRightScale(testing.AsyncTestCase):
         mock_task = None
         ret = yield self.client.wait_for_task(mock_task, sleep=0.01)
         self.assertEquals(ret, True)
+
+    @testing.gen_test
+    def test_get_audit_logs(self):
+        mock_instance = mock.MagicMock(name='unittest-instance')
+        mock_instance.soul = {'name': 'unittest-instance'}
+        mock_instance.links = {'self': '/foo/bar'}
+        mock_instance.self.path = '/a/b/1234'
+
+        fail = mock.Mock()
+        fail.soul = {'summary': "failed: 'Some Script' [HEAD]"}
+
+        success = mock.Mock()
+        success.soul = {'summary': "completed: 'Some Script' [HEAD]"}
+
+        self.mock_client.audit_entries.index.return_value = [
+            fail,
+            success
+        ]
+
+        logs = yield self.client.get_audit_logs(mock_instance,
+                                                'start',
+                                                'end',
+                                                'failed')
+
+        self.assertEquals(len(logs), 1)
+        expected = self.mock_client.client.get().raw_response.text
+        self.assertEquals(logs[0], expected)
 
     @testing.gen_test
     def test_run_executable_on_instances(self):
