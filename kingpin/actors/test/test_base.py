@@ -208,17 +208,31 @@ class TestBaseActor(testing.AsyncTestCase):
         res = yield self.actor.execute()
         self.assertEquals(res, None)
 
-    def test_fill_in_contexts(self):
+    def test_fill_in_contexts_desc(self):
+        base.BaseActor.all_options = {
+            'test_opt': (str, REQUIRED, 'Test option')
+        }
+
         self.actor = base.BaseActor(
             desc='Unit Test Action - {NAME}',
-            options={},
+            options={'test_opt': 'Foo bar'},
             init_context={'NAME': 'TEST'})
         self.assertEquals('Unit Test Action - TEST', self.actor._desc)
 
-    def test_fill_in_contexts_bad_context(self):
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor = base.BaseActor(
-                desc='Unit Test Action - {NAME}', options={}, init_context={})
+                desc='Unit Test Action',
+                options={'test_opt': 'Foo {BAZ} bar'},
+                init_context={})
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor = base.BaseActor(
+                desc='Unit Test Action - {NAME}',
+                options={},
+                init_context={})
+
+        # Reset the all options so we dont break other tests
+        base.BaseActor.all_options = {}
 
 
 class TestHTTPBaseActor(testing.AsyncTestCase):

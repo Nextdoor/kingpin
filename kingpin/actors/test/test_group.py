@@ -1,9 +1,11 @@
 import logging
 import time
+import mock
 
 from tornado import gen
 from tornado import testing
 
+from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors import group
@@ -38,7 +40,8 @@ class TestActorRaises(base.BaseActor):
 
     @gen.coroutine
     def _execute(self):
-        raise self.option('exception')
+        exc = utils.str_to_class(self.option('exception'))
+        raise exc
 
 
 class TestGroupActorBaseClass(testing.AsyncTestCase):
@@ -57,11 +60,19 @@ class TestGroupActorBaseClass(testing.AsyncTestCase):
         self.actor_raises_unrecoverable_exception = {
             'desc': 'raises Unrecoverable exception',
             'actor': 'kingpin.actors.test.test_group.TestActorRaises',
-            'options': {'exception': exceptions.UnrecoverableActorFailure()}}
+            'options': {
+                'exception':
+                'kingpin.actors.exceptions.UnrecoverableActorFailure'
+            }
+        }
         self.actor_raises_recoverable_exception = {
             'desc': 'raises Recoverable exception',
             'actor': 'kingpin.actors.test.test_group.TestActorRaises',
-            'options': {'exception': exceptions.RecoverableActorFailure()}}
+            'options': {
+                'exception':
+                'kingpin.actors.exceptions.RecoverableActorFailure'
+            }
+        }
 
 
 class TestBaseGroupActor(TestGroupActorBaseClass):
@@ -75,6 +86,39 @@ class TestBaseGroupActor(TestGroupActorBaseClass):
                       dict(self.actor_returns)]})
         ret = actor._build_actions()
         self.assertEquals(4, len(ret))
+
+    def test_build_actions_with_contexts(self):
+        acts = [dict(self.actor_returns),
+                dict(self.actor_returns),
+                dict(self.actor_returns),
+                dict(self.actor_returns)]
+
+        with mock.patch.object(group.BaseGroupActor,
+                               '_build_action_group') as action_builder:
+            action_builder.return_value = acts
+            group.BaseGroupActor(
+                'Unit Test Action',
+                {'acts': acts,
+                 'contexts': [{'TEST': 'TestA'},
+                              {'TEST': 'TestB'}]
+                 },
+                init_context={'PRE': 'CONTEXT'})
+
+        self.assertEquals(2, len(action_builder.mock_calls))
+        action_builder.assert_has_calls([
+            mock.call(context={'PRE': 'CONTEXT', 'TEST': 'TestA'}),
+            mock.call(context={'PRE': 'CONTEXT', 'TEST': 'TestB'})
+        ])
+
+    def test_build_action_group(self):
+        acts = [dict(self.actor_returns),
+                dict(self.actor_returns),
+                dict(self.actor_returns),
+                dict(self.actor_returns)]
+
+        actor = group.BaseGroupActor('Unit Test Action', {'acts': acts})
+        ret = actor._build_action_group({'TEST': 'CONTEXT'})
+        self.assertEquals(ret[0]._init_context, {'TEST': 'CONTEXT'})
 
     @testing.gen_test
     def test_execute_success(self):
@@ -147,7 +191,7 @@ class TestSyncGroupActor(TestGroupActorBaseClass):
             {'acts': [
                 dict(self.actor_raises_unrecoverable_exception),
                 dict(self.actor_returns),
-                ]})
+            ]})
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
             yield actor._run_actions()
 
@@ -257,7 +301,7 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
             {'acts': [
                 dict(self.actor_raises_unrecoverable_exception),
                 dict(self.actor_returns),
-                ]})
+            ]})
 
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
             yield actor._run_actions()

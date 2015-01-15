@@ -82,8 +82,10 @@ class BaseGroupActor(base.BaseActor):
 
         actions = []
         for context in self.option('contexts'):
-            combined_context = dict(self._init_context.items() + context.items())
-            self.log.debug('Building acts with parameters: %s' % combined_context)
+            combined_context = dict(self._init_context.items() +
+                                    context.items())
+            self.log.debug('Building acts with parameters: %s' %
+                           combined_context)
             for action in self._build_action_group(context=combined_context):
                 actions.append(action)
 
