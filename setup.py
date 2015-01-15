@@ -26,6 +26,15 @@ from kingpin.version import __version__
 
 PACKAGE = 'kingpin'
 
+# Try to read our readme. If the readme is only available in markdown, thats
+# fine. If its available in RST though, use that instead... likely because
+# we're publishing to PyPI.
+long_desc = open('README.md').read()
+try:
+    long_desc = open('README.txt').read()
+except IOError:
+    pass
+
 
 def maybe_rm(path):
     """Simple method for removing a file/dir if it exists"""
@@ -125,6 +134,7 @@ class CleanHook(clean):
         maybe_rm('dist')
         maybe_rm('.coverage')
         maybe_rm('version.rst')
+        maybe_rm('README.txt')
         maybe_rm('MANIFEST')
 
 
@@ -144,7 +154,7 @@ setup(
     name=PACKAGE,
     version=__version__,
     description='Deployment Automation Engine',
-    long_description=open('README.md').read(),
+    long_description=long_desc,
     author='Nextdoor Engineering',
     author_email='eng@nextdoor.com',
     url='https://github.com/Nextdoor/kingpin',
