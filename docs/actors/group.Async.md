@@ -6,15 +6,32 @@ waiting until all of them finish before returning.
 **Options**
 
   * `acts` - An array of individual Actor definitions.
+  * `contexts` - A list of dictionaries with _contextual tokens_ to pass into
+    the actors at instantiation time. If the list has more than one element,
+    then every actor defined in `acts` will be instantiated once for each item
+    in the `contexts` list.
 
 Examples
 
-    { 'acts': [
-      { 'desc': 'do something', 'actor': 'server_array.Clone',
-        'options': { 'source': 'template', 'dest': 'new_array_1' } },
-      { 'desc': 'do something', 'actor': 'server_array.Clone',
-        'options': { 'source': 'template', 'dest': 'new_array_2' } },
-    ] }
+    # Clone two arrays quickly
+    { "desc": "Clone two arrays",
+      "actor": "group.Async",
+      "options": {
+        "contexts": [
+          { "ARRAY": "NewArray1" },
+          { "ARRAY": "NewArray2" }
+        ],
+        "acts": [
+          { "desc": "do something",
+            "actor": "server_array.Clone",
+            "options": {
+              "source": "template",
+              "dest": "{ARRAY}",
+            }
+          }
+        ]
+      }
+    }
 
 **Dry Mode**
 

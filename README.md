@@ -106,8 +106,8 @@ Each _actor_ configuration includes the same three parameters: _actor_, _desc_
 and _options_.
 
 The simplest script will have a single configuration that executes a single
-_actor_. More complex scripts can be created with our _group.Sync_ and
-_group.Async_ actors which can be used to group together multiple _actors_ and
+_actor_. More complex scripts can be created with our `group.Sync` and
+`group.Async` actors which can be used to group together multiple _actors_ and
 execute them in a predictable order.
 
 ##### Schema Description
@@ -163,6 +163,8 @@ it works just fine.
 
 ##### Token-replacement
 
+###### Environmental Tokens
+
 In an effort to allow for more re-usable JSON files, _tokens_ can be inserted
 into the raw JSON file like this `%TOKEN_NAME%`. These will then be dynamically
 swapped with environment variables found at execution time. Any missing
@@ -186,6 +188,61 @@ and these examples of execution.
     2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Beginning
     2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Sending message "Beginning release 0001a" to Hipchat room "Oncall"
     ...
+
+###### Contextual Tokens
+
+Once the initial JSON files have been loaded up, we have a second layer of
+_tokens_ that can be referenced. These tokens are known as _contextual tokens_.
+These _contextual tokens_ are used during-runtime to swap out _strings_ with
+_variables_. Currently only the `group.Sync` and `group.Async` actors have the
+ability to define usable tokens, but any actor can then reference these tokens.
+
+*Contextual tokens for simple variable behavior*
+
+    { "desc": "Send out hipchat notifications",
+      "actor": "group.Sync",
+      "options": {
+          "contexts": [ { "ROOM": "Systems" } ],
+          "acts": [
+              { "desc": "Notify {ROOM}",
+                "actor": "hipchat.Message",
+                "options": {
+                  "room": "{ROOM}",
+                    "message": "Hey room .. I'm done with something"
+                }
+              }
+          ]
+      }
+    }
+
+    2015-01-14 15:03:16,840 INFO      [DRY: Send out hipchat notifications] Beginning 1 actions
+    2015-01-14 15:03:16,840 INFO      [DRY: Notify Systems] Sending message "Hey room .. I'm done with something" to Hipchat room "Systems"
+
+
+*Contextual tokens used for iteration*
+
+    { "desc": "Send ending notifications...", "actor": "group.Async",
+      "options": {
+        "contexts": [
+          { "ROOM": "Engineering", "WISDOM": "Get back to work" },
+          { "ROOM": "Cust Service", "WISDOM": "Have a nice day" }
+        ],
+        "acts": [
+          { "desc": "Notify {ROOM}",
+            "actor": "hipchat.Message",
+            "options": {
+                "room": "{ROOM}",
+                "message": "Hey room .. I'm done with the release. {WISDOM}"
+            }
+          }
+        ]
+      }
+    }
+
+    2015-01-14 15:02:22,165 INFO      [DRY: Send ending notifications...] Beginning 2 actions
+    2015-01-14 15:02:22,165 INFO      [DRY: Notify Engineering] Sending message "Hey room .. I'm done with the release. Get back to work" to Hipchat room "Engineering"
+    2015-01-14 15:02:22,239 INFO      [DRY: Notify Cust Service] Sending message "Hey room .. I'm done with the release. Have a nice day" to Hipchat room "Cust Service"
+
 
 ##### Early Actor Instantiation
 

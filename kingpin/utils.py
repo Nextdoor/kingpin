@@ -238,7 +238,8 @@ def tornado_sleep(seconds=1.0):
                    time.time() + seconds)
 
 
-def populate_with_tokens(string, tokens):
+def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
+                         strict=True):
     """Insert token variables into the string.
 
     Will match any token wrapped in '%'s and replace it with the value of that
@@ -247,6 +248,9 @@ def populate_with_tokens(string, tokens):
     Args:
         string: string to modify.
         tokens: dictionary of key:value pairs to inject into the string.
+        left_wrapper: the character to use as the START of a token
+        right_wrapper: the character to use as the END of a token
+        strict: (bool) whether or not to make sure all tokens were replaced
 
     Example:
         export ME=biz
@@ -256,12 +260,21 @@ def populate_with_tokens(string, tokens):
     """
 
     # First things first, swap out all instances of %<str>% with any matching
-    # token variables found.
-    for k, v in tokens.iteritems():
-        string = string.replace(('%%%s%%' % k), v)
+    # token variables found. If no items are in the hash (none, empty hash,
+    # etc), then skip this.
+    if tokens:
+        for k, v in tokens.iteritems():
+            string = string.replace(
+                ('%s%s%s' % (left_wrapper, k, right_wrapper)), v)
 
-    # Now, see if we missed anything. If we did, raise an exception and fail.
-    missed_tokens = list(set(re.findall(r'%[\w]+%', string)))
+    # If we aren't strict, we return...
+    if not strict:
+        return string
+
+    # If we are strict, we check if we missed anything. If we did, raise an
+    # exception.
+    missed_tokens = list(set(re.findall(r'%s[\w]+%s' %
+                             (left_wrapper, right_wrapper), string)))
     if missed_tokens:
         raise LookupError(
             'Found un-matched tokens in JSON string: %s' % missed_tokens)
@@ -323,7 +336,9 @@ def create_repeating_log(logger, message, handle=None, **kwargs):
     """
 
     class OpaqueHandle(object):
+
         """Tornado async io handler."""
+
         def __init__(self):
             self.timeout_id = None
 

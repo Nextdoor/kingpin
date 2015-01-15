@@ -33,6 +33,16 @@ class TestUtils(unittest.TestCase):
         with self.assertRaises(LookupError):
             utils.populate_with_tokens(string, os.environ)
 
+    def test_populate_with_not_strict(self):
+        tokens = {'UNIT_TEST': 'FOOBAR'}
+        string = 'Unit {UNIT_TEST} {FAIL} Test'
+        expect = 'Unit FOOBAR {FAIL} Test'
+        result = utils.populate_with_tokens(
+            string, tokens,
+            left_wrapper='{', right_wrapper='}',
+            strict=False)
+        self.assertEquals(result, expect)
+
     def test_convert_json_to_dict(self):
         # Should work with string path to a file
         dirname, filename = os.path.split(os.path.abspath(__file__))

@@ -162,7 +162,8 @@ class Sleep(base.BaseActor):
     """Simple actor that just sleeps for an arbitrary amount of time."""
 
     all_options = {
-        'sleep': ((int, float), REQUIRED, 'Number of seconds to do nothing.')
+        'sleep': ((int, float, str), REQUIRED,
+                  'Number of seconds to do nothing.')
     }
 
     @gen.coroutine
@@ -171,8 +172,13 @@ class Sleep(base.BaseActor):
 
         self.log.debug('Sleeping for %s seconds' % self.option('sleep'))
 
+        sleep = self.option('sleep')
+
+        if isinstance(sleep, basestring):
+            sleep = float(sleep)
+
         if not self._dry:
-            yield utils.tornado_sleep(seconds=self.option('sleep'))
+            yield utils.tornado_sleep(seconds=sleep)
 
 
 class GenericHTTP(base.HTTPBaseActor):

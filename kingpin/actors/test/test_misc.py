@@ -29,7 +29,7 @@ class TestMacro(testing.AsyncTestCase):
                 'desc': 'unit test',
                 'actor': 'unit test',
                 'options': {}
-                }
+            }
 
             actor = misc.Macro('Unit Test', {'macro': 'test.json',
                                              'tokens': {}})
@@ -58,7 +58,7 @@ class TestMacro(testing.AsyncTestCase):
                 'desc': 'unit test',
                 'actor': 'unit test',
                 'options': {}
-                }
+            }
 
             actor = misc.Macro('Unit Test',
                                {'macro': 'examples/test/sleep.json',
@@ -92,7 +92,7 @@ class TestMacro(testing.AsyncTestCase):
             j2d.return_value = {
                 'desc': 'unit test',
                 'options': {}  # `actor` keyword is missing
-                }
+            }
 
             with self.assertRaises(exceptions.UnrecoverableActorFailure):
                 misc.Macro('Unit Test', {'macro': 'test.json',
@@ -127,10 +127,20 @@ class TestMacro(testing.AsyncTestCase):
 
 
 class TestSleep(testing.AsyncTestCase):
+
     @testing.gen_test
     def test_execute(self):
         # Call the executor and test it out
         actor = misc.Sleep('Unit Test Action', {'sleep': 0.1})
+        res = yield actor.execute()
+
+        # Make sure we fired off an alert.
+        self.assertEquals(res, None)
+
+    @testing.gen_test
+    def test_execute_with_str(self):
+        # Call the executor and test it out
+        actor = misc.Sleep('Unit Test Action', {'sleep': '0.5'})
         res = yield actor.execute()
 
         # Make sure we fired off an alert.
