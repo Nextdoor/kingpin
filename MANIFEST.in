@@ -1,5 +1,4 @@
 include README.md
-include README.txt
 include CHANGELOG.md
 include kingpin.1
 include requirements*
