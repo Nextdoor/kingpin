@@ -257,6 +257,17 @@ class BaseActor(object):
         Raises:
             exceptions.InvalidOptions
         """
+        try:
+            self._desc = utils.populate_with_tokens(
+                self._desc,
+                context,
+                self.left_context_separator,
+                self.right_context_separator,
+                strict=strict)
+        except LookupError as e:
+            msg = 'Context for description failed: %s' % e
+            raise exceptions.InvalidOptions(msg)
+
         # Convert our self._options dict into a string for fast parsing
         options_string = json.dumps(self._options)
 
@@ -271,14 +282,9 @@ class BaseActor(object):
                 self.left_context_separator,
                 self.right_context_separator,
                 strict=strict)
-            self._desc = utils.populate_with_tokens(
-                self._desc,
-                context,
-                self.left_context_separator,
-                self.right_context_separator,
-                strict=strict)
         except LookupError as e:
-            raise exceptions.InvalidOptions(e)
+            msg = 'Context for options failed: %s' % e
+            raise exceptions.InvalidOptions(msg)
 
         # Finally, convert the string back into a dict and store it.
         self._options = json.loads(new_options_string)
