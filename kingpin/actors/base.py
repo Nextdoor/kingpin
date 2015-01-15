@@ -79,8 +79,8 @@ class BaseActor(object):
     all_options = {}
 
     # Context separators. These define the left-and-right identifiers of a
-    # 'contextual parameter' in the actor. By default this is { and }, so a
-    # contextual paramter looks like '{KEY}'.
+    # 'contextual token' in the actor. By default this is { and }, so a
+    # contextual token looks like '{KEY}'.
     left_context_separator = '{'
     right_context_separator = '}'
 
@@ -107,34 +107,23 @@ class BaseActor(object):
                 This is usually driven by the group.Sync/Async actors.
         """
         self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
+        self._desc = desc
         self._options = options
         self._dry = dry
         self._warn_on_failure = warn_on_failure
         self._condition = condition
         self._init_context = init_context
 
-        # Patch our actor description. This needs to happen separately from the
-        # _fill_in_context() method because it has to happen before we setup
-        # our logger object.
-        try:
-            self._desc = utils.populate_with_tokens(
-                desc, init_context,
-                self.left_context_separator,
-                self.right_context_separator)
-        except LookupError as e:
-            raise exceptions.InvalidOptions(e)
+        # strict about this -- but in the future, when we have a
+        # runtime_context object, we may loosen this restriction).
+        self._fill_in_contexts(context=self._init_context,
+                               strict=self.strict_init_context)
 
         self._setup_log()
         self._setup_defaults()
         self._validate_options()  # Relies on _setup_log() above
 
         # Fill in any options with the supplied initialization context. Be
-        # strict about this -- but in the future, when we have a
-        # runtime_context object, we may loosen this restriction).
-        self.log.debug('Init Context: %s' % self._init_context)
-        self._fill_in_contexts(context=self._init_context,
-                               strict=self.strict_init_context)
-
         self.log.debug('Initialized (warn_on_failure=%s, '
                        'strict_init_context=%s)' %
                        (warn_on_failure, self.strict_init_context))
@@ -257,9 +246,9 @@ class BaseActor(object):
         """Parses self._options and updates it with the supplied context.
 
         Parses the objects self._options dict (by converting it into a JSON
-        string, substituting, and then turning it back into a dict) and
-        replaces any {KEY}s with the valoues from the context dict that was
-        supplied.
+        string, substituting, and then turning it back into a dict) and the
+        self._desc string and replaces any {KEY}s with the valoues from the
+        context dict that was supplied.
 
         Args:
             strict: bool whether or not to allow missing context keys to be
@@ -278,6 +267,12 @@ class BaseActor(object):
         try:
             new_options_string = utils.populate_with_tokens(
                 options_string,
+                context,
+                self.left_context_separator,
+                self.right_context_separator,
+                strict=strict)
+            self._desc = utils.populate_with_tokens(
+                self._desc,
                 context,
                 self.left_context_separator,
                 self.right_context_separator,

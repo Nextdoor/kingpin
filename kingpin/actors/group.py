@@ -42,7 +42,7 @@ class BaseGroupActor(base.BaseActor):
     }
 
     # Override the BaseActor strict_init_context setting. Since there may be
-    # nested-groups that have their own context parameters, we do not require
+    # nested-groups that have their own context tokens, we do not require
     # that all of the {KEY}'s inside of the self._options dict are filled in
     # the moment that this actor is instantiated.
     strict_init_context = False
