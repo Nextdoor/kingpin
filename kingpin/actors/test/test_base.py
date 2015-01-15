@@ -150,7 +150,7 @@ class TestBaseActor(testing.AsyncTestCase):
             '0': False,
             'False': False,
             'FALSE': False,
-            }
+        }
         for value, should_execute in conditions.items():
             self.actor._condition = value
             self.actor._execute = mock_tornado()
@@ -207,6 +207,32 @@ class TestBaseActor(testing.AsyncTestCase):
         self.actor._warn_on_failure = True
         res = yield self.actor.execute()
         self.assertEquals(res, None)
+
+    def test_fill_in_contexts_desc(self):
+        base.BaseActor.all_options = {
+            'test_opt': (str, REQUIRED, 'Test option')
+        }
+
+        self.actor = base.BaseActor(
+            desc='Unit Test Action - {NAME}',
+            options={'test_opt': 'Foo bar'},
+            init_context={'NAME': 'TEST'})
+        self.assertEquals('Unit Test Action - TEST', self.actor._desc)
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor = base.BaseActor(
+                desc='Unit Test Action',
+                options={'test_opt': 'Foo {BAZ} bar'},
+                init_context={})
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor = base.BaseActor(
+                desc='Unit Test Action - {NAME}',
+                options={},
+                init_context={})
+
+        # Reset the all options so we dont break other tests
+        base.BaseActor.all_options = {}
 
 
 class TestHTTPBaseActor(testing.AsyncTestCase):

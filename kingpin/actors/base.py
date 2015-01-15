@@ -78,8 +78,20 @@ class BaseActor(object):
     # }
     all_options = {}
 
+    # Context separators. These define the left-and-right identifiers of a
+    # 'contextual token' in the actor. By default this is { and }, so a
+    # contextual token looks like '{KEY}'.
+    left_context_separator = '{'
+    right_context_separator = '}'
+
+    # Ensure that at __init__ time, if the self._options dict is not completely
+    # filled in properly (meaning there are no left-over {KEY}'s), we throw an
+    # exception. This will change in the future when we have some concept of a
+    # second 'global runtime context object'.
+    strict_init_context = True
+
     def __init__(self, desc, options, dry=False, warn_on_failure=False,
-                 condition=True):
+                 condition=True, init_context={}):
         """Initializes the Actor.
 
         Args:
@@ -90,6 +102,9 @@ class BaseActor(object):
             warn_on_failure: (Bool) Whether this actor ignores its return
                              value and always succeeds (but warns).
             condition: (Bool) Whether to run this actor.
+            init_context: (Dict) Key/Value pairs used at instantiation
+                time to replace {KEY} strings in the actor definition.
+                This is usually driven by the group.Sync/Async actors.
         """
         self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
         self._desc = desc
@@ -97,12 +112,21 @@ class BaseActor(object):
         self._dry = dry
         self._warn_on_failure = warn_on_failure
         self._condition = condition
+        self._init_context = init_context
+
+        # strict about this -- but in the future, when we have a
+        # runtime_context object, we may loosen this restriction).
+        self._fill_in_contexts(context=self._init_context,
+                               strict=self.strict_init_context)
 
         self._setup_log()
         self._setup_defaults()
         self._validate_options()  # Relies on _setup_log() above
 
-        self.log.debug('Initialized (warn_on_failure=%s)' % warn_on_failure)
+        # Fill in any options with the supplied initialization context. Be
+        self.log.debug('Initialized (warn_on_failure=%s, '
+                       'strict_init_context=%s)' %
+                       (warn_on_failure, self.strict_init_context))
 
     def _setup_log(self):
         """Create a customized logging object based on the LogAdapter."""
@@ -217,6 +241,53 @@ class BaseActor(object):
             check = bool(value)
 
         return check
+
+    def _fill_in_contexts(self, context={}, strict=True):
+        """Parses self._options and updates it with the supplied context.
+
+        Parses the objects self._options dict (by converting it into a JSON
+        string, substituting, and then turning it back into a dict) and the
+        self._desc string and replaces any {KEY}s with the valoues from the
+        context dict that was supplied.
+
+        Args:
+            strict: bool whether or not to allow missing context keys to be
+                    skipped over.
+
+        Raises:
+            exceptions.InvalidOptions
+        """
+        try:
+            self._desc = utils.populate_with_tokens(
+                self._desc,
+                context,
+                self.left_context_separator,
+                self.right_context_separator,
+                strict=strict)
+        except LookupError as e:
+            msg = 'Context for description failed: %s' % e
+            raise exceptions.InvalidOptions(msg)
+
+        # Convert our self._options dict into a string for fast parsing
+        options_string = json.dumps(self._options)
+
+        # Generate a new string with the values parsed out. At this point, if
+        # any value is un-matched, an exception is raised and execution fails.
+        # This stops execution during a DRY run, before any live changes are
+        # made.
+        try:
+            new_options_string = utils.populate_with_tokens(
+                options_string,
+                context,
+                self.left_context_separator,
+                self.right_context_separator,
+                strict=strict)
+        except LookupError as e:
+            msg = 'Context for options failed: %s' % e
+            raise exceptions.InvalidOptions(msg)
+
+        # Finally, convert the string back into a dict and store it.
+        self._options = json.loads(new_options_string)
 
     @gen.coroutine
     @timer
