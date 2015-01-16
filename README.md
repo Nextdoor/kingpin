@@ -16,6 +16,7 @@ The Kingpin of your Deployment Model
     * [JSON-based DSL](#json-based-dsl)
         * [The Script](#the-script)
         * [Schema Description](#schema-description)
+        * [Conditional Execution](#conditional-execution)
         * [JSON Commenting](#json-commenting)
         * [Token-replacement](#token-replacement)
           * [Environmental Tokens](#environmental-tokens)
@@ -141,6 +142,8 @@ The JSON schema is simple. We take a single JSON object that has a few fields:
   * `actor` - A text-string describing the name of the Actor package and class.
     For example, `kingpin.actors.rightscale.server_array.Clone`, or
     `misc.Sleep`.
+  * `condition` - A bool or string that indicates whether or not to execute
+    this actor.
   * `desc` - A text-string describing the name of the stage or action. Meant to
     ensure that the logs are very human readable.
   * `warn_on_failure` - True/False whether or not to ignore an Actors failure and
@@ -154,6 +157,7 @@ The simples JSON file could look like this:
 
     { "desc": "Hipchat: Notify Oncall Room",
       "actor": "hipchat.Message",
+      "condition": "true",
       "warn_on_failure": true,
       "options": {
         "message": "Beginning release %RELEASE%", "room": "Oncall"
@@ -163,6 +167,32 @@ The simples JSON file could look like this:
 However, much more complex configurations can be created by using the
 `group.Sync` and `group.Async` actors to describe massively more complex
 deployents.
+
+##### Conditional Execution
+
+The `base.BaseActor` definition supports a `condition` parameter that can be
+used to enable or disable execution of an actor in a given Kingpin run. The
+field defaults to enabled, but takes many different values which allow you to
+choose whether or not to execute portions of your script.
+
+Conditions that behave as `False`:
+
+    0, '0', 'False', 'FALse', 'FALSE'
+
+Conditions that behave as `True`:
+
+    'any string', 'true', 'TRUE', '1', 1
+
+Example usage:
+
+    { "desc": "Hipchat: Notify Oncall Room",
+      "actor": "hipchat.Message",
+      "condition": "%SEND_MESSAGE%",
+      "warn_on_failure": true,
+      "options": {
+        "message": "Beginning release %RELEASE%", "room": "Oncall"
+      }
+    }
 
 ##### JSON Commenting
 

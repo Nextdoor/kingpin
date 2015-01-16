@@ -1,14 +1,28 @@
 ## Version 0.2.0
  * #174: Add actor 'initialization context' support. ([@diranged])
  * #172: Add logger test in wait_for_task ([@siminm])
+ * #171: Add aws.cloudformation.Create/Delete actors ([@diranged])
+ * #168: Use REQUIRED constant instead of None for options ([@siminm])
  * #166: Increase rollbar integration test timeout. ([@siminm])
  * #164: Launch up to min count, instead of new min count. ([@siminm])
  * #162: Increase the timeout time for the Hipchat/Rollbar integration tests. ([@diranged])
+ * #161: Track instances during script execution ([@siminm])
+ * #159: Increase retries for launch_server_array ([@siminm])
+ * #158: Add @retry decorator to current_instances call ([@siminm])
+ * #153: Don't wait for empty tasks ([@siminm])
+ * #152: Bump timeout for GenericHTTP Integration tests ([@siminm])
  * #151: Add misc.Macro actor ([@siminm])
  * #133: Track execution time and print it out in debug statements. ([@diranged])
+ * #132: Issue #88: Rollbar Deployment Actor ([@diranged])
+ * #131: Add hipchat.Topic actor ([@diranged])
  * #130: Cleanup Hipchat error handling and return values. ([@diranged])
+ * #129: Refactor exception tracking in GroupActor ([@siminm])
  * #128: Improve group actor tests. ([@siminm])
+ * #127: Nested exceptions ([@siminm])
  * #126: Kill the bools ([@diranged])
+ * #125: Add BaseActor execution conditions ([@siminm])
+ * #123: Check scripts inputs for Execute actor. ([@siminm])
+ * #113: Add GenericHTTP actor ([@siminm])
 
 ## Version 0.1.2
   * #120: Don't warn unless a warning is actually necessary
