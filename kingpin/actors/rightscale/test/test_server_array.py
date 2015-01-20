@@ -705,7 +705,7 @@ class TestExecuteActor(testing.AsyncTestCase):
             (mock_op_instance, mock_task)])
         self.client_mock.run_executable_on_instances.return_value = run_e
 
-        wait = tornado_value((True, mock_op_instance))
+        wait = tornado_value(True)
         self.client_mock.wait_for_task.return_value = wait
 
         # Now verify that each of the expected steps were called in a
@@ -720,14 +720,15 @@ class TestExecuteActor(testing.AsyncTestCase):
                 [mock_op_instance, mock_op_instance]))
         self.client_mock.wait_for_task.assert_called_with(
             task=mock_task,
-            task_name='unit-test-instance executing test_script',
+            task_name=('Executing "test_script" '
+                       'on instance: unit-test-instance'),
             sleep=5,
             logger=self.actor.log.info,
-            meta_data=mock_op_instance)
+            instance=mock_op_instance)
         self.assertEquals(ret, None)
 
         # Now mock out a failure of the script execution
-        wait = mock_tornado((False, mock_op_instance))
+        wait = mock_tornado(False)
         self.client_mock.wait_for_task = wait
         self.client_mock.get_audit_logs.side_effect = [
             tornado_value(False), tornado_value(['logs'])]

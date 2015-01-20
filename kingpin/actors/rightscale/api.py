@@ -43,8 +43,8 @@ rightscale.Resource objects everywhere, and it does the resource->ID
 translation.
 """
 
+from datetime import datetime
 from os import path
-import datetime
 import logging
 
 from concurrent import futures
@@ -414,7 +414,7 @@ class RightScale(object):
                       task_name=None,
                       sleep=5,
                       logger=None,
-                      meta_data=None):
+                      instance=None):
         """Monitors a RightScale task for completion.
 
         RightScale tasks are provided as URLs that we can query for the
@@ -434,12 +434,10 @@ class RightScale(object):
             logger: logger object to be used to log task status.
                     This is useful when this API call is called from a Kingpin
                     actor, and you want to use the actor's specific logger.
-            meta_data: Additional data to be returned along with success
+            instance: RightScale instance object on which the task is executed.
 
         Returns:
             bool: success status
-            or if meta_data is supplied,
-            tuple: (success, meta_data)
         """
 
         if not task:
@@ -451,11 +449,16 @@ class RightScale(object):
             timeout_id = utils.create_repeating_log(
                 logger, 'Still waiting on %s' % task_name, seconds=sleep)
 
+        # Tracking when the tasks start so we can search by date later
+        # RightScale expects the time to be a string in UTC
+        now = datetime.utcnow()
+        tasks_start = now.strftime('%Y/%m/%d %H:%M:%S +0000')
+
         while True:
             # Get the task status
             output = yield self._get_task_info(task)
             summary = output.soul['summary']
-            stamp = datetime.datetime.now()
+            stamp = datetime.now()
 
             if 'success' in summary or 'completed' in summary:
                 status = True
@@ -470,14 +473,36 @@ class RightScale(object):
 
             yield utils.tornado_sleep(min(sleep, 5))
 
+        log.debug('Task (%s) status: %s (updated at: %s)' %
+                  (output.path, output.soul['summary'], stamp))
+
         if timeout_id:
             utils.clear_repeating_log(timeout_id)
 
+        if status is True:
+            raise gen.Return(True)
+
+        # If something failed we want to find out why -- get audit logs
+
+        # Contact RightScale for audit logs of this instance.
+        now = datetime.utcnow()
+        tasks_finish = now.strftime('%Y/%m/%d %H:%M:%S +0000')
+
+        log.error('Task failed. Instance: "%s".' % instance.soul['name'])
+
+        audit_logs = yield self.get_audit_logs(
+            instance=instance,
+            start=tasks_start,
+            end=tasks_finish,
+            match='failed')
+
+        if audit_logs:
+            [log.error(l) for l in audit_logs]
+        else:
+            log.error('No audit logs for %s' % instance)
+
         log.debug('Task finished, return value: %s, summary: %s' %
                   (status, summary))
-
-        if meta_data:
-            raise gen.Return((status, meta_data))
 
         raise gen.Return(status)
 
@@ -495,6 +520,9 @@ class RightScale(object):
         return task.self.show()
 
     @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=10,
+                wait_exponential_multiplier=5000,
+                wait_exponential_max=60000)
     @utils.exception_logger
     def get_audit_logs(self, instance, start, end, match=None):
         """Fetch a set of audit logs belonging to an instance."""

@@ -16,7 +16,6 @@
 
 from random import randint
 import logging
-import time
 
 from tornado import gen
 import mock
@@ -656,6 +655,39 @@ class Execute(ServerArrayBaseActor):
             raise exceptions.InvalidOptions('One or more inputs has a problem')
 
     @gen.coroutine
+    def _wait_for_all_tasks(self, task_pairs):
+        """Wait for all instances to succeed, or print audit entry if failed.
+
+        Args:
+            task_pairs: list of tuples produced by run_executable_on_instances
+                [(instance, task), (instance, task)]
+
+        Returns:
+            boolean: All tasks succeeded. If at least 1 failed - this is False
+        """
+
+        task_count = len(task_pairs)
+        self.log.info('Queueing %s tasks' % task_count)
+        task_waiting = []
+
+        for instance, task in task_pairs:
+            task_name = 'Executing "%s" on instance: %s' % (
+                self.option('script'), instance.soul['name'])
+
+            task_waiting.append(self._client.wait_for_task(
+                task=task,
+                task_name=task_name,
+                sleep=self.option('expected_runtime'),
+                logger=self.log.info,
+                instance=instance
+            ))
+
+        self.log.info('Waiting for %s tasks to finish...' % task_count)
+        statuses = yield task_waiting
+
+        raise gen.Return(all(statuses))
+
+    @gen.coroutine
     def _execute(self):
         # First things first, login to RightScale asynchronously to
         # pre-populate the API attributes that are dynamically generated. This
@@ -704,55 +736,10 @@ class Execute(ServerArrayBaseActor):
                 'Invalid parameters supplied to execute script.')
 
         # Finally, monitor all of the tasks for completion.
-        self.log.info('Queueing %s tasks' % count)
-        task_waiting = []
-
-        import os
-        os.environ['TZ'] = 'UTC'
-        time.tzset()
-        tasks_start = time.strftime('%Y/%m/%d %H:%M:%S +0000')
-
-        for instance, task in task_pairs:
-            task_name = '%s executing %s' % (instance.soul['name'],
-                                             self.option('script'))
-            task_waiting.append(self._client.wait_for_task(
-                task=task,
-                task_name=task_name,
-                sleep=self.option('expected_runtime'),
-                logger=self.log.info,
-                meta_data=instance
-            ))
-
-        self.log.info('Waiting for %s tasks to finish.' % count)
-        status_instances = yield task_waiting
-
-        tasks_finish = time.strftime('%Y/%m/%d %H:%M:%S +0000')
-
-        self.log.info('All tasks finishes (successfully or not)')
-        self.log.info('status_instances: %s' % status_instances)
-
-        all_successful = True
-        for success, instance in status_instances:
-            if success:
-                continue
-
-            name = instance.soul['name']
-            self.log.error('Instance "%s" failed its task.' % name)
-            all_successful = False
-
-            audit_logs = yield self._client.get_audit_logs(
-                instance=instance,
-                start=tasks_start,
-                end=tasks_finish,
-                match='failed')
-
-            if audit_logs:
-                [self.log.error(log) for log in audit_logs]
-            else:
-                self.log.error('No audit logs for %s' % instance)
+        successful = yield self._wait_for_all_tasks(task_pairs)
 
         # If not all of the executions succeeded, raise an exception.
-        if not all_successful:
+        if not successful:
             self.log.critical('One or more tasks failed.')
             raise TaskExecutionFailed()
         else:
