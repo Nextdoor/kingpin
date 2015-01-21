@@ -678,7 +678,7 @@ class Execute(ServerArrayBaseActor):
                 task=task,
                 task_name=task_name,
                 sleep=self.option('expected_runtime'),
-                logger=self.log.info,
+                loc_log=self.log,
                 instance=instance
             ))
 

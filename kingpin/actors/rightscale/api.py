@@ -413,7 +413,7 @@ class RightScale(object):
                       task,
                       task_name=None,
                       sleep=5,
-                      logger=None,
+                      loc_log=log,
                       instance=None):
         """Monitors a RightScale task for completion.
 
@@ -431,9 +431,10 @@ class RightScale(object):
             task: RightScale Task resource object.
             task_name: Human-readable name of the task to be executed.
             sleep: Integer of seconds to wait before the first status check.
-            logger: logger object to be used to log task status.
+            loc_log: logging.getLogger() object to be used to log task status.
                     This is useful when this API call is called from a Kingpin
                     actor, and you want to use the actor's specific logger.
+                    If nothing is passed - local `log` object is used.
             instance: RightScale instance object on which the task is executed.
 
         Returns:
@@ -445,9 +446,9 @@ class RightScale(object):
             raise gen.Return(True)
 
         timeout_id = None
-        if logger and task_name:
+        if task_name:
             timeout_id = utils.create_repeating_log(
-                logger, 'Still waiting on %s' % task_name, seconds=sleep)
+                loc_log.info, 'Still waiting on %s' % task_name, seconds=sleep)
 
         # Tracking when the tasks start so we can search by date later
         # RightScale expects the time to be a string in UTC
@@ -468,13 +469,13 @@ class RightScale(object):
                 status = False
                 break
 
-            log.debug('Task (%s) status: %s (updated at: %s)' %
-                      (output.path, output.soul['summary'], stamp))
+            loc_log.debug('Task (%s) status: %s (updated at: %s)' %
+                          (output.path, output.soul['summary'], stamp))
 
             yield utils.tornado_sleep(min(sleep, 5))
 
-        log.debug('Task (%s) status: %s (updated at: %s)' %
-                  (output.path, output.soul['summary'], stamp))
+        loc_log.debug('Task (%s) status: %s (updated at: %s)' %
+                      (output.path, output.soul['summary'], stamp))
 
         if timeout_id:
             utils.clear_repeating_log(timeout_id)
@@ -488,7 +489,7 @@ class RightScale(object):
         now = datetime.utcnow()
         tasks_finish = now.strftime('%Y/%m/%d %H:%M:%S +0000')
 
-        log.error('Task failed. Instance: "%s".' % instance.soul['name'])
+        loc_log.error('Task failed. Instance: "%s".' % instance.soul['name'])
 
         audit_logs = yield self.get_audit_logs(
             instance=instance,
@@ -496,13 +497,14 @@ class RightScale(object):
             end=tasks_finish,
             match='failed')
 
-        if audit_logs:
-            [log.error(l) for l in audit_logs]
-        else:
-            log.error('No audit logs for %s' % instance)
+        # Print every audit log that was obtained (may be 0)
+        [loc_log.error(l) for l in audit_logs]
 
-        log.debug('Task finished, return value: %s, summary: %s' %
-                  (status, summary))
+        if not audit_logs:
+            loc_log.error('No audit logs for %s' % instance)
+
+        loc_log.debug('Task finished, return value: %s, summary: %s' %
+                      (status, summary))
 
         raise gen.Return(status)
 

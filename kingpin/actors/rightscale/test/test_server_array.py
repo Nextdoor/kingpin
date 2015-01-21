@@ -723,7 +723,7 @@ class TestExecuteActor(testing.AsyncTestCase):
             task_name=('Executing "test_script" '
                        'on instance: unit-test-instance'),
             sleep=5,
-            logger=self.actor.log.info,
+            loc_log=self.actor.log,
             instance=mock_op_instance)
         self.assertEquals(ret, None)
 

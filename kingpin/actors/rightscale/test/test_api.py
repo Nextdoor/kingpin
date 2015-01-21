@@ -285,14 +285,14 @@ class TestRightScale(testing.AsyncTestCase):
         with repeat_patcher as repeat_mock:
             ret = yield self.client.wait_for_task(
                 mock_task, task_name='ut-fake-task',
-                sleep=0.01, logger=mock_logger)
+                sleep=0.01, loc_log=mock_logger)
         self.assertEquals(ret, True)
         mock_task.assert_has_calls(
             [mock.call.self.show(), mock.call.self.show(),
              mock.call.self.show()])
 
         repeat_mock.assert_called_with(
-            mock_logger,
+            mock_logger.info,
             'Still waiting on ut-fake-task',
             seconds=0.01)
 
