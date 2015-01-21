@@ -525,7 +525,24 @@ class RightScale(object):
                 wait_exponential_max=60000)
     @utils.exception_logger
     def get_audit_logs(self, instance, start, end, match=None):
-        """Fetch a set of audit logs belonging to an instance."""
+        """Fetch a set of audit logs belonging to an instance.
+
+        http://reference.rightscale.com/api1.5/resources/
+        ResourceAuditEntries.html
+
+        Args:
+            instance: RightScale instance object.
+            start: String as expected by start_date of the API
+                   e.g., 2011/06/25 00:00:00 +0000.
+            end: String as expected by end_date of the API.
+            match: optional string to match the summary of the audit entry.
+                   Only audit entries with this string will be returned.
+
+        Returns:
+            list of audit entries between the start and end date that match
+            a substring in the summary. May return an empty list.
+
+        """
 
         href = instance.links['self']
         all_entries = self._client.audit_entries.index(params={
