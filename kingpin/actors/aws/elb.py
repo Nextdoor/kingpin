@@ -211,6 +211,8 @@ class WaitUntilHealthy(base.BaseActor):
 
         elb = yield self._find_elb(name=self.option('name'))
 
+        delay = 1
+        loop = 0
         while True:
             healthy = yield self._is_healthy(elb, count=self.option('count'))
 
@@ -224,7 +226,9 @@ class WaitUntilHealthy(base.BaseActor):
                 break
 
             # Not healthy :( continue looping
-            self.log.info('Retrying in 3 seconds.')
-            yield utils.tornado_sleep(3)
+            sleep = delay * pow(2, loop)
+            self.log.info('Retrying in %s seconds.' % sleep)
+            yield utils.tornado_sleep(sleep)
+            loop += 1
 
         raise gen.Return()

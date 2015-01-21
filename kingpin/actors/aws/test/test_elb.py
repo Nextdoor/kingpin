@@ -5,7 +5,6 @@ from tornado import gen
 from tornado import testing
 import mock
 
-from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import elb as elb_actor
 from kingpin.actors.aws import settings
@@ -63,16 +62,20 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
         actor._find_elb = mock.Mock(return_value=tornado_value('ELB'))
         actor._is_healthy = mock.Mock(
             side_effect=[tornado_value(False),
+                         tornado_value(False),
+                         tornado_value(False),
                          tornado_value(True)])
 
-        # Optional mock -- making the test quicker.
-        short_sleep = utils.tornado_sleep(0)
         with mock.patch('kingpin.utils.tornado_sleep') as ts:
-            ts.return_value = short_sleep
+            ts.return_value = tornado_value()
             val = yield actor._execute()
 
+        self.assertItemsEqual(ts.call_args_list, [mock.call(1),
+                                                  mock.call(2),
+                                                  mock.call(4)])
+
         self.assertEquals(actor._find_elb.call_count, 1)  # Don't refetch!
-        self.assertEquals(actor._is_healthy.call_count, 2)  # Retry!
+        self.assertEquals(actor._is_healthy.call_count, 4)  # Retry!
         self.assertEquals(val, None)
 
     @testing.gen_test
