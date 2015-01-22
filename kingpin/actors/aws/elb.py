@@ -20,6 +20,7 @@ import math
 from boto.ec2 import elb as aws_elb
 from boto.exception import BotoServerError
 from concurrent import futures
+from retrying import retry
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
@@ -242,6 +243,7 @@ class UseCert(ELBBaseActor):
 
     @concurrent.run_on_executor
     @utils.exception_logger
+    @retry(retry_on_exception=aws_settings.is_retriable_exception)
     def _check_access(self, elb):
         try:
             # A blank ARN value should have code 'CertificateNotFound'
@@ -253,6 +255,7 @@ class UseCert(ELBBaseActor):
 
     @concurrent.run_on_executor
     @utils.exception_logger
+    @retry(retry_on_exception=aws_settings.is_retriable_exception)
     def _get_cert_arn(self, name):
         """Return a server_certificate ARN."""
 
@@ -273,6 +276,7 @@ class UseCert(ELBBaseActor):
 
     @concurrent.run_on_executor
     @utils.exception_logger
+    @retry(retry_on_exception=aws_settings.is_retriable_exception)
     def _use_cert(self, elb, arn):
         """Assign an ssl cert to a given ELB.
 

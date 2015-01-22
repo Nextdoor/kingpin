@@ -16,6 +16,8 @@
 
 import os
 
+import boto
+
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
 # NOTE: using empty string here instead of None because boto library will try
@@ -26,3 +28,15 @@ AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')
 
 SQS_RETRY_DELAY = 30
 CF_WAIT_MAX = 30000
+
+
+def is_retriable_exception(exception):
+    """Return true if this AWS exception is transient and should be retried.
+
+    http://boto.readthedocs.org/en/latest/ref/boto.html
+        #boto.exception.PleaseRetryException
+
+    Example:
+        >>> @retry(retry_on_exception=is_retriable_exception)
+    """
+    return isinstance(exception, boto.exception.PleaseRetryException)
