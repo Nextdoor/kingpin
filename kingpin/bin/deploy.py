@@ -90,7 +90,7 @@ def main():
 
     try:
         runner = Macro(desc='Kingpin',
-                       options={'macro': options.json,
+                       options={'macro': json_file,
                                 'tokens': env_tokens},
                        dry=options.dry)
         yield runner.execute()

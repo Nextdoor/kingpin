@@ -7,6 +7,7 @@ from tornado import testing
 import requests
 
 from kingpin.actors.rightscale import api
+from kingpin.actors.test import helper
 
 
 log = logging.getLogger(__name__)
@@ -247,6 +248,9 @@ class TestRightScale(testing.AsyncTestCase):
     @testing.gen_test
     def test_wait_for_task(self):
         # Create some fake task outputs
+        mocked_instance = mock.MagicMock(name='mocked_instance')
+        mocked_instance.soul = {'name': 'fake_instance'}
+
         queued = mock.MagicMock(name='mock_output_queued')
         queued.soul = {'name': 'fake_task',
                        'summary': 'queued: still going'}
@@ -271,6 +275,7 @@ class TestRightScale(testing.AsyncTestCase):
         unknown.soul = {'name': 'fake_task',
                         'summary': 'unknown return'}
 
+        self.client.get_audit_logs = helper.mock_tornado([])
         # task succeeds
         mock_task = mock.MagicMock(name='fake task')
         mock_task.self.show.side_effect = [queued, in_process, success]
@@ -280,14 +285,14 @@ class TestRightScale(testing.AsyncTestCase):
         with repeat_patcher as repeat_mock:
             ret = yield self.client.wait_for_task(
                 mock_task, task_name='ut-fake-task',
-                sleep=0.01, logger=mock_logger)
+                sleep=0.01, loc_log=mock_logger)
         self.assertEquals(ret, True)
         mock_task.assert_has_calls(
             [mock.call.self.show(), mock.call.self.show(),
              mock.call.self.show()])
 
         repeat_mock.assert_called_with(
-            mock_logger,
+            mock_logger.info,
             'Still waiting on ut-fake-task',
             seconds=0.01)
 
@@ -303,7 +308,19 @@ class TestRightScale(testing.AsyncTestCase):
         # task fails
         mock_task = mock.MagicMock(name='fake task')
         mock_task.self.show.side_effect = [queued, in_process, failed]
-        ret = yield self.client.wait_for_task(mock_task, sleep=0.01)
+        ret = yield self.client.wait_for_task(
+            mock_task, sleep=0.01, instance=mocked_instance)
+        self.assertEquals(ret, False)
+        mock_task.assert_has_calls(
+            [mock.call.self.show(), mock.call.self.show(),
+             mock.call.self.show()])
+
+        # task fails
+        self.client.get_audit_logs = helper.mock_tornado(['log', 'log'])
+        mock_task = mock.MagicMock(name='fake task')
+        mock_task.self.show.side_effect = [queued, in_process, failed]
+        ret = yield self.client.wait_for_task(
+            mock_task, sleep=0.01, instance=mocked_instance)
         self.assertEquals(ret, False)
         mock_task.assert_has_calls(
             [mock.call.self.show(), mock.call.self.show(),
@@ -313,6 +330,33 @@ class TestRightScale(testing.AsyncTestCase):
         mock_task = None
         ret = yield self.client.wait_for_task(mock_task, sleep=0.01)
         self.assertEquals(ret, True)
+
+    @testing.gen_test
+    def test_get_audit_logs(self):
+        mock_instance = mock.MagicMock(name='unittest-instance')
+        mock_instance.soul = {'name': 'unittest-instance'}
+        mock_instance.links = {'self': '/foo/bar'}
+        mock_instance.self.path = '/a/b/1234'
+
+        fail = mock.Mock()
+        fail.soul = {'summary': "failed: 'Some Script' [HEAD]"}
+
+        success = mock.Mock()
+        success.soul = {'summary': "completed: 'Some Script' [HEAD]"}
+
+        self.mock_client.audit_entries.index.return_value = [
+            fail,
+            success
+        ]
+
+        logs = yield self.client.get_audit_logs(mock_instance,
+                                                'start',
+                                                'end',
+                                                'failed')
+
+        self.assertEquals(len(logs), 1)
+        expected = self.mock_client.client.get().raw_response.text
+        self.assertEquals(logs[0], expected)
 
     @testing.gen_test
     def test_run_executable_on_instances(self):

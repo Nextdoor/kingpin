@@ -43,8 +43,8 @@ rightscale.Resource objects everywhere, and it does the resource->ID
 translation.
 """
 
+from datetime import datetime
 from os import path
-import datetime
 import logging
 
 from concurrent import futures
@@ -409,7 +409,12 @@ class RightScale(object):
         return task
 
     @gen.coroutine
-    def wait_for_task(self, task, task_name=None, sleep=5, logger=None):
+    def wait_for_task(self,
+                      task,
+                      task_name=None,
+                      sleep=5,
+                      loc_log=log,
+                      instance=None):
         """Monitors a RightScale task for completion.
 
         RightScale tasks are provided as URLs that we can query for the
@@ -426,12 +431,14 @@ class RightScale(object):
             task: RightScale Task resource object.
             task_name: Human-readable name of the task to be executed.
             sleep: Integer of seconds to wait before the first status check.
-            logger: logger object to be used to log task status.
+            loc_log: logging.getLogger() object to be used to log task status.
                     This is useful when this API call is called from a Kingpin
                     actor, and you want to use the actor's specific logger.
+                    If nothing is passed - local `log` object is used.
+            instance: RightScale instance object on which the task is executed.
 
         Returns:
-            <booelan>
+            bool: success status
         """
 
         if not task:
@@ -439,15 +446,20 @@ class RightScale(object):
             raise gen.Return(True)
 
         timeout_id = None
-        if logger and task_name:
+        if task_name:
             timeout_id = utils.create_repeating_log(
-                logger, 'Still waiting on %s' % task_name, seconds=sleep)
+                loc_log.info, 'Still waiting on %s' % task_name, seconds=sleep)
+
+        # Tracking when the tasks start so we can search by date later
+        # RightScale expects the time to be a string in UTC
+        now = datetime.utcnow()
+        tasks_start = now.strftime('%Y/%m/%d %H:%M:%S +0000')
 
         while True:
             # Get the task status
             output = yield self._get_task_info(task)
             summary = output.soul['summary']
-            stamp = datetime.datetime.now()
+            stamp = datetime.now()
 
             if 'success' in summary or 'completed' in summary:
                 status = True
@@ -457,16 +469,42 @@ class RightScale(object):
                 status = False
                 break
 
-            log.debug('Task (%s) status: %s (updated at: %s)' %
-                      (output.path, output.soul['summary'], stamp))
+            loc_log.debug('Task (%s) status: %s (updated at: %s)' %
+                          (output.path, output.soul['summary'], stamp))
 
             yield utils.tornado_sleep(min(sleep, 5))
+
+        loc_log.debug('Task (%s) status: %s (updated at: %s)' %
+                      (output.path, output.soul['summary'], stamp))
 
         if timeout_id:
             utils.clear_repeating_log(timeout_id)
 
-        log.debug('Task finished, return value: %s, summary: %s' %
-                  (status, summary))
+        if status is True:
+            raise gen.Return(True)
+
+        # If something failed we want to find out why -- get audit logs
+
+        # Contact RightScale for audit logs of this instance.
+        now = datetime.utcnow()
+        tasks_finish = now.strftime('%Y/%m/%d %H:%M:%S +0000')
+
+        loc_log.error('Task failed. Instance: "%s".' % instance.soul['name'])
+
+        audit_logs = yield self.get_audit_logs(
+            instance=instance,
+            start=tasks_start,
+            end=tasks_finish,
+            match='failed')
+
+        # Print every audit log that was obtained (may be 0)
+        [loc_log.error(l) for l in audit_logs]
+
+        if not audit_logs:
+            loc_log.error('No audit logs for %s' % instance)
+
+        loc_log.debug('Task finished, return value: %s, summary: %s' %
+                      (status, summary))
 
         raise gen.Return(status)
 
@@ -482,6 +520,58 @@ class RightScale(object):
         function to be run on a separate thread.
         """
         return task.self.show()
+
+    @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=10,
+                wait_exponential_multiplier=5000,
+                wait_exponential_max=60000)
+    @utils.exception_logger
+    def get_audit_logs(self, instance, start, end, match=None):
+        """Fetch a set of audit logs belonging to an instance.
+
+        http://reference.rightscale.com/api1.5/resources/
+        ResourceAuditEntries.html
+
+        Args:
+            instance: RightScale instance object.
+            start: String as expected by start_date of the API
+                   e.g., 2011/06/25 00:00:00 +0000.
+            end: String as expected by end_date of the API.
+            match: optional string to match the summary of the audit entry.
+                   Only audit entries with this string will be returned.
+
+        Returns:
+            list of audit entries between the start and end date that match
+            a substring in the summary. May return an empty list.
+
+        """
+
+        href = instance.links['self']
+        all_entries = self._client.audit_entries.index(params={
+            'filter[]': ['auditee_href==%s' % href],
+            'limit': 10,
+            'start_date': start,
+            'end_date': end
+        })
+
+        log.debug('Found %s audit logs.' % len(all_entries))
+
+        logs = []
+        for entry in all_entries:
+            summary = entry.soul['summary']
+            if match and match not in summary:
+                log.debug('Skipping details for "%s"' % summary)
+                continue
+            log.debug('Fetching details for "%s"' % summary)
+
+            # grabbing raw output because RightScale doesn't reply via JSON
+            # when accessing details of a log.
+            detail_res = self._client.client.get(entry.detail.path)
+            details = detail_res.raw_response.text
+
+            logs.append(details)
+
+        return logs
 
     @gen.coroutine
     def run_executable_on_instances(self, name, inputs, instances):
