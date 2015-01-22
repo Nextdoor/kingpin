@@ -218,10 +218,6 @@ class TestUseCert(testing.AsyncTestCase):
         self.assertEquals(actor.iam_conn.get_server_certificate.call_count, 1)
         self.assertEquals(arn, 'unit-test-arn-value')
 
-        yield actor._get_cert_arn('test')
-        # Value should be cached, call count still 1
-        self.assertEquals(actor.iam_conn.get_server_certificate.call_count, 1)
-
         yield actor._get_cert_arn('test-new')
         # New name supplied, call count should be 2
         self.assertEquals(actor.iam_conn.get_server_certificate.call_count, 2)
@@ -239,8 +235,7 @@ class TestUseCert(testing.AsyncTestCase):
         actor.iam_conn.get_server_certificate.side_effect = error
 
         with self.assertRaises(elb_actor.CertNotFound):
-            # Note -- cannot use 'test' here because it's cached above
-            yield actor._get_cert_arn('broken-test')
+            yield actor._get_cert_arn('test')
 
     @testing.gen_test
     def test_use_cert(self):

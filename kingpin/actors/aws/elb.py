@@ -233,9 +233,6 @@ class UseCert(ELBBaseActor):
         'cert_name': (str, REQUIRED, 'Unique IAM certificate name, or ARN'),
     }
 
-    # Local copy of {cert_name: cert_arn} dictionary
-    cert_arn_cache = {}
-
     def __init__(self, *args, **kwargs):
         """Set up additional IAM connection."""
         super(UseCert, self).__init__(*args, **kwargs)
@@ -259,12 +256,6 @@ class UseCert(ELBBaseActor):
     def _get_cert_arn(self, name):
         """Return a server_certificate ARN."""
 
-        # Check cache first
-        if UseCert.cert_arn_cache.get(name):
-            self.log.debug('Using cached ARN value for "%s"' % name)
-            return UseCert.cert_arn_cache.get(name)
-
-        # If it's not in cache, find it through IAM
         self.log.debug('Searching for cert "%s"...' % name)
         try:
             cert = self.iam_conn.get_server_certificate(name)
@@ -278,8 +269,6 @@ class UseCert(ELBBaseActor):
             'server_certificate').get(
             'server_certificate_metadata').get('arn')
 
-        # Store it in the cache for future use
-        UseCert.cert_arn_cache[name] = arn
         return arn
 
     @concurrent.run_on_executor
