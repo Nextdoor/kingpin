@@ -266,7 +266,11 @@ class TestUseCert(testing.AsyncTestCase):
                           'region': 'unit-region',
                           'cert_name': 'unit-cert'}
             )
-        actor._find_elb = helper.mock_tornado('elb')
+        elb = mock.Mock()
+        elb.listeners = [
+            (443, 443, 'HTTPS', 'HTTPS',
+             'arn:aws:iam::12345:server-certificate/nextdoor.com')]
+        actor._find_elb = helper.mock_tornado(elb)
         actor._get_cert_arn = helper.mock_tornado('arn')
         actor._check_access = helper.mock_tornado()
         actor._use_cert = helper.mock_tornado()
@@ -276,15 +280,28 @@ class TestUseCert(testing.AsyncTestCase):
         self.assertEquals(actor._check_access._call_count, 0)
         self.assertEquals(actor._use_cert._call_count, 1)
 
+        # Check quick exit if the cert is already in use
+        actor._get_cert_arn = helper.mock_tornado(elb.listeners[0][4])
+        yield actor._execute()
+
+        # Function calls should remain unchanged
+        self.assertEquals(actor._check_access._call_count, 0)
+        self.assertEquals(actor._use_cert._call_count, 1)
+
     @testing.gen_test
     def test_execute_dry(self):
         actor = elb_actor.UseCert(
             'Unit Test', {'name': 'unit-test',
                           'region': 'unit-region',
                           'cert_name': 'unit-cert'},
-            dry=True
-            )
-        actor._find_elb = helper.mock_tornado('elb')
+            dry=True)
+
+        elb = mock.Mock()
+        elb.listeners = [
+            (443, 443, 'HTTPS', 'HTTPS',
+             'arn:aws:iam::12345:server-certificate/nextdoor.com')]
+
+        actor._find_elb = helper.mock_tornado(elb)
         actor._get_cert_arn = helper.mock_tornado('arn')
         actor._check_access = helper.mock_tornado()
         actor._use_cert = helper.mock_tornado()

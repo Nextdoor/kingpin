@@ -299,11 +299,35 @@ class UseCert(ELBBaseActor):
             raise exceptions.UnrecoverableActorFailure(
                 'Applying new SSL cert to %s failed: %s' % (elb, e))
 
+    def _compare_certs(self, elb, new_arn):
+        """Check if a given ELB is using a provided ARN for its certificate.
+
+        Args:
+            elb: boto elb object.
+            new_arn: ARN for server certificate to use.
+
+        Returns:
+            boolean: used cert is same as the provided one.
+        """
+
+        ssl = [lis for lis in elb.listeners
+               if lis[0] == self.option('port')][0]
+
+        arn = ssl[4]
+
+        return arn == new_arn
+
     @gen.coroutine
     def _execute(self):
         """Find ELB, and a Cert, then apply it."""
         elb = yield self._find_elb(self.option('name'))
         cert_arn = yield self._get_cert_arn(self.option('cert_name'))
+
+        same_cert = self._compare_certs(elb, cert_arn)
+
+        if same_cert:
+            self.log.warning('ELB %s is already using this cert.' % elb)
+            raise gen.Return()
 
         if self._dry:
             yield self._check_access(elb)
