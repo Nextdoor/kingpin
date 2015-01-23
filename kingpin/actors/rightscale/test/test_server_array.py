@@ -697,10 +697,12 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.actor._check_script = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mock_array)
 
-        yi = tornado_value([mock_op_instance])
+        yi = tornado_value([mock_op_instance, mock_op_instance])
         self.client_mock.get_server_array_current_instances.return_value = yi
 
-        run_e = tornado_value([(mock_op_instance, mock_task)])
+        run_e = tornado_value([
+            (mock_op_instance, mock_task),
+            (mock_op_instance, mock_task)])
         self.client_mock.run_executable_on_instances.return_value = run_e
 
         wait = tornado_value(True)
@@ -715,16 +717,21 @@ class TestExecuteActor(testing.AsyncTestCase):
             .assert_called_once_with(
                 'test_script',
                 {'inputs[foo]': 'text:bar'},
-                [mock_op_instance]))
-        self.client_mock.wait_for_task.assert_called_once_with(
+                [mock_op_instance, mock_op_instance]))
+        self.client_mock.wait_for_task.assert_called_with(
             task=mock_task,
-            task_name='unit-test-instance executing test_script',
+            task_name=('Executing "test_script" '
+                       'on instance: unit-test-instance'),
             sleep=5,
-            logger=self.actor.log.info)
+            loc_log=self.actor.log,
+            instance=mock_op_instance)
         self.assertEquals(ret, None)
 
         # Now mock out a failure of the script execution
-        self.client_mock.wait_for_task = mock_tornado(False)
+        wait = mock_tornado(False)
+        self.client_mock.wait_for_task = wait
+        self.client_mock.get_audit_logs.side_effect = [
+            tornado_value(False), tornado_value(['logs'])]
         with self.assertRaises(server_array.TaskExecutionFailed):
             yield self.actor._execute()
 
