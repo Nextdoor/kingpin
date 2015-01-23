@@ -197,8 +197,6 @@ class WaitUntilHealthy(base.BaseActor):
 
         healthy = (in_service_count >= expected_count)
         self.log.debug('ELB "%s" healthy state: %s' % (elb.name, healthy))
-        self.log.info('InService vs expected: %s / %s' %
-                      (in_service_count, expected_count))
 
         return healthy
 
@@ -211,6 +209,10 @@ class WaitUntilHealthy(base.BaseActor):
 
         elb = yield self._find_elb(name=self.option('name'))
 
+        repeating_log = utils.create_repeating_log(
+            self.log.info,
+            'Still waiting for %s to become healthy' % self.option('name'),
+            seconds=30)
         while True:
             healthy = yield self._is_healthy(elb, count=self.option('count'))
 
@@ -224,7 +226,9 @@ class WaitUntilHealthy(base.BaseActor):
                 break
 
             # Not healthy :( continue looping
-            self.log.info('Retrying in 3 seconds.')
+            self.log.debug('Retrying in 3 seconds.')
             yield utils.tornado_sleep(3)
+
+        utils.clear_repeating_log(repeating_log)
 
         raise gen.Return()
