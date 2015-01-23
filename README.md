@@ -6,6 +6,31 @@
 
 The Kingpin of your Deployment Model
 
+## Table of Contents
+
+1. [Installation](#installation)
+    * [Github Checkout/Install](#github-checkoutinstall)
+    * [Direct PIP Install](#direct-pip-install)
+2. [Basic Use](#basic-use)
+    * [Credentials](#credentials)
+    * [JSON-based DSL](#json-based-dsl)
+        * [The Script](#the-script)
+        * [Schema Description](#schema-description)
+        * [Conditional Execution](#conditional-execution)
+        * [JSON Commenting](#json-commenting)
+        * [Token-replacement](#token-replacement)
+          * [Environmental Tokens](#environmental-tokens)
+          * [Contextual Tokens](#contextual-tokens)
+3. [The Actors](#the-actors)
+    * [Base Actors](#base-actors)
+    * [AWS](#aws)
+    * [GenericHTTP](#generichttp)
+    * [HipChat](#hipchat)
+    * [Librato](#librato)
+    * [Rollbar](#rollbar)
+    * [RightScale](#rightscale)
+3. [Development](#development) 
+
 ## Installation
 
 The simplest installation method is via [PyPI](https://pypi.python.org/pypi/kingpin).
@@ -117,6 +142,8 @@ The JSON schema is simple. We take a single JSON object that has a few fields:
   * `actor` - A text-string describing the name of the Actor package and class.
     For example, `kingpin.actors.rightscale.server_array.Clone`, or
     `misc.Sleep`.
+  * `condition` - A bool or string that indicates whether or not to execute
+    this actor.
   * `desc` - A text-string describing the name of the stage or action. Meant to
     ensure that the logs are very human readable.
   * `warn_on_failure` - True/False whether or not to ignore an Actors failure and
@@ -130,6 +157,7 @@ The simples JSON file could look like this:
 
     { "desc": "Hipchat: Notify Oncall Room",
       "actor": "hipchat.Message",
+      "condition": "true",
       "warn_on_failure": true,
       "options": {
         "message": "Beginning release %RELEASE%", "room": "Oncall"
@@ -139,6 +167,32 @@ The simples JSON file could look like this:
 However, much more complex configurations can be created by using the
 `group.Sync` and `group.Async` actors to describe massively more complex
 deployents.
+
+##### Conditional Execution
+
+The `base.BaseActor` definition supports a `condition` parameter that can be
+used to enable or disable execution of an actor in a given Kingpin run. The
+field defaults to enabled, but takes many different values which allow you to
+choose whether or not to execute portions of your script.
+
+Conditions that behave as `False`:
+
+    0, '0', 'False', 'FALse', 'FALSE'
+
+Conditions that behave as `True`:
+
+    'any string', 'true', 'TRUE', '1', 1
+
+Example usage:
+
+    { "desc": "Hipchat: Notify Oncall Room",
+      "actor": "hipchat.Message",
+      "condition": "%SEND_MESSAGE%",
+      "warn_on_failure": true,
+      "options": {
+        "message": "Beginning release %RELEASE%", "room": "Oncall"
+      }
+    }
 
 ##### JSON Commenting
 
@@ -250,10 +304,10 @@ Again, in an effort to prevent mid-run errors, we pre-instantiate all Actor
 objects all at once before we ever begin executing code. This ensures that
 major typos or misconfigurations in the JSON will be caught early on.
 
-### The Actors
+## The Actors
 Definition: _a participant in an action or process._
 
-#### Base Actors
+### Base Actors
 
 Kingpin provides several internal actors that can be used to create complex
 and reliable groups of actions to be executed.
@@ -271,7 +325,7 @@ and reliable groups of actions to be executed.
   * [group.Sync](docs/actors/group.Sync.md)
   * [group.Async](docs/actors/group.Async.md)
 
-#### AWS
+### AWS
 
 The AWS Actors allow you to interact with the resources (such as SQS and ELB)
 inside your Amazon AWS account. These actors all support dry runs properly, but
@@ -292,7 +346,7 @@ below for using each actor.
   * [aws.sqs.WaitUntilEmpty](docs/actors/aws.sqs.WaitUntilEmpty.md)
   * [aws.sqs.Delete](docs/actors/aws.sqs.Delete.md)
 
-#### GenericHTTP
+### GenericHTTP
 
 A very simple actor that allows GET/POST methods over HTTP. Also includes
 "Basic-Auth" authentication.
@@ -301,7 +355,7 @@ A very simple actor that allows GET/POST methods over HTTP. Also includes
 
   * [misc.GenericHTTP](docs/actors/misc.GenericHTTP.md)
 
-#### HipChat
+### HipChat
 
 The Hipchat Actors allow you to send messages to a HipChat room at stages during
 your job execution. The actor supports dry mode by validating that the
@@ -319,7 +373,7 @@ the messages.
   * [hipchat.Message](docs/actors/hipchat.Message.md)
   * [hipchat.Topic](docs/actors/hipchat.Topic.md)
 
-#### Librato
+### Librato
 
 The Librato Actor allows you to post an Annotation to Librato. This is
 specifically useful for marking when deployments occur on your graphs for
@@ -334,7 +388,7 @@ cause/effect analysis.
 
   * [librato.Annotation](docs/actors/librato.Annotation.md)
 
-#### Rollbar
+### Rollbar
 
 The Rollbar Actor allows you to post Deploy messages to Rollbar when you
 execute a code deployment.
@@ -348,7 +402,7 @@ execute a code deployment.
   * [rollbar.Deploy](docs/actors/rollbar.Deploy.md)
 
 
-#### RightScale
+### RightScale
 
 The RightScale Actors allow you to interact with resources inside your
 Rightscale account. These actors all support dry runs properly, but each
