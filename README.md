@@ -343,6 +343,7 @@ below for using each actor.
   * [aws.cloudformation.Delete](docs/actors/aws.cloudformation.Delete.md)
   * [aws.elb.UseCert](docs/actors/aws.elb.UseCert.md)
   * [aws.elb.WaitUntilHealthy](docs/actors/aws.elb.WaitUntilHealthy.md)
+  * [aws.iam.DeleteCert](docs/actors/aws.iam.DeleteCert.md)
   * [aws.iam.UploadCert](docs/actors/aws.iam.UploadCert.md)
   * [aws.sqs.Create](docs/actors/aws.sqs.Create.md)
   * [aws.sqs.Delete](docs/actors/aws.sqs.Delete.md)
