@@ -16,6 +16,7 @@
 
 import logging
 
+from boto.exception import BotoServerError
 from concurrent import futures
 from retrying import retry
 from tornado import concurrent
@@ -123,3 +124,48 @@ class UploadCert(IAMBaseActor):
             private_key=private_key,
             cert_chain=cert_chain_body,
             path=self.option('path'))
+
+
+class DeleteCert(IAMBaseActor):
+    """Delete an existing SSL Cert in AWS IAM.
+
+    http://boto.readthedocs.org/en/latest/ref/iam.html
+    #boto.iam.connection.IAMConnection.delete_server_cert
+    """
+
+    all_options = {
+        'name': (str, REQUIRED, 'The name for the server certificate.')
+    }
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    @retry(retry_on_exception=aws_settings.is_retriable_exception)
+    def _find_cert(self, name):
+        """Find a cert by name."""
+
+        self.log.debug('Searching for cert "%s"...' % name)
+        try:
+            self.conn.get_server_certificate(name)
+        except BotoServerError as e:
+            raise exceptions.UnrecoverableActorFailure(
+                'Could not find cert %s. Reason: %s' % (name, e))
+
+    @concurrent.run_on_executor
+    @retry(stop_max_attempt_number=3,
+           wait_exponential_multiplier=2,
+           wait_exponential_max=60)
+    @utils.exception_logger
+    def _delete(self, cert_name):
+        """Delete a server certificate in AWS IAM."""
+        self.conn.delete_server_cert(cert_name)
+
+    @gen.coroutine
+    def _execute(self):
+        if self._dry:
+            self.log.info('Checking that the cert exists...')
+            yield self._find_cert(self.option('name'))
+            self.log.info('Would delete cert "%s"' % self.option('name'))
+            raise gen.Return()
+
+        self.log.info('Deleting cert "%s"' % self.option('name'))
+        yield self._delete(cert_name=self.option('name'))
