@@ -84,6 +84,21 @@ class TestRollbarBase(testing.AsyncTestCase):
             self.assertEquals(res, response_dict)
 
     @testing.gen_test
+    def test_fetch_wrapper_with_401(self):
+        actor = rollbar.RollbarBase('Unit Test Action', {})
+        response_dict = {'err': 1, 'messsage': 'Unauthorized'}
+        response_body = json.dumps(response_dict)
+        http_response = httpclient.HTTPError(
+            code=401, response=response_body)
+
+        with mock.patch.object(actor, '_get_http_client') as m:
+            m.return_value = FakeExceptionRaisingHTTPClientClass()
+            m.return_value.response_value = http_response
+
+            with self.assertRaises(exceptions.InvalidCredentials):
+                yield actor._fetch_wrapper('http://fake.com')
+
+    @testing.gen_test
     def test_fetch_wrapper_with_403(self):
         actor = rollbar.RollbarBase('Unit Test Action', {})
         response_dict = {'err': 1, 'messsage': 'access token not found: xxx'}
