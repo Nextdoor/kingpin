@@ -483,6 +483,9 @@ class RightScale(object):
         if status is True:
             raise gen.Return(True)
 
+        if not instance:
+            raise gen.Return(status)
+
         # If something failed we want to find out why -- get audit logs
 
         # Contact RightScale for audit logs of this instance.
