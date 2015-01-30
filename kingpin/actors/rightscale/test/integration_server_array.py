@@ -123,7 +123,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Update %s' % self.clone_name,
             {'array': self.clone_name,
              'params': {'elasticity_params': {'bounds': {
-                        'min_count': '1', 'max_count': '2'}},
+                        'min_count': '1', 'max_count': '1'}},
                         'status': 'enabled',
                         'description': 'Unit Tests: %s' % UUID}})
         ret = yield actor.execute()
@@ -147,8 +147,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
     @testing.gen_test(timeout=10)
     def integration_04c_update_with_invalid_params(self):
         actor = server_array.Update(
-            'Update %s' % self.template_array,
-            {'array': self.template_array,
+            'Update %s' % self.clone_name,
+            {'array': self.clone_name,
              'params': {
                  'elasticity_params': {
                      'bounds': {'min_count': '5', 'max_count': '1'}}}})
@@ -160,14 +160,14 @@ class IntegrationServerArray(testing.AsyncTestCase):
     def integration_04d_update_missing_array(self):
         # Patch the array with some new min_instance settings, then launch it
         actor = server_array.Update(
-            'Update %s' % self.clone_name,
-            {'array': self.clone_name,
+            'Update missing array',
+            {'array': 'unit-test-fake-array',
              'params': {'elasticity_params': {'bounds': {
-                        'min_count': '1', 'max_count': '2'}},
+                        'min_count': '1', 'max_count': '1'}},
                         'status': 'enabled',
                         'description': 'Unit Tests: %s' % UUID}})
-        ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor.execute()
 
     @attr('integration', 'dry')
     @testing.gen_test(timeout=30)
