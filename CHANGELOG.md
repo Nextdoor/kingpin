@@ -1,3 +1,9 @@
+## Version 0.2.1
+ * #186: Don't fetch audit logs if the instance is missing ([@siminm])
+ * #183: actors.rightscale.server_array integration test fixes ([@diranged])
+ * #182: Handle 401 and 403 response codes the same ([@diranged])
+ * #181: rightscale.server_array.Terminate throws: 'NoneType' object has no attribute 'soul' ([@siminm]
+
 ## Version 0.2.0
  * #174: Add actor 'initialization context' support. ([@diranged])
  * #172: Add logger test in wait_for_task ([@siminm])
