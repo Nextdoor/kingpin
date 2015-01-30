@@ -18,14 +18,14 @@ import logging
 import math
 
 from boto.ec2 import elb as aws_elb
-from boto.exception import BotoServerError
 from concurrent import futures
+from retrying import retry
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
 
 from kingpin import utils
-from kingpin.actors import base
+from kingpin.actors.aws import base
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings as aws_settings
 from kingpin.constants import REQUIRED
@@ -42,11 +42,6 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 EXECUTOR = futures.ThreadPoolExecutor(10)
 
 
-class ELBNotFound(exceptions.RecoverableActorFailure):
-
-    """Raised when an ELB is not found"""
-
-
 # Helper function
 def p2f(string):
     """Convert percentage string into float.
@@ -56,7 +51,7 @@ def p2f(string):
     return float(string.strip('%')) / 100
 
 
-class WaitUntilHealthy(base.BaseActor):
+class WaitUntilHealthy(base.AWSBaseActor):
 
     """Waits till a specified number of instances are "InService"."""
 
@@ -116,36 +111,6 @@ class WaitUntilHealthy(base.BaseActor):
                 'Found: %s') % (region, match))
 
         return match[0]
-
-    @concurrent.run_on_executor
-    def _find_elb(self, name):
-        """Return an ELB with the matching name.
-
-        Must find exactly 1 match. Zones are limited by the AWS credentials.
-
-        Args:
-            name: String-name of the ELB to search for
-
-        Returns:
-            A single ELB reference object
-
-        Raises:
-            ELBNotFound
-        """
-        self.log.info('Searching for ELB "%s"' % name)
-
-        try:
-            elbs = self.conn.get_all_load_balancers(load_balancer_names=name)
-        except BotoServerError as e:
-            raise ELBNotFound(e)
-
-        self.log.debug('ELBs found: %s' % elbs)
-
-        if len(elbs) != 1:
-            raise ELBNotFound('Expected to find exactly 1 ELB. Found %s: %s'
-                              % (len(elbs), elbs))
-
-        return elbs[0]
 
     def _get_expected_count(self, count, total_count):
         """Calculate the expected count for a given percentage.
@@ -232,3 +197,77 @@ class WaitUntilHealthy(base.BaseActor):
         utils.clear_repeating_log(repeating_log)
 
         raise gen.Return()
+
+
+class AddInstance(base.AWSBaseActor):
+
+    all_options = {
+        'elb': (str, REQUIRED, 'Name of the ELB'),
+        'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
+        'instance_id': ((str, list), REQUIRED, 'Instance id, or list of ids')
+    }
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    @retry
+    def _add(self, elb, instances):
+        """Add/Register the supplied instances.
+
+        This boto function is idempotent, so any retry is OK.
+
+        Args:
+            elb: boto Loadbalancer object
+            instances: list of instance ids.
+        """
+        elb.register_instances(instances)
+
+    @gen.coroutine
+    def _execute(self):
+        elb = yield self._find_elb(self.option('elb'))
+        instances = self.option('instance_id')
+        if type(self.option('instance_id')) is not list:
+            instances = [self.option('instance_id')]
+
+        self.log.info(('Adding the following instances to elb: '
+                       '%s' % ', '.join(instances)))
+        if not self._dry:
+            yield self._add(elb, instances)
+            self.log.info('Done.')
+
+
+class RemoveInstance(base.AWSBaseActor):
+
+    """Remove EC2 instance(s) from an ELB."""
+
+    all_options = {
+        'elb': (str, REQUIRED, 'Name of the ELB'),
+        'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
+        'instance_id': ((str, list), REQUIRED, 'Instance id, or list of ids')
+    }
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    @retry
+    def _remove(self, elb, instances):
+        """Remove/Deregister the supplied instances.
+
+        This boto function is idempotent, so any retry is OK.
+
+        Args:
+            elb: boto Loadbalancer object
+            instances: list of instance ids.
+        """
+        elb.deregister_instances(instances)
+
+    @gen.coroutine
+    def _execute(self):
+        elb = yield self._find_elb(self.option('elb'))
+        instances = self.option('instance_id')
+        if type(self.option('instance_id')) is not list:
+            instances = [self.option('instance_id')]
+
+        self.log.info(('Removing the following instances from elb: '
+                       '%s' % ', '.join(instances)))
+        if not self._dry:
+            yield self._remove(elb, instances)
+            self.log.info('Done.')
