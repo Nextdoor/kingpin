@@ -368,6 +368,66 @@ and the edge cases should be handled via the `all_options` class variable.
 
 #### Exception Handling
 
+### Simple API Access Objects
+
+Most of the APIs out there leverage basic REST with JSON or XML as the data
+encoding method. Since these APIs behave similarly, we have created a simple
+API access object that can be extended for creating actors quickly. The object
+is called a `RestConsumer` and is in the `kingpin.actors.support.api` package.
+This `RestConsumer` can be subclassed and filled in with a `dict` that
+describes the API in detail.
+
+#### HTTPBin Actor with the RestConsumer
+
+```python
+
+HTTPBIN = {
+    'path': '/',
+    'http_methods': {'get': {}},
+    'attrs': {
+        'get': {
+            'path': '/get',
+            'http_methods': {'get': {}},
+        },
+        'post': {
+            'path': '/post',
+            'http_methods': {'post': {}},
+        },
+        'put': {
+            'path': '/put',
+            'http_methods': {'put': {}},
+        },
+        'delete': {
+            'path': '/delete',
+            'http_methods': {'delete': {}},
+        },
+    }
+}
+
+
+class HTTPBinRestClient(api.RestConsumer):
+
+    _CONFIG = HTTPBIN
+    _ENDPOINT = 'http://httpbin.org'
+
+
+class HTTPBinGetThenPost(base.BaseActor):
+    def __init__(self, *args, **kwargs):
+        super(HTTPBinGetThenPost, self).__init__(*args, **kwargs)
+        self._api = HTTPBinRestClient()
+
+    @gen.coroutine
+    def _execute(self):
+        yield self._api.get().http_get()
+
+        if self._dry
+            raise gen.Return()
+
+        yield self._api.post().http_post(foo='bar')
+
+        raise gen.Return()
+```
+
 ### Postfix on Mac OSX
 
 If you want to develop on a Mac OSX host, you need to enable email the
