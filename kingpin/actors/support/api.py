@@ -25,7 +25,7 @@ from tornado import httputil
 import simplejson as json
 
 from kingpin import utils
-# from kingpin.actors import exceptions
+from kingpin.actors import exceptions
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def create_http_method(name, http_method):
     def method(self, *args, **kwargs):
         # We don't support un-named args. Throw an exception.
         if args:
-            raise Exception('Must pass named-args (kwargs).')
+            raise exceptions.InvalidOptions('Must pass named-args (kwargs)')
 
         # Generate the initial URL
         url = '%s%s' % (self._ENDPOINT, self._path)
@@ -67,8 +67,6 @@ def create_http_method(name, http_method):
             post = kwargs
         elif method in ('GET', 'DELETE') and kwargs:
             url = self._client._generate_escaped_url(url, kwargs)
-
-        log.debug('Executing %s on %s with post_data(%s).' % (method, url, post))
 
         ret = yield self._client.fetch(
             url=url,
@@ -177,9 +175,6 @@ class RestConsumer(object):
 
     def __str__(self):
         return str(self._path)
-
-    def __cmp__(self, other):
-        return cmp(self._path, other._path)
 
     def _replace_path_tokens(self, path, kwargs):
         """Search and replace %xxx% with values from kwargs.
@@ -296,7 +291,8 @@ class RestClient(object):
     # garbled data (ie, maybe a 500 errror or something else thats not in
     # JSON format, we should back off and try again.
     @gen.coroutine
-    def fetch(self, url, method, post={}, auth_username=None, auth_password=None):
+    def fetch(self, url, method, post={},
+              auth_username=None, auth_password=None):
         """Executes a web request asynchronously and yields the body.
 
         Args:
