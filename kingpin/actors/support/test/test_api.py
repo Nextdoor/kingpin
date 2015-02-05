@@ -147,11 +147,11 @@ class TestRestClient(testing.AsyncTestCase):
         result = self.client._generate_escaped_url('http://unittest',
                                                    {'foo': 'bar',
                                                     'xyz': 'abc'})
-        self.assertEquals('http://unittest?xyz=abc&foo=bar', result)
+        self.assertEquals('http://unittest?foo=bar&xyz=abc', result)
         result = self.client._generate_escaped_url('http://unittest',
                                                    {'foo': 'bar baz',
                                                     'xyz': 'abc'})
-        self.assertEquals('http://unittest?xyz=abc&foo=bar+baz', result)
+        self.assertEquals('http://unittest?foo=bar+baz&xyz=abc', result)
 
     @testing.gen_test
     def test_fetch_post_with_args(self):

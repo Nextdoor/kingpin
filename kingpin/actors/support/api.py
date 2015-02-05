@@ -346,7 +346,7 @@ class RestClient(object):
                 args[key] = str(value).lower()
 
         # Now generate the URL
-        full_url = httputil.url_concat(url, args)
+        full_url = httputil.url_concat(url, sorted(args.items()))
         log.debug('Generated URL: %s' % full_url)
 
         return full_url

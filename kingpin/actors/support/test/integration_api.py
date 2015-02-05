@@ -64,7 +64,7 @@ class IntegrationRestConsumer(testing.AsyncTestCase):
     def integration_get_with_args(self):
         httpbin = HTTPBinRestClient()
         ret = yield httpbin.get().http_get(foo='bar', baz='bat')
-        self.assertEquals(ret['url'], 'http://httpbin.org/get?foo=bar&baz=bat')
+        self.assertEquals(ret['url'], 'http://httpbin.org/get?baz=bat&foo=bar')
 
     @testing.gen_test(timeout=60)
     def integration_post(self):
@@ -86,7 +86,7 @@ class IntegrationRestConsumer(testing.AsyncTestCase):
         ret = yield httpbin.delete().http_delete(foo='bar', baz='bat')
         self.assertEquals(
             ret['url'],
-            'http://httpbin.org/delete?foo=bar&baz=bat')
+            'http://httpbin.org/delete?baz=bat&foo=bar')
 
     @testing.gen_test(timeout=60)
     def integration_status_401(self):
