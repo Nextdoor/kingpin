@@ -4,6 +4,7 @@ import mock
 
 from tornado import gen
 from tornado import testing
+from tornado import httpclient
 
 from kingpin.actors import exceptions
 from kingpin.actors.support import api
@@ -185,6 +186,32 @@ class TestRestClient(testing.AsyncTestCase):
         ret = yield self.client.fetch(url='http://foo.com', method='GET')
         self.assertEquals('foo bar', ret)
         self.http_client_mock.fetch.assert_called_once()
+
+    @testing.gen_test
+    def test_fetch_401_raises_exc_and_called_once(self):
+        e = httpclient.HTTPError(401, 'Unauthorized')
+        self.http_client_mock.fetch.side_effect = e
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield self.client.fetch(url='http://foo.com', method='GET')
+        self.http_client_mock.fetch.assert_called_once()
+
+    @testing.gen_test
+    def test_fetch_unexpected_failure_raises_exc_and_called_once(self):
+        # Wipe out the 'default' http error handling config for this test.
+        self.client._EXCEPTIONS = {httpclient.HTTPError: []}
+        e = httpclient.HTTPError(300, 'Unexpected')
+        self.http_client_mock.fetch.side_effect = e
+        with self.assertRaises(httpclient.HTTPError):
+            yield self.client.fetch(url='http://foo.com', method='GET')
+        self.http_client_mock.fetch.assert_called_once()
+
+    @testing.gen_test
+    def test_fetch_500_raises_exc_and_called_many_times(self):
+        e = httpclient.HTTPError(500, 'Failure')
+        self.http_client_mock.fetch.side_effect = e
+        with self.assertRaises(httpclient.HTTPError):
+            yield self.client.fetch(url='http://foo.com', method='GET')
+        self.assertEquals(3, len(self.http_client_mock.method_calls))
 
 
 class TestSimpleTokenRestClient(testing.AsyncTestCase):

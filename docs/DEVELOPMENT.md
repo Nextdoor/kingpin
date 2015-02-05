@@ -380,7 +380,6 @@ describes the API in detail.
 #### HTTPBin Actor with the RestConsumer
 
 ```python
-
 HTTPBIN = {
     'path': '/',
     'http_methods': {'get': {}},
@@ -426,6 +425,30 @@ class HTTPBinGetThenPost(base.BaseActor):
         yield self._api.post().http_post(foo='bar')
 
         raise gen.Return()
+```
+
+#### Exception Handling in HTTP Requests
+
+The `RestClient.fetch()` method has been wrapped in a `retry decorator` that
+allows you to define different behaviors based on the exceptions returned from
+the fetch method. For example, you may want to handle an HTTPError exception
+with a `401` error code differently than a `503` error code.
+
+You can customize the exception handling by subclassing the `RestClient`:
+
+```python
+class MyRestClient(api.RestClient):
+    _EXCEPTIONS = {
+        httpclient.HTTPError: [
+            ('401', my.CustomException()),
+            ('403', exceptions.InvalidCredentials),
+            ('500', my.UnretryableError()),
+            ('502', exceptions.InvalidOptions),
+
+            # This acts as a catch-all
+            ('', exceptions.RecoverableActorFailure),
+        ]
+    }
 ```
 
 ### Postfix on Mac OSX

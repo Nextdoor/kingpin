@@ -110,6 +110,15 @@ def create_method(name, config):
 
 class RestConsumer(object):
 
+    """An abstract object that self-defines its own API access methods.
+
+    At init time, this object reads its `_CONFIG` and pre-defines all of the
+    API access methods that have been described. It does not handle actual HTTP
+    calls directly, but is passed in a `client` object (anything that
+    subclasses the RestClient class) and leverages that for the actual web
+    calls.
+    """
+
     _CONFIG = {}
     _ENDPOINT = None
 
@@ -238,9 +247,79 @@ class RestClient(object):
         headers: Headers to pass in on every HTTP request
     """
 
+    _EXCEPTIONS = {
+        httpclient.HTTPError: [
+            ('401', exceptions.InvalidCredentials),
+            ('403', exceptions.InvalidCredentials),
+            ('500', None),
+            ('502', None),
+            ('503', None),
+            ('504', None),
+            ('', exceptions.RecoverableActorFailure),
+        ]
+    }
+
     def __init__(self, client=None, headers=None):
         self._client = client or httpclient.AsyncHTTPClient()
         self.headers = headers
+
+    def _retry(f):
+        """Coroutine-compatible Retry Decorator.
+
+        This decorator provides a simple retry mechanism that compares the
+        exceptions it received against a configuration list (self._EXCEPTIONS),
+        and then performs the action defined in that list. For example, an
+        HTTPError with a '500' code might want to retry 3 times. On the
+        otherhand, a 401/403 might want to throw an InvalidCredentials
+        exception.
+        """
+        retries = 3
+        delay = 0.25
+
+        def wrapper(self, *args, **kwargs):
+            i = 1
+            while True:
+                # Don't log out the first try as a 'Try' ... just do it
+                if i > 0:
+                    log.debug('Try (%s/%s) of %s(%s, %s)' %
+                              (i, retries, f, args, kwargs))
+
+                # Attempt the method. Catch any exception listed in
+                # self._EXCEPTIONS.
+                try:
+                    ret = yield gen.coroutine(f)(self, *args, **kwargs)
+                    raise gen.Return(ret)
+                except tuple(self._EXCEPTIONS.keys()) as e:
+                    log.error('Exception raised on try %s: %s' % (i, e))
+
+                    # If we've run out of retry attempts, raise the exception
+                    if i >= retries:
+                        log.debug('Raising exception: %s' % e)
+                        raise e
+
+                    # Gather the config for this exception-type from
+                    # self._EXCEPTIONS. Iterate through the data and see if we
+                    # have a matching exception string.
+                    exc_handle_cfg = self._EXCEPTIONS[type(e)]
+                    behavior = filter(lambda x: x[0] in str(e), exc_handle_cfg)
+                    if not behavior:
+                        log.debug('No explicit behavior for this exception'
+                                  'found. Raising.')
+                        raise e
+
+                    # Get the first match and only care about it. If its an
+                    # exception type, then raise that exception.
+                    (match_string, action) = behavior[0]
+                    if action is not None:
+                        raise action(str(e))
+
+                    # Must have been a retryable exception. Retry.
+                    i += 1
+                    log.debug('Retrying in %s...' % delay)
+                    yield utils.tornado_sleep(delay)
+                log.debug('Retrying..')
+
+        return wrapper
 
     def _generate_escaped_url(self, url, args):
         """Takes in a dictionary of arguments and returns a URL line.
@@ -276,6 +355,7 @@ class RestClient(object):
     # garbled data (ie, maybe a 500 errror or something else thats not in
     # JSON format, we should back off and try again.
     @gen.coroutine
+    @_retry
     def fetch(self, url, method, params={},
               auth_username=None, auth_password=None):
         """Executes a web request asynchronously and yields the body.
@@ -316,7 +396,7 @@ class RestClient(object):
         # Execute the request and raise any exception. Exceptions are not
         # caught here because they are unique to the API endpoints, and thus
         # should be handled by the individual Actor that called this method.
-        log.debug('HTTP Request: %s' % http_request.__dict__)
+        log.debug('HTTP Reques): %s' % http_request.__dict__)
         http_response = yield self._client.fetch(http_request)
         log.debug('HTTP Response: %s' % http_response.body)
 

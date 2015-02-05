@@ -1,7 +1,9 @@
 """Integration tests for the kingpin.actors.support.api module"""
 
 from tornado import testing
+from tornado import httpclient
 
+from kingpin.actors import exceptions
 from kingpin.actors.support import api
 
 
@@ -28,6 +30,10 @@ HTTPBIN = {
             'path': '/delete',
             'http_methods': {'delete': {}},
         },
+        'status': {
+            'path': '/status/%res%',
+            'http_methods': {'get': {}},
+        }
     }
 }
 
@@ -81,3 +87,45 @@ class IntegrationRestConsumer(testing.AsyncTestCase):
         self.assertEquals(
             ret['url'],
             'http://httpbin.org/delete?foo=bar&baz=bat')
+
+    @testing.gen_test(timeout=60)
+    def integration_status_401(self):
+        httpbin = HTTPBinRestClient()
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield httpbin.status(res='401').http_get()
+
+    @testing.gen_test(timeout=60)
+    def integration_status_403(self):
+        httpbin = HTTPBinRestClient()
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield httpbin.status(res='403').http_get()
+
+    @testing.gen_test(timeout=60)
+    def integration_status_500(self):
+        httpbin = HTTPBinRestClient()
+        with self.assertRaises(httpclient.HTTPError):
+            yield httpbin.status(res='500').http_get()
+
+    @testing.gen_test(timeout=60)
+    def integration_status_501(self):
+        httpbin = HTTPBinRestClient()
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield httpbin.status(res='501').http_get()
+
+    @testing.gen_test(timeout=60)
+    def integration_status_502(self):
+        httpbin = HTTPBinRestClient()
+        with self.assertRaises(httpclient.HTTPError):
+            yield httpbin.status(res='502').http_get()
+
+    @testing.gen_test(timeout=60)
+    def integration_status_503(self):
+        httpbin = HTTPBinRestClient()
+        with self.assertRaises(httpclient.HTTPError):
+            yield httpbin.status(res='503').http_get()
+
+    @testing.gen_test(timeout=60)
+    def integration_status_504(self):
+        httpbin = HTTPBinRestClient()
+        with self.assertRaises(httpclient.HTTPError):
+            yield httpbin.status(res='504').http_get()
