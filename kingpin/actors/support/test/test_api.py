@@ -198,7 +198,7 @@ class TestRestClient(testing.AsyncTestCase):
     @testing.gen_test
     def test_fetch_unexpected_failure_raises_exc_and_called_once(self):
         # Wipe out the 'default' http error handling config for this test.
-        self.client._EXCEPTIONS = {httpclient.HTTPError: []}
+        self.client._EXCEPTIONS = {httpclient.HTTPError: {}}
         e = httpclient.HTTPError(300, 'Unexpected')
         self.http_client_mock.fetch.side_effect = e
         with self.assertRaises(httpclient.HTTPError):

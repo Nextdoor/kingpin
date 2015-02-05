@@ -439,15 +439,15 @@ You can customize the exception handling by subclassing the `RestClient`:
 ```python
 class MyRestClient(api.RestClient):
     _EXCEPTIONS = {
-        httpclient.HTTPError: [
-            ('401', my.CustomException()),
-            ('403', exceptions.InvalidCredentials),
-            ('500', my.UnretryableError()),
-            ('502', exceptions.InvalidOptions),
+        httpclient.HTTPError: {
+            '401': my.CustomException(),
+            '403': exceptions.InvalidCredentials,
+            '500': my.UnretryableError(),
+            '502': exceptions.InvalidOptions,
 
             # This acts as a catch-all
-            ('', exceptions.RecoverableActorFailure),
-        ]
+            '': exceptions.RecoverableActorFailure,
+        }
     }
 ```
 
