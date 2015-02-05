@@ -52,26 +52,10 @@ def create_http_method(name, http_method):
         if args:
             raise exceptions.InvalidOptions('Must pass named-args (kwargs)')
 
-        # Generate the initial URL
-        url = '%s%s' % (self._ENDPOINT, self._path)
-
-        # Upper-case the HTTP method
-        method = http_method.upper()
-
-        # Start with empty post data. If we're doing a PUT/POST, then just pass
-        # kwargs directly into the fetch() method and let it take care of
-        # things. If we're doing a GET/DELETE though, convert kwargs into a
-        # modified URL string and pass that into the fetch() method.
-        post = {}
-        if method in ('PUT', 'POST'):
-            post = kwargs
-        elif method in ('GET', 'DELETE') and kwargs:
-            url = self._client._generate_escaped_url(url, kwargs)
-
         ret = yield self._client.fetch(
-            url=url,
-            method=method,
-            post=post
+            url='%s%s' % (self._ENDPOINT, self._path),
+            method=http_method.upper(),
+            params=kwargs
         )
         raise gen.Return(ret)
 
@@ -170,21 +154,25 @@ class RestConsumer(object):
         self._create_methods()
         self._create_attrs()
 
+        # Log some things
+        log.debug('%s/%s initialized' %
+                  (self.__class__.__name__, self._client))
+
     def __repr__(self):
         return '%s(%s)' % (self.__class__.__name__, self)
 
     def __str__(self):
         return str(self._path)
 
-    def _replace_path_tokens(self, path, kwargs):
-        """Search and replace %xxx% with values from kwargs.
+    def _replace_path_tokens(self, path, tokens):
+        """Search and replace %xxx% with values from tokens.
 
-        Used to replace any values of %xxx% with 'xxx' from kwargs. Can replace
+        Used to replace any values of %xxx% with 'xxx' from tokens. Can replace
         one, or many fields at aonce.
 
         Args:
             path: String of the path
-            kwargs: A dictionary of kwargs to search through.
+            tokens: A dictionary of tokens to search through.
 
         Returns:
             path: A modified string
@@ -193,7 +181,7 @@ class RestConsumer(object):
             return
 
         try:
-            path = utils.populate_with_tokens(path, kwargs)
+            path = utils.populate_with_tokens(path, tokens)
         except LookupError as e:
             msg = 'Path (%s) error: %s' % (path, e)
             raise TypeError(msg)
@@ -243,19 +231,9 @@ class RestClient(object):
         headers: Headers to pass in on every HTTP request
     """
 
-    def __init__(self, headers=None):
-        self._client = None
+    def __init__(self, client=None, headers=None):
+        self._client = client or httpclient.AsyncHTTPClient()
         self.headers = headers
-
-    def _get_http_client(self):
-        """Store and return an AsyncHTTPClient object.
-
-        The object is actually of type SimpleAsyncHTTPClient
-        """
-        if not self._client:
-            self._client = httpclient.AsyncHTTPClient()
-
-        return self._client
 
     def _generate_escaped_url(self, url, args):
         """Takes in a dictionary of arguments and returns a URL line.
@@ -291,29 +269,37 @@ class RestClient(object):
     # garbled data (ie, maybe a 500 errror or something else thats not in
     # JSON format, we should back off and try again.
     @gen.coroutine
-    def fetch(self, url, method, post={},
+    def fetch(self, url, method, params={},
               auth_username=None, auth_password=None):
         """Executes a web request asynchronously and yields the body.
 
         Args:
             url: (Str) The full url path of the API call
-            post: (Dict) POST data to submit (if any)
+            params: (Dict) Arguments (k/v pairs) to submit either as POST data
+                    or URL argument options.
             method: (Str) GET/PUT/POST/DELETE
             auth_username: (str) HTTP auth username
             auth_password: (str) HTTP auth password
         """
 
-        # Generate the full request URL and log out what we're doing...
-        log.debug('Making HTTP request to %s with data: %s' % (url, post))
+        # Start with empty post data. If we're doing a PUT/POST, then just pass
+        # args directly into the ch() method and let it take care of
+        # things. If we're doing a GET/DELETE though, convert kwargs into a
+        # modified URL string and pass that into the fetch() method.
+        body = None
+        if method in ('PUT', 'POST'):
+            body = urllib.urlencode(params) or None
+        elif method in ('GET', 'DELETE') and params:
+            url = self._generate_escaped_url(url, params)
 
-        escaped_post = urllib.urlencode(post) or None
+        # Generate the full request URL and log out what we're doing...
+        log.debug('Making HTTP request to %s with data: %s' % (url, body))
 
         # Create the http_request object
-        http_client = self._get_http_client()
         http_request = httpclient.HTTPRequest(
             url=url,
             method=method,
-            body=escaped_post,
+            body=body,
             headers=self.headers,
             auth_username=auth_username,
             auth_password=auth_password,
@@ -323,7 +309,9 @@ class RestClient(object):
         # Execute the request and raise any exception. Exceptions are not
         # caught here because they are unique to the API endpoints, and thus
         # should be handled by the individual Actor that called this method.
-        http_response = yield http_client.fetch(http_request)
+        log.debug('HTTP Request: %s' % http_request.__dict__)
+        http_response = yield self._client.fetch(http_request)
+        log.debug('HTTP Response: %s' % http_response.body)
 
         try:
             body = json.loads(http_response.body)
@@ -332,3 +320,28 @@ class RestClient(object):
 
         # Receive a successful return
         raise gen.Return(body)
+
+
+class SimpleTokenRestClient(RestClient):
+
+    """Simple RestClient that appends a 'token' to every web request for
+    authentication. Used in most simple APIs where a token is provided to the
+    end user.
+
+    Args:
+        tokens: (dict) A dict with the token name/value(s) to append to every
+                we request.
+    """
+
+    def __init__(self, tokens, *args, **kwargs):
+        super(SimpleTokenRestClient, self).__init__(*args, **kwargs)
+        self._tokens = tokens
+
+    @gen.coroutine
+    def fetch(self, *args, **kwargs):
+        if 'params' not in kwargs:
+            kwargs['params'] = {}
+
+        kwargs['params'].update(self._tokens)
+        ret = yield super(SimpleTokenRestClient, self).fetch(*args, **kwargs)
+        raise gen.Return(ret)

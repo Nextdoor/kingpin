@@ -264,6 +264,10 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
     # etc), then skip this.
     if tokens:
         for k, v in tokens.iteritems():
+
+            if type(v) is not str:
+                continue
+
             string = string.replace(
                 ('%s%s%s' % (left_wrapper, k, right_wrapper)), v)
 

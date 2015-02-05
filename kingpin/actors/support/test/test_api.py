@@ -4,7 +4,6 @@ import mock
 
 from tornado import gen
 from tornado import testing
-from tornado import simple_httpclient
 
 from kingpin.actors import exceptions
 from kingpin.actors.support import api
@@ -18,10 +17,10 @@ class RestClientTest(api.RestClient):
     """Fake web client object for unit tests."""
 
     @gen.coroutine
-    def fetch(self, url, method, post={},
+    def fetch(self, url, method, params={},
               auth_username=None, auth_password=None):
         # Turn all the iputs into a JSON dict and return them
-        ret = {'url': url, 'method': method, 'post': post,
+        ret = {'url': url, 'method': method, 'params': params,
                'auth_username': auth_username, 'auth_password': auth_password}
         raise gen.Return(ret)
 
@@ -76,31 +75,25 @@ class TestRestConsumer(testing.AsyncTestCase):
         ret = yield test_consumer.testA().http_get()
         expected_ret = {
             'url': 'http://unittest.com/testA',
-            'post': {},
+            'params': {},
             'auth_password': None,
             'auth_username': None,
             'method': 'GET'}
         self.assertEquals(ret, expected_ret)
 
     @testing.gen_test
-    def test_http_method_get_with_kwargs(self):
+    def test_http_method_get_with_args(self):
         test_consumer = RestConsumerTest(client=RestClientTest())
-        ret = yield test_consumer.testA().http_get(foo='bar')
-        expected_ret = {
-            'url': 'http://unittest.com/testA?foo=bar',
-            'post': {},
-            'auth_password': None,
-            'auth_username': None,
-            'method': 'GET'}
-        self.assertEquals(ret, expected_ret)
+        with self.assertRaises(exceptions.InvalidOptions):
+            yield test_consumer.testA().http_get('foo')
 
     @testing.gen_test
     def test_http_method_post(self):
         test_consumer = RestConsumerTest(client=RestClientTest())
-        ret = yield test_consumer.testA().http_post()
+        ret = yield test_consumer.testA().http_post(foo='bar')
         expected_ret = {
             'url': 'http://unittest.com/testA',
-            'post': {},
+            'params': {'foo': 'bar'},
             'auth_password': None,
             'auth_username': None,
             'method': 'POST'}
@@ -109,10 +102,10 @@ class TestRestConsumer(testing.AsyncTestCase):
     @testing.gen_test
     def test_http_method_put(self):
         test_consumer = RestConsumerTest(client=RestClientTest())
-        ret = yield test_consumer.testA().http_put()
+        ret = yield test_consumer.testA().http_put(foo='bar')
         expected_ret = {
             'url': 'http://unittest.com/testA',
-            'post': {},
+            'params': {'foo': 'bar'},
             'auth_password': None,
             'auth_username': None,
             'method': 'PUT'}
@@ -143,12 +136,6 @@ class TestRestClient(testing.AsyncTestCase):
         self.client._client = self.http_client_mock
 
     @testing.gen_test
-    def test_get_http_client(self):
-        self.client._client = None
-        ret = self.client._get_http_client()
-        self.assertEquals(type(ret), simple_httpclient.SimpleAsyncHTTPClient)
-
-    @testing.gen_test
     def test_generate_escaped_url(self):
         result = self.client._generate_escaped_url('http://unittest',
                                                    {'foo': 'bar'})
@@ -166,13 +153,60 @@ class TestRestClient(testing.AsyncTestCase):
         self.assertEquals('http://unittest?xyz=abc&foo=bar+baz', result)
 
     @testing.gen_test
+    def test_fetch_post_with_args(self):
+        self.http_response_mock.body = '{"foo": "bar"}'
+        ret = yield self.client.fetch(
+            url='http://foo.com',
+            method='POST',
+            params={'foo': 'bar', 'baz': 'bat'})
+        self.assertEquals({'foo': 'bar'}, ret)
+        self.http_client_mock.fetch.assert_called_once()
+
+    @testing.gen_test
+    def test_fetch_get_with_args(self):
+        self.http_response_mock.body = '{"foo": "bar"}'
+        ret = yield self.client.fetch(
+            url='http://foo.com',
+            method='GET',
+            params={'foo': 'bar', 'baz': 'bat'})
+        self.assertEquals({'foo': 'bar'}, ret)
+        self.http_client_mock.fetch.assert_called_once()
+
+    @testing.gen_test
     def test_fetch_get_returns_json(self):
         self.http_response_mock.body = '{"foo": "bar"}'
         ret = yield self.client.fetch(url='http://foo.com', method='GET')
         self.assertEquals({'foo': 'bar'}, ret)
+        self.http_client_mock.fetch.assert_called_once()
 
     @testing.gen_test
     def test_fetch_get_returns_string(self):
         self.http_response_mock.body = 'foo bar'
         ret = yield self.client.fetch(url='http://foo.com', method='GET')
         self.assertEquals('foo bar', ret)
+        self.http_client_mock.fetch.assert_called_once()
+
+
+class TestSimpleTokenRestClient(testing.AsyncTestCase):
+
+    def setUp(self, *args, **kwargs):
+        super(TestSimpleTokenRestClient, self).setUp()
+        self.client = api.SimpleTokenRestClient(
+            tokens={'token': 'foobar'})
+        self.http_response_mock = mock.MagicMock(name='response')
+        self.http_client_mock = mock.MagicMock(name='http_client')
+        self.http_client_mock.fetch.return_value = tornado_value(
+            self.http_response_mock)
+        self.client._client = self.http_client_mock
+
+    @testing.gen_test
+    def test_fetch_get_with_args(self):
+        self.http_response_mock.body = '{"foo": "bar"}'
+        ret = yield self.client.fetch(url='http://foo.com', method='GET')
+        self.assertEquals({'foo': 'bar'}, ret)
+
+        # Dig into the http mock, pull out the request object, and lets make
+        # sure our token was in it.
+        http_req = self.http_client_mock.mock_calls[0]
+        http_req = self.http_client_mock.fetch.call_args[0][0].__dict__
+        self.assertEquals(http_req['url'], 'http://foo.com?token=foobar')
