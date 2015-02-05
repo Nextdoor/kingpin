@@ -76,23 +76,36 @@ def _retry(f):
                 # Gather the config for this exception-type from
                 # self._EXCEPTIONS. Iterate through the data and see if we
                 # have a matching exception string.
-                exc_handle_cfg = self._EXCEPTIONS[type(e)]
-                behavior = filter(lambda x: x[0] in str(e), exc_handle_cfg)
-                if not behavior:
+                exc_conf = self._EXCEPTIONS[type(e)]
+
+                # An empty string for the key is the default exception
+                # It's optional, but can match before others match, so we
+                # pop it before searching.
+                default_exc = exc_conf.pop('', False)
+                log.debug('Searching through %s' % exc_conf)
+                matched_exc = [exc for key, exc in exc_conf.items()
+                               if key in str(e)]
+
+                log.debug('Matched exceptions: %s' % matched_exc)
+                if matched_exc and matched_exc[0] is not None:
+                    log.debug('Matched exc: %s' % matched_exc)
+                    exception = matched_exc[0]
+                    raise exception(str(e))
+                elif matched_exc and matched_exc[0] is None:
+                    log.debug('Exception is retryable!')
+                    pass
+                elif not default_exc:
+                    # Reaching this part means no exception was matched
+                    # and no default was specified.
                     log.debug('No explicit behavior for this exception'
-                              'found. Raising.')
+                              ' found. Raising.')
                     raise e
 
-                # Get the first match and only care about it. If its an
-                # exception type, then raise that exception.
-                (match_string, action) = behavior[0]
-                if action is not None:
-                    raise action(str(e))
-
                 # Must have been a retryable exception. Retry.
-                i += 1
+                i = i + 1
                 log.debug('Retrying in %s...' % delay)
                 yield utils.tornado_sleep(delay)
+
             log.debug('Retrying..')
 
     return wrapper
@@ -307,15 +320,15 @@ class RestClient(object):
     """
 
     _EXCEPTIONS = {
-        httpclient.HTTPError: [
-            ('401', exceptions.InvalidCredentials),
-            ('403', exceptions.InvalidCredentials),
-            ('500', None),
-            ('502', None),
-            ('503', None),
-            ('504', None),
-            ('', exceptions.RecoverableActorFailure),
-        ]
+        httpclient.HTTPError: {
+            '401': exceptions.InvalidCredentials,
+            '403': exceptions.InvalidCredentials,
+            '500': None,
+            '502': None,
+            '503': None,
+            '504': None,
+            '': exceptions.RecoverableActorFailure,
+        }
     }
 
     def __init__(self, client=None, headers=None):
