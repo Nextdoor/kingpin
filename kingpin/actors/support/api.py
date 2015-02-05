@@ -11,8 +11,15 @@
 # limitations under the License.
 #
 # Copyright 2014 Nextdoor.com, Inc
-
 """
+This package provides a quick way of creating custom API clients for JSON-based
+REST APIs. The majority of the work is in the creation of a _CONFIG dictionary
+for the class. This dictionary dynamically configures the object at
+instantiation time with the appropriate @gen.coroutine wrapped HTTP fetch
+methods.
+
+See the documentation in docs/DEVELOPMENT.md for more details on how to use
+this package to create your own API client.
 """
 
 import logging

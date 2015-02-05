@@ -9,7 +9,13 @@ Sends a message to a channel in Slack.
 
 Examples
 
-    { 'room': '#operations', 'message': 'Beginning Deploy: v1.2' }
+    { "desc": "Let the Engineers know things are happening",
+      "actor": "slack.Message",
+      "options": {
+        "channel": "#operations",
+        "message": "Beginning Deploy: %VER%"
+      }
+    }
 
 **Dry Mode**
 
