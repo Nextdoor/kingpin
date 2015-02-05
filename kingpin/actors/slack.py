@@ -123,7 +123,7 @@ class Message(SlackBase):
 
         # If we're in dry mode, bail out!
         if self._dry:
-            self.log.info('Skipping message send (dry run..)')
+            self.log.info('API Credentials verified, skipping send.')
             raise gen.Return()
 
         # Finally, send the message and check our return value
