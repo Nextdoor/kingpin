@@ -39,6 +39,65 @@ log = logging.getLogger(__name__)
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
+def _retry(f):
+    """Coroutine-compatible Retry Decorator.
+
+    This decorator provides a simple retry mechanism that compares the
+    exceptions it received against a configuration list (self._EXCEPTIONS),
+    and then performs the action defined in that list. For example, an
+    HTTPError with a '500' code might want to retry 3 times. On the
+    otherhand, a 401/403 might want to throw an InvalidCredentials
+    exception.
+    """
+    retries = 3
+    delay = 0.25
+
+    def wrapper(self, *args, **kwargs):
+        i = 1
+        while True:
+            # Don't log out the first try as a 'Try' ... just do it
+            if i > 0:
+                log.debug('Try (%s/%s) of %s(%s, %s)' %
+                          (i, retries, f, args, kwargs))
+
+            # Attempt the method. Catch any exception listed in
+            # self._EXCEPTIONS.
+            try:
+                ret = yield gen.coroutine(f)(self, *args, **kwargs)
+                raise gen.Return(ret)
+            except tuple(self._EXCEPTIONS.keys()) as e:
+                log.error('Exception raised on try %s: %s' % (i, e))
+
+                # If we've run out of retry attempts, raise the exception
+                if i >= retries:
+                    log.debug('Raising exception: %s' % e)
+                    raise e
+
+                # Gather the config for this exception-type from
+                # self._EXCEPTIONS. Iterate through the data and see if we
+                # have a matching exception string.
+                exc_handle_cfg = self._EXCEPTIONS[type(e)]
+                behavior = filter(lambda x: x[0] in str(e), exc_handle_cfg)
+                if not behavior:
+                    log.debug('No explicit behavior for this exception'
+                              'found. Raising.')
+                    raise e
+
+                # Get the first match and only care about it. If its an
+                # exception type, then raise that exception.
+                (match_string, action) = behavior[0]
+                if action is not None:
+                    raise action(str(e))
+
+                # Must have been a retryable exception. Retry.
+                i += 1
+                log.debug('Retrying in %s...' % delay)
+                yield utils.tornado_sleep(delay)
+            log.debug('Retrying..')
+
+    return wrapper
+
+
 def create_http_method(name, http_method):
     """Creates the get/put/delete/post coroutined-method for a resource.
 
@@ -262,64 +321,6 @@ class RestClient(object):
     def __init__(self, client=None, headers=None):
         self._client = client or httpclient.AsyncHTTPClient()
         self.headers = headers
-
-    def _retry(f):
-        """Coroutine-compatible Retry Decorator.
-
-        This decorator provides a simple retry mechanism that compares the
-        exceptions it received against a configuration list (self._EXCEPTIONS),
-        and then performs the action defined in that list. For example, an
-        HTTPError with a '500' code might want to retry 3 times. On the
-        otherhand, a 401/403 might want to throw an InvalidCredentials
-        exception.
-        """
-        retries = 3
-        delay = 0.25
-
-        def wrapper(self, *args, **kwargs):
-            i = 1
-            while True:
-                # Don't log out the first try as a 'Try' ... just do it
-                if i > 0:
-                    log.debug('Try (%s/%s) of %s(%s, %s)' %
-                              (i, retries, f, args, kwargs))
-
-                # Attempt the method. Catch any exception listed in
-                # self._EXCEPTIONS.
-                try:
-                    ret = yield gen.coroutine(f)(self, *args, **kwargs)
-                    raise gen.Return(ret)
-                except tuple(self._EXCEPTIONS.keys()) as e:
-                    log.error('Exception raised on try %s: %s' % (i, e))
-
-                    # If we've run out of retry attempts, raise the exception
-                    if i >= retries:
-                        log.debug('Raising exception: %s' % e)
-                        raise e
-
-                    # Gather the config for this exception-type from
-                    # self._EXCEPTIONS. Iterate through the data and see if we
-                    # have a matching exception string.
-                    exc_handle_cfg = self._EXCEPTIONS[type(e)]
-                    behavior = filter(lambda x: x[0] in str(e), exc_handle_cfg)
-                    if not behavior:
-                        log.debug('No explicit behavior for this exception'
-                                  'found. Raising.')
-                        raise e
-
-                    # Get the first match and only care about it. If its an
-                    # exception type, then raise that exception.
-                    (match_string, action) = behavior[0]
-                    if action is not None:
-                        raise action(str(e))
-
-                    # Must have been a retryable exception. Retry.
-                    i += 1
-                    log.debug('Retrying in %s...' % delay)
-                    yield utils.tornado_sleep(delay)
-                log.debug('Retrying..')
-
-        return wrapper
 
     def _generate_escaped_url(self, url, args):
         """Takes in a dictionary of arguments and returns a URL line.
