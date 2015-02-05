@@ -27,7 +27,7 @@ from tornado import ioloop
 from kingpin import utils
 from kingpin.actors import exceptions as actor_exceptions
 from kingpin.actors.misc import Macro
-from kingpin.version import __version__ as VERSION
+from kingpin.version import __version__
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ logging.getLogger('boto').setLevel(logging.CRITICAL)
 
 # Initial option handler to set up the basic application environment.
 usage = 'usage: %prog [json file] <options>'
-parser = optparse.OptionParser(usage=usage, version=VERSION,
+parser = optparse.OptionParser(usage=usage, version=__version__,
                                add_help_option=True)
 parser.set_defaults(verbose=True)
 

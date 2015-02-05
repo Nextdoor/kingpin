@@ -11,6 +11,3 @@
 # limitations under the License.
 #
 # Copyright 2014 Nextdoor.com, Inc
-
-
-__version__ = '0.2.2a'

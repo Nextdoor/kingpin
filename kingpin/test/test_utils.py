@@ -33,6 +33,12 @@ class TestUtils(unittest.TestCase):
         with self.assertRaises(LookupError):
             utils.populate_with_tokens(string, os.environ)
 
+    def test_populate_with_env_with_non_string_tokens(self):
+        tokens = {'foo': False}
+        string = 'Unit test'
+        result = utils.populate_with_tokens(string, tokens)
+        self.assertEquals(result, string)
+
     def test_populate_with_not_strict(self):
         tokens = {'UNIT_TEST': 'FOOBAR'}
         string = 'Unit {UNIT_TEST} {FAIL} Test'
