@@ -76,7 +76,7 @@ def _retry(f):
                 # Gather the config for this exception-type from
                 # self._EXCEPTIONS. Iterate through the data and see if we
                 # have a matching exception string.
-                exc_conf = self._EXCEPTIONS[type(e)]
+                exc_conf = self._EXCEPTIONS[type(e)].copy()
 
                 # An empty string for the key is the default exception
                 # It's optional, but can match before others match, so we
@@ -94,7 +94,10 @@ def _retry(f):
                 elif matched_exc and matched_exc[0] is None:
                     log.debug('Exception is retryable!')
                     pass
-                elif not default_exc:
+                elif default_exc is not False:
+                    raise default_exc(str(e))
+
+                if default_exc is False:
                     # Reaching this part means no exception was matched
                     # and no default was specified.
                     log.debug('No explicit behavior for this exception'
