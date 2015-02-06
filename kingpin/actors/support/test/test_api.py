@@ -213,6 +213,13 @@ class TestRestClient(testing.AsyncTestCase):
             yield self.client.fetch(url='http://foo.com', method='GET')
         self.assertEquals(3, len(self.http_client_mock.method_calls))
 
+    @testing.gen_test
+    def test_fetch_501_raises_recoverable(self):
+        e = httpclient.HTTPError(501, 'Failure')
+        self.http_client_mock.fetch.side_effect = e
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.client.fetch(url='http://foo.com', method='GET')
+
 
 class TestSimpleTokenRestClient(testing.AsyncTestCase):
 
