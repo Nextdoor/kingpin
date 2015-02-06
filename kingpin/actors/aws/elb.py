@@ -201,6 +201,12 @@ class WaitUntilHealthy(base.AWSBaseActor):
 
 class AddInstance(base.AWSBaseActor):
 
+    """Add an EC2 instance to a load balancer.
+
+    http://boto.readthedocs.org/en/latest/ref/elb.html
+    #boto.ec2.elb.ELBConnection.register_instances
+    """
+
     all_options = {
         'elb': (str, REQUIRED, 'Name of the ELB'),
         'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
@@ -211,7 +217,7 @@ class AddInstance(base.AWSBaseActor):
     @utils.exception_logger
     @retry
     def _add(self, elb, instances):
-        """Add/Register the supplied instances.
+        """Invoke elb.register_instances
 
         This boto function is idempotent, so any retry is OK.
 
@@ -237,7 +243,11 @@ class AddInstance(base.AWSBaseActor):
 
 class RemoveInstance(base.AWSBaseActor):
 
-    """Remove EC2 instance(s) from an ELB."""
+    """Remove EC2 instance(s) from an ELB.
+
+    http://boto.readthedocs.org/en/latest/ref/elb.html
+    #boto.ec2.elb.loadbalancer.LoadBalancer.deregister_instances
+    """
 
     all_options = {
         'elb': (str, REQUIRED, 'Name of the ELB'),
@@ -249,7 +259,7 @@ class RemoveInstance(base.AWSBaseActor):
     @utils.exception_logger
     @retry
     def _remove(self, elb, instances):
-        """Remove/Deregister the supplied instances.
+        """Invoke elb.deregister_instances
 
         This boto function is idempotent, so any retry is OK.
 
