@@ -16,8 +16,6 @@
 Common package for utility functions.
 """
 
-__author__ = 'Matt Wise (matt@nextdoor.com)'
-
 from logging import handlers
 import datetime
 import demjson
@@ -33,6 +31,8 @@ from tornado import gen
 from tornado import ioloop
 import httplib
 import rainbow_logging_handler
+
+__author__ = 'Matt Wise (matt@nextdoor.com)'
 
 log = logging.getLogger(__name__)
 

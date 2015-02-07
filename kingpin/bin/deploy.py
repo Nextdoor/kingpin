@@ -14,8 +14,6 @@
 # Copyright 2014 Nextdoor.com, Inc
 """CLI Script Runner for Kingpin."""
 
-__author__ = 'Matt Wise (matt@nextdoor.com)'
-
 import logging
 import optparse
 import os
@@ -29,7 +27,11 @@ from kingpin.actors import exceptions as actor_exceptions
 from kingpin.actors.misc import Macro
 from kingpin.version import __version__
 
+
 log = logging.getLogger(__name__)
+
+__author__ = 'Matt Wise (matt@nextdoor.com)'
+
 
 # We handle all the exceptions ourselves, so additional log statements from
 # BOTO are not needed.
