@@ -21,16 +21,16 @@ def tornado_value(*args):
     raise gen.Return(*args)
 
 
-class TestAddInstance(testing.AsyncTestCase):
+class TestRegisterInstance(testing.AsyncTestCase):
 
     def setUp(self):
-        super(TestAddInstance, self).setUp()
+        super(TestRegisterInstance, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
 
     @testing.gen_test
     def test_add(self):
-        act = elb_actor.AddInstance('UTA', {
+        act = elb_actor.RegisterInstance('UTA', {
             'elb': 'test',
             'region': 'test',
             'instance_id': 'test'})
@@ -43,7 +43,7 @@ class TestAddInstance(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute(self):
-        act = elb_actor.AddInstance('UTA', {
+        act = elb_actor.RegisterInstance('UTA', {
             'elb': 'elb-test',
             'region': 'region-test',
             'instance_id': 'i-test'})
@@ -60,7 +60,7 @@ class TestAddInstance(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_dry(self):
-        act = elb_actor.AddInstance('UTA', {
+        act = elb_actor.RegisterInstance('UTA', {
             'elb': 'elb-test',
             'region': 'region-test',
             'instance_id': 'i-test'},

@@ -199,7 +199,7 @@ class WaitUntilHealthy(base.AWSBaseActor):
         raise gen.Return()
 
 
-class AddInstance(base.AWSBaseActor):
+class RegisterInstance(base.AWSBaseActor):
 
     """Add an EC2 instance to a load balancer.
 

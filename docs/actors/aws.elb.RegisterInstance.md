@@ -1,4 +1,4 @@
-##### kingpin.actors.aws.elb.AddInstance
+##### kingpin.actors.aws.elb.RegisterInstance
 
 Add an EC2 instance to a load balancer.
 
@@ -15,8 +15,8 @@ Add an EC2 instance to a load balancer.
 **Example**
 
     {
-        "actor": "aws.elb.AddInstance",
-        "desc": "Run AddInstance",
+        "actor": "aws.elb.RegisterInstance",
+        "desc": "Run RegisterInstance",
         "options": {
             "elb": "fill-in",
             "instance_id": "fill-in",
