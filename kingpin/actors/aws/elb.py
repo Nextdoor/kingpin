@@ -241,7 +241,7 @@ class RegisterInstance(base.AWSBaseActor):
             self.log.info('Done.')
 
 
-class RemoveInstance(base.AWSBaseActor):
+class DeregisterInstance(base.AWSBaseActor):
 
     """Remove EC2 instance(s) from an ELB.
 

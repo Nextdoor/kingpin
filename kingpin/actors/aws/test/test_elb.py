@@ -77,16 +77,16 @@ class TestRegisterInstance(testing.AsyncTestCase):
         self.assertEquals(0, act._add.call_count)
 
 
-class TestRemoveInstance(testing.AsyncTestCase):
+class TestDeregisterInstance(testing.AsyncTestCase):
 
     def setUp(self):
-        super(TestRemoveInstance, self).setUp()
+        super(TestDeregisterInstance, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
 
     @testing.gen_test
     def test_remove(self):
-        act = elb_actor.RemoveInstance('UTA', {
+        act = elb_actor.DeregisterInstance('UTA', {
             'elb': 'test',
             'region': 'test',
             'instance_id': 'test'})
@@ -99,7 +99,7 @@ class TestRemoveInstance(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute(self):
-        act = elb_actor.RemoveInstance('UTA', {
+        act = elb_actor.DeregisterInstance('UTA', {
             'elb': 'elb-test',
             'region': 'region-test',
             'instance_id': 'i-test'})
@@ -116,7 +116,7 @@ class TestRemoveInstance(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_dry(self):
-        act = elb_actor.RemoveInstance('UTA', {
+        act = elb_actor.DeregisterInstance('UTA', {
             'elb': 'elb-test',
             'region': 'region-test',
             'instance_id': 'i-test'},

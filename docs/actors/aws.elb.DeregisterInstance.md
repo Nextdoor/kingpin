@@ -1,4 +1,4 @@
-##### kingpin.actors.aws.elb.RemoveInstance
+##### kingpin.actors.aws.elb.DeregisterInstance
 
 Remove EC2 instance(s) from an ELB.
     
@@ -15,8 +15,8 @@ Remove EC2 instance(s) from an ELB.
 **Example**
 
     {
-        "actor": "aws.elb.RemoveInstance",
-        "desc": "Run RemoveInstance",
+        "actor": "aws.elb.DeregisterInstance",
+        "desc": "Run DeregisterInstance",
         "options": {
             "elb": "fill-in",
             "instance_id": "fill-in",
