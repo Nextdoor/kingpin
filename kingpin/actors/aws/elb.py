@@ -17,7 +17,6 @@
 import logging
 import math
 
-from boto.ec2 import elb as aws_elb
 from concurrent import futures
 from retrying import retry
 from tornado import concurrent
@@ -26,8 +25,6 @@ from tornado import ioloop
 
 from kingpin import utils
 from kingpin.actors.aws import base
-from kingpin.actors import exceptions
-from kingpin.actors.aws import settings as aws_settings
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -66,51 +63,6 @@ class WaitUntilHealthy(base.AWSBaseActor):
     # tornado.concurrent.run_on_executor() decorator.
     ioloop = ioloop.IOLoop.current()
     executor = EXECUTOR
-
-    def __init__(self, *args, **kwargs):
-        """Set up connection object.
-
-        Option Arguments:
-            name: string - name of the ELB
-            count: int, or string with %. (i.e. 4, or '80%')
-            region: string - AWS region name, like us-west-2.
-        """
-
-        super(WaitUntilHealthy, self).__init__(*args, **kwargs)
-
-        region = self._get_region(self.option('region'))
-
-        if not (aws_settings.AWS_ACCESS_KEY_ID and
-                aws_settings.AWS_SECRET_ACCESS_KEY):
-            raise exceptions.InvalidCredentials(
-                'AWS settings imported but not all credentials are supplied. '
-                'AWS_ACCESS_KEY_ID: %s, AWS_SECRET_ACCESS_KEY: %s' % (
-                    aws_settings.AWS_ACCESS_KEY_ID,
-                    aws_settings.AWS_SECRET_ACCESS_KEY))
-
-        self.conn = aws_elb.ELBConnection(
-            aws_settings.AWS_ACCESS_KEY_ID,
-            aws_settings.AWS_SECRET_ACCESS_KEY,
-            region=region)
-
-    def _get_region(self, region):
-        """Return 'region' object used in ELBConnection
-
-        Args:
-            region: string - AWS region name, like us-west-2
-        Returns:
-            RegionInfo object from boto.ec2.elb
-        """
-
-        all_regions = aws_elb.regions()
-        match = [r for r in all_regions if r.name == region]
-
-        if len(match) != 1:
-            raise exceptions.UnrecoverableActorFailure((
-                'Expected to find exactly 1 region named %s. '
-                'Found: %s') % (region, match))
-
-        return match[0]
 
     def _get_expected_count(self, count, total_count):
         """Calculate the expected count for a given percentage.
@@ -210,7 +162,7 @@ class RegisterInstance(base.AWSBaseActor):
     all_options = {
         'elb': (str, REQUIRED, 'Name of the ELB'),
         'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
-        'instance_id': ((str, list), None, (
+        'instances': ((str, list), None, (
             'Instance id, or list of ids. If no value is specified then '
             'the instance id of the executing machine is used.'))
     }
@@ -232,9 +184,16 @@ class RegisterInstance(base.AWSBaseActor):
     @gen.coroutine
     def _execute(self):
         elb = yield self._find_elb(self.option('elb'))
-        instances = self.option('instance_id')
-        if type(self.option('instance_id')) is not list:
-            instances = [self.option('instance_id')]
+        instances = self.option('instances')
+
+        if not instances:
+            self.log.debug('No instance provided. Using current instance id.')
+            iid = yield self._get_meta_data('instance-id')
+            instances = [iid]
+            self.log.debug('Instances is: %s' % instances)
+
+        if type(instances) is not list:
+            instances = [instances]
 
         self.log.info(('Adding the following instances to elb: '
                        '%s' % ', '.join(instances)))
@@ -254,7 +213,7 @@ class DeregisterInstance(base.AWSBaseActor):
     all_options = {
         'elb': (str, REQUIRED, 'Name of the ELB'),
         'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
-        'instance_id': ((str, list), None, (
+        'instances': ((str, list), None, (
             'Instance id, or list of ids. If no value is specified then '
             'the instance id of the executing machine is used.'))
     }
@@ -276,9 +235,16 @@ class DeregisterInstance(base.AWSBaseActor):
     @gen.coroutine
     def _execute(self):
         elb = yield self._find_elb(self.option('elb'))
-        instances = self.option('instance_id')
-        if type(self.option('instance_id')) is not list:
-            instances = [self.option('instance_id')]
+        instances = self.option('instances')
+
+        if not instances:
+            self.log.debug('No instance provided. Using current instance id.')
+            iid = yield self._get_meta_data('instance-id')
+            instances = [iid]
+            self.log.debug('Instances is: %s' % instances)
+
+        if type(instances) is not list:
+            instances = [instances]
 
         self.log.info(('Removing the following instances from elb: '
                        '%s' % ', '.join(instances)))

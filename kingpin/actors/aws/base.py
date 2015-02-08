@@ -27,6 +27,8 @@ from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings as aws_settings
 
+from kingpin.actors.support import api as support
+
 log = logging.getLogger(__name__)
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
@@ -48,6 +50,16 @@ class AWSBaseActor(base.HTTPBaseActor):
     ioloop = ioloop.IOLoop.current()
     executor = EXECUTOR
 
+    all_options = {
+        'region': (str, None, 'AWS Region to connect to.')
+    }
+
+    _EXCEPTIONS = {
+        BotoServerError: {
+            'LoadBalancerNotFound': ELBNotFound
+        }
+    }
+
     def __init__(self, *args, **kwargs):
         """Check for required settings."""
 
@@ -63,12 +75,25 @@ class AWSBaseActor(base.HTTPBaseActor):
 
         region = self.option('region')
         if region:
+            # Create all the needed connections here.
+            # Defining them in this manner creates them lazily
+            # and does not block the constructor.
             self.elb_conn = boto.ec2.elb.connect_to_region(
                 region,
                 aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
 
     @concurrent.run_on_executor
+    def _get_all_load_balancers(self, name):
+        """Thread wrapper for Boto get_all_load_balancers.
+
+        All the retry logic should go into the calling function to properly
+        parse the message inside of BotoServerError exception.
+        """
+        return self.elb_conn.get_all_load_balancers(load_balancer_names=name)
+
+    @gen.coroutine
+    @support._retry
     def _find_elb(self, name):
         """Return an ELB with the matching name.
 
@@ -85,11 +110,7 @@ class AWSBaseActor(base.HTTPBaseActor):
         """
         self.log.info('Searching for ELB "%s"' % name)
 
-        try:
-            elbs = self.elb_conn.get_all_load_balancers(
-                load_balancer_names=name)
-        except BotoServerError as e:
-            raise ELBNotFound(e)
+        elbs = yield self._get_all_load_balancers(name)
 
         self.log.debug('ELBs found: %s' % elbs)
 
@@ -97,9 +118,15 @@ class AWSBaseActor(base.HTTPBaseActor):
             raise ELBNotFound('Expected to find exactly 1 ELB. Found %s: %s'
                               % (len(elbs), elbs))
 
-        return elbs[0]
+        raise gen.Return(elbs[0])
 
     @gen.coroutine
+    @support._retry
     def _get_meta_data(self, key):
-        meta = self._fetch(AWS_META_URL + '/' + key)
-        raise gen.Return(meta.text)
+        """Get AWS meta data for current instance.
+
+        http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/
+        ec2-instance-metadata.html
+        """
+        meta = yield self._fetch(AWS_META_URL + '/' + key)
+        raise gen.Return(meta)
