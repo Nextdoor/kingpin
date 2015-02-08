@@ -298,8 +298,9 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
 
-            with self.assertRaises(exceptions.UnparseableResponseFromEndpoint):
-                yield self.actor._fetch('/')
+            response = yield self.actor._fetch('/')
+
+        self.assertEquals(response_body, response)
 
     @testing.gen_test
     def test_fetch_with_auth(self):

@@ -15,7 +15,6 @@
 """AWS Base Actor"""
 
 import logging
-import requests
 
 from boto.exception import BotoServerError
 from concurrent import futures
@@ -42,7 +41,7 @@ class ELBNotFound(exceptions.RecoverableActorFailure):
     """Raised when an ELB is not found"""
 
 
-class AWSBaseActor(base.BaseActor):
+class AWSBaseActor(base.HTTPBaseActor):
 
     # Get references to existing objects that are used by the
     # tornado.concurrent.run_on_executor() decorator.
@@ -102,5 +101,5 @@ class AWSBaseActor(base.BaseActor):
 
     @gen.coroutine
     def _get_meta_data(self, key):
-        meta = requests.get(AWS_META_URL + '/' + key)
+        meta = self._fetch(AWS_META_URL + '/' + key)
         raise gen.Return(meta.text)

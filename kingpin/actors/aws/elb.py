@@ -210,7 +210,9 @@ class RegisterInstance(base.AWSBaseActor):
     all_options = {
         'elb': (str, REQUIRED, 'Name of the ELB'),
         'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
-        'instance_id': ((str, list), REQUIRED, 'Instance id, or list of ids')
+        'instance_id': ((str, list), None, (
+            'Instance id, or list of ids. If no value is specified then '
+            'the instance id of the executing machine is used.'))
     }
 
     @concurrent.run_on_executor
@@ -252,7 +254,9 @@ class DeregisterInstance(base.AWSBaseActor):
     all_options = {
         'elb': (str, REQUIRED, 'Name of the ELB'),
         'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
-        'instance_id': ((str, list), REQUIRED, 'Instance id, or list of ids')
+        'instance_id': ((str, list), None, (
+            'Instance id, or list of ids. If no value is specified then '
+            'the instance id of the executing machine is used.'))
     }
 
     @concurrent.run_on_executor
