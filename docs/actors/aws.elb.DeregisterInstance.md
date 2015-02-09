@@ -9,7 +9,7 @@ Remove EC2 instance(s) from an ELB.
 **Options**
 
 * `elb` - str: Name of the ELB
-* `instance_id` - str, list: Instance id, or list of ids
+* `instances` - str, list: Instance id, or list of ids
 * `region` - str: AWS region name, like us-west-2
 
 **Example**
@@ -19,7 +19,7 @@ Remove EC2 instance(s) from an ELB.
         "desc": "Run DeregisterInstance",
         "options": {
             "elb": "fill-in",
-            "instance_id": "fill-in",
+            "instances": "fill-in",
             "region": "fill-in"
         }
     }

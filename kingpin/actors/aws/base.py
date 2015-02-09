@@ -33,7 +33,7 @@ log = logging.getLogger(__name__)
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
-AWS_META_URL = 'http://169.254.169.254/latest'
+AWS_META_URL = 'http://169.254.169.254/latest/meta-data'
 
 EXECUTOR = futures.ThreadPoolExecutor(10)
 
