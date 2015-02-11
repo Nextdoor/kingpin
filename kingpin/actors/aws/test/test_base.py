@@ -1,12 +1,12 @@
 import logging
 
+from boto import utils
 from boto.exception import BotoServerError
 from tornado import testing
 import mock
 
 from kingpin.actors.aws import base
 from kingpin.actors.aws import settings
-from kingpin.actors.test import helper
 
 log = logging.getLogger(__name__)
 
@@ -52,8 +52,22 @@ class TestBase(testing.AsyncTestCase):
     def test_get_meta_data(self):
         actor = base.AWSBaseActor('Unit Test Action', {})
 
-        actor._fetch = helper.mock_tornado('ut-value')
-
-        meta = yield actor._get_meta_data('ut-key')
+        with mock.patch.object(utils, 'get_instance_metadata') as md:
+            md.return_value = {'ut-key': 'ut-value'}
+            meta = yield actor._get_meta_data('ut-key')
 
         self.assertEquals(meta, 'ut-value')
+
+    @testing.gen_test
+    def test_get_meta_data_error(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+
+        with mock.patch.object(utils, 'get_instance_metadata') as md:
+            md.return_value = {}
+            with self.assertRaises(base.InvalidMetaData):
+                yield actor._get_meta_data('ut-key')
+
+        with mock.patch.object(utils, 'get_instance_metadata') as md:
+            md.return_value = {'key': 'value'}
+            with self.assertRaises(base.InvalidMetaData):
+                yield actor._get_meta_data('ut-key')

@@ -17,6 +17,7 @@
 import logging
 
 from boto.exception import BotoServerError
+from boto import utils
 from concurrent import futures
 from tornado import concurrent
 from tornado import gen
@@ -33,14 +34,15 @@ log = logging.getLogger(__name__)
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
-AWS_META_URL = 'http://169.254.169.254/latest/meta-data'
-
 EXECUTOR = futures.ThreadPoolExecutor(10)
 
 
 class ELBNotFound(exceptions.RecoverableActorFailure):
-
     """Raised when an ELB is not found"""
+
+
+class InvalidMetaData(exceptions.UnrecoverableActorFailure):
+    """Raised when fetching AWS metadata."""
 
 
 class AWSBaseActor(base.HTTPBaseActor):
@@ -57,7 +59,7 @@ class AWSBaseActor(base.HTTPBaseActor):
     _EXCEPTIONS = {
         BotoServerError: {
             'LoadBalancerNotFound': ELBNotFound
-        }
+        },
     }
 
     def __init__(self, *args, **kwargs):
@@ -120,13 +122,20 @@ class AWSBaseActor(base.HTTPBaseActor):
 
         raise gen.Return(elbs[0])
 
-    @gen.coroutine
-    @support._retry
+    @concurrent.run_on_executor
     def _get_meta_data(self, key):
         """Get AWS meta data for current instance.
 
         http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/
         ec2-instance-metadata.html
         """
-        meta = yield self._fetch(AWS_META_URL + '/' + key)
-        raise gen.Return(meta)
+
+        meta = utils.get_instance_metadata(timeout=1, num_retries=2)
+        if not meta:
+            raise InvalidMetaData('No metadata available. Not AWS instance?')
+
+        data = meta.get(key, None)
+        if not data:
+            raise InvalidMetaData('Metadata for key `%s` is not available')
+
+        return data
