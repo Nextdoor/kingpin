@@ -45,7 +45,7 @@ class InvalidMetaData(exceptions.UnrecoverableActorFailure):
     """Raised when fetching AWS metadata."""
 
 
-class AWSBaseActor(base.HTTPBaseActor):
+class AWSBaseActor(base.BaseActor):
 
     # Get references to existing objects that are used by the
     # tornado.concurrent.run_on_executor() decorator.

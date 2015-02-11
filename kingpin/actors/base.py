@@ -457,7 +457,9 @@ class HTTPBaseActor(BaseActor):
 
         try:
             body = json.loads(http_response.body)
-        except ValueError:
-            raise gen.Return(http_response.body)
+        except ValueError as e:
+            raise exceptions.UnparseableResponseFromEndpoint(
+                'Unable to parse response from remote API as JSON: %s' % e)
 
+        # Receive a successful return
         raise gen.Return(body)
