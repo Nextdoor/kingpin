@@ -189,7 +189,7 @@ class SetCert(ELBBaseActor):
             elb.set_listener_SSL_certificate(self.option('port'), '')
         except BotoServerError as e:
             if e.error_code == 'AccessDenied':
-                raise exceptions.UnrecoverableActorFailure(e)
+                raise exceptions.InvalidCredentials(e)
 
     @concurrent.run_on_executor
     @utils.exception_logger
@@ -239,7 +239,7 @@ class SetCert(ELBBaseActor):
         try:
             elb.set_listener_SSL_certificate(self.option('port'), arn)
         except BotoServerError as e:
-            raise exceptions.UnrecoverableActorFailure(
+            raise exceptions.RecoverableActorFailure(
                 'Applying new SSL cert to %s failed: %s' % (elb, e))
 
     def _compare_certs(self, elb, new_arn):

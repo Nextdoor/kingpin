@@ -362,7 +362,7 @@ class TestSetCert(testing.AsyncTestCase):
 
         error = BotoServerError(400, 'test')
         elb.set_listener_SSL_certificate.side_effect = error
-        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+        with self.assertRaises(exceptions.RecoverableActorFailure):
             yield actor._use_cert(elb, 'test')
 
     @testing.gen_test
