@@ -342,10 +342,13 @@ below for using each actor.
 
   * [aws.cloudformation.Create](docs/actors/aws.cloudformation.Create.md)
   * [aws.cloudformation.Delete](docs/actors/aws.cloudformation.Delete.md)
+  * [aws.elb.SetCert](docs/actors/aws.elb.SetCert.md)
   * [aws.elb.WaitUntilHealthy](docs/actors/aws.elb.WaitUntilHealthy.md)
+  * [aws.iam.DeleteCert](docs/actors/aws.iam.DeleteCert.md)
+  * [aws.iam.UploadCert](docs/actors/aws.iam.UploadCert.md)
   * [aws.sqs.Create](docs/actors/aws.sqs.Create.md)
-  * [aws.sqs.WaitUntilEmpty](docs/actors/aws.sqs.WaitUntilEmpty.md)
   * [aws.sqs.Delete](docs/actors/aws.sqs.Delete.md)
+  * [aws.sqs.WaitUntilEmpty](docs/actors/aws.sqs.WaitUntilEmpty.md)
 
 ### GenericHTTP
 

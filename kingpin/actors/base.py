@@ -158,7 +158,7 @@ class BaseActor(object):
         # Loop through all_options, and find the required ones
         required = [opt_name
                     for (opt_name, definition) in self.all_options.items()
-                    if definition[1] == REQUIRED]
+                    if definition[1] is REQUIRED]
 
         self.log.debug('Checking for required options: %s' % required)
         option_errors = []
@@ -195,6 +195,21 @@ class BaseActor(object):
         """Return the value for a given Actor option."""
 
         return self._options.get(name)
+
+    def readfile(self, path):
+        """Return file contents as a string.
+
+        Raises:
+            InvalidOptions if file is not found, or readable.
+        """
+
+        try:
+            with open(path) as f:
+                contents = f.read()
+        except IOError as e:
+            raise exceptions.InvalidOptions(e)
+
+        return contents
 
     def timer(f):
         """Coroutine-compatible function timer.
@@ -345,7 +360,7 @@ class BaseActor(object):
             log.critical('Unexpected exception caught! '
                          'Please contact the author (%s) and provide them '
                          'with this stacktrace' %
-                         sys.modules[__name__].__author__)
+                         sys.modules[self.__module__].__author__)
             self.log.exception(e)
             raise exceptions.ActorException(e)
         else:

@@ -16,13 +16,14 @@
 
 import logging
 
-from boto.exception import BotoServerError
 from boto import utils
+from boto.exception import BotoServerError
 from concurrent import futures
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
 import boto.ec2.elb
+import boto.iam
 
 from kingpin.actors import base
 from kingpin.actors import exceptions
@@ -75,11 +76,14 @@ class AWSBaseActor(base.BaseActor):
                     aws_settings.AWS_ACCESS_KEY_ID,
                     aws_settings.AWS_SECRET_ACCESS_KEY))
 
+        # Establish connection objects that don't require a region
+        self.iam_conn = boto.iam.connection.IAMConnection(
+            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
+
+        # Establish region-specific connection objects.
         region = self.option('region')
         if region:
-            # Create all the needed connections here.
-            # Defining them in this manner creates them lazily
-            # and does not block the constructor.
             self.elb_conn = boto.ec2.elb.connect_to_region(
                 region,
                 aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,

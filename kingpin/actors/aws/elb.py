@@ -17,14 +17,16 @@
 import logging
 import math
 
+from boto.exception import BotoServerError
 from concurrent import futures
 from retrying import retry
 from tornado import concurrent
 from tornado import gen
-from tornado import ioloop
 
 from kingpin import utils
+from kingpin.actors import exceptions
 from kingpin.actors.aws import base
+from kingpin.actors.aws import settings as aws_settings
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -39,6 +41,11 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 EXECUTOR = futures.ThreadPoolExecutor(10)
 
 
+class CertNotFound(exceptions.UnrecoverableActorFailure):
+
+    """Raised when an ELB is not found"""
+
+
 # Helper function
 def p2f(string):
     """Convert percentage string into float.
@@ -48,9 +55,9 @@ def p2f(string):
     return float(string.strip('%')) / 100
 
 
-class WaitUntilHealthy(base.AWSBaseActor):
+class ELBBaseActor(base.AWSBaseActor):
 
-    """Waits till a specified number of instances are "InService"."""
+    """Base class for ELB actors."""
 
     all_options = {
         'name': (str, REQUIRED, 'Name of the ELB'),
@@ -59,10 +66,10 @@ class WaitUntilHealthy(base.AWSBaseActor):
         'region': (str, REQUIRED, 'AWS region name, like us-west-2')
     }
 
-    # Get references to existing objects that are used by the
-    # tornado.concurrent.run_on_executor() decorator.
-    ioloop = ioloop.IOLoop.current()
-    executor = EXECUTOR
+
+class WaitUntilHealthy(ELBBaseActor):
+
+    """Waits till a specified number of instances are "InService"."""
 
     def _get_expected_count(self, count, total_count):
         """Calculate the expected count for a given percentage.
@@ -149,6 +156,128 @@ class WaitUntilHealthy(base.AWSBaseActor):
         utils.clear_repeating_log(repeating_log)
 
         raise gen.Return()
+
+
+class SetCert(ELBBaseActor):
+
+    """Find a server cert in IAM and use it for a specified ELB."""
+
+    all_options = {
+        'name': (str, REQUIRED, 'Name of the ELB'),
+        'port': (int, 443, 'Port associated with the cert'),
+        'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
+        'cert_name': (str, REQUIRED, 'Unique IAM certificate name, or ARN'),
+    }
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    @retry(retry_on_exception=aws_settings.is_retriable_exception)
+    def _check_access(self, elb):
+        """Perform a dummy operation to check credential accesss.
+
+        Intended to be used in a dry run, this method attempts to perform an
+        invalid set_listener call and monitors the output of the error. If the
+        error is anything other than AccessDenied then the provided credentials
+        are sufficient and we do nothing.
+
+        Args:
+            elb: boto LoadBalancer object.
+        """
+        try:
+            # A blank ARN value should have code 'CertificateNotFound'
+            # We're only checking if credentials have sufficient access
+            elb.set_listener_SSL_certificate(self.option('port'), '')
+        except BotoServerError as e:
+            if e.error_code == 'AccessDenied':
+                raise exceptions.InvalidCredentials(e)
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    @retry(retry_on_exception=aws_settings.is_retriable_exception)
+    def _get_cert_arn(self, name):
+        """Return a server_certificate ARN.
+
+        Searches for a certificate object and returns the "ARN" value.
+
+        Args:
+            name: certificate name
+
+        Raises:
+            CertNotFound - if the name doesn't match an existing cert.
+
+        Returns:
+            string: the ARN value of the certificate
+        """
+
+        self.log.debug('Searching for cert "%s"...' % name)
+        try:
+            cert = self.iam_conn.get_server_certificate(name)
+        except BotoServerError as e:
+            raise CertNotFound(
+                'Could not find cert %s. Reason: %s' % (name, e))
+
+        # Get the ARN of this cert
+        arn = cert['get_server_certificate_response'].get(
+            'get_server_certificate_result').get(
+            'server_certificate').get(
+            'server_certificate_metadata').get('arn')
+
+        return arn
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    @retry(retry_on_exception=aws_settings.is_retriable_exception)
+    def _use_cert(self, elb, arn):
+        """Assign an ssl cert to a given ELB.
+
+        Args:
+            elb: boto elb object.
+            arn: ARN for server certificate to use.
+        """
+
+        self.log.info('Setting ELB "%s" to use cert arn: %s' % (elb, arn))
+        try:
+            elb.set_listener_SSL_certificate(self.option('port'), arn)
+        except BotoServerError as e:
+            raise exceptions.RecoverableActorFailure(
+                'Applying new SSL cert to %s failed: %s' % (elb, e))
+
+    def _compare_certs(self, elb, new_arn):
+        """Check if a given ELB is using a provided ARN for its certificate.
+
+        Args:
+            elb: boto elb object.
+            new_arn: ARN for server certificate to use.
+
+        Returns:
+            boolean: used cert is same as the provided one.
+        """
+
+        ssl = [lis for lis in elb.listeners
+               if lis[0] == self.option('port')][0]
+
+        arn = ssl[4]
+
+        return arn == new_arn
+
+    @gen.coroutine
+    def _execute(self):
+        """Find ELB, and a Cert, then apply it."""
+        elb = yield self._find_elb(self.option('name'))
+        cert_arn = yield self._get_cert_arn(self.option('cert_name'))
+
+        same_cert = self._compare_certs(elb, cert_arn)
+
+        if same_cert:
+            self.log.warning('ELB %s is already using this cert.' % elb)
+            raise gen.Return()
+
+        if self._dry:
+            yield self._check_access(elb)
+            self.log.info('Would instruct %s to use %s' % (
+                self.option('name'), self.option('cert_name')))
+        else:
+            yield self._use_cert(elb, cert_arn)
 
 
 class RegisterInstance(base.AWSBaseActor):

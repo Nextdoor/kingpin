@@ -1,5 +1,6 @@
 import logging
 
+from boto.exception import BotoServerError
 from tornado import testing
 import mock
 
@@ -234,6 +235,20 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
         self.assertEquals(actor._is_healthy.call_count, 1)
         self.assertEquals(val, None)
 
+    @testing.gen_test
+    def test_execute_fail(self):
+
+        actor = elb_actor.WaitUntilHealthy(
+            'Unit Test ACtion', {'name': 'unit-test-queue',
+                                 'region': 'us-west-2',
+                                 'count': 7})
+        # ELB not found...
+        actor.elb_conn.get_all_load_balancers = mock.Mock(
+            side_effect=BotoServerError(400, 'LoadBalancerNotFound'))
+
+        with self.assertRaises(elb_actor.base.ELBNotFound):
+            yield actor.execute()
+
     def test_get_expected_count(self):
         actor = elb_actor.WaitUntilHealthy(
             'Unit Test Action', {'name': 'unit-test-queue',
@@ -261,3 +276,143 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
         val = yield actor._is_healthy(elb, 3)
 
         self.assertTrue(val)
+
+
+class TestSetCert(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestSetCert, self).setUp()
+        settings.AWS_ACCESS_KEY_ID = 'unit-test'
+        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+
+    @testing.gen_test
+    def test_check_access(self):
+        elb = mock.Mock()
+        botoerror = BotoServerError('Fail', 'Unit test')
+        botoerror.error_code = 'AccessDenied'
+        elb.set_listener_SSL_certificate = mock.Mock(
+            side_effect=botoerror)
+
+        actor = elb_actor.SetCert(
+            'Unit Test', {'name': 'unit-test',
+                          'region': 'unit-region',
+                          'cert_name': 'unit-cert'}
+            )
+
+        # AccessDenied means check has failed.
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            yield actor._check_access(elb)
+
+        # Anything else means the check has passed.
+        botoerror.error_code = 'Cert Not Found'
+        yield actor._check_access(elb)
+
+    @testing.gen_test
+    def test_get_cert_arn(self):
+        cert = {
+            'get_server_certificate_response': {
+                'get_server_certificate_result': {
+                    'server_certificate': {
+                        'server_certificate_metadata': {
+                            'arn': 'unit-test-arn-value'}}}}}
+
+        actor = elb_actor.SetCert(
+            'Unit Test', {'name': 'unit-test',
+                          'region': 'unit-region',
+                          'cert_name': 'unit-cert'}
+            )
+        actor.iam_conn = mock.Mock()
+        actor.iam_conn.get_server_certificate = mock.Mock(return_value=cert)
+
+        arn = yield actor._get_cert_arn('test')
+
+        self.assertEquals(actor.iam_conn.get_server_certificate.call_count, 1)
+        self.assertEquals(arn, 'unit-test-arn-value')
+
+        yield actor._get_cert_arn('test-new')
+        # New name supplied, call count should be 2
+        self.assertEquals(actor.iam_conn.get_server_certificate.call_count, 2)
+
+    @testing.gen_test
+    def test_get_cert_arn_fail(self):
+        actor = elb_actor.SetCert(
+            'Unit Test', {'name': 'unit-test',
+                          'region': 'unit-region',
+                          'cert_name': 'unit-cert'}
+            )
+
+        actor.iam_conn = mock.Mock()
+        error = BotoServerError(400, 'test')
+        actor.iam_conn.get_server_certificate.side_effect = error
+
+        with self.assertRaises(elb_actor.CertNotFound):
+            yield actor._get_cert_arn('test')
+
+    @testing.gen_test
+    def test_use_cert(self):
+        actor = elb_actor.SetCert(
+            'Unit Test', {'name': 'unit-test',
+                          'region': 'unit-region',
+                          'cert_name': 'unit-cert'}
+            )
+        elb = mock.Mock()
+
+        yield actor._use_cert(elb, 'test')
+        self.assertEquals(elb.set_listener_SSL_certificate.call_count, 1)
+
+        error = BotoServerError(400, 'test')
+        elb.set_listener_SSL_certificate.side_effect = error
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor._use_cert(elb, 'test')
+
+    @testing.gen_test
+    def test_execute(self):
+        actor = elb_actor.SetCert(
+            'Unit Test', {'name': 'unit-test',
+                          'region': 'unit-region',
+                          'cert_name': 'unit-cert'}
+            )
+        elb = mock.Mock()
+        elb.listeners = [
+            (443, 443, 'HTTPS', 'HTTPS',
+             'arn:aws:iam::12345:server-certificate/nextdoor.com')]
+        actor._find_elb = helper.mock_tornado(elb)
+        actor._get_cert_arn = helper.mock_tornado('arn')
+        actor._check_access = helper.mock_tornado()
+        actor._use_cert = helper.mock_tornado()
+
+        yield actor._execute()
+
+        self.assertEquals(actor._check_access._call_count, 0)
+        self.assertEquals(actor._use_cert._call_count, 1)
+
+        # Check quick exit if the cert is already in use
+        actor._get_cert_arn = helper.mock_tornado(elb.listeners[0][4])
+        yield actor._execute()
+
+        # Function calls should remain unchanged
+        self.assertEquals(actor._check_access._call_count, 0)
+        self.assertEquals(actor._use_cert._call_count, 1)
+
+    @testing.gen_test
+    def test_execute_dry(self):
+        actor = elb_actor.SetCert(
+            'Unit Test', {'name': 'unit-test',
+                          'region': 'unit-region',
+                          'cert_name': 'unit-cert'},
+            dry=True)
+
+        elb = mock.Mock()
+        elb.listeners = [
+            (443, 443, 'HTTPS', 'HTTPS',
+             'arn:aws:iam::12345:server-certificate/nextdoor.com')]
+
+        actor._find_elb = helper.mock_tornado(elb)
+        actor._get_cert_arn = helper.mock_tornado('arn')
+        actor._check_access = helper.mock_tornado()
+        actor._use_cert = helper.mock_tornado()
+
+        yield actor._execute()
+
+        self.assertEquals(actor._check_access._call_count, 1)
+        self.assertEquals(actor._use_cert._call_count, 0)

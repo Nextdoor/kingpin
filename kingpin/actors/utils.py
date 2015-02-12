@@ -74,11 +74,13 @@ def get_actor_class(actor):
         # 'kingpin.actors.' prefix was not included in the name.
         full_actor = 'kingpin.actors.%s' % actor
         ref = utils.str_to_class(full_actor)
-    except expected_exceptions:
+    except expected_exceptions as e:
+        log.warning('Could not import %s: %s' % (full_actor, e))
         try:
             ref = utils.str_to_class(actor)
         except expected_exceptions:
-            msg = 'Unable to convert "%s" to a valid Actor class name.' % actor
+            log.critical('Could not import %s: %s' % (actor, e))
+            msg = 'Unable to import "%s" as a valid Actor.' % actor
             raise exceptions.InvalidActor(msg)
 
     return ref

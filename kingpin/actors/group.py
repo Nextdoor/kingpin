@@ -152,7 +152,7 @@ class Async(BaseGroupActor):
     """Asynchronously executes all Actors at once"""
 
     def _get_exc_type(self, exc_list):
-        """Returns either a Recoverable or UnrecoverableActorFailure obj.
+        """Return Unrecoverable exception if at least one is in exc_list.
 
         Takes in a list of exceptions, and returns either a
         RecoverableActorFailure or an UnrecoverableActorFailure based on the
@@ -206,5 +206,5 @@ class Async(BaseGroupActor):
         # handled printing out the log message with the failure.
         if errors:
             ExcType = self._get_exc_type(errors)
-            raise ExcType('Exceptions raised by %s actors in the group.' %
-                          len(errors))
+            raise ExcType('Exceptions raised by %s of %s actors in "%s".' % (
+                          len(errors), len(self._actions), self._desc))
