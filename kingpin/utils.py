@@ -265,11 +265,11 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
     if tokens:
         for k, v in tokens.iteritems():
 
-            if type(v) is not str:
+            if type(v) not in (str, unicode, bool):
                 continue
 
             string = string.replace(
-                ('%s%s%s' % (left_wrapper, k, right_wrapper)), v)
+                ('%s%s%s' % (left_wrapper, k, right_wrapper)), str(v))
 
     # If we aren't strict, we return...
     if not strict:
