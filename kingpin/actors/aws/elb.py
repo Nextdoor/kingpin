@@ -158,7 +158,7 @@ class WaitUntilHealthy(ELBBaseActor):
         raise gen.Return()
 
 
-class UseCert(ELBBaseActor):
+class SetCert(ELBBaseActor):
 
     """Find a server cert in IAM and use it for a specified ELB."""
 

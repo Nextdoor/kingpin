@@ -1,4 +1,4 @@
-##### kingpin.actors.aws.elb.UseCert
+##### kingpin.actors.aws.elb.SetCert
 
 Find a server cert in IAM and use it for a specified ELB.
 
@@ -12,8 +12,8 @@ Find a server cert in IAM and use it for a specified ELB.
 **Example**
 
     {
-        "actor": "aws.elb.UseCert",
-        "desc": "Run UseCert",
+        "actor": "aws.elb.SetCert",
+        "desc": "Run SetCert",
         "options": {
             "cert_name": "new-cert",
             "name": "some-elb",

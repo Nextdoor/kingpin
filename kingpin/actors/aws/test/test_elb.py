@@ -278,10 +278,10 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
         self.assertTrue(val)
 
 
-class TestUseCert(testing.AsyncTestCase):
+class TestSetCert(testing.AsyncTestCase):
 
     def setUp(self):
-        super(TestUseCert, self).setUp()
+        super(TestSetCert, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
 
@@ -293,7 +293,7 @@ class TestUseCert(testing.AsyncTestCase):
         elb.set_listener_SSL_certificate = mock.Mock(
             side_effect=botoerror)
 
-        actor = elb_actor.UseCert(
+        actor = elb_actor.SetCert(
             'Unit Test', {'name': 'unit-test',
                           'region': 'unit-region',
                           'cert_name': 'unit-cert'}
@@ -316,7 +316,7 @@ class TestUseCert(testing.AsyncTestCase):
                         'server_certificate_metadata': {
                             'arn': 'unit-test-arn-value'}}}}}
 
-        actor = elb_actor.UseCert(
+        actor = elb_actor.SetCert(
             'Unit Test', {'name': 'unit-test',
                           'region': 'unit-region',
                           'cert_name': 'unit-cert'}
@@ -335,7 +335,7 @@ class TestUseCert(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_get_cert_arn_fail(self):
-        actor = elb_actor.UseCert(
+        actor = elb_actor.SetCert(
             'Unit Test', {'name': 'unit-test',
                           'region': 'unit-region',
                           'cert_name': 'unit-cert'}
@@ -350,7 +350,7 @@ class TestUseCert(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_use_cert(self):
-        actor = elb_actor.UseCert(
+        actor = elb_actor.SetCert(
             'Unit Test', {'name': 'unit-test',
                           'region': 'unit-region',
                           'cert_name': 'unit-cert'}
@@ -367,7 +367,7 @@ class TestUseCert(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute(self):
-        actor = elb_actor.UseCert(
+        actor = elb_actor.SetCert(
             'Unit Test', {'name': 'unit-test',
                           'region': 'unit-region',
                           'cert_name': 'unit-cert'}
@@ -396,7 +396,7 @@ class TestUseCert(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_dry(self):
-        actor = elb_actor.UseCert(
+        actor = elb_actor.SetCert(
             'Unit Test', {'name': 'unit-test',
                           'region': 'unit-region',
                           'cert_name': 'unit-cert'},
