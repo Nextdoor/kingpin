@@ -173,6 +173,16 @@ class SetCert(ELBBaseActor):
     @utils.exception_logger
     @retry(retry_on_exception=aws_settings.is_retriable_exception)
     def _check_access(self, elb):
+        """Perform a dummy operation to check credential accesss.
+
+        Intended to be used in a dry run, this method attempts to perform an
+        invalid set_listener call and monitors the output of the error. If the
+        error is anything other than AccessDenied then the provided credentials
+        are sufficient and we do nothing.
+
+        Args:
+            elb: boto LoadBalancer object.
+        """
         try:
             # A blank ARN value should have code 'CertificateNotFound'
             # We're only checking if credentials have sufficient access
@@ -185,7 +195,19 @@ class SetCert(ELBBaseActor):
     @utils.exception_logger
     @retry(retry_on_exception=aws_settings.is_retriable_exception)
     def _get_cert_arn(self, name):
-        """Return a server_certificate ARN."""
+        """Return a server_certificate ARN.
+
+        Searches for a certificate object and returns the "ARN" value.
+
+        Args:
+            name: certificate name
+
+        Raises:
+            CertNotFound - if the name doesn't match an existing cert.
+
+        Returns:
+            string: the ARN value of the certificate
+        """
 
         self.log.debug('Searching for cert "%s"...' % name)
         try:

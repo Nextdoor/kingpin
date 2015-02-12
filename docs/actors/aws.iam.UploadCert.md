@@ -8,7 +8,7 @@ Uploads a new SSL Cert to AWS IAM.
 **Options**
 
 * `private_key_path` - str: Path to the private key.
-* `path` - str: The path for the server certificate. Optional.
+* `path` - str: The AWS "path" for the server certificate. Default: "/"
 * `public_key_path` - str: Path to the public key certificate.
 * `name` - str: The name for the server certificate.
 * `cert_chain_path` - str: Path to the certificate chain. Optional.
