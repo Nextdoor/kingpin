@@ -23,6 +23,7 @@ from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
 import boto.ec2.elb
+import boto.iam
 
 from kingpin.actors import base
 from kingpin.actors import exceptions

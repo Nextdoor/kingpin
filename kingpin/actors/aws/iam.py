@@ -21,11 +21,9 @@ from concurrent import futures
 from retrying import retry
 from tornado import concurrent
 from tornado import gen
-from tornado import ioloop
-import boto.iam.connection
 
 from kingpin import utils
-from kingpin.actors import base
+from kingpin.actors.aws import base
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings as aws_settings
 from kingpin.constants import REQUIRED
@@ -42,28 +40,9 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 EXECUTOR = futures.ThreadPoolExecutor(10)
 
 
-class IAMBaseActor(base.BaseActor):
+class IAMBaseActor(base.AWSBaseActor):
 
-    # Get references to existing objects that are used by the
-    # tornado.concurrent.run_on_executor() decorator.
-    ioloop = ioloop.IOLoop.current()
-    executor = EXECUTOR
-
-    def __init__(self, *args, **kwargs):
-        """Create the connection object."""
-        super(IAMBaseActor, self).__init__(*args, **kwargs)
-
-        if not (aws_settings.AWS_ACCESS_KEY_ID and
-                aws_settings.AWS_SECRET_ACCESS_KEY):
-            raise exceptions.InvalidCredentials(
-                'AWS settings imported but not all credentials are supplied. '
-                'AWS_ACCESS_KEY_ID: %s, AWS_SECRET_ACCESS_KEY: %s' % (
-                    aws_settings.AWS_ACCESS_KEY_ID,
-                    aws_settings.AWS_SECRET_ACCESS_KEY))
-
-        self.conn = boto.iam.connection.IAMConnection(
-            aws_settings.AWS_ACCESS_KEY_ID,
-            aws_settings.AWS_SECRET_ACCESS_KEY)
+    """Base class for IAM actors."""
 
 
 class UploadCert(IAMBaseActor):
@@ -90,7 +69,7 @@ class UploadCert(IAMBaseActor):
     @utils.exception_logger
     def _upload(self, cert_name, cert_body, private_key, cert_chain, path):
         """Create a new server certificate in AWS IAM."""
-        self.conn.upload_server_cert(
+        self.iam_conn.upload_server_cert(
             cert_name=cert_name,
             cert_body=cert_body,
             private_key=private_key,
@@ -145,7 +124,7 @@ class DeleteCert(IAMBaseActor):
 
         self.log.debug('Searching for cert "%s"...' % name)
         try:
-            self.conn.get_server_certificate(name)
+            self.iam_conn.get_server_certificate(name)
         except BotoServerError as e:
             raise exceptions.UnrecoverableActorFailure(
                 'Could not find cert %s. Reason: %s' % (name, e))
@@ -157,7 +136,7 @@ class DeleteCert(IAMBaseActor):
     @utils.exception_logger
     def _delete(self, cert_name):
         """Delete a server certificate in AWS IAM."""
-        self.conn.delete_server_cert(cert_name)
+        self.iam_conn.delete_server_cert(cert_name)
 
     @gen.coroutine
     def _execute(self):
