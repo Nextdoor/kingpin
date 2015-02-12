@@ -13,6 +13,154 @@ from kingpin.actors.test import helper
 log = logging.getLogger(__name__)
 
 
+class TestRegisterInstance(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestRegisterInstance, self).setUp()
+        settings.AWS_ACCESS_KEY_ID = 'unit-test'
+        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+
+    @testing.gen_test
+    def test_add(self):
+        act = elb_actor.RegisterInstance('UTA', {
+            'elb': 'test',
+            'region': 'test',
+            'instances': 'test'})
+
+        elb = mock.Mock()
+        instance = 'i-un173s7'
+        yield act._add(elb, [instance])
+
+        elb.register_instances.assert_called_with([instance])
+
+    @testing.gen_test
+    def test_execute(self):
+        act = elb_actor.RegisterInstance('UTA', {
+            'elb': 'elb-test',
+            'region': 'region-test',
+            'instances': 'i-test'})
+
+        act._find_elb = mock.Mock()
+        act._find_elb.return_value = helper.tornado_value(mock.Mock())
+        act._add = mock.Mock()
+        act._add.return_value = helper.tornado_value(mock.Mock())
+        yield act._execute()
+
+        act._find_elb.assert_called_with('elb-test')
+        lb = yield act._find_elb()
+        act._add.assert_called_with(lb, ['i-test'])
+
+    @testing.gen_test
+    def test_execute_self(self):
+        # No instance id specified
+        act = elb_actor.RegisterInstance('UTA', {
+            'elb': 'elb-test',
+            'region': 'region-test'})
+
+        act._find_elb = mock.Mock()
+        act._find_elb.return_value = helper.tornado_value(mock.Mock())
+        act._add = mock.Mock()
+        act._add.return_value = helper.tornado_value(mock.Mock())
+        act._get_meta_data = helper.mock_tornado('i-test')
+        yield act._execute()
+
+        act._find_elb.assert_called_with('elb-test')
+        lb = yield act._find_elb()
+        act._add.assert_called_with(lb, ['i-test'])
+
+    @testing.gen_test
+    def test_execute_dry(self):
+        act = elb_actor.RegisterInstance('UTA', {
+            'elb': 'elb-test',
+            'region': 'region-test',
+            'instances': 'i-test'},
+            dry=True)
+
+        act._find_elb = mock.Mock()
+        act._find_elb.return_value = helper.tornado_value(mock.Mock())
+        act._add = mock.Mock()
+        act._add.return_value = helper.tornado_value(mock.Mock())
+        yield act._execute()
+
+        act._find_elb.assert_called_with('elb-test')
+        yield act._find_elb()
+        self.assertEquals(0, act._add.call_count)
+
+
+class TestDeregisterInstance(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestDeregisterInstance, self).setUp()
+        settings.AWS_ACCESS_KEY_ID = 'unit-test'
+        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+
+    @testing.gen_test
+    def test_remove(self):
+        act = elb_actor.DeregisterInstance('UTA', {
+            'elb': 'test',
+            'region': 'test',
+            'instances': 'test'})
+
+        elb = mock.Mock()
+        instance = 'i-un173s7'
+        yield act._remove(elb, [instance])
+
+        elb.deregister_instances.assert_called_with([instance])
+
+    @testing.gen_test
+    def test_execute(self):
+        act = elb_actor.DeregisterInstance('UTA', {
+            'elb': 'elb-test',
+            'region': 'region-test',
+            'instances': 'i-test'})
+
+        act._find_elb = mock.Mock()
+        act._find_elb.return_value = helper.tornado_value(mock.Mock())
+        act._remove = mock.Mock()
+        act._remove.return_value = helper.tornado_value(mock.Mock())
+        yield act._execute()
+
+        act._find_elb.assert_called_with('elb-test')
+        lb = yield act._find_elb()
+        act._remove.assert_called_with(lb, ['i-test'])
+
+    @testing.gen_test
+    def test_execute_self(self):
+        # No instance id specified
+        act = elb_actor.DeregisterInstance('UTA', {
+            'elb': 'elb-test',
+            'region': 'region-test'})
+
+        act._find_elb = mock.Mock()
+        act._find_elb.return_value = helper.tornado_value(mock.Mock())
+        act._remove = mock.Mock()
+        act._remove.return_value = helper.tornado_value(mock.Mock())
+        act._get_meta_data = helper.mock_tornado('i-test')
+        yield act._execute()
+
+        act._find_elb.assert_called_with('elb-test')
+        lb = yield act._find_elb()
+        act._remove.assert_called_with(lb, ['i-test'])
+
+    @testing.gen_test
+    def test_execute_dry(self):
+        act = elb_actor.DeregisterInstance('UTA', {
+            'elb': 'elb-test',
+            'region': 'region-test',
+            'instances': 'i-test'},
+            dry=True)
+
+        act._find_elb = mock.Mock()
+        act._find_elb.return_value = helper.tornado_value(mock.Mock())
+        act._remove = mock.Mock()
+        act._remove.return_value = helper.tornado_value(mock.Mock())
+        yield act._execute()
+
+        act._find_elb.assert_called_with('elb-test')
+        yield act._find_elb()
+        self.assertEquals(0, act._remove.call_count)
+
+
 class TestWaitUntilHealthy(testing.AsyncTestCase):
 
     def setUp(self):
@@ -38,12 +186,12 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
                                  'region': 'us-west-2',
                                  'count': 3})
 
-        actor._find_elb = helper.mock_tornado('ELB')
-        actor._is_healthy = helper.mock_tornado(True)
+        actor._find_elb = mock.Mock(return_value=helper.tornado_value('ELB'))
+        actor._is_healthy = mock.Mock(return_value=helper.tornado_value(True))
 
         val = yield actor._execute()
-        self.assertEquals(actor._find_elb._call_count, 1)
-        self.assertEquals(actor._is_healthy._call_count, 1)
+        self.assertEquals(actor._find_elb.call_count, 1)
+        self.assertEquals(actor._is_healthy.call_count, 1)
         self.assertEquals(val, None)
 
     @testing.gen_test
@@ -54,7 +202,7 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
                                  'region': 'us-west-2',
                                  'count': 3})
 
-        actor._find_elb = helper.mock_tornado('ELB')
+        actor._find_elb = mock.Mock(return_value=helper.tornado_value('ELB'))
         actor._is_healthy = mock.Mock(
             side_effect=[helper.tornado_value(False),
                          helper.tornado_value(True)])
@@ -65,7 +213,7 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
             ts.return_value = short_sleep
             val = yield actor._execute()
 
-        self.assertEquals(actor._find_elb._call_count, 1)  # Don't refetch!
+        self.assertEquals(actor._find_elb.call_count, 1)  # Don't refetch!
         self.assertEquals(actor._is_healthy.call_count, 2)  # Retry!
         self.assertEquals(val, None)
 
@@ -78,13 +226,13 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
                                  'count': 3},
             dry=True)
 
-        actor._find_elb = helper.mock_tornado('ELB')
+        actor._find_elb = mock.Mock(return_value=helper.tornado_value('ELB'))
         # NOTE: this is false, but assertion is True!
-        actor._is_healthy = helper.mock_tornado(False)
+        actor._is_healthy = mock.Mock(return_value=helper.tornado_value(False))
 
         val = yield actor._execute()
-        self.assertEquals(actor._find_elb._call_count, 1)
-        self.assertEquals(actor._is_healthy._call_count, 1)
+        self.assertEquals(actor._find_elb.call_count, 1)
+        self.assertEquals(actor._is_healthy.call_count, 1)
         self.assertEquals(val, None)
 
     @testing.gen_test
@@ -95,48 +243,11 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
                                  'region': 'us-west-2',
                                  'count': 7})
         # ELB not found...
-        actor.conn.get_all_load_balancers = mock.Mock(
-            side_effect=BotoServerError(400, 'Testing'))
+        actor.elb_conn.get_all_load_balancers = mock.Mock(
+            side_effect=BotoServerError(400, 'LoadBalancerNotFound'))
 
-        with self.assertRaises(elb_actor.ELBNotFound):
+        with self.assertRaises(elb_actor.base.ELBNotFound):
             yield actor.execute()
-
-    @testing.gen_test
-    def test_find_elb(self):
-        actor = elb_actor.WaitUntilHealthy(
-            'Unit Test Action', {'name': 'unit-test-queue',
-                                 'region': 'us-west-2',
-                                 'count': 3})
-
-        actor.conn = mock.Mock()
-        actor.conn.get_all_load_balancers = mock.Mock(return_value=['test'])
-
-        elb = yield actor._find_elb('')
-
-        self.assertEquals(elb, 'test')
-        self.assertEquals(actor.conn.get_all_load_balancers.call_count, 1)
-
-        actor.conn.get_all_load_balancers.assert_called_with(
-            load_balancer_names='')
-
-    @testing.gen_test
-    def test_find_elb_error(self):
-        actor = elb_actor.WaitUntilHealthy(
-            'Unit Test Action', {'name': 'unit-test-queue',
-                                 'region': 'us-west-2',
-                                 'count': 3})
-
-        # Pretend the request worked, but there are no ELBs
-        actor.conn = mock.Mock()
-        actor.conn.get_all_load_balancers = mock.Mock(return_value=[])
-        with self.assertRaises(elb_actor.ELBNotFound):
-            yield actor._find_elb('')
-
-        # Now pretend the request failed
-        actor.conn.get_all_load_balancers = mock.Mock(
-            side_effect=BotoServerError(400, 'Testing'))
-        with self.assertRaises(elb_actor.ELBNotFound):
-            yield actor._find_elb('')
 
     def test_get_expected_count(self):
         actor = elb_actor.WaitUntilHealthy(

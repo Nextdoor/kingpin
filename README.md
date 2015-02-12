@@ -29,6 +29,7 @@ The Kingpin of your Deployment Model
     * [Librato](#librato)
     * [Rollbar](#rollbar)
     * [RightScale](#rightscale)
+    * [Slack](#slack)
 3. [Development](#development) 
 
 ## Installation
@@ -427,6 +428,23 @@ below for using each actor.
   * [rightscale.server_array.Launch](docs/actors/rightscale.server_array.Launch.md)
   * [rightscale.server_array.Update](docs/actors/rightscale.server_array.Update.md)
   * [rightscale.server_array.Terminate](docs/actors/rightscale.server_array.Terminate.md)
+
+### Slack
+
+The Slack Actors allow you to send messages to a Slack channel at stages during
+your job execution. The actor supports dry mode by validating that the
+configured API Token has access to execute the methods, without actually sending
+the messages.
+
+**Required Environment Variables**
+
+  * `SLACK_TOKEN` - Slack API Token
+  * `SLACK_NAME` - Slack `message from` name
+    (defaults to `Kingpin`)
+
+**Actor-specific Documentation**
+
+  * [slack.Message](docs/actors/slack.Message.md)
 
 ## Development
 

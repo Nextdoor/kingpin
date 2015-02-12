@@ -17,18 +17,15 @@
 import logging
 import math
 
-from boto.ec2 import elb as aws_elb
 from boto.exception import BotoServerError
 from concurrent import futures
 from retrying import retry
 from tornado import concurrent
 from tornado import gen
-from tornado import ioloop
-import boto.iam.connection
 
 from kingpin import utils
-from kingpin.actors import base
 from kingpin.actors import exceptions
+from kingpin.actors.aws import base
 from kingpin.actors.aws import settings as aws_settings
 from kingpin.constants import REQUIRED
 
@@ -42,11 +39,6 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 # across RightScale objects, but we see testing IO errors when we
 # do this.
 EXECUTOR = futures.ThreadPoolExecutor(10)
-
-
-class ELBNotFound(exceptions.UnrecoverableActorFailure):
-
-    """Raised when an ELB is not found"""
 
 
 class CertNotFound(exceptions.UnrecoverableActorFailure):
@@ -63,7 +55,7 @@ def p2f(string):
     return float(string.strip('%')) / 100
 
 
-class ELBBaseActor(base.BaseActor):
+class ELBBaseActor(base.AWSBaseActor):
 
     """Base class for ELB actors."""
 
@@ -73,63 +65,6 @@ class ELBBaseActor(base.BaseActor):
                   'Specific count, or percentage of instances to wait for.'),
         'region': (str, REQUIRED, 'AWS region name, like us-west-2')
     }
-
-    # Get references to existing objects that are used by the
-    # tornado.concurrent.run_on_executor() decorator.
-    ioloop = ioloop.IOLoop.current()
-    executor = EXECUTOR
-
-    def __init__(self, *args, **kwargs):
-        """Set up connection object.
-
-        Expected Arguments: region
-        """
-
-        super(ELBBaseActor, self).__init__(*args, **kwargs)
-
-        if not (aws_settings.AWS_ACCESS_KEY_ID and
-                aws_settings.AWS_SECRET_ACCESS_KEY):
-            raise exceptions.InvalidCredentials(
-                'AWS settings imported but not all credentials are supplied. '
-                'AWS_ACCESS_KEY_ID: %s, AWS_SECRET_ACCESS_KEY: %s' % (
-                    aws_settings.AWS_ACCESS_KEY_ID,
-                    aws_settings.AWS_SECRET_ACCESS_KEY))
-
-        self.conn = aws_elb.connect_to_region(
-            self.option('region'),
-            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
-
-    @concurrent.run_on_executor
-    @utils.exception_logger
-    def _find_elb(self, name):
-        """Return an ELB with the matching name.
-
-        Must find exactly 1 match. Zones are limited by the AWS credentials.
-
-        Args:
-            name: String-name of the ELB to search for
-
-        Returns:
-            A single ELB reference object
-
-        Raises:
-            ELBNotFound
-        """
-        self.log.debug('Searching for ELB "%s"' % name)
-
-        try:
-            elbs = self.conn.get_all_load_balancers(load_balancer_names=name)
-        except BotoServerError as e:
-            raise ELBNotFound(e)
-
-        self.log.debug('ELBs found: %s' % elbs)
-
-        if len(elbs) != 1:
-            raise ELBNotFound('Expected to find exactly 1 ELB. Found %s: %s'
-                              % (len(elbs), elbs))
-
-        return elbs[0]
 
 
 class WaitUntilHealthy(ELBBaseActor):
@@ -234,13 +169,6 @@ class UseCert(ELBBaseActor):
         'cert_name': (str, REQUIRED, 'Unique IAM certificate name, or ARN'),
     }
 
-    def __init__(self, *args, **kwargs):
-        """Set up additional IAM connection."""
-        super(UseCert, self).__init__(*args, **kwargs)
-        self.iam_conn = boto.iam.connection.IAMConnection(
-            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
-
     @concurrent.run_on_executor
     @utils.exception_logger
     @retry(retry_on_exception=aws_settings.is_retriable_exception)
@@ -328,3 +256,105 @@ class UseCert(ELBBaseActor):
                 self.option('name'), self.option('cert_name')))
         else:
             yield self._use_cert(elb, cert_arn)
+
+
+class RegisterInstance(base.AWSBaseActor):
+
+    """Add an EC2 instance to a load balancer.
+
+    http://boto.readthedocs.org/en/latest/ref/elb.html
+    #boto.ec2.elb.ELBConnection.register_instances
+    """
+
+    all_options = {
+        'elb': (str, REQUIRED, 'Name of the ELB'),
+        'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
+        'instances': ((str, list), None, (
+            'Instance id, or list of ids. If no value is specified then '
+            'the instance id of the executing machine is used.'))
+    }
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    @retry
+    def _add(self, elb, instances):
+        """Invoke elb.register_instances
+
+        This boto function is idempotent, so any retry is OK.
+
+        Args:
+            elb: boto Loadbalancer object
+            instances: list of instance ids.
+        """
+        elb.register_instances(instances)
+
+    @gen.coroutine
+    def _execute(self):
+        elb = yield self._find_elb(self.option('elb'))
+        instances = self.option('instances')
+
+        if not instances:
+            self.log.debug('No instance provided. Using current instance id.')
+            iid = yield self._get_meta_data('instance-id')
+            instances = [iid]
+            self.log.debug('Instances is: %s' % instances)
+
+        if type(instances) is not list:
+            instances = [instances]
+
+        self.log.info(('Adding the following instances to elb: '
+                       '%s' % ', '.join(instances)))
+        if not self._dry:
+            yield self._add(elb, instances)
+            self.log.info('Done.')
+
+
+class DeregisterInstance(base.AWSBaseActor):
+
+    """Remove EC2 instance(s) from an ELB.
+
+    http://boto.readthedocs.org/en/latest/ref/elb.html
+    #boto.ec2.elb.loadbalancer.LoadBalancer.deregister_instances
+    """
+
+    all_options = {
+        'elb': (str, REQUIRED, 'Name of the ELB'),
+        'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
+        'instances': ((str, list), None, (
+            'Instance id, or list of ids. If no value is specified then '
+            'the instance id of the executing machine is used.'))
+    }
+
+    @concurrent.run_on_executor
+    @utils.exception_logger
+    @retry
+    def _remove(self, elb, instances):
+        """Invoke elb.deregister_instances
+
+        This boto function is idempotent, so any retry is OK.
+
+        Args:
+            elb: boto Loadbalancer object
+            instances: list of instance ids.
+        """
+        elb.deregister_instances(instances)
+
+    @gen.coroutine
+    def _execute(self):
+        elb = yield self._find_elb(self.option('elb'))
+        instances = self.option('instances')
+
+        if not instances:
+            self.log.debug('No instance provided. Using current instance id.')
+            iid = yield self._get_meta_data('instance-id')
+            instances = [iid]
+            self.log.debug('Instances is: %s' % instances)
+
+        if type(instances) is not list:
+            instances = [instances]
+
+        self.log.info(('Removing the following instances from elb: '
+                       '%s' % ', '.join(instances)))
+        if not self._dry:
+            yield self._remove(elb, instances)
+            self.log.info('Done.')

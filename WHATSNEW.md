@@ -1,3 +1,13 @@
+## Version 0.2.1
+
+Bug-fix release:
+
+ * The Rollbar API changed and started returning 401's rather than 403's for
+   invalid credential notifications.
+ * Bugfix in our `rightscale.api.wait_for_task()` method that was causing it to
+   try to look up instance-logs when sometimes there was no instance to track
+   down.
+
 ## Version 0.2.0
 
 Version v0.2.0 is a huge improvement over v0.1.2. A ton of new tests, code

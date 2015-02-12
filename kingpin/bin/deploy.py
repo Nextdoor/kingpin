@@ -14,8 +14,6 @@
 # Copyright 2014 Nextdoor.com, Inc
 """CLI Script Runner for Kingpin."""
 
-__author__ = 'Matt Wise (matt@nextdoor.com)'
-
 import logging
 import optparse
 import os
@@ -27,9 +25,13 @@ from tornado import ioloop
 from kingpin import utils
 from kingpin.actors import exceptions as actor_exceptions
 from kingpin.actors.misc import Macro
-from kingpin.version import __version__ as VERSION
+from kingpin.version import __version__
+
 
 log = logging.getLogger(__name__)
+
+__author__ = 'Matt Wise (matt@nextdoor.com)'
+
 
 # We handle all the exceptions ourselves, so additional log statements from
 # BOTO are not needed.
@@ -37,7 +39,7 @@ logging.getLogger('boto').setLevel(logging.CRITICAL)
 
 # Initial option handler to set up the basic application environment.
 usage = 'usage: %prog [json file] <options>'
-parser = optparse.OptionParser(usage=usage, version=VERSION,
+parser = optparse.OptionParser(usage=usage, version=__version__,
                                add_help_option=True)
 parser.set_defaults(verbose=True)
 
@@ -83,7 +85,8 @@ def main():
                               dry=True)
             yield dry_actor.execute()
         except actor_exceptions.ActorException as e:
-            log.critical('Dry run failed. Reason: %s' % e)
+            log.critical('Dry run failed. Reason:')
+            log.critical(e)
             sys.exit(2)
         else:
             log.info('Rehearsal OK! Performing!')

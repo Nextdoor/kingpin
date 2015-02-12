@@ -23,12 +23,11 @@ class TestRightScale(testing.AsyncTestCase):
         self.mock_client = mock.MagicMock()
         self.client._client = self.mock_client
 
-#    def test_get_res_id(self):
-        # TODO: Figure out how to test this?
-        #
-        # mocked_resource = mock.Magic
-        # ret = self.client._get_res_id(mocked_resource)
-        # self.assertEquals(ret, '12345')
+    def test_get_res_id(self):
+        resource = mock.Mock()
+        resource.self.path = '/foo/bar/12345'
+        ret = self.client.get_res_id(resource)
+        self.assertEquals(ret, 12345)
 
     @testing.gen_test
     def test_login(self):
@@ -304,6 +303,12 @@ class TestRightScale(testing.AsyncTestCase):
         mock_task.assert_has_calls(
             [mock.call.self.show(), mock.call.self.show(),
              mock.call.self.show()])
+
+        # task fails (no instance)
+        mock_task = mock.MagicMock(name='fake task')
+        mock_task.self.show.side_effect = [queued, in_process, failed]
+        ret = yield self.client.wait_for_task(mock_task, sleep=0.01)
+        self.assertEquals(ret, False)
 
         # task fails
         mock_task = mock.MagicMock(name='fake task')

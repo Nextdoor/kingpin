@@ -16,8 +16,6 @@
 Common package for utility functions.
 """
 
-__author__ = 'Matt Wise (matt@nextdoor.com)'
-
 from logging import handlers
 import datetime
 import demjson
@@ -33,6 +31,8 @@ from tornado import gen
 from tornado import ioloop
 import httplib
 import rainbow_logging_handler
+
+__author__ = 'Matt Wise (matt@nextdoor.com)'
 
 log = logging.getLogger(__name__)
 
@@ -265,8 +265,12 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
     # etc), then skip this.
     if tokens:
         for k, v in tokens.iteritems():
+
+            if type(v) not in (str, unicode, bool):
+                continue
+
             string = string.replace(
-                ('%s%s%s' % (left_wrapper, k, right_wrapper)), v)
+                ('%s%s%s' % (left_wrapper, k, right_wrapper)), str(v))
 
     # If we aren't strict, we return...
     if not strict:

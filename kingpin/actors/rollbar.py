@@ -81,7 +81,7 @@ class RollbarBase(base.HTTPBaseActor):
             # These are HTTPErrors that we know about, and can log specific
             # error messages for.
 
-            if e.code == 403:
+            if e.code in (401, 403):
                 raise exceptions.InvalidCredentials(
                     'The "ROLLBAR_TOKEN" is invalid')
             elif e.code == 422:

@@ -1,5 +1,6 @@
 """Tests for the misc actors"""
 
+import os
 import time
 
 from tornado import testing
@@ -56,7 +57,8 @@ class IntegrationMacro(testing.AsyncTestCase):
     @testing.gen_test
     def integration_execute(self):
         actor = misc.Macro('Test', {
-            'macro': 'examples/test/sleep.json'})
+            'macro': 'examples/test/sleep.json',
+            'tokens': dict(os.environ)})
 
         start = time.time()
         yield actor.execute()
@@ -65,16 +67,24 @@ class IntegrationMacro(testing.AsyncTestCase):
         self.assertTrue(runtime > 0.1)
 
     @testing.gen_test
+    def integration_fail_without_env(self):
+        # Actor should fail if tokens aren't passed for env. variables.
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            misc.Macro('Test', {'macro': 'examples/test/sleep.json'})
+
+    @testing.gen_test
     def integration_execute_remote(self):
         gh_src = 'https://raw.githubusercontent.com/Nextdoor/kingpin/master'
         # Successful __init__ on this actor validates downloading and parsing.
         misc.Macro('Test', {
-            'macro': gh_src + '/examples/test/sleep.json'})
+            'macro': gh_src + '/examples/test/sleep.json',
+            'tokens': dict(os.environ)})
 
     @testing.gen_test
     def integration_execute_dry(self):
         actor = misc.Macro('Test', {
-            'macro': 'examples/test/sleep.json'},
+            'macro': 'examples/test/sleep.json',
+            'tokens': dict(os.environ)},
             dry=True)
 
         start = time.time()

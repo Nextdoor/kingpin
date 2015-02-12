@@ -180,8 +180,7 @@ class BaseActor(object):
             if isinstance(value, basestring):
                 value = str(value)
 
-            # Allow None to be allowed regardless of expected_type
-            if not isinstance(value, expected_type) and value is not None:
+            if not (value is None or isinstance(value, expected_type)):
                 message = 'Option "%s" has to be %s and is %s.' % (
                     opt, expected_type, type(value))
                 option_errors.append(message)
@@ -432,7 +431,7 @@ class HTTPBaseActor(BaseActor):
                 args[key] = str(value).lower()
 
         # Now generate the URL
-        full_url = httputil.url_concat(url, args)
+        full_url = httputil.url_concat(url, sorted(args.items()))
         self.log.debug('Generated URL: %s' % full_url)
 
         return full_url
