@@ -1,3 +1,13 @@
+## Version 0.2.2
+ * #195: Bugfix: Fix parsing of unicode os.environ[] tokens at script parse time. ([@diranged])
+ * #193: Add ELB Add/Remove instance actors. ([@siminm])
+ * #192: Initial kingpin.actors.support.api module for fast-creation of REST API ... ([@diranged])
+ * #191: Create simple_api.BaseJSON Class ([@diranged])
+ * #190: Use the patched python-rightscale library with auto-token-refreshment. ([@diranged])
+ * #189: RightScale actors should observe OAUTH token timeout.. ([@diranged])
+ * #184: New Actor(s): aws.elb.Connect, aws.elb.Disconnect ([@siminm])
+ * #169: Add actors to update ELB certs. ([@siminm])
+
 ## Version 0.2.1
  * #186: Don't fetch audit logs if the instance is missing ([@siminm])
  * #183: actors.rightscale.server_array integration test fixes ([@diranged])

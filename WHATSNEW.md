@@ -1,3 +1,20 @@
+## Version 0.2.2
+
+### New Actors
+
+ * aws.iam.UploadCert
+ * aws.iam.DeleteCert
+
+ * aws.elb.RegisterInstance
+ * aws.elb.DeregisterInstance
+ * aws.elb.SetCert
+
+### Bug-fixes
+
+ * Rightscale OAuth token was timing out and not auto-refreshing.
+ * Can now handle environment variables with unicode values
+
+
 ## Version 0.2.1
 
 Bug-fix release:
