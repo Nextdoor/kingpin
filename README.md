@@ -36,7 +36,7 @@ The Kingpin of your Deployment Model
 
 The simplest installation method is via [PyPI](https://pypi.python.org/pypi/kingpin).
 
-    $ pip install kingpin
+    $ pip install --process-dependency-links kingpin
 
 Note, we *strongly* recommend running the code inside a Python virtual
 environment. All of our examples below will show how to do this.
