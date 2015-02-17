@@ -59,7 +59,8 @@ class AWSBaseActor(base.BaseActor):
 
     _EXCEPTIONS = {
         BotoServerError: {
-            'LoadBalancerNotFound': ELBNotFound
+            'LoadBalancerNotFound': ELBNotFound,
+            'InvalidClientTokenId': exceptions.InvalidCredentials
         },
     }
 
