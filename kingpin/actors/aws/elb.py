@@ -298,7 +298,7 @@ class RegisterInstance(base.AWSBaseActor):
 
     @concurrent.run_on_executor
     @utils.exception_logger
-    @retry
+    @retry(retry_on_exception=aws_settings.is_retriable_exception)
     def _add(self, elb, instances):
         """Invoke elb.register_instances
 
@@ -349,7 +349,7 @@ class DeregisterInstance(base.AWSBaseActor):
 
     @concurrent.run_on_executor
     @utils.exception_logger
-    @retry
+    @retry(retry_on_exception=aws_settings.is_retriable_exception)
     def _remove(self, elb, instances):
         """Invoke elb.deregister_instances
 
