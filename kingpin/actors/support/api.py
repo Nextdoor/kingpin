@@ -88,9 +88,12 @@ def _retry(f):
 
                 log.debug('Matched exceptions: %s' % matched_exc)
                 if matched_exc and matched_exc[0] is not None:
-                    log.debug('Matched exc: %s' % matched_exc)
                     exception = matched_exc[0]
-                    raise exception(str(e))
+                    log.debug('Matched exception: %s' % exception)
+                    error = str(e)
+                    if hasattr(e, 'message'):
+                        error = e.message
+                    raise exception(error)
                 elif matched_exc and matched_exc[0] is None:
                     log.debug('Exception is retryable!')
                     pass
@@ -397,7 +400,7 @@ class RestClient(object):
             url = self._generate_escaped_url(url, params)
 
         # Generate the full request URL and log out what we're doing...
-        log.debug('Making HTTP request to %s with data: %s' % (url, body))
+        log.debug('Making %s request to %s. Data: %s' % (method, url, body))
 
         # Create the http_request object
         http_request = httpclient.HTTPRequest(
@@ -413,7 +416,7 @@ class RestClient(object):
         # Execute the request and raise any exception. Exceptions are not
         # caught here because they are unique to the API endpoints, and thus
         # should be handled by the individual Actor that called this method.
-        log.debug('HTTP Reques): %s' % http_request.__dict__)
+        log.debug('HTTP Request: %s' % http_request.__dict__)
         http_response = yield self._client.fetch(http_request)
         log.debug('HTTP Response: %s' % http_response.body)
 
