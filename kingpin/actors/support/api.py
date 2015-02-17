@@ -66,7 +66,10 @@ def _retry(f):
                 ret = yield gen.coroutine(f)(self, *args, **kwargs)
                 raise gen.Return(ret)
             except tuple(self._EXCEPTIONS.keys()) as e:
-                log.error('Exception raised on try %s: %s' % (i, e))
+                error = str(e)
+                if hasattr(e, 'message'):
+                    error = e.message
+                log.warning('Exception raised on try %s: %s' % (i, error))
 
                 # If we've run out of retry attempts, raise the exception
                 if i >= retries:
@@ -90,9 +93,6 @@ def _retry(f):
                 if matched_exc and matched_exc[0] is not None:
                     exception = matched_exc[0]
                     log.debug('Matched exception: %s' % exception)
-                    error = str(e)
-                    if hasattr(e, 'message'):
-                        error = e.message
                     raise exception(error)
                 elif matched_exc and matched_exc[0] is None:
                     log.debug('Exception is retryable!')
