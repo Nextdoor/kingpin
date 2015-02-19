@@ -311,6 +311,19 @@ class RegisterInstance(base.AWSBaseActor):
         elb.register_instances(instances)
 
     @gen.coroutine
+    def _check_elb_zones(self, elb):
+        """Ensure that `elb` has all available zones."""
+        zones = yield self.thread(self.ec2_conn.get_all_zones)
+        zone_names = {z.name for z in zones}
+
+        enabled_zones = set(elb.availability_zones)
+
+        if not zone_names.issubset(enabled_zones):
+            self.log.warning('ELB "%s" is missing some AZ.' % elb.name)
+            self.log.info('Enabling all zones: %s' % zone_names)
+            elb.enable_zones(zone_names)
+
+    @gen.coroutine
     def _execute(self):
         elb = yield self._find_elb(self.option('elb'))
         instances = self.option('instances')
@@ -329,6 +342,8 @@ class RegisterInstance(base.AWSBaseActor):
         if not self._dry:
             yield self._add(elb, instances)
             self.log.info('Done.')
+
+            yield self._check_elb_zones(elb)
 
 
 class DeregisterInstance(base.AWSBaseActor):
