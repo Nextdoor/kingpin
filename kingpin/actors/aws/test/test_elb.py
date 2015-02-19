@@ -34,6 +34,42 @@ class TestRegisterInstance(testing.AsyncTestCase):
         elb.register_instances.assert_called_with([instance])
 
     @testing.gen_test
+    def test_add_zones(self):
+        act = elb_actor.RegisterInstance('UTA', {
+            'elb': 'test',
+            'region': 'us-east-1',
+            'instances': 'test'})
+        act.ec2_conn = mock.Mock()
+        zone = mock.Mock()
+        zone.name = 'unit-test-zone'
+        act.ec2_conn.get_all_zones.return_value = [zone]
+
+        elb = mock.Mock()
+        elb.availability_zones = []
+
+        yield act._check_elb_zones(elb)
+
+        elb.enable_zones.assert_called_with(set(['unit-test-zone']))
+
+    @testing.gen_test
+    def test_add_zones_noop(self):
+        act = elb_actor.RegisterInstance('UTA', {
+            'elb': 'test',
+            'region': 'us-east-1',
+            'instances': 'test'})
+        act.ec2_conn = mock.Mock()
+        zone = mock.Mock()
+        zone.name = 'unit-test-zone'
+        act.ec2_conn.get_all_zones.return_value = [zone]
+
+        elb = mock.Mock()
+        elb.availability_zones = ['unit-test-zone']
+
+        yield act._check_elb_zones(elb)
+
+        self.assertEquals(elb.enable_zones.call_count, 0)
+
+    @testing.gen_test
     def test_execute(self):
         act = elb_actor.RegisterInstance('UTA', {
             'elb': 'elb-test',

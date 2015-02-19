@@ -293,7 +293,8 @@ class RegisterInstance(base.AWSBaseActor):
         'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
         'instances': ((str, list), None, (
             'Instance id, or list of ids. If no value is specified then '
-            'the instance id of the executing machine is used.'))
+            'the instance id of the executing machine is used.')),
+        'enable_zones': (bool, True, 'Enable all zones for this ELB.')
     }
 
     @concurrent.run_on_executor
@@ -343,7 +344,8 @@ class RegisterInstance(base.AWSBaseActor):
             yield self._add(elb, instances)
             self.log.info('Done.')
 
-            yield self._check_elb_zones(elb)
+            if self.option('enable_zones'):
+                yield self._check_elb_zones(elb)
 
 
 class DeregisterInstance(base.AWSBaseActor):
