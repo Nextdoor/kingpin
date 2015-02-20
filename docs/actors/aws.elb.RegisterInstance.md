@@ -9,8 +9,9 @@ Add an EC2 instance to a load balancer.
 **Options**
 
 * `elb` - str: Name of the ELB
-* `instances` - str, list: Instance id, or list of ids
+* `instances` - str, list: Instance id, or list of ids. Default "self" id.
 * `region` - str: AWS region name, like us-west-2
+* `enable_zones` - bool: add all available AZ to the elb. Default: True
 
 **Example**
 
@@ -18,9 +19,9 @@ Add an EC2 instance to a load balancer.
         "actor": "aws.elb.RegisterInstance",
         "desc": "Run RegisterInstance",
         "options": {
-            "elb": "fill-in",
-            "instances": "fill-in",
-            "region": "fill-in"
+            "elb": "prod-loadbalancer",
+            "instances": "i-123456",
+            "region": "us-east-1",
         }
     }
 

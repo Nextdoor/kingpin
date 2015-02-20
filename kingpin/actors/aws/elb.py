@@ -27,6 +27,7 @@ from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
 from kingpin.actors.aws import settings as aws_settings
+from kingpin.actors.support import api as support
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -293,7 +294,8 @@ class RegisterInstance(base.AWSBaseActor):
         'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
         'instances': ((str, list), None, (
             'Instance id, or list of ids. If no value is specified then '
-            'the instance id of the executing machine is used.'))
+            'the instance id of the executing machine is used.')),
+        'enable_zones': (bool, True, 'Enable all zones for this ELB.')
     }
 
     @concurrent.run_on_executor
@@ -309,6 +311,20 @@ class RegisterInstance(base.AWSBaseActor):
             instances: list of instance ids.
         """
         elb.register_instances(instances)
+
+    @gen.coroutine
+    @support._retry
+    def _check_elb_zones(self, elb):
+        """Ensure that `elb` has all available zones."""
+        zones = yield self.thread(self.ec2_conn.get_all_zones)
+        zone_names = {z.name for z in zones}
+
+        enabled_zones = set(elb.availability_zones)
+
+        if not zone_names.issubset(enabled_zones):
+            self.log.warning('ELB "%s" is missing some AZ.' % elb.name)
+            self.log.info('Enabling all zones: %s' % zone_names)
+            yield self.thread(elb.enable_zones, zone_names)
 
     @gen.coroutine
     def _execute(self):
@@ -329,6 +345,9 @@ class RegisterInstance(base.AWSBaseActor):
         if not self._dry:
             yield self._add(elb, instances)
             self.log.info('Done.')
+
+            if self.option('enable_zones'):
+                yield self._check_elb_zones(elb)
 
 
 class DeregisterInstance(base.AWSBaseActor):

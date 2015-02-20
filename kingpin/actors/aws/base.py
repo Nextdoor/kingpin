@@ -22,6 +22,7 @@ from concurrent import futures
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
+import boto.ec2
 import boto.ec2.elb
 import boto.iam
 
@@ -84,20 +85,36 @@ class AWSBaseActor(base.BaseActor):
 
         # Establish region-specific connection objects.
         region = self.option('region')
-        if region:
-            self.elb_conn = boto.ec2.elb.connect_to_region(
-                region,
-                aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
+        if not region:
+            return
+
+        region_names = [r.name for r in boto.ec2.elb.regions()]
+        if region not in region_names:
+            err = ('Region "%s" not found. Available regions: %s' %
+                   (region, region_names))
+            raise exceptions.InvalidOptions(err)
+
+        self.ec2_conn = boto.ec2.connect_to_region(
+            region,
+            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
+
+        self.elb_conn = boto.ec2.elb.connect_to_region(
+            region,
+            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
 
     @concurrent.run_on_executor
-    def _get_all_load_balancers(self, name):
-        """Thread wrapper for Boto get_all_load_balancers.
+    def thread(self, function, *args, **kwargs):
+        """Execute `function` in a concurrent thread.
 
-        All the retry logic should go into the calling function to properly
-        parse the message inside of BotoServerError exception.
+        Example:
+            >>> zones = yield thread(ec2_conn.get_all_zones)
+
+        This allows execution of any function in a thread without having
+        to write a wrapper method that is decorated with run_on_executor()
         """
-        return self.elb_conn.get_all_load_balancers(load_balancer_names=name)
+        return function(*args, **kwargs)
 
     @gen.coroutine
     @support._retry
@@ -117,7 +134,8 @@ class AWSBaseActor(base.BaseActor):
         """
         self.log.info('Searching for ELB "%s"' % name)
 
-        elbs = yield self._get_all_load_balancers(name)
+        elbs = yield self.thread(self.elb_conn.get_all_load_balancers,
+                                 load_balancer_names=name)
 
         self.log.debug('ELBs found: %s' % elbs)
 

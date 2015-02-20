@@ -21,6 +21,7 @@ class IntegrationBase(testing.AsyncTestCase):
     integration = True
 
     region = 'us-east-1'
+    elb_name = 'kingpin-integration-test'
 
     @attr('integration')
     @testing.gen_test(timeout=60)
@@ -36,3 +37,13 @@ class IntegrationBase(testing.AsyncTestCase):
             yield actor._find_elb('unit-test')
 
         reload(settings)
+
+    @attr('integration')
+    @testing.gen_test(timeout=60)
+    def integration_02a_find_elb(self):
+
+        actor = base.AWSBaseActor('Test', {'region': self.region})
+
+        LB = yield actor._find_elb(self.elb_name)
+
+        self.assertEquals(LB.name, self.elb_name)

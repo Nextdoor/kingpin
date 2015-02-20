@@ -5,6 +5,7 @@ from boto.exception import BotoServerError
 from tornado import testing
 import mock
 
+from kingpin.actors import exceptions
 from kingpin.actors.aws import base
 from kingpin.actors.aws import settings
 
@@ -17,6 +18,10 @@ class TestBase(testing.AsyncTestCase):
         super(TestBase, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+
+    def test_region_check(self):
+        with self.assertRaises(exceptions.InvalidOptions):
+            base.AWSBaseActor('Unit Test Action', {'region': 'fail'})
 
     @testing.gen_test
     def test_find_elb(self):

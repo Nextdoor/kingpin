@@ -24,7 +24,7 @@ class TestRegisterInstance(testing.AsyncTestCase):
     def test_add(self):
         act = elb_actor.RegisterInstance('UTA', {
             'elb': 'test',
-            'region': 'test',
+            'region': 'us-east-1',
             'instances': 'test'})
 
         elb = mock.Mock()
@@ -34,14 +34,52 @@ class TestRegisterInstance(testing.AsyncTestCase):
         elb.register_instances.assert_called_with([instance])
 
     @testing.gen_test
+    def test_add_zones(self):
+        act = elb_actor.RegisterInstance('UTA', {
+            'elb': 'test',
+            'region': 'us-east-1',
+            'instances': 'test'})
+        act.ec2_conn = mock.Mock()
+        zone = mock.Mock()
+        zone.name = 'unit-test-zone'
+        act.ec2_conn.get_all_zones.return_value = [zone]
+
+        elb = mock.Mock()
+        elb.availability_zones = []
+
+        yield act._check_elb_zones(elb)
+
+        elb.enable_zones.assert_called_with(set(['unit-test-zone']))
+
+    @testing.gen_test
+    def test_add_zones_noop(self):
+        act = elb_actor.RegisterInstance('UTA', {
+            'elb': 'test',
+            'region': 'us-east-1',
+            'instances': 'test'})
+        act.ec2_conn = mock.Mock()
+        zone = mock.Mock()
+        zone.name = 'unit-test-zone'
+        act.ec2_conn.get_all_zones.return_value = [zone]
+
+        elb = mock.Mock()
+        elb.availability_zones = ['unit-test-zone']
+
+        yield act._check_elb_zones(elb)
+
+        self.assertEquals(elb.enable_zones.call_count, 0)
+
+    @testing.gen_test
     def test_execute(self):
         act = elb_actor.RegisterInstance('UTA', {
             'elb': 'elb-test',
-            'region': 'region-test',
+            'region': 'us-east-1',
             'instances': 'i-test'})
 
         act._find_elb = mock.Mock()
         act._find_elb.return_value = helper.tornado_value(mock.Mock())
+        act._check_elb_zones = mock.Mock()
+        act._check_elb_zones.return_value = helper.tornado_value(mock.Mock())
         act._add = mock.Mock()
         act._add.return_value = helper.tornado_value(mock.Mock())
         yield act._execute()
@@ -55,10 +93,12 @@ class TestRegisterInstance(testing.AsyncTestCase):
         # No instance id specified
         act = elb_actor.RegisterInstance('UTA', {
             'elb': 'elb-test',
-            'region': 'region-test'})
+            'region': 'us-east-1'})
 
         act._find_elb = mock.Mock()
         act._find_elb.return_value = helper.tornado_value(mock.Mock())
+        act._check_elb_zones = mock.Mock()
+        act._check_elb_zones.return_value = helper.tornado_value(mock.Mock())
         act._add = mock.Mock()
         act._add.return_value = helper.tornado_value(mock.Mock())
         act._get_meta_data = helper.mock_tornado('i-test')
@@ -72,12 +112,14 @@ class TestRegisterInstance(testing.AsyncTestCase):
     def test_execute_dry(self):
         act = elb_actor.RegisterInstance('UTA', {
             'elb': 'elb-test',
-            'region': 'region-test',
+            'region': 'us-east-1',
             'instances': 'i-test'},
             dry=True)
 
         act._find_elb = mock.Mock()
         act._find_elb.return_value = helper.tornado_value(mock.Mock())
+        act._check_elb_zones = mock.Mock()
+        act._check_elb_zones.return_value = helper.tornado_value(mock.Mock())
         act._add = mock.Mock()
         act._add.return_value = helper.tornado_value(mock.Mock())
         yield act._execute()
@@ -98,7 +140,7 @@ class TestDeregisterInstance(testing.AsyncTestCase):
     def test_remove(self):
         act = elb_actor.DeregisterInstance('UTA', {
             'elb': 'test',
-            'region': 'test',
+            'region': 'us-east-1',
             'instances': 'test'})
 
         elb = mock.Mock()
@@ -111,7 +153,7 @@ class TestDeregisterInstance(testing.AsyncTestCase):
     def test_execute(self):
         act = elb_actor.DeregisterInstance('UTA', {
             'elb': 'elb-test',
-            'region': 'region-test',
+            'region': 'us-east-1',
             'instances': 'i-test'})
 
         act._find_elb = mock.Mock()
@@ -129,7 +171,7 @@ class TestDeregisterInstance(testing.AsyncTestCase):
         # No instance id specified
         act = elb_actor.DeregisterInstance('UTA', {
             'elb': 'elb-test',
-            'region': 'region-test'})
+            'region': 'us-east-1'})
 
         act._find_elb = mock.Mock()
         act._find_elb.return_value = helper.tornado_value(mock.Mock())
@@ -146,7 +188,7 @@ class TestDeregisterInstance(testing.AsyncTestCase):
     def test_execute_dry(self):
         act = elb_actor.DeregisterInstance('UTA', {
             'elb': 'elb-test',
-            'region': 'region-test',
+            'region': 'us-east-1',
             'instances': 'i-test'},
             dry=True)
 
@@ -295,7 +337,7 @@ class TestSetCert(testing.AsyncTestCase):
 
         actor = elb_actor.SetCert(
             'Unit Test', {'name': 'unit-test',
-                          'region': 'unit-region',
+                          'region': 'us-east-1',
                           'cert_name': 'unit-cert'}
             )
 
@@ -318,7 +360,7 @@ class TestSetCert(testing.AsyncTestCase):
 
         actor = elb_actor.SetCert(
             'Unit Test', {'name': 'unit-test',
-                          'region': 'unit-region',
+                          'region': 'us-east-1',
                           'cert_name': 'unit-cert'}
             )
         actor.iam_conn = mock.Mock()
@@ -337,7 +379,7 @@ class TestSetCert(testing.AsyncTestCase):
     def test_get_cert_arn_fail(self):
         actor = elb_actor.SetCert(
             'Unit Test', {'name': 'unit-test',
-                          'region': 'unit-region',
+                          'region': 'us-east-1',
                           'cert_name': 'unit-cert'}
             )
 
@@ -352,7 +394,7 @@ class TestSetCert(testing.AsyncTestCase):
     def test_use_cert(self):
         actor = elb_actor.SetCert(
             'Unit Test', {'name': 'unit-test',
-                          'region': 'unit-region',
+                          'region': 'us-east-1',
                           'cert_name': 'unit-cert'}
             )
         elb = mock.Mock()
@@ -369,7 +411,7 @@ class TestSetCert(testing.AsyncTestCase):
     def test_execute(self):
         actor = elb_actor.SetCert(
             'Unit Test', {'name': 'unit-test',
-                          'region': 'unit-region',
+                          'region': 'us-east-1',
                           'cert_name': 'unit-cert'}
             )
         elb = mock.Mock()
@@ -398,7 +440,7 @@ class TestSetCert(testing.AsyncTestCase):
     def test_execute_dry(self):
         actor = elb_actor.SetCert(
             'Unit Test', {'name': 'unit-test',
-                          'region': 'unit-region',
+                          'region': 'us-east-1',
                           'cert_name': 'unit-cert'},
             dry=True)
 
