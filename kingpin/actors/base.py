@@ -162,6 +162,7 @@ class BaseActor(object):
 
         self.log.debug('Checking for required options: %s' % required)
         option_errors = []
+        option_warnings = []
         for opt in required:
             if opt not in self._options:
                 description = self.all_options[opt][2]
@@ -170,7 +171,7 @@ class BaseActor(object):
 
         for opt, value in self._options.items():
             if opt not in self.all_options:
-                option_errors.append('Option "%s" is not expected.' % opt)
+                option_warnings.append('Option "%s" is not expected.' % opt)
                 continue
 
             expected_type = self.all_options[opt][0]
@@ -184,6 +185,9 @@ class BaseActor(object):
                 message = 'Option "%s" has to be %s and is %s.' % (
                     opt, expected_type, type(value))
                 option_errors.append(message)
+
+        for w in option_warnings:
+            self.log.warning(w)
 
         if option_errors:
             for e in option_errors:

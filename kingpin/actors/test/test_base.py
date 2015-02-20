@@ -117,8 +117,8 @@ class TestBaseActor(testing.AsyncTestCase):
 
         # Unexpected option passed
         self.actor._options = {'needed': 'a', 'unexpected': 'b'}
-        with self.assertRaises(exceptions.InvalidOptions):
-            self.actor._validate_options()
+        # Should work w/out raising an exception.
+        self.actor._validate_options()
 
     def test_validate_defaults(self):
         # Default is not a permitted type
