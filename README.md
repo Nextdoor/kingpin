@@ -1,10 +1,16 @@
-# Kingpin: the chief element of any system, plan, or the like.
+# Kingpin: Deployment Automation Engine
 
 [![Build Status](https://travis-ci.org/Nextdoor/kingpin.svg?branch=master)](https://travis-ci.org/Nextdoor/kingpin)
 [![# of downloads](https://pypip.in/d/kingpin/badge.png)](https://pypi.python.org/pypi/kingpin)
 [![pypy version](https://badge.fury.io/py/kingpin.png)](https://pypi.python.org/pypi/kingpin)
 
-The Kingpin of your Deployment Model
+_Kingpin: the chief element of any system, plan, or the like._
+
+Kingpin provides 3 main functions:
+
+ * **API Abstraction** - Job instructions are provided to Kingpin via a JSON based DSL (read below). The schema is strict and consistent from one action to another. 
+ * **Automation Engine** - Kingpin is leverages python's [tornado](http://tornado.readthedocs.org/) engine.
+ * **Parallel Execution** - Aside from non-blocking network IO, Kingpin can execute any action in parallel with another. (Read group.Async below)
 
 ## Table of Contents
 
