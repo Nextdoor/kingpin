@@ -5,7 +5,7 @@ Deletes the SQS queues **even if it`s not empty**
 **Options**
 
   * `name` - The name of the queue to destroy
-  * `region` - AWS region string, like 'us-west-2'
+  * `region` - AWS region (or zone) string, like 'us-west-2'
   * `idempotent` - optional boolean, default False. Will not raise errors if no
                    matching queues are found.
 

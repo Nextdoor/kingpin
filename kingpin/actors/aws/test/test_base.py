@@ -23,6 +23,11 @@ class TestBase(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidOptions):
             base.AWSBaseActor('Unit Test Action', {'region': 'fail'})
 
+    def test_zone_check(self):
+        actor = base.AWSBaseActor('Unit Test Action',
+                                  {'region': 'us-west-1d'})
+        self.assertEquals(actor.ec2_conn.region.name, 'us-west-1')
+
     @testing.gen_test
     def test_find_elb(self):
         actor = base.AWSBaseActor('Unit Test Action', {})

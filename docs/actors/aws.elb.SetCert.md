@@ -4,7 +4,7 @@ Find a server cert in IAM and use it for a specified ELB.
 
 **Options**
 
-* `region` - str: AWS region name, like us-west-2
+* `region` - str: AWS region (or zone) name, like us-west-2
 * `name` - str: Name of the ELB
 * `cert_name` - str: Unique IAM certificate name, or ARN
 * `port` - int: Port associated with the cert Default: 443

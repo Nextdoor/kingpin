@@ -10,7 +10,7 @@ Remove EC2 instance(s) from an ELB.
 
 * `elb` - str: Name of the ELB
 * `instances` - str, list: Instance id, or list of ids
-* `region` - str: AWS region name, like us-west-2
+* `region` - str: AWS region (or zone) name, like us-west-2
 
 **Example**
 

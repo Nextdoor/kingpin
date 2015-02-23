@@ -5,7 +5,7 @@ Deletes a CloudFormation stack with the specified name.
 **Options**
 
   * `name` - The name of the queue to create
-  * `region` - AWS region string, like 'us-west-2'
+  * `region` - AWS region (or zone) string, like 'us-west-2'
 
 Examples
 

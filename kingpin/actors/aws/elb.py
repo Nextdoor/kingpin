@@ -64,7 +64,7 @@ class ELBBaseActor(base.AWSBaseActor):
         'name': (str, REQUIRED, 'Name of the ELB'),
         'count': ((int, str), REQUIRED,
                   'Specific count, or percentage of instances to wait for.'),
-        'region': (str, REQUIRED, 'AWS region name, like us-west-2')
+        'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2')
     }
 
 
@@ -166,7 +166,7 @@ class SetCert(ELBBaseActor):
     all_options = {
         'name': (str, REQUIRED, 'Name of the ELB'),
         'port': (int, 443, 'Port associated with the cert'),
-        'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
+        'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
         'cert_name': (str, REQUIRED, 'Unique IAM certificate name, or ARN'),
     }
 
@@ -291,7 +291,7 @@ class RegisterInstance(base.AWSBaseActor):
 
     all_options = {
         'elb': (str, REQUIRED, 'Name of the ELB'),
-        'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
+        'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
         'instances': ((str, list), None, (
             'Instance id, or list of ids. If no value is specified then '
             'the instance id of the executing machine is used.')),
@@ -360,7 +360,7 @@ class DeregisterInstance(base.AWSBaseActor):
 
     all_options = {
         'elb': (str, REQUIRED, 'Name of the ELB'),
-        'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
+        'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
         'instances': ((str, list), None, (
             'Instance id, or list of ids. If no value is specified then '
             'the instance id of the executing machine is used.'))
