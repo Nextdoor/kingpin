@@ -11,7 +11,7 @@ before moving on.
   * `name` - The name of the queue to create
   * `parameters` - A dictionary of key/value pairs used to fill in the
      parameters for the CloudFormation template.
-  * `region` - AWS region string, like 'us-west-2'
+  * `region` - AWS region (or zone) string, like 'us-west-2'
   * `template` - String of path to CloudFormation template. Can either be in
      the form of a local file path (ie, `./my_template.json`) or a URI (ie
      `https://my_site.com/cf.json`).

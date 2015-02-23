@@ -11,7 +11,7 @@ return a stale value if the number of messages in the queue changes rapidly.
 **Options**
 
   * `name` - The name or regex pattern of the queues to operate on
-  * `region` - AWS region string, like 'us-west-2'
+  * `region` - AWS region (or zone) string, like 'us-west-2'
   * `required` - optional boolean, default False. On True will fail if no
                  queues are found.
 

@@ -15,6 +15,7 @@
 """AWS Base Actor"""
 
 import logging
+import re
 
 from boto import utils
 from boto.exception import BotoServerError
@@ -55,7 +56,7 @@ class AWSBaseActor(base.BaseActor):
     executor = EXECUTOR
 
     all_options = {
-        'region': (str, None, 'AWS Region to connect to.')
+        'region': (str, None, 'AWS Region (or zone) to connect to.')
     }
 
     _EXCEPTIONS = {
@@ -87,6 +88,18 @@ class AWSBaseActor(base.BaseActor):
         region = self.option('region')
         if not region:
             return
+
+        # In case a zone was provided instead of region we can convert
+        # it on the fly
+        zone_check = re.match(r'(.*[0-9])([a-z]*)$', region)
+
+        if zone_check and zone_check.group(2):
+            zone = region  # Only saving this for the log below
+
+            # Set the fixed region
+            region = zone_check.group(1)
+            self.log.warning('Converting zone "%s" to region "%s".' % (
+                zone, region))
 
         region_names = [r.name for r in boto.ec2.elb.regions()]
         if region not in region_names:

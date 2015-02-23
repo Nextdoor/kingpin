@@ -15,7 +15,7 @@ than the `count` percentage.
   * `name` - The name of the ELB to operate on
   * `count` - Number, or percentage of InService instance to consider
               this ELB healthy
-  * `region` - AWS region name, such as us-east-1 or us-west-2
+  * `region` - AWS region (or zone) name, such as us-east-1 or us-west-2
 
 Examples
 

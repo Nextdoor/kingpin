@@ -10,7 +10,7 @@ Add an EC2 instance to a load balancer.
 
 * `elb` - str: Name of the ELB
 * `instances` - str, list: Instance id, or list of ids. Default "self" id.
-* `region` - str: AWS region name, like us-west-2
+* `region` - str: AWS region (or zone) name, like us-west-2
 * `enable_zones` - bool: add all available AZ to the elb. Default: True
 
 **Example**

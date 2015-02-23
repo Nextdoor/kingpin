@@ -94,7 +94,7 @@ class CloudFormationBaseActor(base.BaseActor):
 
     # Used mainly for unit testing..
     all_options = {
-        'region': (str, REQUIRED, 'AWS region name, like us-west-2')
+        'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2')
     }
 
     def __init__(self, *args, **kwargs):
@@ -221,7 +221,7 @@ class Create(CloudFormationBaseActor):
         'name': (str, REQUIRED, 'Name of the stack'),
         'parameters': (dict, {}, 'Parameters passed into the CF '
                                  'template execution'),
-        'region': (str, REQUIRED, 'AWS region name, like us-west-2'),
+        'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
         'template': (str, REQUIRED,
                      'Path to the AWS CloudFormation File. http(s)://, '
                      'file:///, absolute or relative file paths.'),
@@ -374,7 +374,7 @@ class Delete(CloudFormationBaseActor):
 
     all_options = {
         'name': (str, REQUIRED, 'Name of the stack'),
-        'region': (str, REQUIRED, 'AWS region name, like us-west-2')
+        'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2')
     }
 
     @concurrent.run_on_executor
