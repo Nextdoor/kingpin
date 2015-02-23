@@ -12,13 +12,13 @@ Delete an existing SSL Cert in AWS IAM.
 
 **Example**
 
-{
-    "actor": "aws.iam.DeleteCert",
-    "desc": "Run DeleteCert",
-    "options": {
-        "name": "fill-in"
+    {
+        "actor": "aws.iam.DeleteCert",
+        "desc": "Run DeleteCert",
+        "options": {
+            "name": "fill-in"
+        }
     }
-}
 
 **Dry run**
 
