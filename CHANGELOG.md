@@ -1,3 +1,10 @@
+## Version 0.2.3
+ * #205: aws.elb.RegisterInstance should add ELB to zone if its not already there ([@siminm])
+ * #204: Add aws.elb.RegisterInstance/aws.elb.DeregisterInstance to main README.md ([@siminm])
+ * #202: Catch InvalidCredentials in AWS Base class. ([@siminm])
+ * #198: AWS Actors should convert Zones into Regions ([@siminm])
+ * #197: AWS Actors should swallow Boto Invalid Credential Errors ([@siminm])
+
 ## Version 0.2.2
  * #195: Bugfix: Fix parsing of unicode os.environ[] tokens at script parse time. ([@diranged])
  * #193: Add ELB Add/Remove instance actors. ([@siminm])

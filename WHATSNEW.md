@@ -1,13 +1,23 @@
+## Version 0.2.3
+
+### Improvements
+
+ * [aws.elb.RegisterInstance](docs/actors/aws.elb.RegisterInstance) will not only register the instance but also
+   check that the ELB is set up for all zones that it can handle.
+ * For any `aws` actor that receives a region you can now pass a particular
+   zone if that happens to be more convenient for you. The aws base class will
+   log a warning and convert a zone into a region on the fly.
+
 ## Version 0.2.2
 
 ### New Actors
 
- * aws.iam.UploadCert
- * aws.iam.DeleteCert
+ * [aws.iam.UploadCert](docs/actors/aws.iam.UploadCert.md)
+ * [aws.iam.DeleteCert](docs/actors/aws.iam.DeleteCert.md)
 
- * aws.elb.RegisterInstance
- * aws.elb.DeregisterInstance
- * aws.elb.SetCert
+ * [aws.elb.RegisterInstance](docs/actors/aws.elb.RegisterInstance.md)
+ * [aws.elb.DeregisterInstance](docs/actors/aws.elb.DeregisterInstance.md)
+ * [aws.elb.SetCert](docs/actors/aws.elb.SetCert.md)
 
 ### Bug-fixes
 

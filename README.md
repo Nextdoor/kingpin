@@ -83,7 +83,8 @@ environment. All of our examples below will show how to do this.
 
 ## Basic Use
 
-    Usage: kingpin <options>
+    $ kingpin --help
+    Usage: kingpin [json file] <options>
 
     Options:
       --version             show program's version number and exit
@@ -92,6 +93,7 @@ environment. All of our examples below will show how to do this.
       -d, --dry             Executes a DRY run.
       -l LEVEL, --level=LEVEL
                             Set logging level (INFO|WARN|DEBUG|ERROR)
+      -c, --color           Colorize the log output
 
 The simplest use cases of this code can be better understood by looking at the
 [simple.json](examples/simple.json) file. Executing it is a simple as this:
