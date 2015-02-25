@@ -40,9 +40,13 @@ Kingpin provides 3 main functions:
 
 ## Installation
 
+### ⚠ Warning!
+
+A recent bug presented itself which requires a separate installation of `requests` library. If `requests` library is not installed then installation of `kingpin` will not succeed.
+
 The simplest installation method is via [PyPI](https://pypi.python.org/pypi/kingpin).
 
-    $ pip install --process-dependency-links kingpin
+    $ pip install kingpin
 
 Note, we *strongly* recommend running the code inside a Python virtual
 environment. All of our examples below will show how to do this.
