@@ -30,7 +30,8 @@ from kingpin.version import __version__
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Matt Wise (matt@nextdoor.com)'
+__author__ = ['Matt Wise <matt@nextdoor.com>',
+              'Mikhail Simin <mikhail@nextdoor.com>']
 
 
 # We handle all the exceptions ourselves, so additional log statements from
