@@ -14,8 +14,9 @@
 # Copyright 2014 Nextdoor.com, Inc
 """CLI Script Runner for Kingpin."""
 
-import logging
 import argparse
+import json
+import logging
 import os
 import sys
 
@@ -61,6 +62,8 @@ parser.add_argument('-d', '--dry', dest='dry', action='store_true',
                     help='Executes a dry run only.')
 parser.add_argument('--build-only', dest='build_only', action='store_true',
                     help='Compile the input JSON without executing any runs')
+parser.add_argument('--orgchart', dest='orgchart',
+                    help='Save the orgchart into file. Requires --build-only')
 
 # Logging Configuration
 parser.add_argument('-l', '--level', dest='level', default='info',
@@ -119,10 +122,22 @@ def main():
 
     if args.build_only:
         try:
-            get_main_actor(dry=False)
+            actor = get_main_actor(dry=False)
         except Exception as e:
             log.critical(e)
             sys.exit(1)
+
+        if args.orgchart:
+            log.info('Creating organization chat into %s' % args.orgchart)
+            try:
+                orgdata = actor.get_orgchart()
+            except Exception as e:
+                log.critical(e)
+                sys.exit(2)
+
+            with file(args.orgchart, 'w') as output:
+                output.write(json.dumps(orgdata))
+
         sys.exit(0)
 
     # Begin doing real stuff!

@@ -433,6 +433,28 @@ class BaseActor(object):
         # Finally, convert the string back into a dict and store it.
         self._options = json.loads(new_options_string)
 
+    def get_orgchart(self, parent=''):
+        """Construct organizational chart describing this actor.
+
+        Return a list of actors handled by this actor. Most actors will return
+        a list of just one object. Grouping actors will return a list of all
+        actors that are called.
+
+        orgchart object:
+          id: unique string identifying this actor's instance.
+          class: kingpin class name
+          desc: actor description
+          parent_id: organizational relationship. Same as `id` above.
+        """
+
+        return [{
+            'id': str(id(self)),
+            'desc': self._desc,
+            'class': self.__class__.__name__,
+            # 'options': self._options,  # May include tokens & ENV vars
+            'parent_id': parent,
+        }]
+
     @gen.coroutine
     @timer
     def execute(self):
