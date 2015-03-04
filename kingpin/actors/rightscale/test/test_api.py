@@ -210,6 +210,16 @@ class TestRightScale(testing.AsyncTestCase):
         self.assertEquals(ret, instance_mock)
 
     @testing.gen_test
+    def test_launch_server_array_launch_0_instance(self):
+        array_mock = mock.MagicMock(name='fake_array')
+        array_mock.soul = {'name': 'fake array to launch'}
+        array_mock.self.path = '/a/b/1234'
+
+        # A count of 1 should pass params=None to the launch call
+        ret = yield self.client.launch_server_array(array_mock, count=0)
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
     def test_launch_server_array_launch_1_instance(self):
         array_mock = mock.MagicMock(name='fake_array')
         array_mock.soul = {'name': 'fake array to launch'}

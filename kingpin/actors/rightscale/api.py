@@ -341,6 +341,10 @@ class RightScale(object):
         Returns:
             rightscale.Resource of the newly launched instance>
         """
+        # If count < 1, return!
+        if count < 1:
+            return
+
         # The RightScale API supports sending in a 'count' to launch many
         # servers at once. This is only functional though if you submit a count
         # of > 1. Otherwise, it fails.
