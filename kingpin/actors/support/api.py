@@ -140,7 +140,9 @@ def create_http_method(name, http_method):
         ret = yield self._client.fetch(
             url='%s%s' % (self._ENDPOINT, self._path),
             method=http_method.upper(),
-            params=kwargs
+            params=kwargs,
+            auth_username=self._CONFIG.get('auth', {}).get('user'),
+            auth_password=self._CONFIG.get('auth', {}).get('pass')
         )
         raise gen.Return(ret)
 
@@ -158,8 +160,8 @@ def create_method(name, config):
 
     The final created method accepts any args (*args, **kwargs) and passes them
     on to the RestConsumer object being created. This allows for passing in
-    unique resource identifiers (ie, the '%(res)' in
-    '/v2/rooms/%(res)/history').
+    unique resource identifiers (ie, the '%res%' in
+    '/v2/rooms/%res%/history').
 
     Args:
         name: The name passed into the RestConsumer object
@@ -277,7 +279,7 @@ class RestConsumer(object):
         try:
             path = utils.populate_with_tokens(path, tokens)
         except LookupError as e:
-            msg = 'Path (%s) error: %s' % (path, e)
+            msg = 'Path (%s), tokens: (%s) error: %s' % (path, tokens, e)
             raise TypeError(msg)
 
         return path
@@ -417,7 +419,11 @@ class RestClient(object):
         # caught here because they are unique to the API endpoints, and thus
         # should be handled by the individual Actor that called this method.
         log.debug('HTTP Request: %s' % http_request.__dict__)
-        http_response = yield self._client.fetch(http_request)
+        try:
+            http_response = yield self._client.fetch(http_request)
+        except:
+            log.critical('Request for %s failed' % url)
+            raise
         log.debug('HTTP Response: %s' % http_response.body)
 
         try:

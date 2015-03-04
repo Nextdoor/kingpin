@@ -263,10 +263,13 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
     # First things first, swap out all instances of %<str>% with any matching
     # token variables found. If no items are in the hash (none, empty hash,
     # etc), then skip this.
+    allowed_types = (str, unicode, bool, int, float)
     if tokens:
         for k, v in tokens.iteritems():
 
-            if type(v) not in (str, unicode, bool):
+            if type(v) not in allowed_types:
+                log.warning('Token %s=%s is not in allowed types: %s' % (
+                    k, v, allowed_types))
                 continue
 
             string = string.replace(
