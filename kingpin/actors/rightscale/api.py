@@ -342,7 +342,7 @@ class RightScale(object):
             rightscale.Resource of the newly launched instance>
         """
         # If count < 1, return!
-        if count < 1:
+        if not count or count < 1:
             return
 
         # The RightScale API supports sending in a 'count' to launch many

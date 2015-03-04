@@ -219,6 +219,10 @@ class TestRightScale(testing.AsyncTestCase):
         ret = yield self.client.launch_server_array(array_mock, count=0)
         self.assertEquals(ret, None)
 
+        # A count of 1 should pass params=None to the launch call
+        ret = yield self.client.launch_server_array(array_mock, count=None)
+        self.assertEquals(ret, None)
+
     @testing.gen_test
     def test_launch_server_array_launch_1_instance(self):
         array_mock = mock.MagicMock(name='fake_array')
