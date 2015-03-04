@@ -320,7 +320,7 @@ class RightScale(object):
                 wait_exponential_multiplier=5000,
                 wait_exponential_max=60000)
     @utils.exception_logger
-    def launch_server_array(self, array):
+    def launch_server_array(self, array, count=1):
         """Launches an instance of a ServerArray..
 
         Makes this API Call:
@@ -336,14 +336,23 @@ class RightScale(object):
 
         Args:
             array: ServerArray Resource Object
+            count: Instances to launch (default: 1)
 
         Returns:
             rightscale.Resource of the newly launched instance>
         """
+        # The RightScale API supports sending in a 'count' to launch many
+        # servers at once. This is only functional though if you submit a count
+        # of > 1. Otherwise, it fails.
+        params = None
+        if count > 1:
+            params = {'count': count}
+
         log.debug('Launching a new instance of ServerArray %s' %
                   array.soul['name'])
         array_id = self.get_res_id(array)
-        return self._client.server_arrays.launch(res_id=array_id)
+        return self._client.server_arrays.launch(
+            res_id=array_id, params=params)
 
     @concurrent.run_on_executor
     @sync_retry(stop_max_attempt_number=10,

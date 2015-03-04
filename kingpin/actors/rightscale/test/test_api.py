@@ -206,8 +206,34 @@ class TestRightScale(testing.AsyncTestCase):
 
         ret = yield self.client.launch_server_array(array_mock)
         self.mock_client.server_arrays.launch.assert_called_once_with(
-            res_id=1234)
+            res_id=1234, params=None)
         self.assertEquals(ret, instance_mock)
+
+    @testing.gen_test
+    def test_launch_server_array_launch_1_instance(self):
+        array_mock = mock.MagicMock(name='fake_array')
+        array_mock.soul = {'name': 'fake array to launch'}
+        array_mock.self.path = '/a/b/1234'
+        instance_mock = mock.MagicMock(name='fake_launch_queue')
+        self.mock_client.server_arrays.launch.return_value = instance_mock
+
+        # A count of 1 should pass params=None to the launch call
+        yield self.client.launch_server_array(array_mock, count=1)
+        self.mock_client.server_arrays.launch.assert_called_once_with(
+            res_id=1234, params=None)
+
+    @testing.gen_test
+    def test_launch_server_array_launch_2_instances(self):
+        array_mock = mock.MagicMock(name='fake_array')
+        array_mock.soul = {'name': 'fake array to launch'}
+        array_mock.self.path = '/a/b/1234'
+        instance_mock = mock.MagicMock(name='fake_launch_queue')
+        self.mock_client.server_arrays.launch.return_value = instance_mock
+
+        # A count of >1 should pass params=None to the launch call
+        yield self.client.launch_server_array(array_mock, count=2)
+        self.mock_client.server_arrays.launch.assert_called_once_with(
+            res_id=1234, params={'count': 2})
 
     @testing.gen_test
     def test_terminate_server_array_instances(self):
