@@ -419,7 +419,7 @@ class Terminate(ServerArrayBaseActor):
         arrays = yield self._find_server_arrays(self.option('array'),
                                                 raise_on='notfound',
                                                 allow_mock=False,
-                                                exact=False)
+                                                exact=self.option('exact'))
 
         # Disable the array so that no new instances launch. Ignore the result
         # of this opertaion -- as long as it succeeds, we're happy. No need to
@@ -465,7 +465,7 @@ class Destroy(Terminate):
         arrays = yield self._find_server_arrays(self.option('array'),
                                                 raise_on='notfound',
                                                 allow_mock=False,
-                                                exact=False)
+                                                exact=self.option('exact'))
         yield self._act_on_arrays(self._destroy_array, arrays)
         raise gen.Return()
 
@@ -624,7 +624,7 @@ class Launch(ServerArrayBaseActor):
         # First, find the array we're going to be launching...
         arrays = yield self._find_server_arrays(
             self.option('array'),
-            exact=False)
+            exact=self.option('exact'))
 
         # Enable the array, then launch it
         yield self._act_on_arrays(self._enable_array, arrays)
