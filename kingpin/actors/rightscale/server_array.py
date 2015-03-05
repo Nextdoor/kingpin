@@ -389,6 +389,25 @@ class Terminate(ServerArrayBaseActor):
             yield utils.tornado_sleep(sleep)
 
     @gen.coroutine
+    def _disable_array(self, array):
+        """Prevent the supplied ServerArray from auto scaling.
+
+        args:
+            array: rightscale.Resource array object
+        """
+        params = self._generate_rightscale_params(
+            'server_array', {'state': 'disabled'})
+
+        if self._dry:
+            self.log.info('Would have updated array "%s" with params: %s' %
+                          (array.soul['name'], params))
+            raise gen.Return()
+
+        self.log.info('Disabling Array "%s"' % array.soul['name'])
+        yield self._client.update_server_array(array, params)
+        raise gen.Return()
+
+    @gen.coroutine
     def _execute(self):
         # First things first, login to RightScale asynchronously to
         # pre-populate the API attributes that are dynamically generated. This
@@ -397,43 +416,31 @@ class Terminate(ServerArrayBaseActor):
         yield self._client.login()
 
         # First, find the array we're going to be terminating.
-        self.array = yield self._find_server_arrays(self.option('array'),
-                                                    raise_on='notfound',
-                                                    allow_mock=False)
+        arrays = yield self._find_server_arrays(self.option('array'),
+                                                raise_on='notfound',
+                                                allow_mock=False,
+                                                exact=False)
 
         # Disable the array so that no new instances launch. Ignore the result
         # of this opertaion -- as long as it succeeds, we're happy. No need to
         # store the returned server array object.
-        params = self._generate_rightscale_params(
-            'server_array', {'state': 'disabled'})
-        if not self._dry:
-            self.log.info('Disabling Array "%s"' % self.option('array'))
-            yield self._client.update_server_array(self.array, params)
-        else:
-            self.log.info('Would have updated array "%s" with params: %s' %
-                          (self.option('array'), params))
+        yield self._act_on_arrays(self._disable_array, arrays)
 
         # Optionally terminate all of the instances in the array first.
-        yield self._terminate_all_instances(self.array)
+        yield self._act_on_arrays(self._terminate_all_instances, arrays)
 
         # Wait...
-        yield self._wait_until_empty(self.array)
+        yield self._act_on_arrays(self._wait_until_empty, arrays)
 
         raise gen.Return()
 
 
-class Destroy(ServerArrayBaseActor):
+class Destroy(Terminate):
 
     """Destroy a ServerArray.
 
     First terminates all of the running instances, then destroys the actual
     ServerArray in RightScale."""
-
-    all_options = {
-        'array': (str, REQUIRED, 'ServerArray name to Destroy'),
-        'exact': (bool, True, (
-            'Whether to search for multiple ServerArrays and act on them.')),
-    }
 
     @gen.coroutine
     def _destroy_array(self, array):
@@ -450,33 +457,16 @@ class Destroy(ServerArrayBaseActor):
         raise gen.Return()
 
     @gen.coroutine
-    def _terminate(self):
-        """Create and execute Terminator actor
-
-        Raises: <the Terminate actor object>
-        """
-        helper = Terminate(
-            desc=self._desc + ' (terminate)',
-            options={'array': self.option('array')},
-            warn_on_failure=self._warn_on_failure,
-            dry=self._dry)
-
-        yield helper._execute()
-        raise gen.Return(helper)
-
-    @gen.coroutine
     def _execute(self):
-        # Terminate all instances. If it fails, catch and log the error, then
-        # re-raise it.
-        try:
-            self.log.info('Terminating array before destroying it.')
-            helper = yield self._terminate()
-        except exceptions.ActorException as e:
-            self.log.critical('Termination failed, cannot destroy: %s' % e)
-            raise
+        # Call the Terminate _execute function first
+        yield super(Destroy, self)._execute()
 
-        # Can grab the array object from the helper instead of re-searching
-        yield self._destroy_array(helper.array)
+        # Find the array we're going to be destroying.
+        arrays = yield self._find_server_arrays(self.option('array'),
+                                                raise_on='notfound',
+                                                allow_mock=False,
+                                                exact=False)
+        yield self._act_on_arrays(self._destroy_array, arrays)
         raise gen.Return()
 
 

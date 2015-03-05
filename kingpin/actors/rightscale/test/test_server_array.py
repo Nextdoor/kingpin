@@ -378,10 +378,20 @@ class TestTerminateActor(testing.AsyncTestCase):
         self.assertEquals(ret, None)
 
     @testing.gen_test
+    def test_disable_array(self):
+        array_mock = mock.MagicMock(name='unittest')
+        array_mock.soul = {'name': 'unittest'}
+        array_mock.self.path = '/a/b/1234'
+        self.client_mock.update_server_array.side_effect = mock_tornado()
+
+        yield self.actor._disable_array(array_mock)
+        self.client_mock.update_server_array.assert_has_calls([
+            mock.call(array_mock, {'server_array[state]': 'disabled'})])
+
+    @testing.gen_test
     def test_execute(self):
         self.actor._dry = False
         initial_array = mock.MagicMock(name='unittestarray')
-
         self.actor._find_server_arrays = mock_tornado(initial_array)
 
         @gen.coroutine
@@ -389,11 +399,8 @@ class TestTerminateActor(testing.AsyncTestCase):
             array.updated(params)
 
         self.client_mock.update_server_array.side_effect = update_array
-
         self.actor._terminate_all_instances = mock_tornado()
-
         self.actor._wait_until_empty = mock_tornado()
-
         ret = yield self.actor._execute()
 
         # Verify that the array object would have been patched
@@ -424,68 +431,55 @@ class TestTerminateActor(testing.AsyncTestCase):
         initial_array.updated.assert_has_calls([])
 
 
-class TestDestroyActor(TestServerArrayBaseActor):
+class TestDestroyActor(testing.AsyncTestCase):
 
-    @testing.gen_test
-    def test_terminate(self):
-        actor = server_array.Destroy(
-            'Destroy',
-            {'array': 'unittestarray'})
-        with mock.patch.object(server_array, 'Terminate') as t:
-            t()._execute = mock_tornado(mock.MagicMock())
-            obj = yield actor._terminate()
-            self.assertEquals(t()._execute._call_count, 1)
-            self.assertEquals(obj, t())
+    def setUp(self, *args, **kwargs):
+        super(TestDestroyActor, self).setUp()
+        base.TOKEN = 'unittest'
 
-    @testing.gen_test
-    def test_execute(self):
-        actor = server_array.Destroy(
-            'Destroy',
-            {'array': 'unittestarray'})
-        actor._terminate = mock_tornado(mock.Mock())
-        actor._destroy_array = mock_tornado()
-
-        array = mock.MagicMock(name='unittest')
-        server_array.Terminate.array = array  # Fake helper computation
-
-        ret = yield actor._execute()
-
-        self.assertEquals(actor._terminate._call_count, 1)
-        self.assertEquals(actor._destroy_array._call_count, 1)
-        self.assertEquals(ret, None)
-
-    @testing.gen_test
-    def test_execute_terminate_fails(self):
-        actor = server_array.Destroy(
+        # Create the actor
+        self.actor = server_array.Destroy(
             'Destroy',
             {'array': 'unittestarray'})
 
-        @gen.coroutine
-        def raise_exc():
-            raise exceptions.UnrecoverableActorFailure('fail')
-        actor._terminate = raise_exc
-
-        with self.assertRaises(exceptions.UnrecoverableActorFailure):
-            yield actor._execute()
+        # Patch the actor so that we use the client mock
+        self.client_mock = mock.MagicMock()
+        self.actor._client = self.client_mock
+        self.client_mock.login = mock_tornado()
 
     @testing.gen_test
     def test_destroy_array(self):
-        actor = server_array.Destroy(
-            'Destroy',
-            {'array': 'unittestarray'})
         array = mock.MagicMock(name='unittest')
         array.soul = {'name': 'unittest'}
 
-        actor._client = mock.Mock()
-        actor._client.destroy_server_array.side_effect = tornado_value
+        self.actor._client = mock.Mock()
+        self.actor._client.destroy_server_array.side_effect = tornado_value
 
-        ret = yield actor._destroy_array(array)
-        self.assertTrue(actor._client.destroy_server_array.called_with(array))
-        self.assertEquals(ret, None)
+        yield self.actor._destroy_array(array)
+        self.actor._client.destroy_server_array.called_with(array)
 
-        actor._dry = True
-        ret = yield actor._destroy_array(array)
-        self.assertTrue(actor._client.destroy_server_array.called_with(array))
+        self.actor._dry = True
+        yield self.actor._destroy_array(array)
+        self.actor._client.destroy_server_array.called_with(array)
+
+    @testing.gen_test
+    def test_execute(self):
+        array = mock.MagicMock(name='unittest')
+        array.soul = {'name': 'unittest'}
+
+        # Mock out calls that are made in the Super class (Terminate)
+        # _execute function.
+        self.actor._find_server_arrays = mock_tornado(array)
+        self.actor._disable_array = mock_tornado()
+        self.actor._terminate_all_instances = mock_tornado()
+        self.actor._wait_until_empty = mock_tornado()
+
+        # Mock out the destroy_array call
+        self.actor._destroy_array = mock_tornado()
+
+        ret = yield self.actor._execute()
+
+        self.assertEquals(self.actor._destroy_array._call_count, 1)
         self.assertEquals(ret, None)
 
 
