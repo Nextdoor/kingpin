@@ -53,18 +53,29 @@ class TestRightScale(testing.AsyncTestCase):
     @testing.gen_test
     def test_find_server_arrays(self):
         with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
-            u_mock.return_value = [1, 2, 3]
+            array = mock.MagicMock(name='array')
+            array.soul = {'name': 'Mocked ServerArray'}
+            array.self.path = '/a/b/1234'
+            u_mock.return_value = array
+
             ret = yield self.client.find_server_arrays('test', exact=True)
             u_mock.assert_called_once_with(
                 self.mock_client.server_arrays, 'test', exact=True)
-            self.assertEquals([1, 2, 3], ret)
+            self.assertEquals(array, ret)
 
         with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
-            u_mock.return_value = [1, 2, 3]
+            array1 = mock.MagicMock(name='array1')
+            array1.soul = {'name': 'Mocked ServerArray'}
+            array1.self.path = '/a/b/1234'
+            array2 = mock.MagicMock(name='array2')
+            array2.soul = {'name': 'Mocked ServerArray'}
+            array2.self.path = '/a/b/1234'
+            u_mock.return_value = [array1, array2]
+
             ret = yield self.client.find_server_arrays('test2', exact=False)
             u_mock.assert_called_once_with(
                 self.mock_client.server_arrays, 'test2', exact=False)
-            self.assertEquals([1, 2, 3], ret)
+            self.assertEquals([array1, array2], ret)
 
     @testing.gen_test
     def test_find_server_arrays_empty_result(self):

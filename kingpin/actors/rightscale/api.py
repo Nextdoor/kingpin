@@ -148,7 +148,11 @@ class RightScale(object):
             log.debug('ServerArray matching "%s" not found' % name)
             return
 
-        log.debug('Got ServerArray: %s' % found_arrays)
+        names = found_arrays
+        if isinstance(names, list):
+            names = [s.soul['name'] for s in found_arrays]
+
+        log.debug('Got ServerArray(s): %s' % ', '.join(names))
 
         return found_arrays
 
