@@ -616,12 +616,9 @@ class TestLaunchActor(testing.AsyncTestCase):
         self.client_mock.launch_server_array.assert_has_calls([])
 
     @testing.gen_test
-    def test_execute(self):
-        self.actor._dry = False
+    def test_enable_array(self):
         initial_array = mock.MagicMock(name='unittestarray')
         updated_array = mock.MagicMock(name='unittestarray-updated')
-
-        self.actor._find_server_arrays = mock_tornado(initial_array)
 
         @gen.coroutine
         def update_array(array, params):
@@ -629,34 +626,38 @@ class TestLaunchActor(testing.AsyncTestCase):
             raise gen.Return(updated_array)
         self.client_mock.update_server_array.side_effect = update_array
 
-        self.actor._launch_instances = mock_tornado()
-        self.actor._wait_until_healthy = mock_tornado()
-
-        ret = yield self.actor._execute()
-
         # Verify that the array object would have been patched
+        yield self.actor._enable_array(initial_array)
         self.client_mock.update_server_array.assert_called_once_with(
             initial_array,  {'server_array[state]': 'enabled'})
         initial_array.updated.assert_called_once_with(
             {'server_array[state]': 'enabled'})
 
-        # Now verify that each of the steps (terminate, wait, destroyed) were
-        # all called.
-        self.assertEquals(self.actor._launch_instances._call_count, 1)
-        self.assertEquals(self.actor._wait_until_healthy._call_count, 1)
-        self.assertEquals(ret, None)
-
-        # Dry
+        # Reset for a dry run
         self.actor._dry = True
-        self.actor._client.launch_server_array = mock_tornado()
-        self.actor._client.get_server_array_current_instances = mock_tornado()
-        ret = yield self.actor._execute()
-        self.assertEquals(
-            self.actor._client.launch_server_array._call_count, 0)
-        self.assertEquals(
-            self.actor._client.get_server_array_current_instances._call_count,
-            0)
-        self.assertEquals(ret, None)
+        initial_array.reset_mock()
+        updated_array.reset_mock()
+
+        # Run it again, object shoudl NOT be updated.
+        yield self.actor._enable_array(initial_array)
+        self.assertEquals(initial_array.updated.call_count, 0)
+
+    @testing.gen_test
+    def test_execte(self):
+        mocked_array = mock.MagicMock(name='unittest')
+        mocked_array.soul = {'name': 'unittest'}
+        self.actor._find_server_arrays = mock_tornado(mocked_array)
+        self.actor._act_on_arrays = mock.MagicMock(name='act_on_arrays')
+        self.actor._act_on_arrays.side_effect = mock_tornado()
+
+        yield self.actor._execute()
+
+        # Now verify that the right calls were made
+        self.actor._act_on_arrays.assert_has_calls([
+            mock.call(self.actor._enable_array, mocked_array),
+            mock.call(self.actor._launch_instances, mocked_array, False),
+            mock.call(self.actor._wait_until_healthy, mocked_array),
+        ])
 
 
 class TestExecuteActor(testing.AsyncTestCase):
