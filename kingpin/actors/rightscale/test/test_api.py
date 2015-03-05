@@ -215,11 +215,12 @@ class TestRightScale(testing.AsyncTestCase):
         array_mock.soul = {'name': 'fake array to launch'}
         array_mock.self.path = '/a/b/1234'
 
-        # A count of 1 should pass params=None to the launch call
+        # A count of 0 should pass params=None to the launch call
         ret = yield self.client.launch_server_array(array_mock, count=0)
         self.assertEquals(ret, None)
+        self.assertEquals(0, self.mock_client.server_arrays.launch.call_count)
 
-        # A count of 1 should pass params=None to the launch call
+        # A count of None should pass params=None to the launch call
         ret = yield self.client.launch_server_array(array_mock, count=None)
         self.assertEquals(ret, None)
 
@@ -244,7 +245,7 @@ class TestRightScale(testing.AsyncTestCase):
         instance_mock = mock.MagicMock(name='fake_launch_queue')
         self.mock_client.server_arrays.launch.return_value = instance_mock
 
-        # A count of >1 should pass params=None to the launch call
+        # A count of >1 should pass params={count: 2} to the launch call
         yield self.client.launch_server_array(array_mock, count=2)
         self.mock_client.server_arrays.launch.assert_called_once_with(
             res_id=1234, params={'count': 2})

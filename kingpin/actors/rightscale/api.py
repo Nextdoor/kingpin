@@ -341,7 +341,6 @@ class RightScale(object):
         Returns:
             rightscale.Resource of the newly launched instance>
         """
-        # If count < 1, return!
         if not count or count < 1:
             return
 
