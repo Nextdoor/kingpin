@@ -720,15 +720,12 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.assertEquals(2, len(ret))
 
     @testing.gen_test
-    def test_execute(self):
+    def test_execute_array(self):
         mock_array = mock.MagicMock(name='array')
         mock_op_instance = mock.MagicMock(name='mock_instance')
         mock_op_instance.soul = {'state': 'operational',
                                  'name': 'unit-test-instance'}
         mock_task = mock.MagicMock(name='mock_task')
-
-        self.actor._check_script = mock_tornado(True)
-        self.actor._find_server_arrays = mock_tornado(mock_array)
 
         yi = tornado_value([mock_op_instance, mock_op_instance])
         self.client_mock.get_server_array_current_instances.return_value = yi
@@ -743,13 +740,12 @@ class TestExecuteActor(testing.AsyncTestCase):
 
         # Now verify that each of the expected steps were called in a
         # successful execution.
-        ret = yield self.actor._execute()
+        ret = yield self.actor._execute_array(mock_array, 1)
         (self.client_mock.get_server_array_current_instances
             .assert_called_twice_with(mock_array))
         (self.client_mock.run_executable_on_instances
             .assert_called_once_with(
-                'test_script',
-                {'inputs[foo]': 'text:bar'},
+                'test_script', 1,
                 [mock_op_instance, mock_op_instance]))
         self.client_mock.wait_for_task.assert_called_with(
             task=mock_task,
@@ -766,35 +762,61 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.client_mock.get_audit_logs.side_effect = [
             tornado_value(False), tornado_value(['logs'])]
         with self.assertRaises(server_array.TaskExecutionFailed):
-            yield self.actor._execute()
+            yield self.actor._execute_array(mock_array, 1)
 
         # Finally, a test that mocks out an http error on bad inputs
         error = api.ServerArrayException()
         self.client_mock.run_executable_on_instances.side_effect = error
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._execute()
+            yield self.actor._execute_array(mock_array, 1)
+
+    @testing.gen_test
+    def test_execute_array_dry(self):
+        self.actor._dry = True
+        mock_array = mock.MagicMock(name='array')
+
+        self.client_mock.get_server_array_current_instances = mock_tornado([])
+
+        ret = yield self.actor._execute_array(mock_array, 1)
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_execute(self):
+        mock_array = mock.MagicMock(name='array')
+        mock_array.soul = {'name': 'array'}
+        self.actor._find_server_arrays = mock_tornado(mock_array)
+        self.actor._act_on_arrays = mock.MagicMock()
+        self.actor._act_on_arrays.side_effect = mock_tornado()
+
+        yield self.actor._execute()
+        self.actor._act_on_arrays.assert_has_calls([
+            mock.call(self.actor._execute_array,
+                      mock_array,
+                      {u'inputs[foo]': u'text:bar'})])
 
     @testing.gen_test
     def test_execute_dry(self):
         self.actor._dry = True
         mock_array = mock.MagicMock(name='array')
-
-        self.actor._check_script = mock_tornado(True)
+        mock_array.soul = {'name': 'array'}
         self.actor._find_server_arrays = mock_tornado(mock_array)
-
-        self.client_mock.get_server_array_current_instances = mock_tornado([])
-
-        ret = yield self.actor._execute()
-        self.assertEquals(ret, None)
+        self.actor._check_script = mock_tornado(True)
+        self.actor._act_on_arrays = mock.MagicMock()
+        self.actor._act_on_arrays.side_effect = mock_tornado()
+        yield self.actor._execute()
+        self.actor._act_on_arrays.assert_has_calls([
+            mock.call(self.actor._execute_array,
+                      mock_array, {u'inputs[foo]': u'text:bar'})
+        ])
 
     @testing.gen_test
     def test_execute_dry_fail(self):
         self.actor._dry = True
         mock_array = mock.MagicMock(name='array')
+        self.actor._find_server_arrays = mock_tornado(mock_array)
 
         # Checking script fails
         self.actor._check_script = mock_tornado(False)
-        self.actor._find_server_arrays = mock_tornado(mock_array)
         self.client_mock.get_server_array_current_instances = mock_tornado([])
 
         with self.assertRaises(exceptions.InvalidOptions):
