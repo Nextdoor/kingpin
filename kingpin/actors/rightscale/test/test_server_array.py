@@ -73,6 +73,17 @@ class TestServerArrayBaseActor(testing.AsyncTestCase):
         self.assertEquals(mocked_array, ret)
 
     @testing.gen_test
+    def test_find_server_arrays_many_returned(self):
+        mocked_array1 = mock.MagicMock(name='mocked array1')
+        mocked_array2 = mock.MagicMock(name='mocked array2')
+
+        mock_find = mock_tornado([mocked_array1, mocked_array2])
+        self.client_mock.find_server_arrays = mock_find
+
+        ret = yield self.actor._find_server_arrays('t', raise_on='notfound')
+        self.assertEquals([mocked_array1, mocked_array2], ret)
+
+    @testing.gen_test
     def test_find_server_arrays_not_found(self):
         self.client_mock.find_server_arrays = mock_tornado()
 
@@ -90,6 +101,23 @@ class TestServerArrayBaseActor(testing.AsyncTestCase):
         # found or not, None should be returned
         ret = yield self.actor._find_server_arrays('t', raise_on=None)
         self.assertEquals(None, ret)
+
+    @testing.gen_test
+    def test_act_on_arrays(self):
+        # Fake method used to test the act_on_arrays function
+        @gen.coroutine
+        def fake_func(array, ret_val):
+            raise gen.Return(ret_val)
+
+        # Test 1: Pass in a single array
+        arrays = [mock.MagicMock()]
+        ret = yield self.actor._act_on_arrays(fake_func, arrays, ret_val=1)
+        self.assertEquals(ret, [1])
+
+        # Test 2: Pass in several arrays
+        arrays = [mock.MagicMock(), mock.MagicMock()]
+        ret = yield self.actor._act_on_arrays(fake_func, arrays, ret_val=1)
+        self.assertEquals(ret, [1, 1])
 
 
 class TestCloneActor(testing.AsyncTestCase):
@@ -208,6 +236,22 @@ class TestUpdateActor(testing.AsyncTestCase):
             mocked_array, {'inputs[test]': 'text:test'})
 
         self.assertEquals(None, ret)
+
+    @testing.gen_test
+    def test_update_inputs_empty(self):
+        mocked_array = mock.MagicMock(name='unittestarray')
+        self.actor._options['inputs'] = None
+
+        yield self.actor._update_inputs(mocked_array)
+        self.assertEquals(0, mocked_array.call_count)
+
+    @testing.gen_test
+    def test_update_params_empty(self):
+        mocked_array = mock.MagicMock(name='unittestarray')
+        self.actor._options['params'] = None
+
+        yield self.actor._update_params(mocked_array)
+        self.assertEquals(0, mocked_array.call_count)
 
     @testing.gen_test
     def test_execute_422_error(self):

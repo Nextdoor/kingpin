@@ -114,19 +114,43 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
         if not array and raise_on == 'notfound':
             raise ArrayNotFound('Array "%s" not found!' % array_name)
 
+        # Quick note. If many arrays were returned, lets make sure we throw a
+        # note to the user so they know whats going on.
+        if isinstance(array, list):
+            for a in array:
+                self.log.info('Matching array found: %s' % a.soul['name'])
+
         raise gen.Return(array)
 
     @gen.coroutine
-    def _multiply(self, function, arrays, *args, **kwargs):
+    def _act_on_arrays(self, function, arrays, *args, **kwargs):
+        """Yield a function on several arrays at once.
+
+        Many of our rightscale.server_array Actors have the ability to act on
+        multiple arrays at a time (through the 'exact=False' parameter). This
+        method provides a quick and re-usable method for yielding generators on
+        an array (or group of arrays). All we do here is queue up a group of
+        functions, yield them all at once, and return.
+
+        args:
+            function: Reference to the function to execute
+            arrays: An array, or list of arrays to execute on.
+            *args: Any *args to pass to the function
+            **kwargs: Any **kwargs to pass to the function
+        """
+        if not isinstance(arrays, list):
+            arrays = [arrays]
+
         tasks = []
         for array in arrays:
             self.log.debug('Adding %s(%s, %s, %s) to async call list' %
-                           (function, array, args, kwargs))
+                           (function.__name__, array.soul['name'],
+                            args, kwargs))
             tasks.append(function(array, *args, **kwargs))
 
         self.log.debug('Calling all functions in async call list')
-        yield tasks
-        raise gen.Return()
+        ret = yield tasks
+        raise gen.Return(ret)
 
 
 class Clone(ServerArrayBaseActor):
@@ -234,6 +258,12 @@ class Update(ServerArrayBaseActor):
 
     @gen.coroutine
     def _update_params(self, array):
+        """Update the parameters on a RightScale ServerArray.
+
+        args:
+            array: The array to operate on
+        """
+
         if not self.option('params'):
             raise gen.Return()
 
@@ -253,6 +283,12 @@ class Update(ServerArrayBaseActor):
 
     @gen.coroutine
     def _update_inputs(self, array):
+        """Update the inputs on a RightScale ServerArray.
+
+        args:
+            array: The array to operate on
+        """
+
         if not self.option('inputs'):
             raise gen.Return()
 
@@ -272,7 +308,7 @@ class Update(ServerArrayBaseActor):
 
         # First, find the arrays we're going to be patching.
         arrays = yield self._find_server_arrays(
-            self.option('array'), exact=False)
+            self.option('array'), exact=self.option('exact'))
 
         # In dry run, just comment that we would have made the change.
         if self._dry:
@@ -281,16 +317,15 @@ class Update(ServerArrayBaseActor):
                 self.log.info('Params would be: %s' % self.option('params'))
             if self.option('inputs'):
                 self.log.info('Inputs would be: %s' % self.option('inputs'))
-                yield self._multiply(self._check_array_inputs,
-                                     arrays,
-                                     self.option('inputs'))
+                yield self._act_on_arrays(self._check_array_inputs,
+                                          arrays,
+                                          self.option('inputs'))
 
             raise gen.Return()
 
         # Do the real work
-        yield self._multiply(self._update_params, arrays)
-        yield self._multiply(self._update_inputs, arrays)
-
+        yield self._act_on_arrays(self._update_params, arrays)
+        yield self._act_on_arrays(self._update_inputs, arrays)
         raise gen.Return()
 
 
