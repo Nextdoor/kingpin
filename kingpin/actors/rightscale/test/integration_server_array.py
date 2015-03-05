@@ -123,7 +123,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Update %s' % self.clone_name,
             {'array': self.clone_name,
              'params': {'elasticity_params': {'bounds': {
-                        'min_count': '1', 'max_count': '1'}},
+                        'min_count': '1', 'max_count': '2'}},
                         'status': 'enabled',
                         'description': 'Unit Tests: %s' % UUID}})
         ret = yield actor.execute()
@@ -190,7 +190,8 @@ class IntegrationServerArray(testing.AsyncTestCase):
         actor = server_array.Launch(
             'Launch %s' % self.clone_name,
             {'array': self.clone_name,
-             'enable': True})
+             'enable': True,
+             'count': 2})
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 

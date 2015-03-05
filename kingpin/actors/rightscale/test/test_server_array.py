@@ -546,24 +546,21 @@ class TestLaunchActor(testing.AsyncTestCase):
         launch = mock_tornado()
         self.client_mock.launch_server_array.side_effect = launch
 
-        self.client_mock.get_server_array_current_instances = mock_tornado([])
-
-        two_mock_calls = [mock.call(array_mock), mock.call(array_mock)]
-        four_mock_calls = [
-            mock.call(array_mock), mock.call(array_mock),
-            mock.call(array_mock), mock.call(array_mock)]
-
         # Regular function call
+        self.client_mock.get_server_array_current_instances = mock_tornado([])
         self.client_mock.launch_server_array.reset_mock()
         yield self.actor._launch_instances(array_mock)
-        self.client_mock.launch_server_array.assert_has_calls(four_mock_calls)
+        self.assertEquals(1, self.client_mock.launch_server_array.call_count)
+        self.client_mock.launch_server_array.assert_has_calls(
+            mock.call(array_mock, count=4))
 
         # Regular function call with some servers already existing.
         self.client_mock.get_server_array_current_instances = mock_tornado([
             1, 2])
         self.client_mock.launch_server_array.reset_mock()
         yield self.actor._launch_instances(array_mock)
-        self.client_mock.launch_server_array.assert_has_calls(two_mock_calls)
+        self.client_mock.launch_server_array.assert_has_calls(
+            mock.call(array_mock, count=2))
 
         # Regular function call more arrays than min_count
         self.client_mock.get_server_array_current_instances = mock_tornado([
@@ -571,11 +568,6 @@ class TestLaunchActor(testing.AsyncTestCase):
         self.client_mock.launch_server_array.reset_mock()
         yield self.actor._launch_instances(array_mock)
         self.assertEquals(self.client_mock.launch_server_array.call_count, 0)
-
-        # Count-specific function call
-        self.client_mock.launch_server_array.reset_mock()
-        yield self.actor._launch_instances(array_mock, count=2)
-        self.client_mock.launch_server_array.assert_has_calls(two_mock_calls)
 
         # Dry call
         self.actor._dry = True

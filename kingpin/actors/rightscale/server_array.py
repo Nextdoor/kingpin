@@ -557,12 +557,8 @@ class Launch(ServerArrayBaseActor):
         self.log.info('Launching %s instances of array %s' % (
                       count, array.soul['name']))
 
-        # Note, RightScale does not support asynchronously calling the launch
-        # API method multiple times. Must do this sycnhronously.
-        for i in xrange(0, count):
-            # Launch one server at a time
-            yield self._client.launch_server_array(array)
-
+        # Launch!
+        yield self._client.launch_server_array(array, count=count)
         self.log.info('Launched %s instances for array %s' % (
                       count, array.soul['name']))
 
