@@ -22,7 +22,7 @@ retrying
 #
 # NOTE: Version specified in the setup.py file
 # NOTE: mock is used inside the rightscale actor
-python-rightscale>=0.1.4
+python-rightscale>=0.1.5
 mock
 
 # kingpin.actors.aws

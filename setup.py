@@ -157,7 +157,7 @@ setup(
     setup_requires=[],
     install_requires=open('requirements.txt').readlines(),
     dependency_links=[
-        'https://github.com/diranged/python-rightscale-1/tarball/fix_pip_install_again#egg=python-rightscale-0.1.4'
+        'https://github.com/diranged/python-rightscale-1/tarball/fix_find_server_array#egg=python-rightscale-0.1.5'
     ],
     entry_points={
         'console_scripts': [

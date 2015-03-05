@@ -59,7 +59,8 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
     @gen.coroutine
     def _find_server_arrays(self, array_name,
                             raise_on='notfound',
-                            allow_mock=True):
+                            allow_mock=True,
+                            exact=True):
         """Find a ServerArray by name and return it.
 
         Args:
@@ -67,6 +68,8 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
             raise_on: Either None, 'notfound' or 'found'
             allow_mock: Boolean whether or not to allow a Mock object to be
                         returned instead.
+            exact: Boolean whether or not to allow multiple arrays to be
+                   returned.
 
         Raises:
             gen.Return(<rightscale.Resource of Server Array>)
@@ -84,7 +87,7 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
                 'Invalid "raise_on" setting in actor code.')
 
         self.log.debug(msg)
-        array = yield self._client.find_server_arrays(array_name, exact=True)
+        array = yield self._client.find_server_arrays(array_name, exact=exact)
 
         if not array and self._dry and allow_mock:
             # Create a fake ServerArray object thats mocked up to help with
@@ -112,6 +115,18 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
             raise ArrayNotFound('Array "%s" not found!' % array_name)
 
         raise gen.Return(array)
+
+    @gen.coroutine
+    def _multiply(self, function, arrays, *args, **kwargs):
+        tasks = []
+        for array in arrays:
+            self.log.debug('Adding %s(%s, %s, %s) to async call list' %
+                           (function, array, args, kwargs))
+            tasks.append(function(array, *args, **kwargs))
+
+        self.log.debug('Calling all functions in async call list')
+        yield tasks
+        raise gen.Return()
 
 
 class Clone(ServerArrayBaseActor):
@@ -179,6 +194,8 @@ class Update(ServerArrayBaseActor):
 
     all_options = {
         'array': (str, REQUIRED, 'ServerArray name to Update'),
+        'exact': (bool, True, (
+            'Whether to search for multiple ServerArrays and act on them.')),
         'params': (dict, {}, 'ServerArray RightScale parameters'),
         'inputs': (dict, {}, 'ServerArray inputs for launching.')
     }
@@ -216,6 +233,36 @@ class Update(ServerArrayBaseActor):
         raise gen.Return()
 
     @gen.coroutine
+    def _update_params(self, array):
+        if not self.option('params'):
+            raise gen.Return()
+
+        params = self._generate_rightscale_params(
+            'server_array', self.option('params'))
+        self.log.info('Updating array "%s" with params: %s' %
+                      (array.soul['name'], params))
+        try:
+            yield self._client.update_server_array(array, params)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 422:
+                msg = ('Invalid parameters supplied to patch array "%s"' %
+                       self.option('array'))
+                raise exceptions.RecoverableActorFailure(msg)
+
+        raise gen.Return()
+
+    @gen.coroutine
+    def _update_inputs(self, array):
+        if not self.option('inputs'):
+            raise gen.Return()
+
+        inputs = self._generate_rightscale_params(
+            'inputs', self.option('inputs'))
+        self.log.info('Updating array "%s" with inputs: %s' %
+                      (array.soul['name'], inputs))
+        yield self._client.update_server_array_inputs(array, inputs)
+
+    @gen.coroutine
     def _execute(self):
         # First things first, login to RightScale asynchronously to
         # pre-populate the API attributes that are dynamically generated. This
@@ -223,8 +270,9 @@ class Update(ServerArrayBaseActor):
         # decorator.
         yield self._client.login()
 
-        # First, find the array we're going to be patching.
-        array = yield self._find_server_arrays(self.option('array'))
+        # First, find the arrays we're going to be patching.
+        arrays = yield self._find_server_arrays(
+            self.option('array'), exact=False)
 
         # In dry run, just comment that we would have made the change.
         if self._dry:
@@ -233,31 +281,15 @@ class Update(ServerArrayBaseActor):
                 self.log.info('Params would be: %s' % self.option('params'))
             if self.option('inputs'):
                 self.log.info('Inputs would be: %s' % self.option('inputs'))
-                yield self._check_array_inputs(array, self.option('inputs'))
+                yield self._multiply(self._check_array_inputs,
+                                     arrays,
+                                     self.option('inputs'))
 
             raise gen.Return()
 
-        # Update the ServerArray Parameters
-        if self.option('params'):
-            params = self._generate_rightscale_params(
-                'server_array', self.option('params'))
-            self.log.info('Updating array "%s" with params: %s' %
-                          (array.soul['name'], params))
-            try:
-                yield self._client.update_server_array(array, params)
-            except requests.exceptions.HTTPError as e:
-                if e.response.status_code == 422:
-                    msg = ('Invalid parameters supplied to patch array "%s"' %
-                           self.option('array'))
-                    raise exceptions.RecoverableActorFailure(msg)
-
-        # Update the ServerArray Next-Instance Inputs
-        if self.option('inputs'):
-            inputs = self._generate_rightscale_params(
-                'inputs', self.option('inputs'))
-            self.log.info('Updating array "%s" with inputs: %s' %
-                          (array.soul['name'], inputs))
-            yield self._client.update_server_array_inputs(array, inputs)
+        # Do the real work
+        yield self._multiply(self._update_params, arrays)
+        yield self._multiply(self._update_inputs, arrays)
 
         raise gen.Return()
 
@@ -267,7 +299,9 @@ class Terminate(ServerArrayBaseActor):
     """Terminate all instances in a RightScale Server Array."""
 
     all_options = {
-        'array': (str, REQUIRED, 'ServerArray name to Terminate')
+        'array': (str, REQUIRED, 'ServerArray name to Terminate'),
+        'exact': (bool, True, (
+            'Whether to search for multiple ServerArrays and act on them.')),
     }
 
     @gen.coroutine
@@ -361,7 +395,9 @@ class Destroy(ServerArrayBaseActor):
     ServerArray in RightScale."""
 
     all_options = {
-        'array': (str, REQUIRED, 'ServerArray name to Destroy')
+        'array': (str, REQUIRED, 'ServerArray name to Destroy'),
+        'exact': (bool, True, (
+            'Whether to search for multiple ServerArrays and act on them.')),
     }
 
     @gen.coroutine
@@ -418,7 +454,9 @@ class Launch(ServerArrayBaseActor):
         'count': (
             int, False,
             "Number of server to launch. Default: up to array's min count"),
-        'enable': (bool, False, 'Enable autoscaling?')
+        'enable': (bool, False, 'Enable autoscaling?'),
+        'exact': (bool, True, (
+            'Whether to search for multiple ServerArrays and act on them.')),
     }
 
     def __init__(self, *args, **kwargs):
@@ -585,6 +623,8 @@ class Execute(ServerArrayBaseActor):
     all_options = {
         'array': (str, REQUIRED,
                   'ServerArray name on which to execute a script.'),
+        'exact': (bool, True, (
+            'Whether to search for multiple ServerArrays and act on them.')),
         'script': (str, REQUIRED,
                    'RightScale RightScript or Recipe to execute.'),
         'expected_runtime': (int, 5, 'Expected number of seconds to execute.'),
