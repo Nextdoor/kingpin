@@ -28,9 +28,6 @@ class TestServerArrayBaseActor(testing.AsyncTestCase):
         self.client_mock = mock.MagicMock()
         self.actor._client = self.client_mock
 
-        # Mock out the login method entirely
-        self.client_mock.login = mock_tornado()
-
     @testing.gen_test
     def test_find_server_arrays_with_bad_raise_on(self):
         with self.assertRaises(exceptions.ActorException):
@@ -135,9 +132,6 @@ class TestCloneActor(testing.AsyncTestCase):
         self.client_mock = mock.MagicMock()
         self.actor._client = self.client_mock
 
-        # Mock out the login method entirely
-        self.client_mock.login = mock_tornado()
-
     @testing.gen_test
     def test_execute(self):
 
@@ -184,9 +178,6 @@ class TestUpdateActor(testing.AsyncTestCase):
         # Patch the actor so that we use the client mock
         self.client_mock = mock.MagicMock()
         self.actor._client = self.client_mock
-
-        # Mock out the login method entirely
-        self.client_mock.login = mock_tornado()
 
     @testing.gen_test
     def test_check_inputs_empty(self):
@@ -312,9 +303,6 @@ class TestTerminateActor(testing.AsyncTestCase):
         # Patch the actor so that we use the client mock
         self.client_mock = mock.MagicMock()
         self.actor._client = self.client_mock
-
-        # Mock out the login method entirely
-        self.client_mock.login = mock_tornado()
 
     @testing.gen_test
     def test_terminate_all_instances(self):
@@ -445,7 +433,6 @@ class TestDestroyActor(testing.AsyncTestCase):
         # Patch the actor so that we use the client mock
         self.client_mock = mock.MagicMock()
         self.actor._client = self.client_mock
-        self.client_mock.login = mock_tornado()
 
     @testing.gen_test
     def test_destroy_array(self):
@@ -498,9 +485,6 @@ class TestLaunchActor(testing.AsyncTestCase):
         # Patch the actor so that we use the client mock
         self.client_mock = mock.MagicMock()
         self.actor._client = self.client_mock
-
-        # Mock out the login method entirely
-        self.client_mock.login = mock_tornado()
 
     @testing.gen_test
     def test_requirements(self):
@@ -676,9 +660,6 @@ class TestExecuteActor(testing.AsyncTestCase):
         # Patch the actor so that we use the client mock
         self.client_mock = mock.MagicMock()
         self.actor._client = self.client_mock
-
-        # Mock out the login method entirely
-        self.client_mock.login = mock_tornado()
 
     @testing.gen_test
     def test_check_script(self):

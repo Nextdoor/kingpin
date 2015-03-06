@@ -30,27 +30,6 @@ class TestRightScale(testing.AsyncTestCase):
         self.assertEquals(ret, 12345)
 
     @testing.gen_test
-    def test_login(self):
-        # Regular successfull call
-        self.mock_client.login.return_value = True
-        ret = yield self.client.login()
-        self.mock_client.login.assert_called_once_with()
-        self.assertEquals(None, ret)
-
-    @testing.gen_test
-    def test_login_400_error(self):
-        # Ensure that if we raise an exception in the call to RS,
-        # that the Exception is re-raised through the thread to
-        # the caller.
-        msg = '400 Client Error: Bad Request'
-        error = requests.exceptions.HTTPError(msg)
-        self.mock_client.login.side_effect = error
-        with self.assertRaises(requests.exceptions.HTTPError):
-            yield self.client.login()
-
-        self.mock_client.login.assert_called_once_with()
-
-    @testing.gen_test
     def test_find_server_arrays(self):
         with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
             array = mock.MagicMock(name='array')
