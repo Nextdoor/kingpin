@@ -118,16 +118,6 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @utils.exception_logger
-    def login(self):
-        """Logs into RightScale and populates the object properties.
-
-        This method is not strictly required -- but it helps asynchronously
-        pre-populate the object attributes/methods.
-        """
-        self._client.login()
-
-    @concurrent.run_on_executor
-    @utils.exception_logger
     def find_server_arrays(self, name, exact=True):
         """Search for a list of ServerArray by name and return the resources.
 
@@ -148,7 +138,12 @@ class RightScale(object):
             log.debug('ServerArray matching "%s" not found' % name)
             return
 
-        log.debug('Got ServerArray: %s' % found_arrays)
+        if isinstance(found_arrays, list):
+            names = [s.soul['name'] for s in found_arrays]
+        else:
+            names = [found_arrays.soul['name']]
+
+        log.debug('Got ServerArray(s): %s' % ', '.join(names))
 
         return found_arrays
 

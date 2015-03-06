@@ -6,12 +6,28 @@ terminated.
 
 **Options**
 
-  * `array`     - The name of the ServerArray to destroy
+  * `array` - The name of the ServerArray to destroy
+  * `exact` - Boolean whether or not to search for the exact array name.
+              (default: `true`)
 
 Examples
 
-    # Destroy an array
-    { 'array': 'my-array' }
+    # Destroy a single array
+    { "desc": "Destroy my array",
+      "actor": "rightscale.server_array.Destroy",
+      "options": {
+        "array": "my-array"
+      }
+    }
+
+    # Destroy many arrays
+    { "desc": "Destroy many arrays",
+      "actor": "rightscale.server_array.Destroy",
+      "options": {
+        "array": "array-prefix",
+        "exact": false,
+      }
+    }
 
 **Dry Mode**
 

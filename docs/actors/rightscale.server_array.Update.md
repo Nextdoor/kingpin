@@ -11,19 +11,39 @@ then converted into the RightScale format. See below for examples.
 **Options**
 
   * `array`  - The name of the ServerArray to update
+  * `exact`  - Boolean whether or not to search for the exact array name.
+               (default: `true`)
   * `params` - Dictionary of parameters to update
   * `inputs` - Dictionary of next-instance server arryay inputs to update
 
 Examples
 
     # Update the server array name, and set its min_count to 4
-    { 'array': 'my-new-array',
-      'params': { 'elasticity_params': { 'bounds': { 'min_count': 4 } },
-                  'name': 'my-really-new-name' } }
+    { "desc": "Update my array",
+      "actor": "rightscale.server_array.Update",
+      "options": {
+        "array": "my-new-array",
+        "params": {
+          "elasticity_params": {
+            "bounds": {
+              "min_count": 4
+            }
+          },
+          "name": "my-really-new-name"
+        }
+      }
+    }
 
     # Update the next-instance server array inputs
-    { 'array': 'my-new-array',
-      'inputs': { 'ELB_NAME': 'text:foobar' } }
+    { "desc": "Update my array inputs",
+      "actor": "rightscale.server_array.Update",
+      "options": {
+        "array": "my-new-array",
+        "inputs": {
+          "ELB_NAME": "text:foobar"
+        }
+      }
+    }
 
 **Dry Mode**
 

@@ -35,6 +35,8 @@ class RightScaleBaseActor(base.BaseActor):
 
     """Abstract class for creating RightScale cloud actors."""
 
+    CLIENTS = {}
+
     def __init__(self, *args, **kwargs):
         """Initializes the Actor."""
         super(RightScaleBaseActor, self).__init__(*args, **kwargs)
@@ -43,7 +45,30 @@ class RightScaleBaseActor(base.BaseActor):
             raise exceptions.InvalidCredentials(
                 'Missing the "RIGHTSCALE_TOKEN" environment variable.')
 
-        self._client = api.RightScale(token=TOKEN, endpoint=ENDPOINT)
+        self._client = self._get_client(TOKEN, ENDPOINT)
+
+    def _get_client(self, token, endpoint):
+        """Returns an api.RightScale() object.
+
+        Returns either an already-configured api.RightScale() object from the
+        class-level self.CLIENT dict, or generates a new one, stores it, and
+        returns it.
+
+        We use this struture to ensure that no matter how many RightScale
+        Actors we have, we use a single API object for every "set of unique
+        credentials" that we have (TOKEN/ENDPOINT combination).
+
+        args:
+            token: RightScale API Refresh Token
+            endpoint: RightScale API Endpoint
+        """
+        key = "%s_%s" % (token, endpoint)
+        if key not in self.CLIENTS:
+            self.CLIENTS[key] = api.RightScale(token=token, endpoint=endpoint)
+            self.log.debug('Generating new client: %s' % self.CLIENTS[key])
+
+        self.log.debug('Returning client: %s' % self.CLIENTS[key])
+        return self.CLIENTS[key]
 
     def _generate_rightscale_params(self, prefix, params):
         """Utility function for creating RightScale-style parameters.
