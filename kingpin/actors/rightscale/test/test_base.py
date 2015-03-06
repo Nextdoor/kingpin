@@ -15,6 +15,18 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         super(TestRightScaleBaseActor, self).setUp()
         base.TOKEN = 'unittest'
 
+    def test_get_client_returns_same(self):
+        actor = base.RightScaleBaseActor('Unit Test Action', {})
+        fresh_client = actor._get_client('token', 'endpoint')
+        new_client = actor._get_client('token', 'endpoint')
+        self.assertEquals(fresh_client, new_client)
+
+    def test_get_client_returns_unique(self):
+        actor = base.RightScaleBaseActor('Unit Test Action', {})
+        fresh_client = actor._get_client('token', 'endpoint')
+        new_client = actor._get_client('token2', 'endpoint')
+        self.assertNotEquals(fresh_client, new_client)
+
     @testing.gen_test
     def test_init_without_environment_creds(self):
         # Un-set the token and make sure the init fails
