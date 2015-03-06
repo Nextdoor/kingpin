@@ -103,20 +103,20 @@ class TestServerArrayBaseActor(testing.AsyncTestCase):
         self.assertEquals(None, ret)
 
     @testing.gen_test
-    def test_act_on_arrays(self):
-        # Fake method used to test the act_on_arrays function
+    def test_apply(self):
+        # Fake method used to test the apply function
         @gen.coroutine
         def fake_func(array, ret_val):
             raise gen.Return(ret_val)
 
         # Test 1: Pass in a single array
         arrays = [mock.MagicMock()]
-        ret = yield self.actor._act_on_arrays(fake_func, arrays, ret_val=1)
+        ret = yield self.actor._apply(fake_func, arrays, ret_val=1)
         self.assertEquals(ret, [1])
 
         # Test 2: Pass in several arrays
         arrays = [mock.MagicMock(), mock.MagicMock()]
-        ret = yield self.actor._act_on_arrays(fake_func, arrays, ret_val=1)
+        ret = yield self.actor._apply(fake_func, arrays, ret_val=1)
         self.assertEquals(ret, [1, 1])
 
 
@@ -647,13 +647,13 @@ class TestLaunchActor(testing.AsyncTestCase):
         mocked_array = mock.MagicMock(name='unittest')
         mocked_array.soul = {'name': 'unittest'}
         self.actor._find_server_arrays = mock_tornado(mocked_array)
-        self.actor._act_on_arrays = mock.MagicMock(name='act_on_arrays')
-        self.actor._act_on_arrays.side_effect = mock_tornado()
+        self.actor._apply = mock.MagicMock(name='apply')
+        self.actor._apply.side_effect = mock_tornado()
 
         yield self.actor._execute()
 
         # Now verify that the right calls were made
-        self.actor._act_on_arrays.assert_has_calls([
+        self.actor._apply.assert_has_calls([
             mock.call(self.actor._enable_array, mocked_array),
             mock.call(self.actor._launch_instances, mocked_array, False),
             mock.call(self.actor._wait_until_healthy, mocked_array),
@@ -785,11 +785,11 @@ class TestExecuteActor(testing.AsyncTestCase):
         mock_array = mock.MagicMock(name='array')
         mock_array.soul = {'name': 'array'}
         self.actor._find_server_arrays = mock_tornado(mock_array)
-        self.actor._act_on_arrays = mock.MagicMock()
-        self.actor._act_on_arrays.side_effect = mock_tornado()
+        self.actor._apply = mock.MagicMock()
+        self.actor._apply.side_effect = mock_tornado()
 
         yield self.actor._execute()
-        self.actor._act_on_arrays.assert_has_calls([
+        self.actor._apply.assert_has_calls([
             mock.call(self.actor._execute_array,
                       mock_array,
                       {u'inputs[foo]': u'text:bar'})])
@@ -801,10 +801,10 @@ class TestExecuteActor(testing.AsyncTestCase):
         mock_array.soul = {'name': 'array'}
         self.actor._find_server_arrays = mock_tornado(mock_array)
         self.actor._check_script = mock_tornado(True)
-        self.actor._act_on_arrays = mock.MagicMock()
-        self.actor._act_on_arrays.side_effect = mock_tornado()
+        self.actor._apply = mock.MagicMock()
+        self.actor._apply.side_effect = mock_tornado()
         yield self.actor._execute()
-        self.actor._act_on_arrays.assert_has_calls([
+        self.actor._apply.assert_has_calls([
             mock.call(self.actor._execute_array,
                       mock_array, {u'inputs[foo]': u'text:bar'})
         ])

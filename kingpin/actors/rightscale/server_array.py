@@ -123,7 +123,7 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
         raise gen.Return(array)
 
     @gen.coroutine
-    def _act_on_arrays(self, function, arrays, *args, **kwargs):
+    def _apply(self, function, arrays, *args, **kwargs):
         """Yield a function on several arrays at once.
 
         Many of our rightscale.server_array Actors have the ability to act on
@@ -224,6 +224,14 @@ class Update(ServerArrayBaseActor):
         'inputs': (dict, {}, 'ServerArray inputs for launching.')
     }
 
+    def __init__(self, *args, **kwargs):
+        """Validate the user-supplied parameters at instantiation time."""
+        super(Update, self).__init__(*args, **kwargs)
+        self._params = self._generate_rightscale_params(
+            'server_array', self.option('params'))
+        self._inputs = self._generate_rightscale_params(
+            'inputs', self.option('inputs'))
+
     @gen.coroutine
     def _check_array_inputs(self, array, inputs):
         """Checks the inputs supplied against the ServerArray being updated.
@@ -267,12 +275,10 @@ class Update(ServerArrayBaseActor):
         if not self.option('params'):
             raise gen.Return()
 
-        params = self._generate_rightscale_params(
-            'server_array', self.option('params'))
         self.log.info('Updating array "%s" with params: %s' %
-                      (array.soul['name'], params))
+                      (array.soul['name'], self._params))
         try:
-            yield self._client.update_server_array(array, params)
+            yield self._client.update_server_array(array, self._params)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 422:
                 msg = ('Invalid parameters supplied to patch array "%s"' %
@@ -286,17 +292,15 @@ class Update(ServerArrayBaseActor):
         """Update the inputs on a RightScale ServerArray.
 
         args:
-            array: The array to operate on
+            array: rightscale.Resource ServerArray Object
         """
 
         if not self.option('inputs'):
             raise gen.Return()
 
-        inputs = self._generate_rightscale_params(
-            'inputs', self.option('inputs'))
         self.log.info('Updating array "%s" with inputs: %s' %
-                      (array.soul['name'], inputs))
-        yield self._client.update_server_array_inputs(array, inputs)
+                      (array.soul['name'], self._inputs))
+        yield self._client.update_server_array_inputs(array, self._inputs)
 
     @gen.coroutine
     def _execute(self):
@@ -317,15 +321,14 @@ class Update(ServerArrayBaseActor):
                 self.log.info('Params would be: %s' % self.option('params'))
             if self.option('inputs'):
                 self.log.info('Inputs would be: %s' % self.option('inputs'))
-                yield self._act_on_arrays(self._check_array_inputs,
-                                          arrays,
-                                          self.option('inputs'))
+                yield self._apply(self._check_array_inputs,
+                                  arrays, self.option('inputs'))
 
             raise gen.Return()
 
         # Do the real work
-        yield self._act_on_arrays(self._update_params, arrays)
-        yield self._act_on_arrays(self._update_inputs, arrays)
+        yield self._apply(self._update_params, arrays)
+        yield self._apply(self._update_inputs, arrays)
         raise gen.Return()
 
 
@@ -424,13 +427,13 @@ class Terminate(ServerArrayBaseActor):
         # Disable the array so that no new instances launch. Ignore the result
         # of this opertaion -- as long as it succeeds, we're happy. No need to
         # store the returned server array object.
-        yield self._act_on_arrays(self._disable_array, arrays)
+        yield self._apply(self._disable_array, arrays)
 
         # Optionally terminate all of the instances in the array first.
-        yield self._act_on_arrays(self._terminate_all_instances, arrays)
+        yield self._apply(self._terminate_all_instances, arrays)
 
         # Wait...
-        yield self._act_on_arrays(self._wait_until_empty, arrays)
+        yield self._apply(self._wait_until_empty, arrays)
 
         raise gen.Return()
 
@@ -466,7 +469,7 @@ class Destroy(Terminate):
                                                 raise_on='notfound',
                                                 allow_mock=False,
                                                 exact=self.option('exact'))
-        yield self._act_on_arrays(self._destroy_array, arrays)
+        yield self._apply(self._destroy_array, arrays)
         raise gen.Return()
 
 
@@ -627,13 +630,12 @@ class Launch(ServerArrayBaseActor):
             exact=self.option('exact'))
 
         # Enable the array, then launch it
-        yield self._act_on_arrays(self._enable_array, arrays)
-        yield self._act_on_arrays(
-            self._launch_instances, arrays, self.option('count'))
+        yield self._apply(self._enable_array, arrays)
+        yield self._apply(self._launch_instances, arrays, self.option('count'))
 
         # Now, wait until the number of healthy instances in the array matches
         # the min_count (or is greater than) of that array.
-        yield self._act_on_arrays(self._wait_until_healthy, arrays)
+        yield self._apply(self._wait_until_healthy, arrays)
         raise gen.Return()
 
 
@@ -763,7 +765,7 @@ class Execute(ServerArrayBaseActor):
         fails, or simply exits cleanly.
 
         Note: This is separated out from the _execute() method to facilitate
-        using the self._act_on_arrays() function with multiple arrays.
+        using the self._apply() function with multiple arrays.
 
         args:
             array: rightscale.Resource ServerArray
@@ -806,6 +808,12 @@ class Execute(ServerArrayBaseActor):
 
     @gen.coroutine
     def _execute(self):
+        """Executes the actor.
+
+        Logs into RightScale, validates (if in dry run) that the script
+        actually exists, and then executes the script on all of the matched
+        server arrays.
+        """
         # First things first, login to RightScale asynchronously to
         # pre-populate the API attributes that are dynamically generated. This
         # is a hack, and in the future should likely turn into a smart
@@ -832,4 +840,4 @@ class Execute(ServerArrayBaseActor):
         # against.
         arrays = yield self._find_server_arrays(
             self.option('array'), exact=self.option('exact'))
-        yield self._act_on_arrays(self._execute_array, arrays, inputs)
+        yield self._apply(self._execute_array, arrays, inputs)
