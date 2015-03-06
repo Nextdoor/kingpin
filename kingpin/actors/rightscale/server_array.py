@@ -164,12 +164,6 @@ class Clone(ServerArrayBaseActor):
 
     @gen.coroutine
     def _execute(self):
-        # First things first, login to RightScale asynchronously to
-        # pre-populate the API attributes that are dynamically generated. This
-        # is a hack, and in the future should likely turn into a smart
-        # decorator.
-        yield self._client.login()
-
         # Find the array we're copying from
         source_array = yield self._find_server_arrays(self.option('source'),
                                                       allow_mock=False)
@@ -304,12 +298,6 @@ class Update(ServerArrayBaseActor):
 
     @gen.coroutine
     def _execute(self):
-        # First things first, login to RightScale asynchronously to
-        # pre-populate the API attributes that are dynamically generated. This
-        # is a hack, and in the future should likely turn into a smart
-        # decorator.
-        yield self._client.login()
-
         # First, find the arrays we're going to be patching.
         arrays = yield self._find_server_arrays(
             self.option('array'), exact=self.option('exact'))
@@ -412,12 +400,6 @@ class Terminate(ServerArrayBaseActor):
 
     @gen.coroutine
     def _execute(self):
-        # First things first, login to RightScale asynchronously to
-        # pre-populate the API attributes that are dynamically generated. This
-        # is a hack, and in the future should likely turn into a smart
-        # decorator.
-        yield self._client.login()
-
         # First, find the array we're going to be terminating.
         arrays = yield self._find_server_arrays(self.option('array'),
                                                 raise_on='notfound',
@@ -618,12 +600,6 @@ class Launch(ServerArrayBaseActor):
 
     @gen.coroutine
     def _execute(self):
-        # First things first, login to RightScale asynchronously to
-        # pre-populate the API attributes that are dynamically generated. This
-        # is a hack, and in the future should likely turn into a smart
-        # decorator.
-        yield self._client.login()
-
         # First, find the array we're going to be launching...
         arrays = yield self._find_server_arrays(
             self.option('array'),
@@ -814,12 +790,6 @@ class Execute(ServerArrayBaseActor):
         actually exists, and then executes the script on all of the matched
         server arrays.
         """
-        # First things first, login to RightScale asynchronously to
-        # pre-populate the API attributes that are dynamically generated. This
-        # is a hack, and in the future should likely turn into a smart
-        # decorator.
-        yield self._client.login()
-
         # Munge our inputs into something that RightScale likes
         inputs = self._generate_rightscale_params(
             'inputs', self.option('inputs'))
