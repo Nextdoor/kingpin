@@ -10,7 +10,7 @@ executes.
 **Options**
 
   * `source` - The name of the ServerArray to clone
-  * `source_strict` - Whether or not to fail if the source ServerArray does
+  * `strict_source` - Whether or not to fail if the source ServerArray does
                       not exist. (default: True)
   * `dest`   - The new name for your cloned ServerArray
   * `strict_dest` - Whether or not to fail if the destination ServerArray
