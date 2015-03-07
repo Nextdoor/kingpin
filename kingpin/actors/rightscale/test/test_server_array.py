@@ -132,6 +132,18 @@ class TestCloneActor(testing.AsyncTestCase):
         self.client_mock = mock.MagicMock()
         self.actor._client = self.client_mock
 
+    def test_less_strict_source_and_dest(self):
+        self.actor = server_array.Clone('Copy UnitTestArray to NewUnitArray',
+                                        {'source': 'unittestarray',
+                                         'strict_source': False,
+                                         'dest': 'newunitarray',
+                                         'strict_dest': False})
+
+        self.assertEquals(self.actor._source_raise_on, None)
+        self.assertEquals(self.actor._dest_raise_on, None)
+        self.assertEquals(self.actor._source_allow_mock, True)
+        self.assertEquals(self.actor._dest_allow_mock, True)
+
     @testing.gen_test
     def test_execute(self):
 

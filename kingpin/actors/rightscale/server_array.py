@@ -159,20 +159,42 @@ class Clone(ServerArrayBaseActor):
 
     all_options = {
         'source': (str, REQUIRED, 'Name of the ServerArray to clone.'),
+        'strict_source': (bool, True, 'Strict Source ServerArray validation.'),
+        'strict_dest': (bool, True, 'Strict Dest ServerArray validation.'),
         'dest': (str, REQUIRED, 'Name to give the cloned ServerArray.')
     }
+
+    def __init__(self, *args, **kwargs):
+        """Validate the user-supplied parameters at instantiation time."""
+        super(Clone, self).__init__(*args, **kwargs)
+        # By default, we're strict on our source/dest array validation
+        self._source_raise_on = 'notfound'
+        self._source_allow_mock = False
+        self._dest_raise_on = 'found'
+        self._dest_allow_mock = False
+
+        if not self.option('strict_source'):
+            self._source_raise_on = None
+            self._source_allow_mock = True
+
+        if not self.option('strict_dest'):
+            self._dest_raise_on = None
+            self._dest_allow_mock = True
 
     @gen.coroutine
     def _execute(self):
         # Find the array we're copying from
-        source_array = yield self._find_server_arrays(self.option('source'),
-                                                      allow_mock=False)
+        source_array = yield self._find_server_arrays(
+            self.option('source'),
+            raise_on=self._source_raise_on,
+            allow_mock=self._source_allow_mock)
 
         # Sanity-check -- make sure that the destination server array doesn't
         # already exist. If it does, bail out!
-        yield self._find_server_arrays(self.option('dest'),
-                                       raise_on='found',
-                                       allow_mock=False)
+        yield self._find_server_arrays(
+            self.option('dest'),
+            raise_on=self._dest_raise_on,
+            allow_mock=self._dest_allow_mock)
 
         # Now, clone the array!
         self.log.info('Cloning array "%s"' % source_array.soul['name'])
