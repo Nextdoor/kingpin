@@ -12,19 +12,40 @@ defined by the array definition in RightScale.
     of the array.
   * `enable` - should the autoscaling of the array be enabled? Settings this
     to False, or omitting the parameter will not disable an enabled array.
+  * `exact` - Boolean whether or not to search for the exact array name.
+              (default: `true`)
 
 Examples
 
     # Enable the newly created array and wait until all instances
     # have booted and are marked Operational
-    { 'array': 'my-array',
-      'enable': True}
+    { "desc": "Enable array and launch it",
+      "actor": "rightscale.server_array.Launch",
+      "options": {
+        "array": "my-array",
+        "enable": True
+      }
+    }
     
+    # Enable several arrays that start with a prefix
+    { "desc": "Enable arrays starting with my-array and launch them",
+      "actor": "rightscale.server_array.Launch",
+      "options": {
+        "array": "my-array",
+        "enable": True,
+        "exact": False
+      }
+    }
     # Do not enable the newly created array, Launch 1 instance, and wait until
     # 1 instance has booted and is marked Operational
-    { 'array': 'my-array',
-      'count': 1 }
-    
+    { "desc": "Enable array and launch 1 instance",
+      "actor": "rightscale.server_array.Launch",
+      "options": {
+        "array": "my-array",
+        "count": 1
+      }
+    }
+
 **Dry Mode**
 
 In Dry mode this actor _does_ search for the `array`, but allows it to be

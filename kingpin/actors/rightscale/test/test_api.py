@@ -30,41 +30,31 @@ class TestRightScale(testing.AsyncTestCase):
         self.assertEquals(ret, 12345)
 
     @testing.gen_test
-    def test_login(self):
-        # Regular successfull call
-        self.mock_client.login.return_value = True
-        ret = yield self.client.login()
-        self.mock_client.login.assert_called_once_with()
-        self.assertEquals(None, ret)
-
-    @testing.gen_test
-    def test_login_400_error(self):
-        # Ensure that if we raise an exception in the call to RS,
-        # that the Exception is re-raised through the thread to
-        # the caller.
-        msg = '400 Client Error: Bad Request'
-        error = requests.exceptions.HTTPError(msg)
-        self.mock_client.login.side_effect = error
-        with self.assertRaises(requests.exceptions.HTTPError):
-            yield self.client.login()
-
-        self.mock_client.login.assert_called_once_with()
-
-    @testing.gen_test
     def test_find_server_arrays(self):
         with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
-            u_mock.return_value = [1, 2, 3]
+            array = mock.MagicMock(name='array')
+            array.soul = {'name': 'Mocked ServerArray'}
+            array.self.path = '/a/b/1234'
+            u_mock.return_value = array
+
             ret = yield self.client.find_server_arrays('test', exact=True)
             u_mock.assert_called_once_with(
                 self.mock_client.server_arrays, 'test', exact=True)
-            self.assertEquals([1, 2, 3], ret)
+            self.assertEquals(array, ret)
 
         with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
-            u_mock.return_value = [1, 2, 3]
+            array1 = mock.MagicMock(name='array1')
+            array1.soul = {'name': 'Mocked ServerArray'}
+            array1.self.path = '/a/b/1234'
+            array2 = mock.MagicMock(name='array2')
+            array2.soul = {'name': 'Mocked ServerArray'}
+            array2.self.path = '/a/b/1234'
+            u_mock.return_value = [array1, array2]
+
             ret = yield self.client.find_server_arrays('test2', exact=False)
             u_mock.assert_called_once_with(
                 self.mock_client.server_arrays, 'test2', exact=False)
-            self.assertEquals([1, 2, 3], ret)
+            self.assertEquals([array1, array2], ret)
 
     @testing.gen_test
     def test_find_server_arrays_empty_result(self):
@@ -206,8 +196,49 @@ class TestRightScale(testing.AsyncTestCase):
 
         ret = yield self.client.launch_server_array(array_mock)
         self.mock_client.server_arrays.launch.assert_called_once_with(
-            res_id=1234)
+            res_id=1234, params=None)
         self.assertEquals(ret, instance_mock)
+
+    @testing.gen_test
+    def test_launch_server_array_launch_0_instance(self):
+        array_mock = mock.MagicMock(name='fake_array')
+        array_mock.soul = {'name': 'fake array to launch'}
+        array_mock.self.path = '/a/b/1234'
+
+        # A count of 0 should pass params=None to the launch call
+        ret = yield self.client.launch_server_array(array_mock, count=0)
+        self.assertEquals(ret, None)
+        self.assertEquals(0, self.mock_client.server_arrays.launch.call_count)
+
+        # A count of None should pass params=None to the launch call
+        ret = yield self.client.launch_server_array(array_mock, count=None)
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_launch_server_array_launch_1_instance(self):
+        array_mock = mock.MagicMock(name='fake_array')
+        array_mock.soul = {'name': 'fake array to launch'}
+        array_mock.self.path = '/a/b/1234'
+        instance_mock = mock.MagicMock(name='fake_launch_queue')
+        self.mock_client.server_arrays.launch.return_value = instance_mock
+
+        # A count of 1 should pass params=None to the launch call
+        yield self.client.launch_server_array(array_mock, count=1)
+        self.mock_client.server_arrays.launch.assert_called_once_with(
+            res_id=1234, params=None)
+
+    @testing.gen_test
+    def test_launch_server_array_launch_2_instances(self):
+        array_mock = mock.MagicMock(name='fake_array')
+        array_mock.soul = {'name': 'fake array to launch'}
+        array_mock.self.path = '/a/b/1234'
+        instance_mock = mock.MagicMock(name='fake_launch_queue')
+        self.mock_client.server_arrays.launch.return_value = instance_mock
+
+        # A count of >1 should pass params={count: 2} to the launch call
+        yield self.client.launch_server_array(array_mock, count=2)
+        self.mock_client.server_arrays.launch.assert_called_once_with(
+            res_id=1234, params={'count': 2})
 
     @testing.gen_test
     def test_terminate_server_array_instances(self):

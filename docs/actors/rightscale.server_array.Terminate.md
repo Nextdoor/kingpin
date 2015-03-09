@@ -1,4 +1,4 @@
-##### rightscale.server_array.Destroy
+##### rightscale.server_array.Terminate
 
 Terminates all instances for a ServerArray in RightScale marking the array
 disabled.
@@ -6,11 +6,27 @@ disabled.
 **Options**
 
   * `array` - The name of the ServerArray to destroy
+  * `exact` - Boolean whether or not to search for the exact array name.
+              (default: `true`)
 
 Examples
 
-    # Terminate all running instances array
-    { 'array': 'my-array' }
+    # Terminate a single array
+    { "desc": "Terminate my array",
+      "actor": "rightscale.server_array.Terminate",
+      "options": {
+        "array": "my-array"
+      }
+    }
+
+    # Terminate many arrays
+    { "desc": "Terminate many arrays",
+      "actor": "rightscale.server_array.Terminate",
+      "options": {
+        "array": "array-prefix",
+        "exact": false,
+      }
+    }
 
 **Dry Mode**
 
