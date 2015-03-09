@@ -59,6 +59,10 @@ class PingdomBase(base.BaseActor):
 
     """Simple Pingdom Abstract Base Object"""
 
+    all_options = {
+        'name': (str, REQUIRED, 'Name of the check'),
+    }
+
     def __init__(self, *args, **kwargs):
         """Check required environment variables."""
         super(PingdomBase, self).__init__(*args, **kwargs)
@@ -87,12 +91,9 @@ class PingdomBase(base.BaseActor):
 
 
 class Pause(PingdomBase):
-
-    """Start Pingdom Maintenance."""
-
-    all_options = {
-        'name': (str, REQUIRED, 'Name of the check'),
-    }
+    """Start Pingdom Maintenance.
+    
+    Pause a particular "check" on Pingdom."""
 
     @gen.coroutine
     def _execute(self):
@@ -109,12 +110,9 @@ class Pause(PingdomBase):
 
 
 class Unause(PingdomBase):
-
-    """Start Pingdom Maintenance."""
-
-    all_options = {
-        'name': (str, REQUIRED, 'Name of the check'),
-    }
+    """Stop Pingdom Maintenance.
+    
+    Unpause a particular "check" on Pingdom."""
 
     @gen.coroutine
     def _execute(self):
