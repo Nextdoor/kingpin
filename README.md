@@ -158,6 +158,8 @@ The JSON schema is simple. We take a single JSON object that has a few fields:
   * `warn_on_failure` - True/False whether or not to ignore an Actors failure and
     return True anyways. Defaults to `False`, but if `True` a `warning` message
     is logged.
+  * `timeout` - Maximum time (in _seconds_) for the actor to execute before
+                raising an `ActorTimedOut` exception is raised.
   * `options` - A dictionary of key/value pairs that are required for the
     specific `actor` that you're instantiating. See individual Actor
     documentation below for these options.
@@ -168,6 +170,7 @@ The simples JSON file could look like this:
       "actor": "hipchat.Message",
       "condition": "true",
       "warn_on_failure": true,
+      "timeout": 30,
       "options": {
         "message": "Beginning release %RELEASE%", "room": "Oncall"
       }

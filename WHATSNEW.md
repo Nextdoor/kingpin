@@ -1,8 +1,56 @@
+## Version 0.2.5 _pre_release_
+
+Skipped a version because there were numerous new actors in this release.
+
+### New Actors
+
+  * ...
+
+### Big new feature: `timeout: X`
+
+A new schema-wide option has been added (`timeout: X`). All actors default to a
+1 hour timeout. After 1 hour of execution time, an `ActorTimedOut` exception is
+raised. This exception honors the `Recoverable` vs `Unrecoverable` actor
+failures, which means that you can set `warn_on_failure` as well as a `timeout`
+setting on your actor.
+
+This new option allows a long-running task to raise an exception, and then for
+the Kingpin execution to either fail immediately or continue on to other tasks
+(based on the `warn_on_failure` setting).
+
+### Bug-fixes/Improvements
+
+  * [rightscale.server_array.Clone](docs/actors/rightscale.server_array.Clone.md) added options: `strict_source`, `strict_dest`:
+
+  These options allow the `rightscale.server_array.Clone` actor to operate on
+  not-yet-created, or not-yet-deleted arrays without throwing errors during the
+  Dry run. This is especially useful for doing things like a *Relaunch* of a
+  ServerArray. See issue #222.
+
+  * Use a single api.RightScale object on all RightScale actors:
+
+  This reduces the number of API calls we make to the RightScale API for OAuth
+  tokens, ensures that we are using the same token for all calls, and generally
+  just reduces memory usage and time of execution.
+
+  * Allow wild-card matches of ServerArray names in the Rightscale actors:
+
+  Now `exact=False` can be set on the majority of the RightScale actors which
+  allows you to act on many arrays at once with simple name matching.
+
+  * Use `count=X` in RightScale ServerArray `Launch()` calls.
+
+  This dramatically reduces the time it takes to launch many instances at once,
+  putting the burdon on RightScale instead. This is a new feature in the
+  RightScale 1.5 API.
+
+  * Fix Pip install by removing `setup_requires()` sections from `setup.py`.
+
 ## Version 0.2.3
 
 ### Improvements
 
- * [aws.elb.RegisterInstance](docs/actors/aws.elb.RegisterInstance) will not only register the instance but also
+ * [aws.elb.RegisterInstance](docs/actors/aws.elb.RegisterInstance.md) will not only register the instance but also
    check that the ELB is set up for all zones that it can handle.
  * For any `aws` actor that receives a region you can now pass a particular
    zone if that happens to be more convenient for you. The aws base class will

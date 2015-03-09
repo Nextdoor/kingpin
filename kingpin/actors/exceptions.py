@@ -45,6 +45,11 @@ class UnrecoverableActorFailure(ActorException):
     """
 
 
+class ActorTimedOut(RecoverableActorFailure):
+
+    """Raised when an Actor takes too long to execute"""
+
+
 class InvalidActor(UnrecoverableActorFailure):
 
     """Raised when an invalid Actor name was supplied"""

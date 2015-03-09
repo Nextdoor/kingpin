@@ -53,6 +53,9 @@ SCHEMA_1_0 = {
         # Not required. In code, will default to False.
         'warn_on_failure': {'type': 'boolean'},
 
+        # Not required. In code, will default to <actor>.default_timeout
+        'timeout': {'type': ['string', 'integer', 'number']},
+
         # Optional conditional to indicate to skip this actor.
         'condition': {'type': ['boolean', 'string'], 'default': True},
     }

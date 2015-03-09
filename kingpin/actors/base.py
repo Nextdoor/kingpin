@@ -78,6 +78,10 @@ class BaseActor(object):
     # }
     all_options = {}
 
+    # Set the default timeout for the gen.with_timeout() wrapper that we use to
+    # monitor and control the length of execution of a single Actor.
+    default_timeout = 3600
+
     # Context separators. These define the left-and-right identifiers of a
     # 'contextual token' in the actor. By default this is { and }, so a
     # contextual token looks like '{KEY}'.
@@ -91,7 +95,7 @@ class BaseActor(object):
     strict_init_context = True
 
     def __init__(self, desc, options, dry=False, warn_on_failure=False,
-                 condition=True, init_context={}):
+                 condition=True, init_context={}, timeout=default_timeout):
         """Initializes the Actor.
 
         Args:
@@ -105,6 +109,7 @@ class BaseActor(object):
             init_context: (Dict) Key/Value pairs used at instantiation
                 time to replace {KEY} strings in the actor definition.
                 This is usually driven by the group.Sync/Async actors.
+            timeout: (Str/Int/Float) Timeout in seconds for the actor.
         """
         self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
         self._desc = desc
@@ -113,6 +118,7 @@ class BaseActor(object):
         self._warn_on_failure = warn_on_failure
         self._condition = condition
         self._init_context = init_context
+        self._timeout = timeout
 
         # strict about this -- but in the future, when we have a
         # runtime_context object, we may loosen this restriction).
@@ -244,6 +250,48 @@ class BaseActor(object):
             raise gen.Return(ret)
         return _wrap_in_timer
 
+    @gen.coroutine
+    def timeout(self, f, *args, **kwargs):
+        """Wraps a Coroutine method in a timeout.
+
+        Used to wrap the self.execute() method in a timeout that will raise an
+        ActorTimedOut exception if an actor takes too long to execute. *Note,
+        Tornado 4+ does not allow you to actually kill a task on the IOLoop.
+        This means that all we are doing here is notifying the caller (through
+        the raised exception) that a problem has happened.
+
+        Fairly simple Actors should actually 'stop executing' when this
+        exception is raised. Complex actors with very unique behaviors though
+        (like the rightsacle.server_array.Execute actor) have the ability to
+        continue to execute in the background until the Kingpin application
+        quits. It is not the job of this method to try to kill these actors,
+        but just to let the user know that a failure has happened.
+        """
+
+        # Get our timeout setting, or fallback to the default
+        self.log.debug('%s.%s() deadline: %ss' %
+                       (self._type, f.__name__, self._timeout))
+
+        # Generate a timestamp in the future at which point we will raise
+        # an alarm if the actor is still executing
+        deadline = time.time() + float(self._timeout)
+
+        # Get our Future object but don't yield on it yet, This starts the
+        # execution, but allows us to wrap it below with the
+        # 'gen.with_timeout' function.
+        fut = f(*args, **kwargs)
+
+        # Now we yield on the gen_with_timeout function
+        try:
+            ret = yield gen.with_timeout(deadline, fut)
+        except gen.TimeoutError:
+            msg = ('%s.%s() execution exceeded deadline: %ss' %
+                   (self._type, f.__name__, self._timeout))
+            self.log.error(msg)
+            raise exceptions.ActorTimedOut(msg)
+
+        raise gen.Return(ret)
+
     def _check_condition(self):
         """Check if specified condition allows this actor to run.
 
@@ -341,7 +389,7 @@ class BaseActor(object):
             raise gen.Return()
 
         try:
-            result = yield self._execute()
+            result = yield self.timeout(self._execute)
         except exceptions.ActorException as e:
             # If exception is not RecoverableActorFailure
             # or if warn_on_failure is not set, then escalate.
