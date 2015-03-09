@@ -26,7 +26,7 @@ from kingpin.actors.support import api
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Matt Wise <matt@nextdoor.com>'
+__author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
 
 USER = os.getenv('PINGDOM_USER', None)
