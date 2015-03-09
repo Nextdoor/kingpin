@@ -4,9 +4,11 @@ import StringIO
 import json
 import os
 import logging
+import time
 
 from tornado import gen
 from tornado import httpclient
+from tornado import ioloop
 from tornado import simple_httpclient
 from tornado import testing
 import mock
@@ -74,6 +76,33 @@ class TestBaseActor(testing.AsyncTestCase):
             if msg in str(call):
                 msg_is_in_calls = True
         self.assertEquals(msg_is_in_calls, True)
+
+    @testing.gen_test
+    def test_timeout(self):
+        # Create a quick mock.. so we can track whether or not API calls were
+        # actually made.
+        tracker = mock.MagicMock(name='tracker')
+
+        # Create a function and wrap it in our timeout
+        @gen.coroutine
+        def _execute():
+            tracker.reset_mock()
+            yield gen.Task(ioloop.IOLoop.current().add_timeout,
+                           time.time() + 1)
+            tracker.call_me()
+
+        self.actor._execute = _execute
+
+        # Set our timeout to 5s, test should work
+        self.actor._timeout = 2
+        yield self.actor.timeout(_execute)
+        tracker.assert_has_calls(mock.call.call_me())
+
+        # Now set our timeout to 1s. Exception should be raised, and the
+        # tracker should NOT be called.
+        self.actor._timeout = 0
+        with self.assertRaises(exceptions.ActorTimedOut):
+            yield self.actor.timeout(_execute)
 
     @testing.gen_test
     def test_httplib_debugging(self):

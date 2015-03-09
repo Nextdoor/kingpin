@@ -1,3 +1,11 @@
+## Version 0.2.5
+ * #228: Allow setting of the 'strictness' of the rightscale.server_array.Clone actor ([@diranged])
+ * #227: Use a single api.RightScale object on all RightScale actors. ([@diranged])
+ * #218: Allow wildcard/non-exact ServerArray matches in ServerArrayBaseActor._find_server_arrays() ([@diranged])
+ * #213: Setup broken on clean install ([@diranged])
+ * #203: Add support for single API call to launch many RightScale instances ([@diranged])
+ * #116: Add a 'timeout' to kingpin.actors.base.BaseActor ([@diranged])
+
 ## Version 0.2.3
  * #205: aws.elb.RegisterInstance should add ELB to zone if its not already there ([@siminm])
  * #204: Add aws.elb.RegisterInstance/aws.elb.DeregisterInstance to main README.md ([@siminm])

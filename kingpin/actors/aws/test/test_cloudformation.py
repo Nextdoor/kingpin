@@ -345,7 +345,6 @@ class TestDelete(testing.AsyncTestCase):
         yield actor._execute()
 
     @testing.gen_test
-    @testing.gen_test
     def test_execute_dry(self):
         actor = cloudformation.Delete(
             'Unit Test Action',
