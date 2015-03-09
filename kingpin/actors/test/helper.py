@@ -18,6 +18,6 @@ def mock_tornado(value=None, exc=None):
 
 
 @gen.coroutine
-def tornado_value(value):
+def tornado_value(value=None):
     """Convers whatever is passed in to a tornado value."""
     raise gen.Return(value)

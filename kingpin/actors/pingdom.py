@@ -67,10 +67,6 @@ class PingdomBase(base.BaseActor):
         """Check required environment variables."""
         super(PingdomBase, self).__init__(*args, **kwargs)
 
-        if not TOKEN:
-            raise exceptions.InvalidCredentials(
-                'Missing the "PINGDOM_TOKEN" environment variable.')
-
         rest_client = api.RestClient(
             headers={'App-Key': TOKEN}
         )
@@ -92,7 +88,7 @@ class PingdomBase(base.BaseActor):
 
 class Pause(PingdomBase):
     """Start Pingdom Maintenance.
-    
+
     Pause a particular "check" on Pingdom."""
 
     @gen.coroutine
@@ -109,9 +105,9 @@ class Pause(PingdomBase):
             check_id=check['id']).http_put(paused='true')
 
 
-class Unause(PingdomBase):
+class Unpause(PingdomBase):
     """Stop Pingdom Maintenance.
-    
+
     Unpause a particular "check" on Pingdom."""
 
     @gen.coroutine
