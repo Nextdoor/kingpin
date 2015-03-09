@@ -720,12 +720,10 @@ class TestExecuteActor(testing.AsyncTestCase):
                                  'name': 'unit-test-instance'}
         mock_task = mock.MagicMock(name='mock_task')
 
-        yi = tornado_value([mock_op_instance, mock_op_instance])
+        yi = tornado_value([mock_op_instance])
         self.client_mock.get_server_array_current_instances.return_value = yi
 
-        run_e = tornado_value([
-            (mock_op_instance, mock_task),
-            (mock_op_instance, mock_task)])
+        run_e = tornado_value([(mock_op_instance, mock_task)])
         self.client_mock.run_executable_on_instances.return_value = run_e
 
         wait = tornado_value(True)
@@ -734,12 +732,13 @@ class TestExecuteActor(testing.AsyncTestCase):
         # Now verify that each of the expected steps were called in a
         # successful execution.
         ret = yield self.actor._execute_array(mock_array, 1)
+
         (self.client_mock.get_server_array_current_instances
             .assert_called_twice_with(mock_array))
         (self.client_mock.run_executable_on_instances
             .assert_called_once_with(
-                'test_script', 1,
-                [mock_op_instance, mock_op_instance]))
+                'test_script', 1, [mock_op_instance]))
+
         self.client_mock.wait_for_task.assert_called_with(
             task=mock_task,
             task_name=('Executing "test_script" '
