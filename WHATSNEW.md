@@ -27,6 +27,14 @@ the Kingpin execution to either fail immediately or continue on to other tasks
   Dry run. This is especially useful for doing things like a *Relaunch* of a
   ServerArray. See issue #222.
 
+  * [rightscale.server_array.Terminate](docs/actors/rightscale.server_array.Terminate.md) added options: `strict`:
+
+  Same as above
+
+  * [rightscale.server_array.Destroy](docs/actors/rightscale.server_array.Destroy.md) added options: `strict`:
+
+  Same as above
+
   * Use a single api.RightScale object on all RightScale actors:
 
   This reduces the number of API calls we make to the RightScale API for OAuth

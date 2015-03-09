@@ -316,6 +316,13 @@ class TestTerminateActor(testing.AsyncTestCase):
         self.client_mock = mock.MagicMock()
         self.actor._client = self.client_mock
 
+    def test_less_strict(self):
+        self.actor = server_array.Terminate('Terminate',
+                                            {'array': 'unittestarray',
+                                             'strict': False})
+        self.assertEquals(self.actor._raise_on, None)
+        self.assertEquals(self.actor._allow_mock, True)
+
     @testing.gen_test
     def test_terminate_all_instances(self):
         array_mock = mock.MagicMock(name='unittest')

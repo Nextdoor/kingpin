@@ -8,6 +8,8 @@ disabled.
   * `array` - The name of the ServerArray to destroy
   * `exact` - Boolean whether or not to search for the exact array name.
               (default: `true`)
+  * `strict` - Whether or not to fail if the ServerArray does not exist.
+               (default: True)
 
 Examples
 
