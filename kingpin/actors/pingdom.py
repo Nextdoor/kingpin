@@ -74,6 +74,13 @@ class PingdomBase(base.BaseActor):
 
     @gen.coroutine
     def _get_check(self):
+        """Get check data for actor's option "name".
+
+        Pingdom returns an array of all checks. This method finds the check
+        with the exact name and returns its contents.
+
+        Raises InvalidOptions if the check does not exist.
+        """
         resp = yield self._pingdom_client.checks().http_get()
         all_checks = resp['checks']
         check = [c for c in all_checks
