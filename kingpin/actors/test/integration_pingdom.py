@@ -2,6 +2,7 @@
 
 from tornado import testing
 
+from kingpin import utils
 from kingpin.actors import pingdom
 
 
@@ -21,6 +22,8 @@ class IntegrationPingdom(testing.AsyncTestCase):
 
         yield actor.execute()
 
+        yield utils.tornado_sleep(1)  # Let Pingdom cache settle
+
         check = yield actor._get_check()
 
         self.assertEquals(check['status'], 'paused')
@@ -31,6 +34,8 @@ class IntegrationPingdom(testing.AsyncTestCase):
         actor = pingdom.Unpause('Unpause check', {'name': self.check_name})
 
         yield actor.execute()
+
+        yield utils.tornado_sleep(1)  # Let Pingdom cache settle
 
         check = yield actor._get_check()
 
