@@ -33,8 +33,9 @@ Kingpin provides 3 main functions:
     * [GenericHTTP](#generichttp)
     * [HipChat](#hipchat)
     * [Librato](#librato)
-    * [Rollbar](#rollbar)
+    * [Pingdom](#pingdom)
     * [RightScale](#rightscale)
+    * [Rollbar](#rollbar)
     * [Slack](#slack)
 3. [Development](#development) 
 
@@ -441,6 +442,23 @@ below for using each actor.
   * [rightscale.server_array.Launch](docs/actors/rightscale.server_array.Launch.md)
   * [rightscale.server_array.Update](docs/actors/rightscale.server_array.Update.md)
   * [rightscale.server_array.Terminate](docs/actors/rightscale.server_array.Terminate.md)
+
+### Pingdom
+
+Pingdom actors to pause and unpause checks. These are useful when you are aware
+of an expected downtime and don't want to be alerted about it. Also known as
+Maintenance mode.
+
+**Required Environment Variables**
+
+  * `PINGDOM_TOKEN` - Pingdom API Token
+  * `PINGDOM_USER` - Pingdom Username (email)
+  * `PINGDOM_PASS` - Pingdom Password
+
+**Actor-specific Documentation**
+
+  * [pingdom.Pause](docs/actors/pingdom.Pause.md)
+  * [pingdom.Unpause](docs/actors/pingdom.Unpause.md)
 
 ### Slack
 
