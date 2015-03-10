@@ -350,7 +350,19 @@ class Terminate(ServerArrayBaseActor):
         'array': (str, REQUIRED, 'ServerArray name to Terminate'),
         'exact': (bool, True, (
             'Whether to search for multiple ServerArrays and act on them.')),
+        'strict': (bool, True, 'Strict ServerArray validation.'),
     }
+
+    def __init__(self, *args, **kwargs):
+        """Validate the user-supplied parameters at instantiation time."""
+        super(Terminate, self).__init__(*args, **kwargs)
+        # By default, we're strict on our source/dest array validation
+        self._raise_on = 'notfound'
+        self._allow_mock = False
+
+        if not self.option('strict'):
+            self._raise_on = None
+            self._allow_mock = True
 
     @gen.coroutine
     def _terminate_all_instances(self, array):
@@ -424,8 +436,8 @@ class Terminate(ServerArrayBaseActor):
     def _execute(self):
         # First, find the array we're going to be terminating.
         arrays = yield self._find_server_arrays(self.option('array'),
-                                                raise_on='notfound',
-                                                allow_mock=False,
+                                                raise_on=self._raise_on,
+                                                allow_mock=self._allow_mock,
                                                 exact=self.option('exact'))
 
         # Disable the array so that no new instances launch. Ignore the result
@@ -470,8 +482,8 @@ class Destroy(Terminate):
 
         # Find the array we're going to be destroying.
         arrays = yield self._find_server_arrays(self.option('array'),
-                                                raise_on='notfound',
-                                                allow_mock=False,
+                                                raise_on=self._raise_on,
+                                                allow_mock=self._allow_mock,
                                                 exact=self.option('exact'))
         yield self._apply(self._destroy_array, arrays)
         raise gen.Return()
