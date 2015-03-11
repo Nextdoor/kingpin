@@ -523,6 +523,14 @@ class TestLaunchActor(testing.AsyncTestCase):
                     'enable': False
                 })
 
+        with self.assertRaises(exceptions.InvalidOptions):
+            # Bad string passed in as count
+            server_array.Launch(
+                'Unit test', {
+                    'array': 'unit test array',
+                    'count': 'foo'
+                })
+
     @testing.gen_test
     def test_wait_until_healthy(self):
         array_mock = mock.MagicMock(name='unittest')
