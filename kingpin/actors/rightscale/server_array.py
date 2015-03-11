@@ -496,7 +496,7 @@ class Launch(ServerArrayBaseActor):
     all_options = {
         'array': (str, REQUIRED, 'ServerArray name to launch'),
         'count': (
-            int, False,
+            (int, str), False,
             "Number of server to launch. Default: up to array's min count"),
         'enable': (bool, False, 'Enable autoscaling?'),
         'exact': (bool, True, (
@@ -512,7 +512,12 @@ class Launch(ServerArrayBaseActor):
         # Either enable the array (and launch min_count) or
         # specify the exact count of instances to launch.
         enabled = self._options.get('enable', False)
-        count_specified = self._options.get('count', False)
+
+        try:
+            count_specified = int(self._options.get('count', False))
+        except ValueError:
+            raise exceptions.InvalidOptions('`count` must be an integer.')
+
         if not (enabled or count_specified):
             raise exceptions.InvalidOptions(
                 'Either set the `enable` flag to true, or '
@@ -539,7 +544,7 @@ class Launch(ServerArrayBaseActor):
         # Get the current min_count setting from the ServerArray object, or get
         # the min_count from the count number supplied to the actor (if it
         # was).
-        min_count = self._options.get('count', False)
+        min_count = int(self._options.get('count', False))
         if not min_count:
             min_count = int(array.soul['elasticity_params']
                             ['bounds']['min_count'])
@@ -641,7 +646,8 @@ class Launch(ServerArrayBaseActor):
 
         # Enable the array, then launch it
         yield self._apply(self._enable_array, arrays)
-        yield self._apply(self._launch_instances, arrays, self.option('count'))
+        yield self._apply(self._launch_instances, arrays,
+                          int(self.option('count')))
 
         # Now, wait until the number of healthy instances in the array matches
         # the min_count (or is greater than) of that array.
