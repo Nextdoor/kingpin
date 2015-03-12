@@ -55,10 +55,8 @@ def _retry(f):
     def wrapper(self, *args, **kwargs):
         i = 1
 
-        # Check if the calling object has a _private_kwargs attribute.
-        private_kwargs = []
-        if hasattr(self, '_private_kwargs'):
-            private_kwargs = self._private_kwargs
+        # Get a list of private kwargs to mask
+        private_kwargs = getattr(self, '_private_kwargs', [])
 
         # For security purposes, create a patched kwargs string that
         # removes passwords from the arguments. This is never guaranteed to
