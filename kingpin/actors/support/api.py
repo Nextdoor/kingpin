@@ -56,7 +56,7 @@ def _retry(f):
         i = 1
         while True:
             # Don't log out the first try as a 'Try' ... just do it
-            if i > 0:
+            if i > 1:
                 log.debug('Try (%s/%s) of %s(%s, %s)' %
                           (i, retries, f, args, kwargs))
 

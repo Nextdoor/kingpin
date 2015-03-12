@@ -208,8 +208,10 @@ def retry(excs, retries=3, delay=0.25):
             i = 1
             while True:
                 try:
-                    log.debug('Try (%s/%s) of %s(%s, %s)' %
-                              (i, retries, f, args, kwargs))
+                    # Don't log the first time..
+                    if i > 1:
+                        log.debug('Try (%s/%s) of %s(%s, %s)' %
+                                  (i, retries, f, args, kwargs))
                     ret = yield gen.coroutine(f)(*args, **kwargs)
                     log.debug('Result: %s' % ret)
                     raise gen.Return(ret)

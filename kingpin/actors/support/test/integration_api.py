@@ -83,6 +83,7 @@ class IntegrationRestConsumer(testing.AsyncTestCase):
     @testing.gen_test(timeout=60)
     def integration_get_basic_auth_401(self):
         httpbin = HTTPBinRestClient()
+        yield httpbin.basic_auth().http_get()
         with self.assertRaises(exceptions.InvalidCredentials):
             yield httpbin.basic_auth().http_get()
 
