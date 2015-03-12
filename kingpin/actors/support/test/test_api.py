@@ -18,6 +18,7 @@ class RestClientTest(api.RestClient):
     """Fake web client object for unit tests."""
 
     @gen.coroutine
+    @api._retry
     def fetch(self, url, method, params={},
               auth_username=None, auth_password=None):
         # Turn all the iputs into a JSON dict and return them
@@ -46,6 +47,14 @@ class RestConsumerTest(api.RestConsumer):
         }
     }
     _ENDPOINT = 'http://unittest.com'
+
+
+class RestConsumerTestBasicAuthed(RestConsumerTest):
+    _CONFIG = dict(RestConsumerTest._CONFIG)
+    _CONFIG['auth'] = {
+        'user': 'username',
+        'pass': 'password'
+    }
 
 
 class TestRestConsumer(testing.AsyncTestCase):
@@ -79,6 +88,19 @@ class TestRestConsumer(testing.AsyncTestCase):
             'params': {},
             'auth_password': None,
             'auth_username': None,
+            'method': 'GET'}
+        self.assertEquals(ret, expected_ret)
+
+    @testing.gen_test
+    def test_http_method_get_with_basic_auth(self):
+        test_consumer = RestConsumerTestBasicAuthed(
+            client=RestClientTest())
+        ret = yield test_consumer.testA().http_get()
+        expected_ret = {
+            'url': 'http://unittest.com/testA',
+            'params': {},
+            'auth_password': 'password',
+            'auth_username': 'username',
             'method': 'GET'}
         self.assertEquals(ret, expected_ret)
 
@@ -212,6 +234,17 @@ class TestRestClient(testing.AsyncTestCase):
         with self.assertRaises(httpclient.HTTPError):
             yield self.client.fetch(url='http://foo.com', method='GET')
         self.assertEquals(3, len(self.http_client_mock.method_calls))
+
+    @testing.gen_test
+    def test_fetch_500_raises_exc_and_logs_no_password(self):
+        # Note: thjis test does not actually validate the logging output. It
+        # should, but I don't know how to do that. :)
+        e = httpclient.HTTPError(500, 'Failure')
+        self.http_client_mock.fetch.side_effect = e
+        with self.assertRaises(httpclient.HTTPError):
+            yield self.client.fetch(
+                url='http://foo.com', method='GET',
+                auth_username='user', auth_password='pass')
 
     @testing.gen_test
     def test_fetch_501_raises_recoverable(self):

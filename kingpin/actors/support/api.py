@@ -54,11 +54,26 @@ def _retry(f):
 
     def wrapper(self, *args, **kwargs):
         i = 1
+
+        # Check if the calling object has a _private_kwargs attribute.
+        private_kwargs = []
+        if hasattr(self, '_private_kwargs'):
+            private_kwargs = self._private_kwargs
+
+        # For security purposes, create a patched kwargs string that
+        # removes passwords from the arguments. This is never guaranteed to
+        # work (an API could have 'foo' as their password field, and we just
+        # won't know ...), but we make a best effort here.
+        safe_kwargs = dict(kwargs)
+        remove = [k for k in safe_kwargs if k in private_kwargs]
+        for k in remove:
+            safe_kwargs[k] = '****'
+
         while True:
             # Don't log out the first try as a 'Try' ... just do it
             if i > 1:
                 log.debug('Try (%s/%s) of %s(%s, %s)' %
-                          (i, retries, f, args, kwargs))
+                          (i, retries, f, args, safe_kwargs))
 
             # Attempt the method. Catch any exception listed in
             # self._EXCEPTIONS.
@@ -341,6 +356,7 @@ class RestClient(object):
 
     def __init__(self, client=None, headers=None):
         self._client = client or httpclient.AsyncHTTPClient()
+        self._private_kwargs = ['auth_password']
         self.headers = headers
 
     def _generate_escaped_url(self, url, args):
@@ -418,7 +434,7 @@ class RestClient(object):
         # Execute the request and raise any exception. Exceptions are not
         # caught here because they are unique to the API endpoints, and thus
         # should be handled by the individual Actor that called this method.
-        log.debug('HTTP Request: %s' % http_request.__dict__)
+        log.debug('HTTP Request: %s' % http_request)
         try:
             http_response = yield self._client.fetch(http_request)
         except httpclient.HTTPError as e:
@@ -449,6 +465,8 @@ class SimpleTokenRestClient(RestClient):
     def __init__(self, tokens, *args, **kwargs):
         super(SimpleTokenRestClient, self).__init__(*args, **kwargs)
         self._tokens = tokens
+        for key in tokens.keys():
+            self._private_kwargs.append(key)
 
     @gen.coroutine
     def fetch(self, *args, **kwargs):
