@@ -421,8 +421,8 @@ class RestClient(object):
         log.debug('HTTP Request: %s' % http_request.__dict__)
         try:
             http_response = yield self._client.fetch(http_request)
-        except:
-            log.critical('Request for %s failed' % url)
+        except httpclient.HTTPError as e:
+            log.critical('Request for %s failed: %s' % (url, e))
             raise
         log.debug('HTTP Response: %s' % http_response.body)
 
