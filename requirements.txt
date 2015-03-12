@@ -1,9 +1,13 @@
 # General App Requirements
 
-# 4.0+ is required for the @gen.with_timeout decorator
+# 4.0+ is required for the @gen.with_timeout decorator. However, 4.1+ has a new
+# behavior that we havn't figured out how to properly handle yet.
+#
+# https://github.com/Nextdoor/kingpin/issues/232
+# https://github.com/tornadoweb/tornado/issues/1378
 #
 # http://tornado.readthedocs.org/en/latest/gen.html#tornado.gen.with_timeout
-tornado>=4.0
+tornado>=4.0,<4.1
 
 # Used to make synchronous tasks asynchronous
 futures
