@@ -33,6 +33,10 @@ HTTPBIN = {
         'status': {
             'path': '/status/%res%',
             'http_methods': {'get': {}},
+        },
+        'basic_auth': {
+            'path': '/basic-auth/username/password',
+            'http_methods': {'get': {}},
         }
     }
 }
@@ -42,6 +46,15 @@ class HTTPBinRestClient(api.RestConsumer):
 
     _CONFIG = HTTPBIN
     _ENDPOINT = 'http://httpbin.org'
+
+
+class HTTPBinRestClientHTTPAuthed(HTTPBinRestClient):
+
+    _CONFIG = dict(HTTPBinRestClient._CONFIG)
+    _CONFIG['auth'] = {
+        'user': 'username',
+        'pass': 'password',
+    }
 
 
 class IntegrationRestConsumer(testing.AsyncTestCase):
@@ -59,6 +72,19 @@ class IntegrationRestConsumer(testing.AsyncTestCase):
         httpbin = HTTPBinRestClient()
         ret = yield httpbin.get().http_get()
         self.assertEquals(ret['url'], 'http://httpbin.org/get')
+
+    @testing.gen_test(timeout=60)
+    def integration_get_basic_auth(self):
+        httpbin = HTTPBinRestClientHTTPAuthed()
+        ret = yield httpbin.basic_auth().http_get()
+        self.assertEquals(
+            ret, {'authenticated': True, 'user': 'username'})
+
+    @testing.gen_test(timeout=60)
+    def integration_get_basic_auth_401(self):
+        httpbin = HTTPBinRestClient()
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield httpbin.basic_auth().http_get()
 
     @testing.gen_test(timeout=60)
     def integration_get_with_args(self):
