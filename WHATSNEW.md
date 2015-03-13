@@ -1,10 +1,11 @@
-## Version 0.2.5 _pre_release_
+## Version 0.2.5
 
 Skipped a version because there were numerous new actors in this release.
 
 ### New Actors
 
-  * ...
+  * [pingdom.Pause](docs/actors/pingdom.Pause.md): Pauses a Pingdom Service Check
+  * [pingdom.Unpause](docs/actors/pingdom.Unpause.md): Resumes/Unpauses a Pingdom Service Check
 
 ### Big new feature: `timeout: X`
 
@@ -18,41 +19,44 @@ This new option allows a long-running task to raise an exception, and then for
 the Kingpin execution to either fail immediately or continue on to other tasks
 (based on the `warn_on_failure` setting).
 
+### Tornado Upgraded to 4.1+
+
+We have upgraded the base-version of Tornado that we use to 4.1+ in order to
+support the `timeout` argument above. This upgrade brings in a ton of
+performance improvements from the Tornado team, as well as forced us to do some
+cleanup on a few modules to ensure that we were really capturing every
+exception and logging it appropriately.
+
 ### Bug-fixes/Improvements
 
   * [rightscale.server_array.Clone](docs/actors/rightscale.server_array.Clone.md) added options: `strict_source`, `strict_dest`:
-
   These options allow the `rightscale.server_array.Clone` actor to operate on
   not-yet-created, or not-yet-deleted arrays without throwing errors during the
   Dry run. This is especially useful for doing things like a *Relaunch* of a
   ServerArray. See issue #222.
 
   * [rightscale.server_array.Terminate](docs/actors/rightscale.server_array.Terminate.md) added options: `strict`:
-
   Same as above
 
   * [rightscale.server_array.Destroy](docs/actors/rightscale.server_array.Destroy.md) added options: `strict`:
-
   Same as above
 
   * Use a single api.RightScale object on all RightScale actors:
-
   This reduces the number of API calls we make to the RightScale API for OAuth
   tokens, ensures that we are using the same token for all calls, and generally
   just reduces memory usage and time of execution.
 
   * Allow wild-card matches of ServerArray names in the Rightscale actors:
-
   Now `exact=False` can be set on the majority of the RightScale actors which
   allows you to act on many arrays at once with simple name matching.
 
   * Use `count=X` in RightScale ServerArray `Launch()` calls.
-
   This dramatically reduces the time it takes to launch many instances at once,
   putting the burdon on RightScale instead. This is a new feature in the
   RightScale 1.5 API.
 
   * Fix Pip install by removing `setup_requires()` sections from `setup.py`.
+  * Mask credentials used in the actors.support.api package when `loglevel=debug`.
 
 ## Version 0.2.3
 
