@@ -1,0 +1,22 @@
+/* This script is used to test a race condition where the outer-actor
+raises an ActorTimedOut exception moments before the inner-actor raises
+the same exception. Tornado, by default, raises an 'Exception in Future
+<...> after timeout' exception to let the user know that an exception
+was raised after the initial timeout happened. Our code works around this
+by explicitly defining ActorTimedOut as a 'quiet' exception in this case */
+{ "desc": "Outer group",
+  "actor": "group.Sync",
+  "timeout": 1,
+  "options": {
+    "acts": [
+      { "desc": "Sleep 10 seconds, but fail",
+        "actor": "misc.Sleep",
+        "timeout": 1,
+        "options": {
+          "sleep": 10
+        }
+      }
+    ]
+  }
+}
+

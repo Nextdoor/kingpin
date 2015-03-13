@@ -35,7 +35,7 @@ from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
-__author__ = ('Matt Wise <matt@nextdoor.com>',
+__author__ = ('Matt Wise <matt@nextdoor.com>, '
               'Mikhail Simin <mikhail@nextdoor.com>')
 
 
