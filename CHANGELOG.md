@@ -1,6 +1,6 @@
 ## Version 0.2.5
  * #239: Add the @sync_retry decorator to the make_generic_request() call. ([@diranged])
- * #238: Improve the timeout system... [(@diranged])
+ * #238: Improve the timeout system... ([@diranged])
  * #237: Support Tornado 4.1+ by ensuring all exceptions are caught and handled. ([@diranged])
  * #234: Authentication testing/logging improvements to actors.support.api Package ([@diranged])
  * #233: Accept 'string counts' for rightscale.server_array.Launch. ([@diranged])
