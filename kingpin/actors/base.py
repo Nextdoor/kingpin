@@ -53,6 +53,10 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 if os.getenv('URLLIB_DEBUG', None):
     utils.super_httplib_debug_logging()
 
+# Allow the user to override the default_timeout for all actors by setting an
+# environment variable
+DEFAULT_TIMEOUT = os.getenv('DEFAULT_TIMEOUT', 3600)
+
 
 class LogAdapter(logging.LoggerAdapter):
 
@@ -80,7 +84,7 @@ class BaseActor(object):
 
     # Set the default timeout for the gen.with_timeout() wrapper that we use to
     # monitor and control the length of execution of a single Actor.
-    default_timeout = 3600
+    default_timeout = DEFAULT_TIMEOUT
 
     # Context separators. These define the left-and-right identifiers of a
     # 'contextual token' in the actor. By default this is { and }, so a
