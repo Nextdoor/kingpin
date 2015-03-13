@@ -24,6 +24,7 @@ Kingpin provides 3 main functions:
         * [Schema Description](#schema-description)
         * [Conditional Execution](#conditional-execution)
         * [JSON Commenting](#json-commenting)
+        * [Timeouts](#timeouts)
         * [Token-replacement](#token-replacement)
           * [Environmental Tokens](#environmental-tokens)
           * [Contextual Tokens](#contextual-tokens)
