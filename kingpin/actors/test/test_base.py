@@ -93,16 +93,23 @@ class TestBaseActor(testing.AsyncTestCase):
 
         self.actor._execute = _execute
 
-        # Set our timeout to 5s, test should work
+        # Set our timeout to 2s, test should work
         self.actor._timeout = 2
         yield self.actor.timeout(_execute)
         tracker.assert_has_calls(mock.call.call_me())
 
-        # Now set our timeout to 1s. Exception should be raised, and the
+        # Now set our timeout to 500ms. Exception should be raised, and the
         # tracker should NOT be called.
-        self.actor._timeout = 0
+        self.actor._timeout = 0.5
         with self.assertRaises(exceptions.ActorTimedOut):
             yield self.actor.timeout(_execute)
+
+        # Set the timeout to 0, which disables it. No exception should be
+        # raised
+        self.actor._timeout = 0
+        yield self.actor.timeout(_execute)
+        self.actor_timeout = None
+        yield self.actor.timeout(_execute)
 
     @testing.gen_test
     def test_httplib_debugging(self):

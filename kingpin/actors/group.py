@@ -36,6 +36,11 @@ class BaseGroupActor(base.BaseActor):
 
     """
 
+    # By default, group actors have no timeout. We rely on the individual
+    # actors to expire on their own. This is, of course, overrideable in the
+    # JSON.
+    default_timeout = 0
+
     all_options = {
         'contexts': (list, [], "List of contextual hashes."),
         'acts': (list, REQUIRED, "Array of actor definitions.")

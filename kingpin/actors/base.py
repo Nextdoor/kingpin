@@ -276,14 +276,20 @@ class BaseActor(object):
         self.log.debug('%s.%s() deadline: %ss' %
                        (self._type, f.__name__, self._timeout))
 
-        # Generate a timestamp in the future at which point we will raise
-        # an alarm if the actor is still executing
-        deadline = time.time() + float(self._timeout)
-
         # Get our Future object but don't yield on it yet, This starts the
         # execution, but allows us to wrap it below with the
         # 'gen.with_timeout' function.
         fut = f(*args, **kwargs)
+
+        # If no timeout is set (none, or 0), then we just yield the Future and
+        # return its results.
+        if not self._timeout:
+            ret = yield fut
+            raise gen.Return(ret)
+
+        # Generate a timestamp in the future at which point we will raise
+        # an alarm if the actor is still executing
+        deadline = time.time() + float(self._timeout)
 
         # Now we yield on the gen_with_timeout function
         try:

@@ -254,6 +254,16 @@ with an environment variable:
     11:55:17   ERROR     Kingpin encountered mistakes during the play.
     11:55:17   ERROR     kingpin.actors.misc.Macro._execute() execution exceeded deadline: 1s
 
+*Disabling the Timeout*
+
+You can disable the timeout on any actor by setting `timeout: 0` in your JSON.
+
+*Group Actor Timeouts*
+
+Note, Group Actors are unique and have their `default_timeout` set to 0
+(_disabled_) by default. You can, of course, override this with your own
+`timeout: xx` setting in the JSON.
+
 ##### Token-replacement
 
 ###### Environmental Tokens

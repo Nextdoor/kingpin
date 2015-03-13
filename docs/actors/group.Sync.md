@@ -11,6 +11,14 @@ in the order that they were defined.
     then every actor defined in `acts` will be instantiated once for each item
     in the `contexts` list.
 
+**Timeouts**
+
+Timeouts are disabled specifically in this actor. The sub-actors can still
+raise their own `ActorTimedOut` exceptions, but since the group actors run an
+arbitrary number of sub actors, we have chosen to not have this actor
+specifically raise its own `ActorTimedOut` exception unless the user sets the
+`timeout` setting.
+
 Examples
 
     # Creates two arrays ... but sleeps 60 seconds between the two, then
