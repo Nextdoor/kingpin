@@ -19,7 +19,6 @@ import re
 
 from boto import utils
 from boto.exception import BotoServerError
-from concurrent import futures
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
@@ -37,14 +36,16 @@ log = logging.getLogger(__name__)
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
-EXECUTOR = futures.ThreadPoolExecutor(10)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
 class ELBNotFound(exceptions.RecoverableActorFailure):
+
     """Raised when an ELB is not found"""
 
 
 class InvalidMetaData(exceptions.UnrecoverableActorFailure):
+
     """Raised when fetching AWS metadata."""
 
 
