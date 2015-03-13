@@ -293,7 +293,8 @@ class BaseActor(object):
 
         # Now we yield on the gen_with_timeout function
         try:
-            ret = yield gen.with_timeout(deadline, fut)
+            ret = yield gen.with_timeout(
+                deadline, fut, quiet_exceptions=(exceptions.ActorTimedOut))
         except gen.TimeoutError:
             msg = ('%s.%s() execution exceeded deadline: %ss' %
                    (self._type, f.__name__, self._timeout))
