@@ -673,6 +673,9 @@ class RightScale(object):
         raise gen.Return(yielded_tasks)
 
     @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=3,
+                wait_exponential_multiplier=1000,
+                wait_exponential_max=10000)
     def make_generic_request(self, url, post=None):
         """Make a generic API call and return a Resource Object.
 
