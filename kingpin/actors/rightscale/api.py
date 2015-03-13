@@ -47,7 +47,6 @@ from datetime import datetime
 from os import path
 import logging
 
-from concurrent import futures
 from retrying import retry as sync_retry
 from rightscale import util as rightscale_util
 from tornado import concurrent
@@ -70,7 +69,7 @@ DEFAULT_ENDPOINT = 'https://my.rightscale.com'
 # decorator. We would like this to be a class variable so its shared
 # across RightScale objects, but we see testing IO errors when we
 # do this.
-EXECUTOR = futures.ThreadPoolExecutor(10)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
 class ServerArrayException(Exception):
@@ -629,33 +628,51 @@ class RightScale(object):
 
         log.debug('Executing %s with params: %s' % (script_type, params))
 
-        # Generate all the tasks and store them in a list so that we can yield
-        # them all at once (thus, making it asynchronous)
+        # Walk through the list of instances and fire off the execution on each
+        # instance. For each execution, we will store a reference to the
+        # instane itself, and the task thats executing. Note, as soon as we
+        # call the make_generic_request() method, a thread is fired off and
+        # begins acting on that request. Outside of this loop (below), we will
+        # iterate over the responses to these requests.
         task_pairs = []
-        tasks = []
         for i in instances:
             log.debug('Executing %s on %s' % (name, i.soul['name']))
             url = '%s/run_executable' % i.links['self']
             req = self.make_generic_request(url, post=params)
             task_pairs.append((i, req))
-            tasks.append(req)
 
-        try:
-            yield tasks
-        except requests.exceptions.HTTPError as e:
-            raise ServerArrayException('Script Execution Error: %s' % e)
-
-        # At this point all the tasks are executed, but the reference
-        # that we store in task_pairs are still to the Future objects.
+        # At this point, all of our tasks are executing in the background. We
+        # can now yield on each task *individually* in order to get the "result
+        # object" back. This looks synchronous, but remember that the real API
+        # calls are actually happening in the background simultaneously.
         yielded_tasks = []
+        exceptions_caught = []
         for (i, task) in task_pairs:
-            result = yield task  # Should be a no-op since it's completed above
-            yielded_tasks.append((i, result))
+            try:
+                result = yield task
+                yielded_tasks.append((i, result))
+            except requests.exceptions.HTTPError as e:
+                msg = ('Failed to queue execution on %s: %s' %
+                       (i.soul['name'], e))
+                exceptions_caught.append(msg)
+
+        # Rather than a single try/except and raising a group of exceptions,
+        # Tornado's 'multi_future' method raises the first exception in a list
+        # of tasks. This behavior is described in a bug, and we are working
+        # with the Tornado team to try to come up with a reasonable solution.
+        # Until then, we do this hackery to create a single exception from
+        # many, and then raise that exception:
+        #
+        # https://github.com/tornadoweb/tornado/issues/1378
+        if exceptions_caught:
+            exc_string = ', '.join(exceptions_caught)
+            exc_length = len(exceptions_caught)
+            raise ServerArrayException('%s failures: %s' %
+                                       (exc_length, exc_string))
 
         raise gen.Return(yielded_tasks)
 
     @concurrent.run_on_executor
-    @utils.exception_logger
     def make_generic_request(self, url, post=None):
         """Make a generic API call and return a Resource Object.
 
