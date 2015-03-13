@@ -228,6 +228,75 @@ Take this example:
 The above example would fail to parse in most JSON parsers, but in `demjson`
 it works just fine.
 
+##### Timeouts
+
+By _default_, Kingpin actors are set to timeout after 3600s (1 hour). Each
+indivudal actor will raise an `ActorTimedOut` exception after this timeout has
+been reached. The `ActorTimedOut` exception is considered a
+`RecoverableActorFailure`, so the `warn_on_failure` setting applies here and
+thus the failure can be ignored if you choose to.
+
+Additionally, you can override the _global default_ setting on the commandline
+with an environment variable:
+
+  * `DEFAULT_TIMEOUT` - Time (in seconds) to use as the default actor timeout.
+
+Here is an example log output when the timer is exceeded:
+
+    $ DEFAULT_TIMEOUT=1 SLEEP=10 kingpin -j examples/sleep.json
+    11:55:16   INFO      Rehearsing... Break a leg!
+    11:55:16   INFO      [DRY: Kingpin] Preparing actors from examples/sleep.json
+    11:55:16   INFO      Rehearsal OK! Performing!
+    11:55:16   INFO      Lights, camera ... action!
+    11:55:16   INFO      [Kingpin] Preparing actors from examples/sleep.json
+    11:55:17   ERROR     [Kingpin] kingpin.actors.misc.Macro._execute() execution exceeded deadline: 1s
+    11:55:17   ERROR     [Sleep for some amount of time] kingpin.actors.misc.Sleep._execute() execution exceeded deadline: 1s
+    11:55:17   CRITICAL  [Kingpin] kingpin.actors.misc.Macro._execute() execution exceeded deadline: 1s
+    11:55:17   CRITICAL  [Sleep for some amount of time] kingpin.actors.misc.Sleep._execute() execution exceeded deadline: 1s
+    11:55:17   ERROR     Kingpin encountered mistakes during the play.
+    11:55:17   ERROR     kingpin.actors.misc.Macro._execute() execution exceeded deadline: 1s
+
+*Disabling the Timeout*
+
+You can disable the timeout on any actor by setting `timeout: 0` in your JSON.
+
+*Group Actor Timeouts*
+
+Group actors are special -- as they do nothing but execute other actors.
+Although they support the `timeout: x` setting, they default to disabling the
+timeout (`timeout: 0`). This is done because the individual timeouts are
+generally owned by the individual actors. A single actor that fails will
+propagate its exception up the chain and through the Group actor just like any
+other actor failure.
+
+As an example... If you take the following example code:
+
+    { "desc": "Outer group",
+      "actor": "group.Sync",
+      "options": {
+        "acts": [
+          { "desc": "Sleep 10 seconds, but fail",
+            "actor": "misc.Sleep",
+            "timeout": 1,
+            "warn_on_failure": true,
+            "options": {
+              "sleep": 10
+            }
+          },
+          { "desc": "Sleep 2 seconds, but don't fail",
+            "actor": "misc.Sleep",
+            "options": {
+              "sleep": 2
+            }
+          }
+        ]
+      }
+    }
+
+The first `misc.Sleep` actor will fail, but only warn (`warn_on_failure=True`)
+about the failure. The parent `group.Sync` actor will continue on and allow the
+second `misc.Sleep` actor to continue.
+
 ##### Token-replacement
 
 ###### Environmental Tokens

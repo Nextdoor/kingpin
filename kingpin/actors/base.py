@@ -53,6 +53,10 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 if os.getenv('URLLIB_DEBUG', None):
     utils.super_httplib_debug_logging()
 
+# Allow the user to override the default_timeout for all actors by setting an
+# environment variable
+DEFAULT_TIMEOUT = os.getenv('DEFAULT_TIMEOUT', 3600)
+
 
 class LogAdapter(logging.LoggerAdapter):
 
@@ -80,7 +84,7 @@ class BaseActor(object):
 
     # Set the default timeout for the gen.with_timeout() wrapper that we use to
     # monitor and control the length of execution of a single Actor.
-    default_timeout = 3600
+    default_timeout = DEFAULT_TIMEOUT
 
     # Context separators. These define the left-and-right identifiers of a
     # 'contextual token' in the actor. By default this is { and }, so a
@@ -272,18 +276,25 @@ class BaseActor(object):
         self.log.debug('%s.%s() deadline: %ss' %
                        (self._type, f.__name__, self._timeout))
 
-        # Generate a timestamp in the future at which point we will raise
-        # an alarm if the actor is still executing
-        deadline = time.time() + float(self._timeout)
-
         # Get our Future object but don't yield on it yet, This starts the
         # execution, but allows us to wrap it below with the
         # 'gen.with_timeout' function.
         fut = f(*args, **kwargs)
 
+        # If no timeout is set (none, or 0), then we just yield the Future and
+        # return its results.
+        if not self._timeout:
+            ret = yield fut
+            raise gen.Return(ret)
+
+        # Generate a timestamp in the future at which point we will raise
+        # an alarm if the actor is still executing
+        deadline = time.time() + float(self._timeout)
+
         # Now we yield on the gen_with_timeout function
         try:
-            ret = yield gen.with_timeout(deadline, fut)
+            ret = yield gen.with_timeout(
+                deadline, fut, quiet_exceptions=(exceptions.ActorTimedOut))
         except gen.TimeoutError:
             msg = ('%s.%s() execution exceeded deadline: %ss' %
                    (self._type, f.__name__, self._timeout))

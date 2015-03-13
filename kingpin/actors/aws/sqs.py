@@ -18,7 +18,6 @@ import logging
 import re
 import time
 
-from concurrent import futures
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
@@ -41,7 +40,7 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 # decorator. We would like this to be a class variable so its shared
 # across RightScale objects, but we see testing IO errors when we
 # do this.
-EXECUTOR = futures.ThreadPoolExecutor(10)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
 class QueueNotFound(exceptions.RecoverableActorFailure):
