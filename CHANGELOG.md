@@ -1,4 +1,5 @@
 ## Version 0.2.5
+ * #239: Add the @sync_retry decorator to the make_generic_request() call. ([@diranged])
  * #228: Allow setting of the 'strictness' of the rightscale.server_array.Clone actor ([@diranged])
  * #227: Use a single api.RightScale object on all RightScale actors. ([@diranged])
  * #218: Allow wildcard/non-exact ServerArray matches in ServerArrayBaseActor._find_server_arrays() ([@diranged])
