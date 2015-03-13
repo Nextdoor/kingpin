@@ -19,9 +19,9 @@ This new option allows a long-running task to raise an exception, and then for
 the Kingpin execution to either fail immediately or continue on to other tasks
 (based on the `warn_on_failure` setting).
 
-### Tornado Upgraded to 4.0+
+### Tornado Upgraded to 4.1+
 
-We have upgraded the base-version of Tornado that we use to 4.0+ in order to
+We have upgraded the base-version of Tornado that we use to 4.1+ in order to
 support the `timeout` argument above. This upgrade brings in a ton of
 performance improvements from the Tornado team, as well as forced us to do some
 cleanup on a few modules to ensure that we were really capturing every
