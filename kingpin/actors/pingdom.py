@@ -18,6 +18,7 @@ import logging
 import os
 
 from tornado import gen
+from tornado import httpclient
 
 from kingpin.constants import REQUIRED
 from kingpin.actors import base
@@ -55,6 +56,14 @@ class PingdomAPI(api.RestConsumer):
     }
 
 
+class PingdomClient(api.RestClient):
+
+    # The default exception handling is fine, but the Pingdom API uses a 599 to
+    # represent a timeout on the backend of their service.
+    _EXCEPTIONS = dict(api.RestClient._EXCEPTIONS)
+    _EXCEPTIONS[httpclient.HTTPError]['599'] = None
+
+
 class PingdomBase(base.BaseActor):
 
     """Simple Pingdom Abstract Base Object"""
@@ -67,7 +76,7 @@ class PingdomBase(base.BaseActor):
         """Check required environment variables."""
         super(PingdomBase, self).__init__(*args, **kwargs)
 
-        rest_client = api.RestClient(
+        rest_client = PingdomClient(
             headers={'App-Key': TOKEN}
         )
         self._pingdom_client = PingdomAPI(client=rest_client)
@@ -94,6 +103,7 @@ class PingdomBase(base.BaseActor):
 
 
 class Pause(PingdomBase):
+
     """Start Pingdom Maintenance.
 
     Pause a particular "check" on Pingdom."""
@@ -113,6 +123,7 @@ class Pause(PingdomBase):
 
 
 class Unpause(PingdomBase):
+
     """Stop Pingdom Maintenance.
 
     Unpause a particular "check" on Pingdom."""
