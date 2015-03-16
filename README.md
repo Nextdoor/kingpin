@@ -92,7 +92,7 @@ environment. All of our examples below will show how to do this.
       --version             show program's version number and exit
       -h, --help            show this help message and exit
       -j JSON, --json=JSON  Path to JSON Deployment File
-      -d, --dry             Executes a DRY run.
+      -d, --dry             Executes a dry run.
       -l LEVEL, --level=LEVEL
                             Set logging level (INFO|WARN|DEBUG|ERROR)
       -c, --color           Colorize the log output

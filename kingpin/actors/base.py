@@ -351,7 +351,7 @@ class BaseActor(object):
 
         # Generate a new string with the values parsed out. At this point, if
         # any value is un-matched, an exception is raised and execution fails.
-        # This stops execution during a DRY run, before any live changes are
+        # This stops execution during a dry run, before any live changes are
         # made.
         try:
             new_options_string = utils.populate_with_tokens(

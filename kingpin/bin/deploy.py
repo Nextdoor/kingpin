@@ -47,7 +47,7 @@ parser.set_defaults(verbose=True)
 parser.add_option('-j', '--json', dest='json',
                   help='Path to JSON Deployment File')
 parser.add_option('-d', '--dry', dest='dry', action='store_true',
-                  help='Executes a DRY run.')
+                  help='Executes a dry run.')
 
 # Logging Configuration
 parser.add_option('-l', '--level', dest='level', default='info',
