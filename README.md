@@ -17,7 +17,7 @@ Kingpin provides 3 main functions:
 1. [Installation](#installation)
     * [Github Checkout/Install](#github-checkoutinstall)
     * [Direct PIP Install](#direct-pip-install)
-    * [Zip File Packaging](@zip-file-packaging)
+    * [Zip File Packaging](#zip-file-packaging)
 2. [Basic Use](#basic-use)
     * [Credentials](#credentials)
     * [JSON-based DSL](#json-based-dsl)
