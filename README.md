@@ -17,6 +17,7 @@ Kingpin provides 3 main functions:
 1. [Installation](#installation)
     * [Github Checkout/Install](#github-checkoutinstall)
     * [Direct PIP Install](#direct-pip-install)
+    * [Zip File Packaging](@zip-file-packaging)
 2. [Basic Use](#basic-use)
     * [Credentials](#credentials)
     * [JSON-based DSL](#json-based-dsl)
@@ -82,6 +83,27 @@ environment. All of our examples below will show how to do this.
       Cloning https://github.com/Nextdoor/kingpin.git (to master) to /var/folders/j6/qyd2dp6n3f156h6xknndt35m00010b/T/pip-H9LwNt-build
     ...
     ...
+
+### Zip File Packaging
+
+For the purpose of highly reliable and fast installations, you can also execute
+`make package` to generate a Python-executable `.zip` file. This file is built
+with all of the dependencies installed inside of it, and can be executed on the
+command line very simply:
+
+    $ virtualenv .venv --no-site-packages
+    New python executable in .venv/bin/python
+    Installing setuptools, pip...done.
+    $ source .venv/bin/activate
+    $ make kingpin.zip
+    $ python kingpin.zip --version
+    0.2.5
+
+*VirtualEnv Note*
+
+Its not strictly necessary to set up the virtual environment like we did in the
+example above -- but it helps prevent any confusion during the build process
+around what packages are available or are not.
 
 ## Basic Use
 
