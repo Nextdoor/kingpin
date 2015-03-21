@@ -348,6 +348,10 @@ class RestClient(object):
             '502': None,
             '503': None,
             '504': None,
+
+            # Rrepresents a standard HTTP Timeout
+            '599': None,
+
             '': exceptions.RecoverableActorFailure,
         }
     }
