@@ -48,6 +48,9 @@ parser.add_option('-j', '--json', dest='json',
                   help='Path to JSON Deployment File')
 parser.add_option('-d', '--dry', dest='dry', action='store_true',
                   help='Executes a dry run.')
+parser.add_option('--skip-dry-run', dest='skip_dry_run', action='store_true',
+                  help=('Do not perform a dry run before real execution. '
+                        'This is dangerous.'))
 
 # Logging Configuration
 parser.add_option('-l', '--level', dest='level', default='info',
@@ -76,7 +79,12 @@ def main():
             '%s You must specify --json or provide it as first argument.' % e)
 
     # Begin doing real stuff!
-    if not options.dry:
+    if options.skip_dry_run:
+        log.warn('')
+        log.warn('*** You have disabled the dry run.')
+        log.warn('*** Execution will begin with no expectation of success.')
+        log.warn('')
+    elif not options.dry:
         log.info('Rehearsing... Break a leg!')
         try:
             dry_actor = Macro(desc='Kingpin',
