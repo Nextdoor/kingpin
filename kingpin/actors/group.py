@@ -112,6 +112,26 @@ class BaseGroupActor(base.BaseActor):
             actions.append(utils.get_actor(act, dry=self._dry))
         return actions
 
+    def _get_exc_type(self, exc_list):
+        """Return Unrecoverable exception if at least one is in exc_list.
+
+        Takes in a list of exceptions, and returns either a
+        RecoverableActorFailure or an UnrecoverableActorFailure based on the
+        exceptions that were passed in.
+
+        Args:
+            exc_list: List of Exception objects
+
+        Returns:
+            RecoverableActorFailure or UnrecoverableActorFailure
+        """
+        # Start by assuming we're going to be a RecoverableActorFailure
+        wrapper_base = exceptions.RecoverableActorFailure
+        for exc in exc_list:
+            if isinstance(exc, exceptions.UnrecoverableActorFailure):
+                wrapper_base = exceptions.UnrecoverableActorFailure
+        return wrapper_base
+
     @gen.coroutine
     def _execute(self):
         """Executes the actions configured, and returns.
@@ -134,47 +154,39 @@ class Sync(BaseGroupActor):
     def _run_actions(self):
         """Synchronously executes all of the Actor.execute() methods.
 
-        If any one actor fails, we prevent execution of the rest of the actors
-        and return the list of gathered return values.
+        If any one actor fails, we prevent execution of the rest of the actors.
+        During a dry run - all acts are executed, and a warning is displayed.
 
         raises:
-            gen.Return([ <list of return values> ])
+            In dry run - worst of all the raised errors.
+            In real run - the first of the exceptions.
         """
+
+        errors = []
+
         for act in self._actions:
             self.log.debug('Beginning "%s"..' % act._desc)
             try:
                 yield act.execute()
-            except exceptions.ActorException:
-                self.log.error('Not executing any following actions because '
-                               '"%s" failed' % act._desc)
-                raise
+            except exceptions.ActorException as e:
+                if self._dry:
+                    self.log.error('%s failed: %s' % (act._desc, str(e)))
+                    self.log.warning('Continuing since this is a dry run.')
+                    errors.append(e)
+                else:
+                    self.log.error('Aborting sequential execution because '
+                                   '"%s" failed' % act._desc)
+                    raise
 
-        raise gen.Return()
+        if errors:
+            ExcType = self._get_exc_type(errors)
+            raise ExcType('Exceptions raised by %s of %s actors in "%s".' % (
+                          len(errors), len(self._actions), self._desc))
 
 
 class Async(BaseGroupActor):
 
     """Asynchronously executes all Actors at once"""
-
-    def _get_exc_type(self, exc_list):
-        """Return Unrecoverable exception if at least one is in exc_list.
-
-        Takes in a list of exceptions, and returns either a
-        RecoverableActorFailure or an UnrecoverableActorFailure based on the
-        exceptions that were passed in.
-
-        Args:
-            exc_list: List of Exception objects
-
-        Returns:
-            RecoverableActorFailure or UnrecoverableActorFailure
-        """
-        # Start by assuming we're going to be a RecoverableActorFailure
-        wrapper_base = exceptions.RecoverableActorFailure
-        for exc in exc_list:
-            if isinstance(exc, exceptions.UnrecoverableActorFailure):
-                wrapper_base = exceptions.UnrecoverableActorFailure
-        return wrapper_base
 
     @gen.coroutine
     def _run_actions(self):

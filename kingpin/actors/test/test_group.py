@@ -183,6 +183,23 @@ class TestSyncGroupActor(TestGroupActorBaseClass):
         self.assertEquals(res, None)
 
     @testing.gen_test
+    def test_run_actions_continue_on_dry(self):
+        # Call the executor and test it out
+        self.actor_returns['options']['value'] = '123'
+        actor = group.Sync(
+            'Unit Test Action',
+            {'acts': [
+                dict(self.actor_raises_unrecoverable_exception),
+                dict(self.actor_returns),
+            ]},
+            dry=True)
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            yield actor._run_actions()
+
+        # Even after the first actor fails, the second one should get executed.
+        self.assertEquals(TestActor.last_value, '123')
+
+    @testing.gen_test
     def test_run_actions_with_two_acts_one_fails_unrecoverable(self):
         # Call the executor and test it out
         self.actor_returns['options']['value'] = '123'
