@@ -299,11 +299,11 @@ class RegisterInstance(base.AWSBaseActor):
 
     @concurrent.run_on_executor
     @utils.exception_logger
-    @retry(retry_on_exception=aws_settings.is_retriable_exception)
+    @retry(retry_on_exception=aws_settings.is_retriable_exception,
+           wait_exponential_multiplier=2000,
+           stop_max_attempt_number=5)  # max at 64 seconds.
     def _add(self, elb, instances):
         """Invoke elb.register_instances
-
-        This boto function is idempotent, so any retry is OK.
 
         Args:
             elb: boto Loadbalancer object
@@ -367,11 +367,11 @@ class DeregisterInstance(base.AWSBaseActor):
 
     @concurrent.run_on_executor
     @utils.exception_logger
-    @retry(retry_on_exception=aws_settings.is_retriable_exception)
+    @retry(retry_on_exception=aws_settings.is_retriable_exception,
+           wait_exponential_multiplier=2000,
+           stop_max_attempt_number=5)  # max at 64 seconds.
     def _remove(self, elb, instances):
         """Invoke elb.deregister_instances
-
-        This boto function is idempotent, so any retry is OK.
 
         Args:
             elb: boto Loadbalancer object
