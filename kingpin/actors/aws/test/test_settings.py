@@ -11,9 +11,8 @@ class TestSettings(testing.AsyncTestCase):
         class TransientError(BotoServerError):
             """Unit-test exception"""
 
-            code = 'Throttling'
-
-        self.assertTrue(settings.is_retriable_exception(
-            TransientError('500', 'Throttling everything')))
+        exc = TransientError('500', 'Throttling everything')
+        exc.error_code = 'Throttling'
+        self.assertTrue(settings.is_retriable_exception(exc))
 
         self.assertFalse(settings.is_retriable_exception(Exception()))

@@ -45,4 +45,4 @@ def is_retriable_exception(exception):
         return False
 
     # Boto exceptions should have a code attribute
-    return exception.code in retry_codes
+    return exception.error_code in retry_codes
