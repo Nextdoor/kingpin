@@ -60,10 +60,12 @@ class AWSBaseActor(base.BaseActor):
         'region': (str, None, 'AWS Region (or zone) to connect to.')
     }
 
+    # Special constant expected by @support._retry decorator
     _EXCEPTIONS = {
-        BotoServerError: {
+        BotoServerError: {  # Match the `<message>` part of the exception
             'LoadBalancerNotFound': ELBNotFound,
-            'InvalidClientTokenId': exceptions.InvalidCredentials
+            'InvalidClientTokenId': exceptions.InvalidCredentials,
+            'Rate exceeded': None
         },
     }
 
