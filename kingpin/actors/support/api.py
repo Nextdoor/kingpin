@@ -112,8 +112,7 @@ def _retry(f):
                     pass
                 elif default_exc is not False:
                     raise default_exc(str(e))
-
-                if default_exc is False:
+                elif default_exc is False:
                     # Reaching this part means no exception was matched
                     # and no default was specified.
                     log.debug('No explicit behavior for this exception'
