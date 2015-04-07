@@ -57,6 +57,69 @@ class RestConsumerTestBasicAuthed(RestConsumerTest):
     }
 
 
+class TestRetry(testing.AsyncTestCase):
+
+    @testing.gen_test
+    def test_decorator_plain(self):
+
+        class TestException(Exception):
+            pass
+
+        class FailingClass():
+            """Test class that is intended for @_retry decorator"""
+
+            _EXCEPTIONS = {
+                TestException: {
+                    'cruel': None  # Retry during cruelty
+                }
+            }
+
+            _call_count = 0
+
+            @gen.coroutine
+            @api._retry
+            def func(self):
+                self._call_count = self._call_count + 1
+                raise TestException('Goodbye cruel world...')
+
+        fail = FailingClass()
+
+        with self.assertRaises(TestException):
+            yield fail.func()
+
+        self.assertEquals(fail._call_count, 3)
+
+    @testing.gen_test
+    def test_decorator_with_args(self):
+
+        class TestException(Exception):
+            pass
+
+        class FailingClass():
+            """Test class that is intended for @_retry decorator"""
+
+            _EXCEPTIONS = {
+                TestException: {
+                    'cruel': None  # Retry during cruelty
+                }
+            }
+
+            _call_count = 0
+
+            @gen.coroutine
+            @api._retry(delay=0, retries=7)
+            def func(self):
+                self._call_count = self._call_count + 1
+                raise TestException('Goodbye cruel world...')
+
+        fail = FailingClass()
+
+        with self.assertRaises(TestException):
+            yield fail.func()
+
+        self.assertEquals(fail._call_count, 7)
+
+
 class TestRestConsumer(testing.AsyncTestCase):
 
     @testing.gen_test

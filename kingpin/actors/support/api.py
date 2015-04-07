@@ -39,94 +39,136 @@ log = logging.getLogger(__name__)
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
-def _retry(f):
+def _retry(*f_or_args, **options):
     """Coroutine-compatible Retry Decorator.
 
     This decorator provides a simple retry mechanism that compares the
-    exceptions it received against a configuration list (self._EXCEPTIONS),
-    and then performs the action defined in that list. For example, an
-    HTTPError with a '500' code might want to retry 3 times. On the
-    otherhand, a 401/403 might want to throw an InvalidCredentials
-    exception.
+    exceptions it received against a configuration list (self._EXCEPTIONS), and
+    then performs the action defined in that list. For example, an HTTPError
+    with a '500' code might want to retry 3 times. On the otherhand, a 401/403
+    might want to throw an InvalidCredentials exception.
+
+    Examples:
+
+    >>> @_retry
+        def some_func(self):
+            yield ...
+
+    >>> @_retry(retries=5):
+        def some_func(self):
+            yield ...
+
     """
+
+    # Defaults...
     retries = 3
     delay = 0.25
 
-    def wrapper(self, *args, **kwargs):
-        i = 1
+    # Have to determine if invoked as @_retry or @_retry()
+    if len(f_or_args) == 1 and callable(f_or_args[0]):
+        # Decorator invoked as @_retry
+        _call_with_args = False
+    else:
+        # Decorator invoked as @_retry(args...)
+        # `f` is unknown for now
+        _call_with_args = True
+        retries = options.pop('retries', retries)
+        delay = options.pop('delay', delay)
 
-        # Get a list of private kwargs to mask
-        private_kwargs = getattr(self, '_private_kwargs', [])
+    def decorator(f_or_self, *args, **kwargs):
+        # Depending on how this decorator is invoked
+        # The first argument is either the function, or the `self` object
+        if not _call_with_args:
+            self = f_or_self
+            f = f_or_args[0]
+        else:
+            f = f_or_self
 
-        # For security purposes, create a patched kwargs string that
-        # removes passwords from the arguments. This is never guaranteed to
-        # work (an API could have 'foo' as their password field, and we just
-        # won't know ...), but we make a best effort here.
-        safe_kwargs = dict(kwargs)
-        remove = [k for k in safe_kwargs if k in private_kwargs]
-        for k in remove:
-            safe_kwargs[k] = '****'
+        def wrapper(self, *args, **kwargs):
+            i = 1
 
-        while True:
-            # Don't log out the first try as a 'Try' ... just do it
-            if i > 1:
-                log.debug('Try (%s/%s) of %s(%s, %s)' %
-                          (i, retries, f, args, safe_kwargs))
+            # Get a list of private kwargs to mask
+            private_kwargs = getattr(self, '_private_kwargs', [])
 
-            # Attempt the method. Catch any exception listed in
-            # self._EXCEPTIONS.
-            try:
-                ret = yield gen.coroutine(f)(self, *args, **kwargs)
-                raise gen.Return(ret)
-            except tuple(self._EXCEPTIONS.keys()) as e:
-                error = str(e)
-                if hasattr(e, 'message'):
-                    error = e.message
-                log.warning('Exception raised on try %s: %s' % (i, error))
+            # For security purposes, create a patched kwargs string that
+            # removes passwords from the arguments. This is never guaranteed to
+            # work (an API could have 'foo' as their password field, and we
+            # just won't know ...), but we make a best effort here.
+            safe_kwargs = dict(kwargs)
+            remove = [k for k in safe_kwargs if k in private_kwargs]
+            for k in remove:
+                safe_kwargs[k] = '****'
 
-                # If we've run out of retry attempts, raise the exception
-                if i >= retries:
-                    log.debug('Raising exception: %s' % e)
-                    raise e
+            while True:
+                # Don't log out the first try as a 'Try' ... just do it
+                if i > 1:
+                    log.debug('Try (%s/%s) of %s(%s, %s)' %
+                              (i, retries, f, args, safe_kwargs))
 
-                # Gather the config for this exception-type from
-                # self._EXCEPTIONS. Iterate through the data and see if we
-                # have a matching exception string.
-                exc_conf = self._EXCEPTIONS[type(e)].copy()
+                # Attempt the method. Catch any exception listed in
+                # self._EXCEPTIONS.
 
-                # An empty string for the key is the default exception
-                # It's optional, but can match before others match, so we
-                # pop it before searching.
-                default_exc = exc_conf.pop('', False)
-                log.debug('Searching through %s' % exc_conf)
-                matched_exc = [exc for key, exc in exc_conf.items()
-                               if key in str(e)]
+                try:
+                    ret = yield gen.coroutine(f)(self, *args, **kwargs)
+                    raise gen.Return(ret)
+                except tuple(self._EXCEPTIONS.keys()) as e:
+                    error = str(e)
+                    if hasattr(e, 'message'):
+                        error = e.message
+                    log.warning('Exception raised on try %s: %s' % (i, error))
 
-                log.debug('Matched exceptions: %s' % matched_exc)
-                if matched_exc and matched_exc[0] is not None:
-                    exception = matched_exc[0]
-                    log.debug('Matched exception: %s' % exception)
-                    raise exception(error)
-                elif matched_exc and matched_exc[0] is None:
-                    log.debug('Exception is retryable!')
-                    pass
-                elif default_exc is not False:
-                    raise default_exc(str(e))
-                elif default_exc is False:
-                    # Reaching this part means no exception was matched
-                    # and no default was specified.
-                    log.debug('No explicit behavior for this exception'
-                              ' found. Raising.')
-                    raise e
+                    # If we've run out of retry attempts, raise the exception
+                    if i >= retries:
+                        log.debug('Raising exception: %s' % e)
+                        raise e
 
-                # Must have been a retryable exception. Retry.
-                i = i + 1
-                log.debug('Retrying in %s...' % delay)
-                yield utils.tornado_sleep(delay)
+                    # Gather the config for this exception-type from
+                    # self._EXCEPTIONS. Iterate through the data and see if we
+                    # have a matching exception string.
+                    exc_conf = self._EXCEPTIONS[type(e)].copy()
 
-            log.debug('Retrying..')
+                    # An empty string for the key is the default exception
+                    # It's optional, but can match before others match, so we
+                    # pop it before searching.
+                    default_exc = exc_conf.pop('', False)
+                    log.debug('Searching through %s' % exc_conf)
+                    matched_exc = [exc for key, exc in exc_conf.items()
+                                   if key in str(e)]
 
-    return wrapper
+                    log.debug('Matched exceptions: %s' % matched_exc)
+                    if matched_exc and matched_exc[0] is not None:
+                        exception = matched_exc[0]
+                        log.debug('Matched exception: %s' % exception)
+                        raise exception(error)
+                    elif matched_exc and matched_exc[0] is None:
+                        log.debug('Exception is retryable!')
+                        pass
+                    elif default_exc is not False:
+                        raise default_exc(str(e))
+                    elif default_exc is False:
+                        # Reaching this part means no exception was matched
+                        # and no default was specified.
+                        log.debug('No explicit behavior for this exception'
+                                  ' found. Raising.')
+                        raise e
+
+                    # Must have been a retryable exception. Retry.
+                    i = i + 1
+                    log.debug('Retrying in %s...' % delay)
+                    yield utils.tornado_sleep(delay)
+
+                log.debug('Retrying..')
+
+        if not _call_with_args:
+            # Invoked as @_retry
+            # Should return the evaluated run
+            return wrapper(self, *args, **kwargs)
+        else:
+            # Invoked as @_retry(args...)
+            # Return a wrapper that expects all the new args
+            return wrapper
+
+    return decorator
 
 
 def create_http_method(name, http_method):
