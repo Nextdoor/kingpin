@@ -52,6 +52,8 @@ parser.add_option('-d', '--dry', dest='dry', action='store_true',
 # Logging Configuration
 parser.add_option('-l', '--level', dest='level', default='info',
                   help='Set logging level (INFO|WARN|DEBUG|ERROR)')
+parser.add_option('', '--debug', dest='level_debug', default=False,
+                  action='store_true', help='Equivalent to --level=DEBUG')
 parser.add_option('-c', '--color', dest='color', default=False,
                   action='store_true', help='Colorize the log output')
 
@@ -106,6 +108,8 @@ def main():
 
 def begin():
     # Set up logging before we do anything else
+    if options.level_debug:
+        options.level = 'DEBUG'
     utils.setup_root_logger(level=options.level, color=options.color)
 
     try:
