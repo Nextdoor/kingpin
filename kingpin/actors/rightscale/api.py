@@ -60,6 +60,9 @@ from kingpin import utils
 
 log = logging.getLogger(__name__)
 
+# Suppress InsecurePlatformWarning
+requests.packages.urllib3.disable_warnings()
+
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
