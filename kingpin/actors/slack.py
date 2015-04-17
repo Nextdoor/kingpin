@@ -131,7 +131,7 @@ class Message(SlackBase):
             channel=self.option('channel'),
             text=self.option('message'),
             username=NAME,
-            parse='full',
+            parse='none',
             link_names=1,
             unfurl_links=True,
             unfurl_media=True
