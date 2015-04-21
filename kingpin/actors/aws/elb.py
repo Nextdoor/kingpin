@@ -312,7 +312,7 @@ class RegisterInstance(base.AWSBaseActor):
         elb.register_instances(instances)
 
     @gen.coroutine
-    @support._retry
+    @support._retry(delay=1.0, retries=10)
     def _check_elb_zones(self, elb):
         """Ensure that `elb` has all available zones."""
         zones = yield self.thread(self.ec2_conn.get_all_zones)

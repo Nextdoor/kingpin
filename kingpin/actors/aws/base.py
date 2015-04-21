@@ -133,7 +133,7 @@ class AWSBaseActor(base.BaseActor):
         return function(*args, **kwargs)
 
     @gen.coroutine
-    @support._retry(delay=1.0)
+    @support._retry(delay=1.0, retries=10)
     def _find_elb(self, name):
         """Return an ELB with the matching name.
 
