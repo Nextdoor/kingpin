@@ -115,9 +115,10 @@ around what packages are available or are not.
       --version             show program's version number and exit
       -h, --help            show this help message and exit
       -j JSON, --json=JSON  Path to JSON Deployment File
-      -d, --dry             Executes a dry run.
+      -d, --dry             Executes a dry run only.
       -l LEVEL, --level=LEVEL
                             Set logging level (INFO|WARN|DEBUG|ERROR)
+      --debug               Equivalent to --level=DEBUG
       -c, --color           Colorize the log output
 
 The simplest use cases of this code can be better understood by looking at the
@@ -135,6 +136,13 @@ The simplest use cases of this code can be better understood by looking at the
     ...
     2014-09-01 21:18:14,533 INFO      [stage 3 (DRY Mode)] Finished, success? True
     2014-09-01 21:18:14,533 INFO      [main stage (DRY Mode)] Finished, success? True
+
+Kingpin always executes a dry run before executing. Each actor specifies their
+own definition of a dry run. Actors are designed to do as much checking in the
+dry run as possible to assure that everything will work during real execution.
+
+It's possible, with extreme discouragement to skip the default dry run by
+setting `SKIP_DRY` environment variable.
 
 ### Credentials
 
