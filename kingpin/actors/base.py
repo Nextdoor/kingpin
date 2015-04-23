@@ -99,7 +99,7 @@ class BaseActor(object):
     strict_init_context = True
 
     def __init__(self, desc, options, dry=False, warn_on_failure=False,
-                 condition=True, init_context={}, timeout=default_timeout):
+                 condition=True, init_context={}, timeout=None):
         """Initializes the Actor.
 
         Args:
@@ -122,7 +122,10 @@ class BaseActor(object):
         self._warn_on_failure = warn_on_failure
         self._condition = condition
         self._init_context = init_context
+
         self._timeout = timeout
+        if timeout is None:
+            self._timeout = self.default_timeout
 
         # strict about this -- but in the future, when we have a
         # runtime_context object, we may loosen this restriction).
@@ -273,7 +276,7 @@ class BaseActor(object):
         """
 
         # Get our timeout setting, or fallback to the default
-        self.log.debug('%s.%s() deadline: %ss' %
+        self.log.debug('%s.%s() deadline: %s(s)' %
                        (self._type, f.__name__, self._timeout))
 
         # Get our Future object but don't yield on it yet, This starts the
