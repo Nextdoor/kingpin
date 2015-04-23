@@ -25,6 +25,9 @@ test: build
 integration: build
 	PYFLAKES_NODOCTEST=True python setup.py integration pep8 pyflakes
 
+pack: kingpin.zip
+	@python kingpin.zip --help 2>&1 >/dev/null && echo Success || echo Fail
+
 kingpin.zip:
 	rm -rf zip
 	mkdir -p zip

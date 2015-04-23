@@ -39,7 +39,8 @@ Kingpin provides 3 main functions:
     * [RightScale](#rightscale)
     * [Rollbar](#rollbar)
     * [Slack](#slack)
-3. [Development](#development) 
+3. [Security](#security)
+4. [Development](#development)
 
 ## Installation
 
@@ -568,6 +569,12 @@ the messages.
 **Actor-specific Documentation**
 
   * [slack.Message](docs/actors/slack.Message.md)
+
+## Security
+
+Recently urllib3 library has started issuing [InsecurePlatformWarning](https://urllib3.readthedocs.org/en/latest/security.html#insecureplatformwarning).
+We [suppress](kingpin/actors/rightscale/api.py) urllib3 warnings to limit log output to Kingping's own.
+
 
 ## Development
 

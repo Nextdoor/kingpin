@@ -60,10 +60,12 @@ class AWSBaseActor(base.BaseActor):
         'region': (str, None, 'AWS Region (or zone) to connect to.')
     }
 
+    # Special constant expected by @support._retry decorator
     _EXCEPTIONS = {
-        BotoServerError: {
+        BotoServerError: {  # Match the `<message>` part of the exception
             'LoadBalancerNotFound': ELBNotFound,
-            'InvalidClientTokenId': exceptions.InvalidCredentials
+            'InvalidClientTokenId': exceptions.InvalidCredentials,
+            'Rate exceeded': None
         },
     }
 
@@ -131,7 +133,7 @@ class AWSBaseActor(base.BaseActor):
         return function(*args, **kwargs)
 
     @gen.coroutine
-    @support._retry
+    @support._retry(delay=1.0, retries=10)
     def _find_elb(self, name):
         """Return an ELB with the matching name.
 

@@ -116,5 +116,5 @@ class TestMessage(testing.AsyncTestCase):
         auth_test_mock.http_post.assert_has_calls([mock.call()])
         post_mock.http_post.assert_has_calls([mock.call(
             username='Kingpin', unfurl_links=True, text='Unittest',
-            unfurl_media=True, parse='full', link_names=1, channel='#testing'
+            unfurl_media=True, parse='none', link_names=1, channel='#testing'
         )])

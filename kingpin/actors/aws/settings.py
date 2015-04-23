@@ -33,10 +33,16 @@ CF_WAIT_MAX = 30000
 def is_retriable_exception(exception):
     """Return true if this AWS exception is transient and should be retried.
 
-    http://boto.readthedocs.org/en/latest/ref/boto.html
-        #boto.exception.PleaseRetryException
-
     Example:
         >>> @retry(retry_on_exception=is_retriable_exception)
     """
-    return isinstance(exception, boto.exception.PleaseRetryException)
+    retry_codes = (
+        'Throttling',
+    )
+
+    # Only handle Boto exceptions
+    if not isinstance(exception, boto.exception.BotoServerError):
+        return False
+
+    # Boto exceptions should have a code attribute
+    return exception.error_code in retry_codes
