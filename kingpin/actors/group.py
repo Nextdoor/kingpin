@@ -62,6 +62,9 @@ class BaseGroupActor(base.BaseActor):
         errors because every single object is pre-initialized before we ever
         begin executing any of our steps.
         """
+
+        # Use *this* classes default_timeout instead of the BaseActor's timeout
+        kwargs['timeout'] = kwargs.get('timeout', self.default_timeout)
         super(BaseGroupActor, self).__init__(*args, **kwargs)
 
         # Pre-initialize all of our actions!
