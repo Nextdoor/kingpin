@@ -273,7 +273,7 @@ class BaseActor(object):
         """
 
         # Get our timeout setting, or fallback to the default
-        self.log.debug('%s.%s() deadline: %ss' %
+        self.log.debug('%s.%s() deadline: %s(s)' %
                        (self._type, f.__name__, self._timeout))
 
         # Get our Future object but don't yield on it yet, This starts the
