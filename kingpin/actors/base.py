@@ -122,7 +122,10 @@ class BaseActor(object):
         self._warn_on_failure = warn_on_failure
         self._condition = condition
         self._init_context = init_context
-        self._timeout = timeout or self.__class__.default_timeout
+
+        self._timeout = timeout
+        if timeout is None:
+            self._timeout = self.default_timeout
 
         # strict about this -- but in the future, when we have a
         # runtime_context object, we may loosen this restriction).
