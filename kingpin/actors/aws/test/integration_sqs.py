@@ -84,7 +84,7 @@ class IntegrationSQS(testing.AsyncTestCase):
                                     'region': self.region})
 
         log.debug('New queue should be empty')
-        queue = actor.conn.get_queue(self.queue_name)
+        queue = actor.sqs_conn.get_queue(self.queue_name)
         self.assertEquals(queue.count(), 0)
 
         done = yield actor.execute()

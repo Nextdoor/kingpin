@@ -27,9 +27,12 @@ AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')
 
 SQS_RETRY_DELAY = 30
-CF_WAIT_MAX = 30000
 
 
+# Common Settings for the retrying.retry() decorator
+#
+# Use like this: @retrying.retry(**settings.RETRYING_SETTINGS)
+#
 def is_retriable_exception(exception):
     """Return true if this AWS exception is transient and should be retried.
 
@@ -46,3 +49,27 @@ def is_retriable_exception(exception):
 
     # Boto exceptions should have a code attribute
     return exception.error_code in retry_codes
+
+
+RETRYING_SETTINGS = {
+    # Verify if we need to retry with the is_retriable_exception
+    # method described above.
+    'retry_on_exception': is_retriable_exception,
+
+    # Wait up to 10 times
+    'stop_max_attempt_number': 10,
+
+    # Add 250ms of random jitter to every retry
+    'wait_jitter_max': 250,
+
+    # Add 250ms of sleep to every retry
+    'wait_fixed': 250,
+
+    # Now add between 250-2000ms to every retry
+    'wait_random_min': 250,
+    'wait_random_max': 2000,
+
+    # Finally, add in an exponential backoff timer with a 10s limit
+    'wait_exponential_multiplier': 100,
+    'wait_exponential_max': 10000
+}

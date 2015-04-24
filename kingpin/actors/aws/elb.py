@@ -18,15 +18,12 @@ import logging
 import math
 
 from boto.exception import BotoServerError
-from retrying import retry
 from tornado import concurrent
 from tornado import gen
 
 from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
-from kingpin.actors.aws import settings as aws_settings
-from kingpin.actors.support import api as support
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -169,9 +166,7 @@ class SetCert(ELBBaseActor):
         'cert_name': (str, REQUIRED, 'Unique IAM certificate name, or ARN'),
     }
 
-    @concurrent.run_on_executor
-    @utils.exception_logger
-    @retry(retry_on_exception=aws_settings.is_retriable_exception)
+    @gen.coroutine
     def _check_access(self, elb):
         """Perform a dummy operation to check credential accesss.
 
@@ -186,14 +181,15 @@ class SetCert(ELBBaseActor):
         try:
             # A blank ARN value should have code 'CertificateNotFound'
             # We're only checking if credentials have sufficient access
-            elb.set_listener_SSL_certificate(self.option('port'), '')
+            yield self.thread(
+                elb.set_listener_SSL_certificate,
+                self.option('port'),
+                '')
         except BotoServerError as e:
             if e.error_code == 'AccessDenied':
                 raise exceptions.InvalidCredentials(e)
 
-    @concurrent.run_on_executor
-    @utils.exception_logger
-    @retry(retry_on_exception=aws_settings.is_retriable_exception)
+    @gen.coroutine
     def _get_cert_arn(self, name):
         """Return a server_certificate ARN.
 
@@ -211,7 +207,8 @@ class SetCert(ELBBaseActor):
 
         self.log.debug('Searching for cert "%s"...' % name)
         try:
-            cert = self.iam_conn.get_server_certificate(name)
+            cert = yield self.thread(
+                self.iam_conn.get_server_certificate, name)
         except BotoServerError as e:
             raise CertNotFound(
                 'Could not find cert %s. Reason: %s' % (name, e))
@@ -222,11 +219,9 @@ class SetCert(ELBBaseActor):
             'server_certificate').get(
             'server_certificate_metadata').get('arn')
 
-        return arn
+        raise gen.Return(arn)
 
-    @concurrent.run_on_executor
-    @utils.exception_logger
-    @retry(retry_on_exception=aws_settings.is_retriable_exception)
+    @gen.coroutine
     def _use_cert(self, elb, arn):
         """Assign an ssl cert to a given ELB.
 
@@ -237,7 +232,8 @@ class SetCert(ELBBaseActor):
 
         self.log.info('Setting ELB "%s" to use cert arn: %s' % (elb, arn))
         try:
-            elb.set_listener_SSL_certificate(self.option('port'), arn)
+            yield self.thread(
+                elb.set_listener_SSL_certificate, self.option('port'), arn)
         except BotoServerError as e:
             raise exceptions.RecoverableActorFailure(
                 'Applying new SSL cert to %s failed: %s' % (elb, e))
@@ -297,11 +293,7 @@ class RegisterInstance(base.AWSBaseActor):
         'enable_zones': (bool, True, 'Enable all zones for this ELB.')
     }
 
-    @concurrent.run_on_executor
-    @utils.exception_logger
-    @retry(retry_on_exception=aws_settings.is_retriable_exception,
-           wait_exponential_multiplier=2000,
-           stop_max_attempt_number=5)  # max at 64 seconds.
+    @gen.coroutine
     def _add(self, elb, instances):
         """Invoke elb.register_instances
 
@@ -309,10 +301,9 @@ class RegisterInstance(base.AWSBaseActor):
             elb: boto Loadbalancer object
             instances: list of instance ids.
         """
-        elb.register_instances(instances)
+        yield self.thread(elb.register_instances, instances)
 
     @gen.coroutine
-    @support._retry(delay=1.0, retries=10)
     def _check_elb_zones(self, elb):
         """Ensure that `elb` has all available zones."""
         zones = yield self.thread(self.ec2_conn.get_all_zones)
@@ -365,11 +356,7 @@ class DeregisterInstance(base.AWSBaseActor):
             'the instance id of the executing machine is used.'))
     }
 
-    @concurrent.run_on_executor
-    @utils.exception_logger
-    @retry(retry_on_exception=aws_settings.is_retriable_exception,
-           wait_exponential_multiplier=2000,
-           stop_max_attempt_number=5)  # max at 64 seconds.
+    @gen.coroutine
     def _remove(self, elb, instances):
         """Invoke elb.deregister_instances
 
@@ -377,7 +364,7 @@ class DeregisterInstance(base.AWSBaseActor):
             elb: boto Loadbalancer object
             instances: list of instance ids.
         """
-        elb.deregister_instances(instances)
+        yield self.thread(elb.deregister_instances, instances)
 
     @gen.coroutine
     def _execute(self):

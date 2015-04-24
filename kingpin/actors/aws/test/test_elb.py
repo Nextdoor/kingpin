@@ -19,6 +19,8 @@ class TestRegisterInstance(testing.AsyncTestCase):
         super(TestRegisterInstance, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        reload(elb_actor)
 
     @testing.gen_test
     def test_add(self):
@@ -135,6 +137,8 @@ class TestDeregisterInstance(testing.AsyncTestCase):
         super(TestDeregisterInstance, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        reload(elb_actor)
 
     @testing.gen_test
     def test_remove(self):
@@ -209,6 +213,8 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
         super(TestWaitUntilHealthy, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        reload(elb_actor)
 
     @testing.gen_test
     def test_require_env(self):
@@ -281,7 +287,7 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
     def test_execute_fail(self):
 
         actor = elb_actor.WaitUntilHealthy(
-            'Unit Test ACtion', {'name': 'unit-test-queue',
+            'Unit Test Action', {'name': 'unit-test-queue',
                                  'region': 'us-west-2',
                                  'count': 7})
         # ELB not found...
@@ -326,6 +332,8 @@ class TestSetCert(testing.AsyncTestCase):
         super(TestSetCert, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        reload(elb_actor)
 
     @testing.gen_test
     def test_check_access(self):

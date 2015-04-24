@@ -17,6 +17,8 @@ class TestUploadCert(testing.AsyncTestCase):
         super(TestUploadCert, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        reload(iam)
 
     @testing.gen_test
     def test_execute(self):
@@ -31,13 +33,12 @@ class TestUploadCert(testing.AsyncTestCase):
 
         actor.readfile = mock.Mock()
         actor.iam_conn.upload_server_cert.side_effect = [
-            Exception('400: unit-test'),
             None
         ]
         yield actor._execute()
 
-        # call count is 2 -- one extra retry due to BotoServerError above.
-        self.assertEquals(actor.iam_conn.upload_server_cert.call_count, 2)
+        # call count is 1 -- one extra retry due to BotoServerError above.
+        self.assertEquals(actor.iam_conn.upload_server_cert.call_count, 1)
         actor.iam_conn.upload_server_cert.assert_called_with(
             path=None,
             private_key=actor.readfile(),
@@ -72,6 +73,8 @@ class TestDeleteCert(testing.AsyncTestCase):
         super(TestDeleteCert, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        reload(iam)
 
     @testing.gen_test(timeout=60)
     def test_delete_cert_dry(self):

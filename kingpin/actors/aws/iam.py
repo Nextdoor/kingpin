@@ -12,19 +12,16 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""AWS IAM Actors"""
+"""AWS.IAM Actors"""
 
 import logging
 
 from boto.exception import BotoServerError
-from retrying import retry
 from tornado import concurrent
 from tornado import gen
 
-from kingpin import utils
 from kingpin.actors.aws import base
 from kingpin.actors import exceptions
-from kingpin.actors.aws import settings as aws_settings
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -61,14 +58,11 @@ class UploadCert(IAMBaseActor):
         'path': (str, None, 'The path for the server certificate.')
     }
 
-    @concurrent.run_on_executor
-    @retry(stop_max_attempt_number=3,
-           wait_exponential_multiplier=2,
-           wait_exponential_max=60)
-    @utils.exception_logger
+    @gen.coroutine
     def _upload(self, cert_name, cert_body, private_key, cert_chain, path):
         """Create a new server certificate in AWS IAM."""
-        self.iam_conn.upload_server_cert(
+        yield self.thread(
+            self.iam_conn.upload_server_cert,
             cert_name=cert_name,
             cert_body=cert_body,
             private_key=private_key,
@@ -105,6 +99,7 @@ class UploadCert(IAMBaseActor):
 
 
 class DeleteCert(IAMBaseActor):
+
     """Delete an existing SSL Cert in AWS IAM.
 
     http://boto.readthedocs.org/en/latest/ref/iam.html
@@ -115,27 +110,21 @@ class DeleteCert(IAMBaseActor):
         'name': (str, REQUIRED, 'The name for the server certificate.')
     }
 
-    @concurrent.run_on_executor
-    @utils.exception_logger
-    @retry(retry_on_exception=aws_settings.is_retriable_exception)
+    @gen.coroutine
     def _find_cert(self, name):
         """Find a cert by name."""
 
         self.log.debug('Searching for cert "%s"...' % name)
         try:
-            self.iam_conn.get_server_certificate(name)
+            yield self.thread(self.iam_conn.get_server_certificate, name)
         except BotoServerError as e:
             raise exceptions.UnrecoverableActorFailure(
                 'Could not find cert %s. Reason: %s' % (name, e))
 
-    @concurrent.run_on_executor
-    @retry(stop_max_attempt_number=3,
-           wait_exponential_multiplier=2,
-           wait_exponential_max=60)
-    @utils.exception_logger
+    @gen.coroutine
     def _delete(self, cert_name):
         """Delete a server certificate in AWS IAM."""
-        self.iam_conn.delete_server_cert(cert_name)
+        yield self.thread(self.iam_conn.delete_server_cert, cert_name)
 
     @gen.coroutine
     def _execute(self):

@@ -16,17 +16,14 @@
 
 import logging
 
-from boto import cloudformation
 from boto.exception import BotoServerError
-from retrying import retry
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
 
 from kingpin import utils
-from kingpin.actors import base
 from kingpin.actors import exceptions
-from kingpin.actors.aws import settings as aws_settings
+from kingpin.actors.aws import base
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -39,11 +36,6 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 # across RightScale objects, but we see testing IO errors when we
 # do this.
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
-
-
-# Used by the retrying.retry decorator
-def retry_if_transient_error(exception):
-    return isinstance(exception, BotoServerError)
 
 
 class CloudFormationError(exceptions.RecoverableActorFailure):
@@ -81,7 +73,7 @@ FAILED = (
     'UPDATE_ROLLBACK_FAILED')
 
 
-class CloudFormationBaseActor(base.BaseActor):
+class CloudFormationBaseActor(base.AWSBaseActor):
 
     """Base Actor for CloudFormation tasks"""
 
@@ -96,29 +88,7 @@ class CloudFormationBaseActor(base.BaseActor):
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2')
     }
 
-    def __init__(self, *args, **kwargs):
-        """Create the connection object."""
-        super(CloudFormationBaseActor, self).__init__(*args, **kwargs)
-
-        if not (aws_settings.AWS_ACCESS_KEY_ID and
-                aws_settings.AWS_SECRET_ACCESS_KEY):
-            raise exceptions.InvalidCredentials(
-                'AWS settings imported but not all credentials are supplied. '
-                'AWS_ACCESS_KEY_ID: %s, AWS_SECRET_ACCESS_KEY: %s' % (
-                    aws_settings.AWS_ACCESS_KEY_ID,
-                    aws_settings.AWS_SECRET_ACCESS_KEY))
-
-        self.conn = cloudformation.connect_to_region(
-            self.option('region'),
-            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
-
-    @concurrent.run_on_executor
-    @retry(retry_on_exception=retry_if_transient_error,
-           stop_max_attempt_number=5,
-           wait_exponential_multiplier=500,
-           wait_exponential_max=aws_settings.CF_WAIT_MAX)
-    @utils.exception_logger
+    @gen.coroutine
     def _get_stacks(self):
         """Gets a list of existing CloudFormation stacks.
 
@@ -132,9 +102,11 @@ class CloudFormationBaseActor(base.BaseActor):
         # then pull out the few that indicate a stack is no longer in
         # existence.
         self.log.debug('Getting list of stacks from Amazon..')
-        statuses = list(self.conn.valid_states)
+        statuses = list(self.cf_conn.valid_states)
         statuses.remove('DELETE_COMPLETE')
-        return self.conn.list_stacks(stack_status_filters=statuses)
+        stacks = yield self.thread(self.cf_conn.list_stacks,
+                                   stack_status_filters=statuses)
+        raise gen.Return(stacks)
 
     @gen.coroutine
     def _get_stack(self, stack):
@@ -267,12 +239,7 @@ class Create(CloudFormationBaseActor):
         except IOError as e:
             raise InvalidTemplate(e)
 
-    @concurrent.run_on_executor
-    @retry(retry_on_exception=retry_if_transient_error,
-           stop_max_attempt_number=5,
-           wait_exponential_multiplier=500,
-           wait_exponential_max=aws_settings.CF_WAIT_MAX)
-    @utils.exception_logger
+    @gen.coroutine
     def _validate_template(self):
         """Validates the CloudFormation template.
 
@@ -287,32 +254,26 @@ class Create(CloudFormationBaseActor):
                           self._template_url)
 
         try:
-            self.conn.validate_template(
+            yield self.thread(
+                self.cf_conn.validate_template,
                 template_body=self._template_body,
                 template_url=self._template_url)
         except BotoServerError as e:
             msg = '%s: %s' % (e.error_code, e.message)
-
-            if e.status == 403:
-                raise exceptions.InvalidCredentials(msg)
 
             if e.status == 400:
                 raise InvalidTemplate(msg)
 
             raise
 
-    @concurrent.run_on_executor
-    @retry(retry_on_exception=retry_if_transient_error,
-           stop_max_attempt_number=5,
-           wait_exponential_multiplier=500,
-           wait_exponential_max=aws_settings.CF_WAIT_MAX)
-    @utils.exception_logger
+    @gen.coroutine
     def _create_stack(self):
         """Executes the stack creation."""
         # Create the stack, and get its ID.
         self.log.info('Creating stack %s' % self.option('name'))
         try:
-            stack_id = self.conn.create_stack(
+            stack_id = yield self.thread(
+                self.cf_conn.create_stack,
                 self.option('name'),
                 template_body=self._template_body,
                 template_url=self._template_url,
@@ -323,16 +284,13 @@ class Create(CloudFormationBaseActor):
         except BotoServerError as e:
             msg = '%s: %s' % (e.error_code, e.message)
 
-            if e.status == 403:
-                raise exceptions.InvalidCredentials(msg)
-
             if e.status == 400:
                 raise CloudFormationError(msg)
 
             raise
 
         self.log.info('Stack %s created: %s' % (self.option('name'), stack_id))
-        return stack_id
+        raise gen.Return(stack_id)
 
     @gen.coroutine
     def _execute(self):
@@ -376,23 +334,16 @@ class Delete(CloudFormationBaseActor):
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2')
     }
 
-    @concurrent.run_on_executor
-    @retry(retry_on_exception=retry_if_transient_error,
-           stop_max_attempt_number=5,
-           wait_exponential_multiplier=500,
-           wait_exponential_max=aws_settings.CF_WAIT_MAX)
-    @utils.exception_logger
+    @gen.coroutine
     def _delete_stack(self):
         """Executes the stack deletion."""
         # Create the stack, and get its ID.
         self.log.info('Deleting stack %s' % self.option('name'))
         try:
-            ret = self.conn.delete_stack(self.option('name'))
+            ret = yield self.thread(
+                self.cf_conn.delete_stack, self.option('name'))
         except BotoServerError as e:
             msg = '%s: %s' % (e.error_code, e.message)
-
-            if e.status == 403:
-                raise exceptions.InvalidCredentials(msg)
 
             if e.status == 400:
                 raise CloudFormationError(msg)
@@ -400,7 +351,7 @@ class Delete(CloudFormationBaseActor):
             raise
         self.log.info('Stack %s delete requested: %s' %
                       (self.option('name'), ret))
-        return ret
+        raise gen.Return(ret)
 
     @gen.coroutine
     def _execute(self):
