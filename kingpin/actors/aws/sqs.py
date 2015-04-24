@@ -12,11 +12,10 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""AWS SQS Actors"""
+"""AWS.SQS Actors"""
 
 import logging
 import re
-import time
 
 from tornado import concurrent
 from tornado import gen
@@ -26,8 +25,8 @@ import boto.sqs.queue
 import mock
 
 from kingpin import utils
-from kingpin.actors import base
 from kingpin.actors import exceptions
+from kingpin.actors.aws import base
 from kingpin.actors.aws import settings as aws_settings
 from kingpin.constants import REQUIRED
 
@@ -57,7 +56,7 @@ class QueueDeletionFailed(exceptions.RecoverableActorFailure):
     """
 
 
-class SQSBaseActor(base.BaseActor):
+class SQSBaseActor(base.AWSBaseActor):
 
     # This actor should not be instantiated, but unit testing requires that
     # it's all options are defined properly here.
@@ -71,46 +70,7 @@ class SQSBaseActor(base.BaseActor):
     ioloop = ioloop.IOLoop.current()
     executor = EXECUTOR
 
-    def __init__(self, *args, **kwargs):
-        """Create the connection object."""
-        super(SQSBaseActor, self).__init__(*args, **kwargs)
-
-        region = self._get_region(self.option('region'))
-
-        if not (aws_settings.AWS_ACCESS_KEY_ID and
-                aws_settings.AWS_SECRET_ACCESS_KEY):
-            raise exceptions.InvalidCredentials(
-                'AWS settings imported but not all credentials are supplied. '
-                'AWS_ACCESS_KEY_ID: %s, AWS_SECRET_ACCESS_KEY: %s' % (
-                    aws_settings.AWS_ACCESS_KEY_ID,
-                    aws_settings.AWS_SECRET_ACCESS_KEY))
-
-        self.conn = boto.sqs.connection.SQSConnection(
-            aws_settings.AWS_ACCESS_KEY_ID,
-            aws_settings.AWS_SECRET_ACCESS_KEY,
-            region=region)
-
-    def _get_region(self, region):
-        """Return 'region' object used in SQSConnection
-
-        Args:
-            region: string - AWS region name, like us-west-2
-        Returns:
-            RegionInfo object from boto.sqs
-        """
-
-        all_regions = boto.sqs.regions()
-        match = [r for r in all_regions if r.name == region]
-
-        if len(match) != 1:
-            raise exceptions.UnrecoverableActorFailure((
-                'Expected to find exactly 1 region named %s. '
-                'Found: %s') % (region, match))
-
-        return match[0]
-
-    @concurrent.run_on_executor
-    @utils.exception_logger
+    @gen.coroutine
     def _fetch_queues(self, pattern):
         """Searches SQS for all queues with a matching name pattern.
 
@@ -120,9 +80,9 @@ class SQSBaseActor(base.BaseActor):
         Returns:
             Array of matched queues, even if empty.
         """
-        queues = self.conn.get_all_queues()
+        queues = yield self.thread(self.sqs_conn.get_all_queues)
         match_queues = [q for q in queues if re.search(pattern, q.name)]
-        return match_queues
+        raise gen.Return(match_queues)
 
 
 class Create(SQSBaseActor):
@@ -134,8 +94,7 @@ class Create(SQSBaseActor):
         'region': (str, REQUIRED, 'AWS region (or zone), such as us-west-2')
     }
 
-    @concurrent.run_on_executor
-    @utils.exception_logger
+    @gen.coroutine
     def _create_queue(self, name):
         """Create an SQS queue with the specified name.
 
@@ -150,13 +109,13 @@ class Create(SQSBaseActor):
         """
         if not self._dry:
             self.log.info('Creating a new queue: %s' % name)
-            new_queue = self.conn.create_queue(name)
+            new_queue = yield self.thread(self.sqs_conn.create_queue, name)
         else:
             self.log.info('Would create a new queue: %s' % name)
             new_queue = mock.Mock(name=name)
 
         self.log.debug('Returning queue object: %s' % new_queue)
-        return new_queue
+        raise gen.Return(new_queue)
 
     @gen.coroutine
     def _execute(self):
@@ -188,8 +147,7 @@ class Delete(SQSBaseActor):
         'idempotent': (bool, False, 'Continue if queues are already deleted.')
     }
 
-    @concurrent.run_on_executor
-    @utils.exception_logger
+    @gen.coroutine
     def _delete_queue(self, queue):
         """Delete the provided queue.
 
@@ -203,7 +161,7 @@ class Delete(SQSBaseActor):
         """
         if not self._dry:
             self.log.info('Deleting Queue: %s...' % queue.url)
-            ok = self.conn.delete_queue(queue)
+            ok = yield self.thread(self.sqs_conn.delete_queue, queue)
         else:
             self.log.info('Would delete the queue: %s' % queue.url)
             ok = True
@@ -212,7 +170,7 @@ class Delete(SQSBaseActor):
         if not ok:
             raise QueueDeletionFailed('Failed to delete "%s"' % queue.url)
 
-        return ok
+        raise gen.Return(ok)
 
     @gen.coroutine
     @utils.retry(QueueNotFound, delay=aws_settings.SQS_RETRY_DELAY)
@@ -253,8 +211,7 @@ class WaitUntilEmpty(SQSBaseActor):
         'required': (bool, False, 'At least 1 queue must be found.')
     }
 
-    @concurrent.run_on_executor
-    @utils.exception_logger
+    @gen.coroutine
     def _wait(self, queue, sleep=3):
         """Sleeps until an SQS Queue has emptied out.
 
@@ -270,10 +227,11 @@ class WaitUntilEmpty(SQSBaseActor):
         while True:
             if not self._dry:
                 self.log.debug('Counting %s' % queue.url)
-                visible = queue.count()
+                visible = yield self.thread(queue.count)
                 attr = 'ApproximateNumberOfMessagesNotVisible'
-                invisible = int(queue.get_attributes(attr)[attr])
-                count = visible + invisible
+                invisible = yield self.thread(queue.get_attributes, attr)
+                invisible_int = int(invisible[attr])
+                count = visible + invisible_int
             else:
                 self.log.info('Pretending that count is 0 for %s' % queue.url)
                 count = 0
@@ -281,12 +239,12 @@ class WaitUntilEmpty(SQSBaseActor):
             self.log.debug('Queue has %s messages in it.' % count)
             if count > 0:
                 self.log.info('Waiting on %s to become empty...' % queue.name)
-                time.sleep(sleep)
+                yield utils.tornado_sleep(sleep)
             else:
                 self.log.debug('Queue is empty!')
                 break
 
-        return True
+        raise gen.Return(True)
 
     @gen.coroutine
     def _execute(self):

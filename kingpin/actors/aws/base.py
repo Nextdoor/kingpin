@@ -17,20 +17,22 @@
 import logging
 import re
 
-from boto import utils
-from boto.exception import BotoServerError
+from boto import utils as boto_utils
+from boto import exception as boto_exception
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
+from retrying import retry
+import boto.cloudformation
 import boto.ec2
 import boto.ec2.elb
 import boto.iam
+import boto.sqs
 
+from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings as aws_settings
-
-from kingpin.actors.support import api as support
 
 log = logging.getLogger(__name__)
 
@@ -58,15 +60,6 @@ class AWSBaseActor(base.BaseActor):
 
     all_options = {
         'region': (str, None, 'AWS Region (or zone) to connect to.')
-    }
-
-    # Special constant expected by @support._retry decorator
-    _EXCEPTIONS = {
-        BotoServerError: {  # Match the `<message>` part of the exception
-            'LoadBalancerNotFound': ELBNotFound,
-            'InvalidClientTokenId': exceptions.InvalidCredentials,
-            'Rate exceeded': None
-        },
     }
 
     def __init__(self, *args, **kwargs):
@@ -120,7 +113,19 @@ class AWSBaseActor(base.BaseActor):
             aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
 
+        self.cf_conn = boto.cloudformation.connect_to_region(
+            region,
+            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
+
+        self.sqs_conn = boto.sqs.connect_to_region(
+            region,
+            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
+
     @concurrent.run_on_executor
+    @retry(**aws_settings.RETRYING_SETTINGS)
+    @utils.exception_logger
     def thread(self, function, *args, **kwargs):
         """Execute `function` in a concurrent thread.
 
@@ -130,10 +135,17 @@ class AWSBaseActor(base.BaseActor):
         This allows execution of any function in a thread without having
         to write a wrapper method that is decorated with run_on_executor()
         """
-        return function(*args, **kwargs)
+        try:
+            return function(*args, **kwargs)
+        except boto_exception.BotoServerError as e:
+            msg = '%s: %s' % (e.error_code, e.message)
+
+            if e.status == 403:
+                raise exceptions.InvalidCredentials(msg)
+
+            raise
 
     @gen.coroutine
-    @support._retry(delay=1.0, retries=10)
     def _find_elb(self, name):
         """Return an ELB with the matching name.
 
@@ -150,8 +162,17 @@ class AWSBaseActor(base.BaseActor):
         """
         self.log.info('Searching for ELB "%s"' % name)
 
-        elbs = yield self.thread(self.elb_conn.get_all_load_balancers,
-                                 load_balancer_names=name)
+        try:
+            elbs = yield self.thread(self.elb_conn.get_all_load_balancers,
+                                     load_balancer_names=name)
+        except boto_exception.BotoServerError as e:
+            msg = '%s: %s' % (e.error_code, e.message)
+            log.error('Received exception: %s' % msg)
+
+            if e.status == 400:
+                raise ELBNotFound(msg)
+
+            raise
 
         self.log.debug('ELBs found: %s' % elbs)
 
@@ -162,6 +183,7 @@ class AWSBaseActor(base.BaseActor):
         raise gen.Return(elbs[0])
 
     @concurrent.run_on_executor
+    @retry(**aws_settings.RETRYING_SETTINGS)
     def _get_meta_data(self, key):
         """Get AWS meta data for current instance.
 
@@ -169,7 +191,7 @@ class AWSBaseActor(base.BaseActor):
         ec2-instance-metadata.html
         """
 
-        meta = utils.get_instance_metadata(timeout=1, num_retries=2)
+        meta = boto_utils.get_instance_metadata(timeout=1, num_retries=2)
         if not meta:
             raise InvalidMetaData('No metadata available. Not AWS instance?')
 

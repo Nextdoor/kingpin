@@ -19,10 +19,12 @@ class SQSTestCase(testing.AsyncTestCase):
         super(SQSTestCase, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        reload(sqs)
 
     @mock.patch.object(boto.sqs.connection, 'SQSConnection')
     def run(self, result, sqsc):
-        self.conn = sqsc
+        self.sqs_conn = sqsc
         super(SQSTestCase, self).run(result=result)
 
 
@@ -37,7 +39,7 @@ class TestSQSBaseActor(SQSTestCase):
         all_queues[2].name = '3-match'
         all_queues[3].name = '4-match'
 
-        self.conn().get_all_queues.return_value = all_queues
+        self.sqs_conn().get_all_queues.return_value = all_queues
 
         actor = sqs.SQSBaseActor('Unit Test Action', {
             'name': 'unit-test-queue',
@@ -59,28 +61,15 @@ class TestCreateSQSQueueActor(SQSTestCase):
                 'region': 'us-west-2'})
 
     @testing.gen_test
-    def test_check_regions(self):
-        with self.assertRaises(Exception):
-            sqs.SQSBaseActor('Unit Test Action', {
-                'name': 'unit-test-queue',
-                'region': 'bonkers'})  # This should fail
-
-        actor = sqs.SQSBaseActor('Unit Test Action', {
-            'name': 'unit-test-queue',
-            'region': 'us-east-1'})
-
-        self.assertEquals(actor._get_region('us-east-1').name, 'us-east-1')
-
-    @testing.gen_test
     def test_execute(self):
         self.actor = sqs.Create('Unit Test Action',
                                 {'name': 'unit-test-queue',
                                  'region': 'us-west-2'})
 
-        self.conn().create_queue.return_value = boto.sqs.queue.Queue()
+        self.sqs_conn().create_queue.return_value = boto.sqs.queue.Queue()
         ret = yield self.actor.execute()
         self.assertEquals(ret, None)
-        self.conn().create_queue.assert_called_once_with('unit-test-queue')
+        self.sqs_conn().create_queue.assert_called_once_with('unit-test-queue')
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -89,9 +78,9 @@ class TestCreateSQSQueueActor(SQSTestCase):
                                  'region': 'us-west-2'},
                                 dry=True)
 
-        self.conn().create_queue.return_value = boto.sqs.queue.Queue()
+        self.sqs_conn().create_queue.return_value = boto.sqs.queue.Queue()
         yield self.actor.execute()
-        self.assertFalse(self.conn().create_queue.called)
+        self.assertFalse(self.sqs_conn().create_queue.called)
 
     @testing.gen_test
     def test_execute_with_error(self):
@@ -99,11 +88,11 @@ class TestCreateSQSQueueActor(SQSTestCase):
                                 {'name': 'unit-test-queue',
                                  'region': 'us-west-2'})
 
-        self.conn().create_queue.return_value = False
+        self.sqs_conn().create_queue.return_value = False
 
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
             yield self.actor.execute()
-        self.conn().create_queue.assert_called_once_with('unit-test-queue')
+        self.sqs_conn().create_queue.assert_called_once_with('unit-test-queue')
 
 
 class TestDeleteSQSQueueActor(SQSTestCase):
@@ -115,7 +104,7 @@ class TestDeleteSQSQueueActor(SQSTestCase):
                             'region': 'us-west-2'})
         q = mock.Mock()
         q.name = 'unit-test-queue'
-        self.conn().delete_queue.return_value = False
+        self.sqs_conn().delete_queue.return_value = False
         with self.assertRaises(sqs.QueueDeletionFailed):
             yield actor._delete_queue(q)
 
@@ -127,12 +116,12 @@ class TestDeleteSQSQueueActor(SQSTestCase):
 
         q = mock.Mock()
         q.name = 'unit-test-queue'
-        self.conn().get_all_queues = mock.Mock(return_value=[q])
-        self.conn().delete_queue.return_value = True
+        self.sqs_conn().get_all_queues = mock.Mock(return_value=[q])
+        self.sqs_conn().delete_queue.return_value = True
         yield actor.execute()
 
-        self.assertTrue(self.conn().get_all_queues.called)
-        self.assertTrue(self.conn().delete_queue.called)
+        self.assertTrue(self.sqs_conn().get_all_queues.called)
+        self.assertTrue(self.sqs_conn().delete_queue.called)
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -143,14 +132,14 @@ class TestDeleteSQSQueueActor(SQSTestCase):
 
         q = mock.Mock()
         q.name = 'unit-test-queue'
-        self.conn().get_all_queues = mock.Mock(return_value=[q])
-        self.conn().delete_queue.return_value = True
+        self.sqs_conn().get_all_queues = mock.Mock(return_value=[q])
+        self.sqs_conn().delete_queue.return_value = True
         yield actor.execute()
 
-        self.assertTrue(self.conn().get_all_queues.called)
-        self.assertFalse(self.conn().delete_queue.called)
+        self.assertTrue(self.sqs_conn().get_all_queues.called)
+        self.assertFalse(self.sqs_conn().delete_queue.called)
 
-        self.conn().get_all_queues = mock.Mock(return_value=[])
+        self.sqs_conn().get_all_queues = mock.Mock(return_value=[])
         # Should fail even in dry run, if idempotent flag is not there.
         settings.SQS_RETRY_DELAY = 0
         reload(sqs)

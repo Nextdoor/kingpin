@@ -1,13 +1,13 @@
 import logging
 
-from boto import utils
 from boto.exception import BotoServerError
+from boto import utils
 from tornado import testing
 import mock
 
+from kingpin.actors.aws import settings
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
-from kingpin.actors.aws import settings
 
 log = logging.getLogger(__name__)
 
@@ -18,6 +18,8 @@ class TestBase(testing.AsyncTestCase):
         super(TestBase, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        reload(base)
 
     def test_region_check(self):
         with self.assertRaises(exceptions.InvalidOptions):
@@ -27,6 +29,17 @@ class TestBase(testing.AsyncTestCase):
         actor = base.AWSBaseActor('Unit Test Action',
                                   {'region': 'us-west-1d'})
         self.assertEquals(actor.ec2_conn.region.name, 'us-west-1')
+
+    @testing.gen_test
+    def test_thread_exception(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        actor.elb_conn = mock.Mock()
+        actor.elb_conn.get_all_load_balancers = mock.MagicMock()
+        exc = BotoServerError(403, 'The security token')
+        actor.elb_conn.get_all_load_balancers.side_effect = exc
+
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield actor._find_elb('')
 
     @testing.gen_test
     def test_find_elb(self):
@@ -52,10 +65,22 @@ class TestBase(testing.AsyncTestCase):
         with self.assertRaises(base.ELBNotFound):
             yield actor._find_elb('')
 
-        # Now pretend the request failed
-        actor.elb_conn.get_all_load_balancers = mock.Mock(
-            side_effect=BotoServerError(400, 'LoadBalancerNotFound'))
+    @testing.gen_test
+    def test_find_elb_exception_error(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+
+        # Pretend the request worked, but there are no ELBs
+        actor.elb_conn = mock.Mock()
+        actor.elb_conn.get_all_load_balancers = mock.MagicMock()
+        actor.elb_conn.get_all_load_balancers.side_effect = BotoServerError(
+            400, 'LoadBalancerNotFound')
         with self.assertRaises(base.ELBNotFound):
+            yield actor._find_elb('')
+
+        # Pretend the request worked, but there are no ELBs
+        actor.elb_conn.get_all_load_balancers.side_effect = BotoServerError(
+            401, 'SomeOtherError')
+        with self.assertRaises(BotoServerError):
             yield actor._find_elb('')
 
     @testing.gen_test
