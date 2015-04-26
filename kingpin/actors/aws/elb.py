@@ -90,8 +90,7 @@ class WaitUntilHealthy(ELBBaseActor):
 
         return expected_count
 
-    @concurrent.run_on_executor
-    @utils.exception_logger
+    @gen.coroutine
     def _is_healthy(self, elb, count):
         """Check if there are `count` InService instances for a given elb.
 
@@ -107,7 +106,7 @@ class WaitUntilHealthy(ELBBaseActor):
         self.log.debug('Counting ELB InService instances for : %s' % name)
 
         # Get all instances for this ELB
-        instance_list = elb.get_instance_health()
+        instance_list = yield self.thread(elb.get_instance_health)
         total_count = len(instance_list)
 
         self.log.debug('All instances: %s' % instance_list)
@@ -119,7 +118,7 @@ class WaitUntilHealthy(ELBBaseActor):
         healthy = (in_service_count >= expected_count)
         self.log.debug('ELB "%s" healthy state: %s' % (elb.name, healthy))
 
-        return healthy
+        raise gen.Return(healthy)
 
     @gen.coroutine
     def _execute(self):
