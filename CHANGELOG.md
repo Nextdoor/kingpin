@@ -1,3 +1,19 @@
+## Version 0.2.6
+  * #264: Use self.thread() in elb.WaitUntilHealthy._is_healthy() method. ([@diranged])
+  * #263: Clean up all AWS Actors: Use retrying.retry with common backoff settings... ([@diranged])
+  * #261: Fix the default_timeout=0 class setting on Group/Macro actors. ([@diranged])
+  * #260: The BaseActor class setting `default_timeout=0` does not seem to function. ([@diranged])
+  * #258: Set the default timeout for the misc.Macro actor to 0 (unlimited). ([@diranged])
+  * #257: Minor fixes ([@siminm])
+  * #256: Bump find_elb retry delay to 1 second. ([@siminm])
+  * #254: Add `Rate exceeded` to retriable exceptions. ([@siminm])
+  * #252: Use correct BotoServerError attribute for error_code ([@siminm])
+  * #251: Do not leverage PleaseRetryException to handle Throttling ([@siminm])
+  * #248: Allow skipping of the automated dry run. ([@siminm])
+  * #247: Show all errors in Dry run before failing. ([@siminm])
+  * #246: Add option to skip dry run ([@siminm])
+  * #243: Retry on HTTP 599s in support.api ([@diranged])
+
 ## Version 0.2.5
  * #239: Add the @sync_retry decorator to the make_generic_request() call. ([@diranged])
  * #238: Improve the timeout system... ([@diranged])
