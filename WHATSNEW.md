@@ -1,3 +1,20 @@
+## Version 0.2.6
+
+Mostly a bug-fix release. Sigificant work went into improving the AWS actor reliability though.
+
+### Bug-fixes/Improvements
+
+  * Significant improvements to the retry mechanisms used by the AWS Actors.
+    All of the AWS actors now subclass from a single common AWSBaseActor class,
+    and use a common retry mechanism with built in jitter and exponential
+    backoff.
+  * Fix the [group.Sync](docs/actors/group.Sync.md),
+    [group.Async](docs/actors/group.Async.md) and
+    [misc.Macro](docs/actors/misc.Macro.md) actors timeout setting. It is disabled
+    by default now (as it was intended to be).
+  * Allow skipping of the pre-run DRY execution.
+  * Show all errors in the DRY run rather than failing out on the first one.
+
 ## Version 0.2.5
 
 Skipped a version because there were numerous new actors in this release.
