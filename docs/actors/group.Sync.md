@@ -51,10 +51,17 @@ Examples
 
 **Dry Mode**
 
-Passes on the Dry mode setting to the acts that are called.
+Passes on the Dry mode setting to the acts that are called. Does **not** stop
+execution when one of the acts fails. Instead Group actor will finish all acts
+with warnings, and raise an error at the end of execution.
+
+This provides the user with an insight to all the errors that are possible to
+encounter, rather than abort and quit on the first one.
 
 **Failure**
 
 In the event that an act fails, this actor will return the failure immediately.
 Because the acts are executed in-order of definition, the failure will
 prevent any further acts from executing.
+
+The behavior is different in the dry run (read above.)
