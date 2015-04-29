@@ -234,9 +234,9 @@ class TestUpdateActor(testing.AsyncTestCase):
         ret = yield self.actor.execute()
 
         self.client_mock.update_server_array.assert_called_once_with(
-            mocked_array, {'server_array[name]': 'newunitarray'})
+            mocked_array, [('server_array[name]', 'newunitarray')])
         self.client_mock.update_server_array_inputs.assert_called_once_with(
-            mocked_array, {'inputs[test]': 'text:test'})
+            mocked_array, [('inputs[test]', 'text:test')])
 
         self.assertEquals(None, ret)
 
@@ -257,6 +257,44 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.assertEquals(0, mocked_array.call_count)
 
     @testing.gen_test
+    def test_execute_500_error_raises_exc(self):
+        mocked_array = mock.MagicMock(name='unittestarray')
+
+        self.actor._check_array_inputs = mock_tornado(True)
+        self.actor._find_server_arrays = mock_tornado(mocked_array)
+
+        msg = '500 : Unknown error'
+        mocked_response = mock.MagicMock(name='response')
+        mocked_response.status_code = 500
+        error = requests.exceptions.HTTPError(msg, response=mocked_response)
+        self.client_mock.update_server_array.side_effect = error
+
+        with self.assertRaises(exceptions.ActorException):
+            yield self.actor.execute()
+
+        self.client_mock.update_server_array.assert_called_once_with(
+            mocked_array, [('server_array[name]', 'newunitarray')])
+
+    @testing.gen_test
+    def test_execute_400_error(self):
+        mocked_array = mock.MagicMock(name='unittestarray')
+
+        self.actor._check_array_inputs = mock_tornado(True)
+        self.actor._find_server_arrays = mock_tornado(mocked_array)
+
+        msg = '400 Client Error: Bad Request'
+        mocked_response = mock.MagicMock(name='response')
+        mocked_response.status_code = 400
+        error = requests.exceptions.HTTPError(msg, response=mocked_response)
+        self.client_mock.update_server_array.side_effect = error
+
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor.execute()
+
+        self.client_mock.update_server_array.assert_called_once_with(
+            mocked_array, [('server_array[name]', 'newunitarray')])
+
+    @testing.gen_test
     def test_execute_422_error(self):
         mocked_array = mock.MagicMock(name='unittestarray')
 
@@ -273,7 +311,7 @@ class TestUpdateActor(testing.AsyncTestCase):
             yield self.actor.execute()
 
         self.client_mock.update_server_array.assert_called_once_with(
-            mocked_array, {'server_array[name]': 'newunitarray'})
+            mocked_array, [('server_array[name]', 'newunitarray')])
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -393,7 +431,7 @@ class TestTerminateActor(testing.AsyncTestCase):
 
         yield self.actor._disable_array(array_mock)
         self.client_mock.update_server_array.assert_has_calls([
-            mock.call(array_mock, {'server_array[state]': 'disabled'})])
+            mock.call(array_mock, [('server_array[state]', 'disabled')])])
 
     @testing.gen_test
     def test_execute(self):
@@ -412,9 +450,9 @@ class TestTerminateActor(testing.AsyncTestCase):
 
         # Verify that the array object would have been patched
         self.client_mock.update_server_array.assert_called_once_with(
-            initial_array,  {'server_array[state]': 'disabled'})
+            initial_array,  [('server_array[state]', 'disabled')])
         initial_array.updated.assert_called_once_with(
-            {'server_array[state]': 'disabled'})
+            [('server_array[state]', 'disabled')])
 
         # Now verify that each of the steps (terminate, wait, destroyed) were
         # all called.
@@ -640,9 +678,9 @@ class TestLaunchActor(testing.AsyncTestCase):
         # Verify that the array object would have been patched
         yield self.actor._enable_array(initial_array)
         self.client_mock.update_server_array.assert_called_once_with(
-            initial_array,  {'server_array[state]': 'enabled'})
+            initial_array,  [('server_array[state]', 'enabled')])
         initial_array.updated.assert_called_once_with(
-            {'server_array[state]': 'enabled'})
+            [('server_array[state]', 'enabled')])
 
         # Reset for a dry run
         self.actor._dry = True
@@ -799,7 +837,7 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.actor._apply.assert_has_calls([
             mock.call(self.actor._execute_array,
                       mock_array,
-                      {u'inputs[foo]': u'text:bar'})])
+                      [(u'inputs[foo]', u'text:bar')])])
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -813,7 +851,7 @@ class TestExecuteActor(testing.AsyncTestCase):
         yield self.actor._execute()
         self.actor._apply.assert_has_calls([
             mock.call(self.actor._execute_array,
-                      mock_array, {u'inputs[foo]': u'text:bar'})
+                      mock_array, [(u'inputs[foo]', u'text:bar')])
         ])
 
     @testing.gen_test

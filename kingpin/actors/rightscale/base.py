@@ -84,29 +84,41 @@ class RightScaleBaseActor(base.BaseActor):
 
         We return:
 
-            {'server_array[name]': 'unittest-name',
-             'server_array[bounds][min_count]': 3}
+            [ ('server_array[name]', 'unittest-name'),
+              ('server_array[bounds][min_count]', '3) ]
+
+        For more examples, see our unit tests.
 
         Args:
             prefix: The key-prefix to use (ie, 'server_array')
             params: The dictionary to squash
 
         Returns:
-            A single-level dictionary of key/value pairs.
+            A list of tuples of key/value pairs.
         """
         if not type(params) == dict:
             raise exceptions.InvalidOptions(
                 'Parameters passed in must be in the form of a dict.')
 
         # Nested loop that compresses a multi level dictinary into a flat
-        # dict of key/value pairs.
+        # array of key=value strings.
         def flatten(d, parent_key=prefix, sep='_'):
             items = []
-            for k, v in d.items():
-                new_key = parent_key + '[' + k + ']' if parent_key else k
-                if isinstance(v, collections.MutableMapping):
-                    items.extend(flatten(v, new_key).items())
-                else:
-                    items.append((new_key, v))
-            return dict(items)
+
+            if isinstance(d, collections.MutableMapping):
+                # If a dict is passed in, break it into its items and
+                # then iterate over them.
+                for k, v in d.items():
+                    new_key = parent_key + '[' + k + ']' if parent_key else k
+                    items.extend(flatten(v, new_key))
+            elif isinstance(d, list):
+                # If an array was passed in, then iterate over the array
+                new_key = parent_key + '[]' if parent_key else k
+                for item in d:
+                    items.extend(flatten(item, new_key))
+            else:
+                items.append((parent_key, d))
+
+            return items
+
         return flatten(params)
