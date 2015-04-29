@@ -145,7 +145,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
 
     @attr('integration')
     @testing.gen_test(timeout=10)
-    def integration_04c_update_with_invalid_params(self):
+    def integration_04c_update_with_invalid_params_422(self):
         actor = server_array.Update(
             'Update %s' % self.clone_name,
             {'array': self.clone_name,
@@ -156,8 +156,23 @@ class IntegrationServerArray(testing.AsyncTestCase):
             yield actor.execute()
 
     @attr('integration')
+    @testing.gen_test(timeout=10)
+    def integration_04d_update_with_invalid_params_400(self):
+        actor = server_array.Update(
+            'Update %s' % self.clone_name,
+            {'array': self.clone_name,
+             'params': {
+                 'elasticity_params': {
+                     'schedule': [
+                         # Note the 'time' field is missing the :
+                         {'day': 'Sunday', 'min_count': '1',
+                          'max_count': '1', 'time': '0700'}]}}})
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor.execute()
+
+    @attr('integration')
     @testing.gen_test(timeout=60)
-    def integration_04d_update_missing_array(self):
+    def integration_04e_update_missing_array(self):
         # Patch the array with some new min_instance settings, then launch it
         actor = server_array.Update(
             'Update missing array',

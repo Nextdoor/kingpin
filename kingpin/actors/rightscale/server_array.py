@@ -296,10 +296,12 @@ class Update(ServerArrayBaseActor):
         try:
             yield self._client.update_server_array(array, self._params)
         except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 422:
+            if e.response.status_code in (422, 400):
                 msg = ('Invalid parameters supplied to patch array "%s"' %
                        self.option('array'))
                 raise exceptions.RecoverableActorFailure(msg)
+
+            raise
 
         raise gen.Return()
 

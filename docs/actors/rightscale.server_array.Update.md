@@ -27,7 +27,11 @@ Examples
           "elasticity_params": {
             "bounds": {
               "min_count": 4
-            }
+            },
+            "schedule": [
+              {"day": "Sunday", "max_count": 2, "min_count": 1, :"time": "07:00" },
+              {"day": "Sunday", "max_count": 2, "min_count": 2, :"time": "09:00" }
+            ]
           },
           "name": "my-really-new-name"
         }
