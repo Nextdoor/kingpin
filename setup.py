@@ -133,7 +133,7 @@ class SourceDistHook(sdist):
     def run(self):
         with open('version.rst', 'w') as f:
             f.write(':Version: %s\n' % __version__)
-        shutil.copy('README.md', 'README')
+        shutil.copy('README.rst', 'README')
         sdist.run(self)
         os.unlink('MANIFEST')
         os.unlink('README')
@@ -144,7 +144,7 @@ setup(
     name=PACKAGE,
     version=__version__,
     description='Deployment Automation Engine',
-    long_description=open('README.md').read(),
+    long_description=open('README.rst').read(),
     author='Nextdoor Engineering',
     author_email='eng@nextdoor.com',
     url='https://github.com/Nextdoor/kingpin',

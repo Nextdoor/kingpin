@@ -126,12 +126,12 @@ please see [v0.1.2...v0.2.0].
 
 ### New Concepts
 
-*[Conditional Execution](README.md#conditional-execution)*:
+*[Conditional Execution](README.rst#conditional-execution)*:
 Make any actor or group of actors execution conditional based on a token that
 you've supplied. Allows you to easily turn on and off sections of your
 deployment like switches.
 
-*[Contextual Tokens](README.md#contextual-tokens)*:
+*[Contextual Tokens](README.rst#contextual-tokens)*:
 Now we have a model for a new type of token-replacement in the JSON files that
 can be used to change tokens at or during run time. The initial usage of these
 tokens is in the `group.Sync` and `group.Async` actors where we have added a
