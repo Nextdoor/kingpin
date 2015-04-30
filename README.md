@@ -411,6 +411,34 @@ ability to define usable tokens, but any actor can then reference these tokens.
     2015-01-14 15:02:22,165 INFO      [DRY: Notify Engineering] Sending message "Hey room .. I'm done with the release. Get back to work" to Hipchat room "Engineering"
     2015-01-14 15:02:22,239 INFO      [DRY: Notify Cust Service] Sending message "Hey room .. I'm done with the release. Have a nice day" to Hipchat room "Cust Service"
 
+*Contextual tokens stored in separate file*
+
+When multiple kingping json files need to leverage the same context for different purposes it is useful to put the contexts into a stand alone file and then reference that file.
+
+    /* kingpin.json */
+    { "desc": "Send ending notifications...",
+      "actor": "group.Async",
+      "options": {
+        "context-file": "data/notification-rooms.json",
+        "acts": [
+          { "desc": "Notify {ROOM}",
+            "actor": "hipchat.Message",
+            "options": {
+                "room": "{ROOM}",
+                "message": "Hey room .. I'm done with the release. {WISDOM}"
+            }
+          }
+        ]
+      }
+    }
+
+    /* data/notification-rooms.json */
+    [
+      { "ROOM": "Engineering", "WISDOM": "Get back to work" },
+      { "ROOM": "Cust Service", "WISDOM": "Have a nice day" }
+    ]
+
+This refactoring will yield in the same result as the above example.
 
 ##### Early Actor Instantiation
 

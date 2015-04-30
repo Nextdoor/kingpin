@@ -17,6 +17,7 @@
 import logging
 
 from tornado import gen
+import demjson
 
 from kingpin.actors import base
 from kingpin.actors import exceptions
@@ -43,6 +44,7 @@ class BaseGroupActor(base.BaseActor):
 
     all_options = {
         'contexts': (list, [], "List of contextual hashes."),
+        'context-file': (str, '', "A JSON file with a list of contexts."),
         'acts': (list, REQUIRED, "Array of actor definitions.")
     }
 
@@ -82,11 +84,18 @@ class BaseGroupActor(base.BaseActor):
         passed into this actors 'init_context' are also passed into the
         actors that we're intantiating.
         """
-        if not self.option('contexts'):
+        any_contexts = self.option('contexts') or self.option('context-file')
+        if not any_contexts:
             return self._build_action_group(self._init_context)
 
+        if self.option('contexts'):
+            context_data = self.option('contexts')
+        elif self.option('context-file'):
+            context_string = open(self.option('context-file')).read()
+            context_data = demjson.decode(context_string)
+
         actions = []
-        for context in self.option('contexts'):
+        for context in context_data:
             combined_context = dict(self._init_context.items() +
                                     context.items())
             self.log.debug('Building acts with parameters: %s' %
