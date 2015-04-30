@@ -37,3 +37,6 @@ kingpin.zip:
 	cd zip; ln -sf kingpin/bin/deploy.py ./__main__.py
 	cd zip; zip -9mrv ../kingpin.zip .
 	rm -rf zip
+
+docs:
+	cd docs; make clean html

@@ -12,10 +12,18 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""Misc Actor objects.
+"""
+Misc
+~~~~
 
 These are common utility Actors that don't really need their own
 dedicated packages. Things like sleep timers, loggers, etc.
+
+**Optional Environment Variables**
+
+-  ``URLLIB_DEBUG``: Set this variable to enable extreme debug logging
+   of the URLLIB requests made by the RightScale/AWS actors.
+   *Note, this is very insecure as headers/cookies/etc. are exposed*
 """
 
 import StringIO
@@ -41,7 +49,66 @@ __author__ = ('Matt Wise <matt@nextdoor.com>, '
 
 class Macro(base.BaseActor):
 
-    """Execute a kingpin JSON file."""
+    """Parses a kingpin JSON file, instantiates and executes it.
+
+    **Parse JSON**
+
+    Kingpin JSON has 2 passes at its validity. JSON syntax must be valid, with the
+    exception of a few useful deviations allowed by ``demjson`` parser. Main one
+    being the permission of inline comments via ``/* this */`` syntax.
+
+    The second pass is validating the Schema. The JSON file will be validated for
+    schema-conformity as one of the first things that happens at load-time when the
+    app starts up. If it fails, you will be notified immediately.
+
+    Lastly after JSON is established to be valid, all the tokens are replaced with
+    their specified value. Any key/value pair passed in the ``tokens`` option will be
+    available inside of the JSON file as `%KEY%` and replaced with the value at
+    this time.
+
+    In a situation where nested Macro executions are invoked the tokens *do not*
+    propagate from outter macro into the inner. This allows to reuse token names,
+    but forces the user to specify every token needed. Similarly, if environment
+    variables are used for token replacement in the main file, these tokens are not
+    available in the subsequent macros.
+
+    **Pre-Instantiation**
+
+    In an effort to prevent mid-run errors, we pre-instantiate all Actor objects
+    all at once before we ever begin executing code. This ensures that major typos
+    or misconfigurations in the JSON will be caught early on.
+
+    **Execution**
+
+    ``misc.Macro`` actor simply calls the ``execute()`` method of the most-outter
+    actor; be it a single action, or a group actor.
+
+    **Options**
+
+    -  ``file`` - String of local path to a JSON file.
+    -  ``tokens`` -  Dictionary to search/replace within the file.
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "desc": "Stage 1",
+         "actor": "misc.Macro",
+         "options": {
+           "file": "deployment/stage-1.json",
+           "tokens": {
+             "TIMEOUT": 360,
+             "RELEASE": "%RELEASE%"
+           }
+         }
+       }
+
+    **Dry Mode**
+
+    Fully supported -- instantiates the actor inside of JSON with dry=True. The
+    behavior of the consecutive actor is unique to each; read their description
+    for more information on dry mode.
+    """
 
     # By default, group actors have no timeout. We rely on the individual
     # actors to expire on their own. This is, of course, overrideable in the
@@ -164,7 +231,27 @@ class Macro(base.BaseActor):
 
 class Sleep(base.BaseActor):
 
-    """Simple actor that just sleeps for an arbitrary amount of time."""
+    """Sleeps for an arbitrary number of seconds.
+
+    **Options**
+
+    -  ``sleep`` - Integer of seconds to sleep.
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "actor": "misc.Sleep",
+         "desc": "Sleep for 60 seconds",
+         "options": {
+           "sleep": 60
+         }
+       }
+
+    **Dry Mode**
+
+    Fully supported -- does not actually sleep, just pretends to.
+    """
 
     all_options = {
         'sleep': ((int, float, str), REQUIRED,
@@ -188,7 +275,34 @@ class Sleep(base.BaseActor):
 
 class GenericHTTP(base.HTTPBaseActor):
 
-    """Simple HTTP get/post sending actor."""
+    """A very simple actor that allows GET/POST methods over HTTP.
+
+    Does a GET or a POST to a specified URL.
+
+    **Options**
+
+    -  ``url``
+    -  ``data`` - Optional POST data as a `dict`ionary.
+    -  ``username`` - optional for HTTPAuth.
+    -  ``password`` - optional for HTTPAuth.
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "actor": "misc.GenericHTTP",
+         "desc": "Make a simple web call",
+         "options": {
+           "url": "http://example.com/rest/api/v1?id=123&action=doit",
+           "username": "secret"
+           "password": "%SECRET_PASSWORD%"
+         }
+       }
+
+    **Dry Mode**
+
+    Will not do anything in dry mode except print a log statement.
+    """
 
     all_options = {
         'url': (str, REQUIRED, 'Domain name + query string to fetch'),

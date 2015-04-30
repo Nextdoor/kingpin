@@ -19,7 +19,7 @@ import os
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath(".."))
-# import kingpin
+import kingpin
 from kingpin import version as kingpin_version
 
 # -- General configuration ------------------------------------------------
@@ -29,6 +29,8 @@ from kingpin import version as kingpin_version
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
@@ -36,6 +38,24 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
 ]
+
+# Napoleon settings
+napoleon_google_docstring = True
+napoleon_numpy_docstring = False
+napoleon_include_private_with_doc = False
+napoleon_include_special_with_doc = True
+napoleon_use_admonition_for_examples = False
+napoleon_use_admonition_for_notes = False
+napoleon_use_admonition_for_references = False
+napoleon_use_ivar = False
+napoleon_use_param = True
+napoleon_use_rtype = True
+
+# Get the class doc string from the class itself, not from the __init__ method
+autoclass_content = 'class'
+
+# Order the auto-documented classes/etc in the same order as the source code
+autodoc_member_order = 'bysource'
 
 # Without this line sphinx includes a copy of object.__init__'s docstring
 # on any class that doesn't define __init__.

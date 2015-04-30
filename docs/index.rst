@@ -15,26 +15,20 @@ Kingpin provides 3 main functions:
    can execute any action in parallel with another. (Read group.Async
    below)
 
-Usage Documentation
---------------------
-
 .. toctree::
-   :titlesonly:
+   :maxdepth: 3
 
    installation
    basicuse
    actors
    security
 
+.. toctree::
+   :maxdepth: 3
+
+   development
+
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
-Developer Documentation
------------------------
-
-.. toctree::
-   :titlesonly:
-
-   development
 
