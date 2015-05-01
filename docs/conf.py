@@ -22,8 +22,8 @@ sys.path.insert(0, os.path.abspath(".."))
 import kingpin
 from kingpin import version as kingpin_version
 
-# We need sphinx 1.3+ for some of our used features
-needs_sphinx = '1.3'
+# We need sphinx 1.2+ for some of our used features
+needs_sphinx = '1.2'
 
 # -- General configuration ------------------------------------------------
 
