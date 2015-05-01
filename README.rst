@@ -2,6 +2,7 @@ Kingpin: Deployment Automation Engine
 =====================================
 
 .. image:: https://travis-ci.org/Nextdoor/kingpin.svg?branch=master
+.. image:: https://readthedocs.org/projects/kingpin/badge/?version=latest
 .. image:: https://pypip.in/d/kingpin/badge.png
 .. image:: https://badge.fury.io/py/kingpin.png
 
