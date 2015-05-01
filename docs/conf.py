@@ -41,9 +41,9 @@ extensions = [
     'sphinx.ext.viewcode',
 ]
 
-# Search for 'any' object type when someone uses a single tick-surrounded word
+# Search for 'py:obj' types when someone uses a single tick-surrounded word
 # like `BaseAftor`
-default_role = 'any'
+default_role = 'py:obj'
 
 # Get the class doc string from the class itself, not from the __init__ method
 autoclass_content = 'class'

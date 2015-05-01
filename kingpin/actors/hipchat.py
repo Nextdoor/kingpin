@@ -152,7 +152,7 @@ class Message(HipchatBase):
          "desc": "Send a message!",
          "options": {
            "room": "Operations",
-           "message': "Beginning Deploy: v1.2"
+           "message": "Beginning Deploy: v1.2"
          }
        }
 

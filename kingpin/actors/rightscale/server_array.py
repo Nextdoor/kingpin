@@ -185,9 +185,10 @@ class Clone(ServerArrayBaseActor):
 
     **Examples**
 
+    Clone my-template-array to my-new-array:
+
     .. code-block:: json
 
-       # Clone my-template-array to my-new-array
        { "desc": "Clone my array",
          "actor": "rightscale.server_array.Clone",
          "options": {
@@ -196,10 +197,11 @@ class Clone(ServerArrayBaseActor):
          }
        }
 
+    Clone an array that was created sometime earlier in the Kingpin JSON,
+    and thus does not exist yet during the dry run:
+
     .. code-block:: json
 
-       # Clone an array that was created sometime earlier in the Kingpin JSON,
-       # and thus does not exist yet during the dry run.
        { "desc": "Clone that array we created earlier",
          "actor": "rightscale.server_array.Clone",
          "options": {
@@ -209,10 +211,11 @@ class Clone(ServerArrayBaseActor):
          }
        }
 
+    Clone an array into a destination name that was destroyed sometime
+    earlier in the Kingpin JSON:
+
     .. code-block:: json
 
-       # Clone an array into a destination name that was destroyed sometime
-       # earlier in the Kingpin JSON.
        { "desc": "Clone that array we created earlier",
          "actor": "rightscale.server_array.Clone",
          "options": {
@@ -220,19 +223,18 @@ class Clone(ServerArrayBaseActor):
            "dest": "my-new-array",
            "strict_dest": false,
          }
+       }
 
     **Dry Mode**
 
     In Dry mode this actor *does* validate that the ``source`` array exists. If
-    it does not, a `rightscale.api.ServerArrayException` is thrown. Once that
-    has been validated, the dry mode execution pretends to copy the array by
-    creating a mocked cloned array resource. This mocked resource is then
-    operated on during the rest of the execution of the actor, guaranteeing
-    that no live resources are modified.
+    it does not, a `kingpin.actors.rightscale.api.ServerArrayException` is
+    thrown. Once that has been validated, the dry mode execution pretends to
+    copy the array by creating a mocked cloned array resource. This mocked
+    resource is then operated on during the rest of the execution of the actor,
+    guaranteeing that no live resources are modified.
 
-    Example *dry* output:
-
-    .. code-block::
+    Example *dry* output::
 
         [Copy Test (DRY Mode)] Verifying that array "temp" exists
         [Copy Test (DRY Mode)] Verifying that array "new" does not exist

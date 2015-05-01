@@ -55,7 +55,8 @@ class Macro(base.BaseActor):
     **Parse JSON**
 
     Kingpin JSON has 2 passes at its validity. JSON syntax must be valid, with
-    the exception of a few useful deviations allowed by `demjson` parser. Main
+    the exception of a few useful deviations allowed by `demjson
+    <http://deron.meranda.us/python/demjson/>`_ parser. Main
     one being the permission of inline comments via ``/* this */`` syntax.
 
     The second pass is validating the Schema. The JSON file will be validated
@@ -290,7 +291,7 @@ class GenericHTTP(base.HTTPBaseActor):
       Destination URL
 
     :data:
-      Optional POST data as a `dict`ionary.
+      Optional POST data as a `dict`
 
     :username:
       Optional for HTTPAuth.
@@ -306,7 +307,7 @@ class GenericHTTP(base.HTTPBaseActor):
          "desc": "Make a simple web call",
          "options": {
            "url": "http://example.com/rest/api/v1?id=123&action=doit",
-           "username": "secret"
+           "username": "secret",
            "password": "%SECRET_PASSWORD%"
          }
        }

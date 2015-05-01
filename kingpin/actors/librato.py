@@ -79,7 +79,7 @@ class Annotation(base.HTTPBaseActor):
        { "actor": "librato.Annotation",
          "desc": "Mark our deployment",
          "options": {
-           "title": 'Deploy',
+           "title": "Deploy",
            "description": "Version: 0001a",
            "name": "production_releases"
          }

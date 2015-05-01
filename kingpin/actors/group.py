@@ -36,10 +36,10 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 class BaseGroupActor(base.BaseActor):
 
-    """Group together a series of other `BaseActor`s
+    """Group together a series of other `kingpin.actors.base.BaseActor` objects
 
     :acts:
-      [ <list of `BaseActor`s  to execute> ]
+      [ <list of `kingpin.actors.base.BaseActor` objects  to execute> ]
 
     """
 
@@ -155,7 +155,7 @@ class BaseGroupActor(base.BaseActor):
 
 class Sync(BaseGroupActor):
 
-    """Execute a series of ``kingpin.actors`` synchronously.
+    """Execute a series of `kingpin.actors.base.BaseActor` synchronously.
 
     Groups together a series of Actors and executes them synchronously
     in the order that they were defined.
@@ -174,17 +174,19 @@ class Sync(BaseGroupActor):
     **Timeouts**
 
     Timeouts are disabled specifically in this actor. The sub-actors can still
-    raise their own ``ActorTimedOut`` exceptions, but since the group actors
-    run an arbitrary number of sub actors, we have chosen to not have this
-    actor specifically raise its own ``ActorTimedOut`` exception unless the
-    user sets the ``timeout`` setting.
+    raise their own `kingpin.actors.exceptions.ActorTimedOut` exceptions, but
+    since the group actors run an arbitrary number of sub actors, we have
+    chosen to not have this actor specifically raise its own
+    `kingpin.actors.exceptions.ActorTimedOut` exception unless the user sets
+    the ``timeout`` setting.
 
     **Examples**
 
+    Creates two arrays ... but sleeps 60 seconds between the two, then
+    does not sleep at all after the last one:
+
     .. code-block:: json
 
-       # Creates two arrays ... but sleeps 60 seconds between the two, then
-       # does not sleep at all after the last one.
        { "desc": "Clone, then sleep ... then clone, then sleep shorter...",
          "actor": "group.Sync",
          "options": {
@@ -265,7 +267,7 @@ class Sync(BaseGroupActor):
 
 class Async(BaseGroupActor):
 
-    """Execute a group of actors all asynchronously.
+    """Execute several `kingpin.actors.base.BaseActor` objects asynchronously.
 
     Groups together a series of Actors and executes them asynchronously -
     waiting until all of them finish before returning.
@@ -284,16 +286,18 @@ class Async(BaseGroupActor):
     **Timeouts**
 
     Timeouts are disabled specifically in this actor. The sub-actors can still
-    raise their own ``ActorTimedOut`` exceptions, but since the group actors
-    run an arbitrary number of sub actors, we have chosen to not have this
-    actor specifically raise its own ``ActorTimedOut`` exception unless the
-    user sets the ``timeout`` setting.
+    raise their own `kingpin.actors.exceptions.ActorTimedOut` exceptions, but
+    since the group actors run an arbitrary number of sub actors, we have
+    chosen to not have this actor specifically raise its own
+    `kingpin.actors.exceptions.ActorTimedOut` exception unless the user sets
+    the ``timeout`` setting.
 
     **Examples**
 
+    Clone two arrays quickly.
+
     .. code-block:: json
 
-       # Clone two arrays quickly
        { "desc": "Clone two arrays",
          "actor": "group.Async",
          "options": {
