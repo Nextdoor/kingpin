@@ -12,7 +12,25 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""RightScale Actors"""
+"""
+:mod:`kingpin.actors.rightscale.base`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The RightScale Actors allow you to interact with resources inside your
+Rightscale account. These actors all support dry runs properly, but each
+actor has its own caveats with ``dry=True``. Please read the instructions
+below for using each actor.
+
+**Required Environment Variables**
+
+:RIGHTSCALE_TOKEN:
+  RightScale API Refresh Token
+  (from the *Account Settings/API Credentials* page)
+
+:RIGHTSCALE_ENDPOINT:
+  Your account-specific API Endpoint
+  (defaults to https://my.rightscale.com)
+"""
 
 import collections
 import logging

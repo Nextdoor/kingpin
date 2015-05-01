@@ -12,7 +12,10 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""RightScale Actors"""
+"""
+:mod:`kingpin.actors.rightscale.server_array`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+"""
 
 from random import randint
 import logging
@@ -155,7 +158,87 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
 
 class Clone(ServerArrayBaseActor):
 
-    """Clones a RightScale Server Array."""
+    """Clones a RightScale Server Array.
+
+    Clones a ServerArray in RightScale and renames it to the newly supplied
+    name.  By default, this actor is extremely strict about validating that the
+    ``source`` array already exists, and that the ``dest`` array does not yet
+    exist. This behavior can be overridden though if your Kingpin script
+    creates the ``source``, or destroys an existing ``dest`` ServerArray
+    sometime before this actor executes.
+
+    **Options**
+
+    :source:
+      The name of the ServerArray to clone
+
+    :strict_source:
+      Whether or not to fail if the source ServerArray does not exist.
+      (default: True)
+
+    :dest:
+      The new name for your cloned ServerArray
+
+    :strict_dest:
+      Whether or not to fail if the destination ServerArray already exists.
+      (default: True)
+
+    **Examples**
+
+    .. code-block:: json
+
+       # Clone my-template-array to my-new-array
+       { "desc": "Clone my array",
+         "actor": "rightscale.server_array.Clone",
+         "options": {
+           "source": "my-template-array",
+           "dest": "my-new-array"
+         }
+       }
+
+    .. code-block:: json
+
+       # Clone an array that was created sometime earlier in the Kingpin JSON,
+       # and thus does not exist yet during the dry run.
+       { "desc": "Clone that array we created earlier",
+         "actor": "rightscale.server_array.Clone",
+         "options": {
+           "source": "my-template-array",
+           "strict_source": false,
+           "dest": "my-new-array"
+         }
+       }
+
+    .. code-block:: json
+
+       # Clone an array into a destination name that was destroyed sometime
+       # earlier in the Kingpin JSON.
+       { "desc": "Clone that array we created earlier",
+         "actor": "rightscale.server_array.Clone",
+         "options": {
+           "source": "my-template-array",
+           "dest": "my-new-array",
+           "strict_dest": false,
+         }
+
+    **Dry Mode**
+
+    In Dry mode this actor *does* validate that the ``source`` array exists. If
+    it does not, a `rightscale.api.ServerArrayException` is thrown. Once that
+    has been validated, the dry mode execution pretends to copy the array by
+    creating a mocked cloned array resource. This mocked resource is then
+    operated on during the rest of the execution of the actor, guaranteeing
+    that no live resources are modified.
+
+    Example *dry* output:
+
+    .. code-block::
+
+        [Copy Test (DRY Mode)] Verifying that array "temp" exists
+        [Copy Test (DRY Mode)] Verifying that array "new" does not exist
+        [Copy Test (DRY Mode)] Cloning array "temp"
+        [Copy Test (DRY Mode)] Renaming array "<mocked clone of temp>" to "new"
+    """
 
     all_options = {
         'source': (str, REQUIRED, 'Name of the ServerArray to clone.'),

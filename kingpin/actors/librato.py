@@ -12,7 +12,23 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""Librato Actor objects"""
+"""
+:mod:`kingpin.actors.librato`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Librato Actor allows you to post an Annotation to Librato. This is
+specifically useful for marking when deployments occur on your graphs for
+cause/effect analysis.
+
+**Required Environment Variables**
+
+:LIBRATO_TOKEN:
+  Librato API Token
+
+:LIBRATO_EMAIL:
+  Librato email account (i.e. username)
+
+"""
 
 import logging
 import os
@@ -41,8 +57,38 @@ EMAIL = os.getenv('LIBRATO_EMAIL', None)
 
 class Annotation(base.HTTPBaseActor):
 
-    """Simple Librato Message sending actor using their API:
-    http://dev.librato.com/v1/post/annotations/:name"""
+    """Librato Annotation Actor
+
+    Posts an Annotation to Librato.
+
+    **Options**
+
+    :title:
+      The title of the annotation
+
+    :description:
+      The description of the annotation
+
+    :name:
+      Name of the metric to annotate
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "actor": "librato.Annotation",
+         "desc": "Mark our deployment",
+         "options": {
+           "title": 'Deploy',
+           "description": "Version: 0001a",
+           "name": "production_releases"
+         }
+       }
+
+    **Dry Mode**
+
+    Currently does not actually do anything, just logs dry mode.
+    """
 
     all_options = {
         'title': (str, REQUIRED, "Annotation title"),

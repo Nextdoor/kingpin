@@ -12,7 +12,10 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""AWS.ELB Actors"""
+"""
+:mod:`kingpin.actors.aws.elb`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+"""
 
 import logging
 import math

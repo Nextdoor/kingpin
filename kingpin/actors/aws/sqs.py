@@ -12,7 +12,10 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""AWS.SQS Actors"""
+"""
+:mod:`kingpin.actors.aws.sqs`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+"""
 
 import logging
 import re

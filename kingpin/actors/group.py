@@ -13,10 +13,10 @@
 # Copyright 2014 Nextdoor.com, Inc
 
 """
-Group
-~~~~~
+:mod:`kingpin.actors.group`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Group a series of other ``kingpin.actors`` into either synchronous
+Group a series of other `BaseActor` into either synchronous
 or asynchronous stages.
 """
 
@@ -36,9 +36,10 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 class BaseGroupActor(base.BaseActor):
 
-    """Group together a series of other Actors
+    """Group together a series of other `BaseActor`s
 
-    'acts' option: [ <list of sub-actors to execute> ]
+    :acts:
+      [ <list of `BaseActor`s  to execute> ]
 
     """
 
@@ -161,19 +162,22 @@ class Sync(BaseGroupActor):
 
     **Options**
 
-    - ``acts`` - An array of individual Actor definitions.
-    - ``contexts`` - A list of dictionaries with *contextual tokens* to pass into
-      the actors at instantiation time. If the list has more than one element,
-      then every actor defined in ``acts`` will be instantiated once for each item
-      in the ``contexts`` list.
+    :acts:
+      An array of individual Actor definitions.
+
+    :contexts:
+      A list of dictionaries with *contextual tokens* to pass into the actors
+      at instantiation time. If the list has more than one element, then every
+      actor defined in ``acts`` will be instantiated once for each item in the
+      ``contexts`` list.
 
     **Timeouts**
 
     Timeouts are disabled specifically in this actor. The sub-actors can still
-    raise their own ``ActorTimedOut`` exceptions, but since the group actors run an
-    arbitrary number of sub actors, we have chosen to not have this actor
-    specifically raise its own ``ActorTimedOut`` exception unless the user sets the
-    ``timeout`` setting.
+    raise their own ``ActorTimedOut`` exceptions, but since the group actors
+    run an arbitrary number of sub actors, we have chosen to not have this
+    actor specifically raise its own ``ActorTimedOut`` exception unless the
+    user sets the ``timeout`` setting.
 
     **Examples**
 
@@ -209,18 +213,18 @@ class Sync(BaseGroupActor):
 
     **Dry Mode**
 
-    Passes on the Dry mode setting to the acts that are called. Does **not** stop
-    execution when one of the acts fails. Instead Group actor will finish all acts
-    with warnings, and raise an error at the end of execution.
+    Passes on the Dry mode setting to the acts that are called. Does **not**
+    stop execution when one of the acts fails. Instead Group actor will finish
+    all acts with warnings, and raise an error at the end of execution.
 
-    This provides the user with an insight to all the errors that are possible to
-    encounter, rather than abort and quit on the first one.
+    This provides the user with an insight to all the errors that are possible
+    to encounter, rather than abort and quit on the first one.
 
     **Failure**
 
-    In the event that an act fails, this actor will return the failure immediately.
-    Because the acts are executed in-order of definition, the failure will
-    prevent any further acts from executing.
+    In the event that an act fails, this actor will return the failure
+    immediately.  Because the acts are executed in-order of definition, the
+    failure will prevent any further acts from executing.
 
     The behavior is different in the dry run (read above.)
     """
@@ -268,19 +272,22 @@ class Async(BaseGroupActor):
 
     **Options**
 
-    - ``acts`` - An array of individual Actor definitions.
-    - ``contexts`` - A list of dictionaries with *contextual tokens* to pass into
-      the actors at instantiation time. If the list has more than one element,
-      then every actor defined in ``acts`` will be instantiated once for each item
-      in the ``contexts`` list.
+    :acts:
+      An array of individual Actor definitions.
+
+    :contexts:
+      A list of dictionaries with *contextual tokens* to pass into the actors
+      at instantiation time. If the list has more than one element, then every
+      actor defined in ``acts`` will be instantiated once for each item in the
+      ``contexts`` list.
 
     **Timeouts**
 
     Timeouts are disabled specifically in this actor. The sub-actors can still
-    raise their own ``ActorTimedOut`` exceptions, but since the group actors run an
-    arbitrary number of sub actors, we have chosen to not have this actor
-    specifically raise its own ``ActorTimedOut`` exception unless the user sets the
-    ``timeout`` setting.
+    raise their own ``ActorTimedOut`` exceptions, but since the group actors
+    run an arbitrary number of sub actors, we have chosen to not have this
+    actor specifically raise its own ``ActorTimedOut`` exception unless the
+    user sets the ``timeout`` setting.
 
     **Examples**
 
@@ -312,10 +319,10 @@ class Async(BaseGroupActor):
 
     **Failure**
 
-    In the event that one or more ``acts`` fail in this group, the entire group acts
-    will return a failure to Kingpin. Because multiple actors are executing all at
-    the same time, the all of these actors will be allowed to finish before the
-    failure is returned.
+    In the event that one or more ``acts`` fail in this group, the entire group
+    acts will return a failure to Kingpin. Because multiple actors are
+    executing all at the same time, the all of these actors will be allowed to
+    finish before the failure is returned.
     """
 
     @gen.coroutine

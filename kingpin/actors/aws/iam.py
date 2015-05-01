@@ -12,7 +12,11 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""AWS.IAM Actors"""
+"""
+:mod:`kingpin.actors.aws.iam`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+"""
+
 
 import logging
 

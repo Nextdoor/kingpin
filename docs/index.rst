@@ -27,6 +27,7 @@ Kingpin provides 3 main functions:
    :maxdepth: 3
 
    development
+   modules
 
 * :ref:`genindex`
 * :ref:`modindex`

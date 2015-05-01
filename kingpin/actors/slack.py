@@ -12,7 +12,24 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""Slack Actor objects"""
+"""
+:mod:`kingpin.actors.slack`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Slack Actors allow you to send messages to a Slack channel at stages during
+your job execution. The actor supports dry mode by validating that the
+configured API Token has access to execute the methods, without actually
+sending the messages.
+
+**Required Environment Variables**
+
+:SLACK_TOKEN:
+  Slack API Token
+
+:SLACK_NAME:
+  Slack *message from* name
+  (defaults to *Kingpin*)
+"""
 
 import logging
 import os
@@ -105,7 +122,34 @@ class SlackBase(base.BaseActor):
 
 class Message(SlackBase):
 
-    """Simple Slack Message sending actor."""
+    """Sends a message to a channel in Slack.
+
+    **Options**
+
+    :channel:
+      The string-name of the channel to send a message to
+
+    :message:
+      String of the message to send
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "desc": "Let the Engineers know things are happening",
+         "actor": "slack.Message",
+         "options": {
+           "channel": "#operations",
+           "message": "Beginning Deploy: %VER%"
+         }
+       }
+
+    **Dry Mode**
+
+    Fully supported -- does not actually send messages to a room, but validates
+    that the API credentials would have access to send the message using the
+    Slack `auth.test` API method.
+    """
 
     all_options = {
         'channel': (str, REQUIRED, 'Slack room name'),

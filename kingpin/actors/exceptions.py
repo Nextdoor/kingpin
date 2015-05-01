@@ -11,6 +11,12 @@
 # limitations under the License.
 #
 # Copyright 2014 Nextdoor.com, Inc
+"""
+:mod:`kingpin.actors.exceptions`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+All common Actor exceptions
+"""
 
 from kingpin import exceptions
 

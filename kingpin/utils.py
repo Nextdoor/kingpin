@@ -13,6 +13,9 @@
 # Copyright 2013 Nextdoor.com, Inc.
 
 """
+:mod:`kingpin.utils`
+^^^^^^^^^^^^^^^^^^^^
+
 Common package for utility functions.
 """
 

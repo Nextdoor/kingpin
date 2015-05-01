@@ -22,6 +22,9 @@ sys.path.insert(0, os.path.abspath(".."))
 import kingpin
 from kingpin import version as kingpin_version
 
+# We need sphinx 1.3+ for some of our used features
+needs_sphinx = '1.3'
+
 # -- General configuration ------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
@@ -37,6 +40,10 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
 ]
+
+# Search for 'any' object type when someone uses a single tick-surrounded word
+# like `BaseAftor`
+default_role = 'any'
 
 # Get the class doc string from the class itself, not from the __init__ method
 autoclass_content = 'class'
@@ -98,6 +105,8 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
+# Don't show all of our modules under 'k' in the index
+modindex_common_prefix = ['kingpin.', 'kingpin.actors.']
 
 # -- Options for HTML output ----------------------------------------------
 

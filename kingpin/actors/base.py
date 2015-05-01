@@ -12,7 +12,11 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""Base Actor object class
+"""
+:mod:`kingpin.actors.base`
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Base Actor object class
 
 An Actor object is a class that executes a single logical action
 on a resource as part of your deployment structure. For example, you

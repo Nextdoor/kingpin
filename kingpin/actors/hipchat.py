@@ -13,19 +13,22 @@
 # Copyright 2014 Nextdoor.com, Inc
 
 """
-Hipchat
-~~~~~~~
+:mod:`kingpin.actors.hipchat`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Hipchat Actors allow you to send messages to a HipChat room at stages during
-your job execution. The actor supports dry mode by validating that the
-configured API Token has access to execute the methods, without actually sending
-the messages.
+The Hipchat Actors allow you to send messages to a HipChat room at stages
+during your job execution. The actor supports dry mode by validating that the
+configured API Token has access to execute the methods, without actually
+sending the messages.
 
 **Required Environment Variables**
 
--  ``HIPCHAT_TOKEN`` - HipChat API Token
--  ``HIPCHAT_NAME`` - HipChat message from name
-    (defaults to ``Kingpin``)
+:HIPCHAT_TOKEN:
+  HipChat API Token
+
+:HIPCHAT_NAME:
+  HipChat message from name
+  (defaults to ``Kingpin``)
 """
 
 import logging

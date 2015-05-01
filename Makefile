@@ -39,4 +39,4 @@ kingpin.zip:
 	rm -rf zip
 
 docs:
-	cd docs; make clean html
+	make -C docs html
