@@ -1,0 +1,6 @@
+/* A file of contexts to be used in an actor 
+   as an option `contexts-file`. */
+[
+  {"key": "value1"},
+  {"key": "value2"}
+]

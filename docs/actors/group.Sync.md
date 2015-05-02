@@ -6,6 +6,7 @@ in the order that they were defined.
 **Options**
 
   * `acts` - An array of individual Actor definitions.
+  * `context-file` - path to a file containing a list of dictionaries.
   * `contexts` - A list of dictionaries with _contextual tokens_ to pass into
     the actors at instantiation time. If the list has more than one element,
     then every actor defined in `acts` will be instantiated once for each item
