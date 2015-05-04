@@ -18,7 +18,7 @@ clean:
 	find . -type f -name '*.pyc' -exec rm "{}" \;
 	rm -f kingpin.zip
 	rm -rf $(BUILD_DIRS)
-	make -C docs clean
+	$(MAKE) -C docs clean
 
 test: build docs
 	python setup.py test pep8 pyflakes
@@ -40,4 +40,4 @@ kingpin.zip:
 	rm -rf zip
 
 docs:
-	make -C docs html
+	$(MAKE) -C docs html
