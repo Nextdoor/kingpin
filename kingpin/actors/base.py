@@ -12,7 +12,11 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""Base Actor object class
+"""
+:mod:`kingpin.actors.base`
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Base Actor object class
 
 An Actor object is a class that executes a single logical action
 on a resource as part of your deployment structure. For example, you
@@ -262,10 +266,11 @@ class BaseActor(object):
         """Wraps a Coroutine method in a timeout.
 
         Used to wrap the self.execute() method in a timeout that will raise an
-        ActorTimedOut exception if an actor takes too long to execute. *Note,
-        Tornado 4+ does not allow you to actually kill a task on the IOLoop.
-        This means that all we are doing here is notifying the caller (through
-        the raised exception) that a problem has happened.
+        ActorTimedOut exception if an actor takes too long to execute.
+
+        *Note, Tornado 4+ does not allow you to actually kill a task on the
+        IOLoop.*  This means that all we are doing here is notifying the caller
+        (through the raised exception) that a problem has happened.
 
         Fairly simple Actors should actually 'stop executing' when this
         exception is raised. Complex actors with very unique behaviors though

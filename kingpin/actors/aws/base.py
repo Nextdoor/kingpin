@@ -12,7 +12,23 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""AWS Base Actor"""
+"""
+:mod:`kingpin.actors.aws.base`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The AWS Actors allow you to interact with the resources (such as SQS and ELB)
+inside your Amazon AWS account. These actors all support dry runs properly, but
+each actor has its own caveats with ``dry=True``. Please read the instructions
+below for using each actor.
+
+**Required Environment Variables**
+
+:AWS_ACCESS_KEY_ID:
+  Your AWS access key
+
+:AWS_SECRET_ACCESS_KEY:
+  Your AWS secret
+"""
 
 import logging
 import re

@@ -12,7 +12,10 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""AWS.SQS Actors"""
+"""
+:mod:`kingpin.actors.aws.sqs`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+"""
 
 import logging
 import re
@@ -87,7 +90,33 @@ class SQSBaseActor(base.AWSBaseActor):
 
 class Create(SQSBaseActor):
 
-    """Creates a new SQS Queue."""
+    """Creates a new SQS queue with the specified name
+
+    **Options**
+
+    :name:
+      (str) The name of the queue to create
+
+    :region:
+      (str) AWS region (or zone) string, like 'us-west-2'
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "actor": "aws.sqs.Create",
+         "desc": "Create queue named async-tasks",
+         "options": {
+           "name": "async-tasks",
+           "region": "us-east-1",
+         }
+       }
+
+    **Dry Mode**
+
+    Will not create any queue, or even contact SQS. Will create a mock.Mock
+    object and exit with success.
+    """
 
     all_options = {
         'name': (str, REQUIRED, 'Name or pattern for SQS queues.'),
@@ -139,7 +168,50 @@ class Create(SQSBaseActor):
 
 class Delete(SQSBaseActor):
 
-    """Deletes an existing SQS Queue."""
+    """Deletes the SQS queues
+
+    Note: **even if it`s not empty**
+
+    **Options**
+
+    :name:
+      (str) The name of the queue to destroy
+
+    :region:
+      (str) AWS region (or zone) string, like 'us-west-2'
+
+    :idempotent:
+      (bool) Will not raise errors if no matching queues are found.
+      (default: False)
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "actor": "aws.sqs.Delete",
+         "desc": "Delete queue async-tasks",
+         "options": {
+           "name": "async-tasks",
+           "region": "us-east-1"
+         }
+       }
+
+    .. code-block:: json
+
+       { "actor": "aws.sqs.Delete",
+         "desc": "Delete queues with 1234 in the name",
+         "options": {
+           "name": "1234",
+           "region": "us-east-1"
+         }
+       }
+
+    **Dry Mode**
+
+    Will find the specified queue, but will have a noop regarding its deletion.
+    Dry mode will fail if no queues are found, and idempotent flag is set to
+    False.
+    """
 
     all_options = {
         'name': (str, REQUIRED, 'Name or pattern for SQS queues.'),
@@ -203,7 +275,45 @@ class Delete(SQSBaseActor):
 
 class WaitUntilEmpty(SQSBaseActor):
 
-    """Waits for one or more SQS Queues to become empty."""
+    """Wait indefinitely until for SQS queues to become empty
+
+    This actor will loop infinitely as long as the count of messages in at
+    least one queue is greater than zero. SQS does not guarantee exact count,
+    so this can return a stale value if the number of messages in the queue
+    changes rapidly.
+
+
+    **Options**
+
+    :name:
+      (str) The name or regex pattern of the queues to operate on
+
+    :region:
+      (str) AWS region (or zone) string, like 'us-west-2'
+
+    :required:
+      (bool) Fail if no matching queues are found.
+      (default: False)
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "actor": "aws.sqs.WaitUntilEmpty",
+         "desc": "Wait until release-0025a* queues are empty",
+         "options": {
+           "name": "release-0025a",
+           "region": "us-east-1",
+           "required": true
+         }
+       }
+
+    **Dry Mode**
+
+    This actor performs the finding of the queue, but will pretend that the
+    count is 0 and return success. Will fail even in dry mode if `required`
+    option is set to True and no queues with the name pattern are found.
+    """
 
     all_options = {
         'name': (str, REQUIRED, 'Name or pattern for SQS queues.'),

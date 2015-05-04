@@ -3,7 +3,7 @@ BIN = $(HERE)/bin
 
 BUILD_DIRS = bin .build build include lib lib64 man share package *.egg
 
-.PHONY: all build clean test
+.PHONY: all build clean test docs
 
 all: build
 
@@ -18,8 +18,9 @@ clean:
 	find . -type f -name '*.pyc' -exec rm "{}" \;
 	rm -f kingpin.zip
 	rm -rf $(BUILD_DIRS)
+	$(MAKE) -C docs clean
 
-test: build
+test: build docs
 	python setup.py test pep8 pyflakes
 
 integration: build
@@ -37,3 +38,6 @@ kingpin.zip:
 	cd zip; ln -sf kingpin/bin/deploy.py ./__main__.py
 	cd zip; zip -9mrv ../kingpin.zip .
 	rm -rf zip
+
+docs:
+	$(MAKE) -C docs html

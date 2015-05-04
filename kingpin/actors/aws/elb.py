@@ -12,7 +12,10 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""AWS.ELB Actors"""
+"""
+:mod:`kingpin.actors.aws.elb`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+"""
 
 import logging
 import math
@@ -66,7 +69,60 @@ class ELBBaseActor(base.AWSBaseActor):
 
 class WaitUntilHealthy(ELBBaseActor):
 
-    """Waits till a specified number of instances are "InService"."""
+    """Wait indefinitely until a specified ELB is considered "healthy".
+
+    This actor will loop infinitely until a healthy threshold of the ELB is
+    met.  The threshold can be reached when the ``count`` as specified in the
+    options is less than or equal to the number of InService instances in the
+    ELB.
+
+    Another situation is for ``count`` to be a string specifying a percentage
+    (see examples). In this case the percent of InService instances has to be
+    greater than the ``count`` percentage.
+
+    **Options**
+
+    :name:
+      The name of the ELB to operate on
+
+    :count:
+      Number, or percentage of InService instance to consider this ELB healthy
+
+    :region:
+      AWS region (or zone) name, such as us-east-1 or us-west-2
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "actor": "aws.elb.WaitUntilHealthy",
+         "desc": "Wait until production-frontend has 16 hosts",
+         "options": {
+           "name": "production-frontend",
+           "count": 16,
+           "region": "us-west-2"
+         }
+       }
+
+    .. code-block:: json
+
+       { "actor": "aws.elb.WaitUntilHealthy",
+         "desc": "Wait until production-frontend has 85% of hosts in-service",
+         "options": {
+           "name": "production-frontend",
+           "count": "85%",
+           "region": "us-west-2"
+         }
+       }
+
+    **Dry Mode**
+
+    This actor performs the finding of the ELB as well as calculating its
+    health at all times. The only difference in dry mode is that it will not
+    re-count the instances if the ELB is not healthy. A log message will be
+    printed indicating that the run is dry, and the actor will exit with
+    success.
+    """
 
     def _get_expected_count(self, count, total_count):
         """Calculate the expected count for a given percentage.
@@ -156,7 +212,41 @@ class WaitUntilHealthy(ELBBaseActor):
 
 class SetCert(ELBBaseActor):
 
-    """Find a server cert in IAM and use it for a specified ELB."""
+    """Find a server cert in IAM and use it for a specified ELB.
+
+    **Options**
+
+    :region:
+      (str) AWS region (or zone) name, like us-west-2
+
+    :name:
+      (str) Name of the ELB
+
+    :cert_name:
+      (str) Unique IAM certificate name, or ARN
+
+    :port:
+      (int) Port associated with the cert.
+      (default: 443)
+
+    **Example**
+
+    .. code-block:: json
+
+       { "actor": "aws.elb.SetCert",
+         "desc": "Run SetCert",
+         "options": {
+           "cert_name": "new-cert",
+           "name": "some-elb",
+           "region": "us-west-2"
+         }
+       }
+
+    **Dry run**
+
+    Will check that ELB and Cert names are existent, and will also check that
+    the credentials provided for AWS have access to the new cert for ssl.
+    """
 
     all_options = {
         'name': (str, REQUIRED, 'Name of the ELB'),
@@ -279,8 +369,36 @@ class RegisterInstance(base.AWSBaseActor):
 
     """Add an EC2 instance to a load balancer.
 
-    http://boto.readthedocs.org/en/latest/ref/elb.html
-    #boto.ec2.elb.ELBConnection.register_instances
+    **Options**
+
+    :elb:
+      (str) Name of the ELB
+
+    :instances:
+      (str, list) Instance id, or list of ids. Default "self" id.
+
+    :region:
+      (str) AWS region (or zone) name, like us-west-2
+
+    :enable_zones:
+      (bool) add all available AZ to the elb. Default: True
+
+    **Example**
+
+    .. code-block:: json
+
+       { "actor": "aws.elb.RegisterInstance",
+         "desc": "Run RegisterInstance",
+         "options": {
+           "elb": "prod-loadbalancer",
+           "instances": "i-123456",
+           "region": "us-east-1",
+         }
+       }
+
+    **Dry run**
+
+    Will find the specified ELB, but not take any actions regarding instances.
     """
 
     all_options = {
@@ -343,8 +461,33 @@ class DeregisterInstance(base.AWSBaseActor):
 
     """Remove EC2 instance(s) from an ELB.
 
-    http://boto.readthedocs.org/en/latest/ref/elb.html
-    #boto.ec2.elb.loadbalancer.LoadBalancer.deregister_instances
+    **Options**
+
+    :elb:
+      (str) Name of the ELB
+
+    :instances:
+      (str, list) Instance id, or list of ids
+
+    :region:
+      (str) AWS region (or zone) name, like us-west-2
+
+    **Example**
+
+    .. code-block:: json
+
+       { "actor": "aws.elb.DeregisterInstance",
+         "desc": "Run DeregisterInstance",
+         "options": {
+           "elb": "fill-in",
+           "instances": "fill-in",
+           "region": "fill-in"
+         }
+       }
+
+    **Dry run**
+
+    Will find the ELB but not take any actions regarding the instances.
     """
 
     all_options = {

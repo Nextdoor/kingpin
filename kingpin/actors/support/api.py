@@ -212,9 +212,9 @@ def create_method(name, config):
     being consumed and the configuration of that method (which HTTP methods it
     supports, etc).
 
-    The final created method accepts any args (*args, **kwargs) and passes them
-    on to the RestConsumer object being created. This allows for passing in
-    unique resource identifiers (ie, the '%res%' in
+    The final created method accepts any args (`*args, **kwargs`) and passes
+    them on to the RestConsumer object being created. This allows for passing
+    in unique resource identifiers (ie, the '%res%' in
     '/v2/rooms/%res%/history').
 
     Args:

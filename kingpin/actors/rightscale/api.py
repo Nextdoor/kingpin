@@ -12,15 +12,18 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""Base RightScale API Access Object.
+"""
+:mod:`kingpin.actors.rightscale.api`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Base RightScale API Access Object.
 
 This package provides access to the RightScale API via Tornado-style
-@gen.coroutine wrapped methods. These methods are, however, just wrappers
+`@gen.coroutine` wrapped methods. These methods are, however, just wrappers
 for threads that are being fired off in the background to make the API
 calls.
 
-
-## Async vs Threads
+**Async vs Threads**
 
 In the future, this will get re-factored to use a native Tornado
 AsyncHTTPClient object. The methods themselves will stay the same, but the
@@ -32,7 +35,7 @@ operations that the RightScale Actor objects need to do. Operations like
 one-to-one mapping of the RightScale API, but rather a mapping of conceptual
 operations that the Actors need.
 
-## Method Design Note
+**Method Design Note**
 
 RightScale mixes and matches their API calls... some of them you pass in a
 major method and then supply a resource ID to act on. Others you pass in the

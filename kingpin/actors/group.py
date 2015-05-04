@@ -12,7 +12,13 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""Group Actors Together into Stages"""
+"""
+:mod:`kingpin.actors.group`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Group a series of other `BaseActor` into either synchronous
+or asynchronous stages.
+"""
 
 import logging
 
@@ -30,9 +36,10 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 class BaseGroupActor(base.BaseActor):
 
-    """Group together a series of other Actors
+    """Group together a series of other `kingpin.actors.base.BaseActor` objects
 
-    'acts' option: [ <list of sub-actors to execute> ]
+    :acts:
+      [ <list of `kingpin.actors.base.BaseActor` objects  to execute> ]
 
     """
 
@@ -148,7 +155,80 @@ class BaseGroupActor(base.BaseActor):
 
 class Sync(BaseGroupActor):
 
-    """Synchronously iterates over a series of Actors"""
+    """Execute a series of `kingpin.actors.base.BaseActor` synchronously.
+
+    Groups together a series of Actors and executes them synchronously
+    in the order that they were defined.
+
+    **Options**
+
+    :acts:
+      An array of individual Actor definitions.
+
+    :contexts:
+      A list of dictionaries with *contextual tokens* to pass into the actors
+      at instantiation time. If the list has more than one element, then every
+      actor defined in ``acts`` will be instantiated once for each item in the
+      ``contexts`` list.
+
+    **Timeouts**
+
+    Timeouts are disabled specifically in this actor. The sub-actors can still
+    raise their own `kingpin.actors.exceptions.ActorTimedOut` exceptions, but
+    since the group actors run an arbitrary number of sub actors, we have
+    chosen to not have this actor specifically raise its own
+    `kingpin.actors.exceptions.ActorTimedOut` exception unless the user sets
+    the ``timeout`` setting.
+
+    **Examples**
+
+    Creates two arrays ... but sleeps 60 seconds between the two, then
+    does not sleep at all after the last one:
+
+    .. code-block:: json
+
+       { "desc": "Clone, then sleep ... then clone, then sleep shorter...",
+         "actor": "group.Sync",
+         "options": {
+           "contexts": [
+             { "ARRAY": "First", "SLEEP": "60", },
+             { "ARRAY": "Second", "SLEEP": "0", }
+           ],
+           "acts": [
+             { "desc": "do something",
+               "actor": "server_array.Clone",
+               "options": {
+                 "source": "template",
+                 "dest": "{ARRAY}"
+               }
+             },
+             { "desc": "sleep",
+               "actor": "misc.Sleep",
+               "options": {
+                 "sleep": "{SLEEP}",
+               }
+             }
+           ]
+         }
+       }
+
+    **Dry Mode**
+
+    Passes on the Dry mode setting to the acts that are called. Does **not**
+    stop execution when one of the acts fails. Instead Group actor will finish
+    all acts with warnings, and raise an error at the end of execution.
+
+    This provides the user with an insight to all the errors that are possible
+    to encounter, rather than abort and quit on the first one.
+
+    **Failure**
+
+    In the event that an act fails, this actor will return the failure
+    immediately.  Because the acts are executed in-order of definition, the
+    failure will prevent any further acts from executing.
+
+    The behavior is different in the dry run (read above.)
+    """
 
     @gen.coroutine
     def _run_actions(self):
@@ -186,7 +266,67 @@ class Sync(BaseGroupActor):
 
 class Async(BaseGroupActor):
 
-    """Asynchronously executes all Actors at once"""
+    """Execute several `kingpin.actors.base.BaseActor` objects asynchronously.
+
+    Groups together a series of Actors and executes them asynchronously -
+    waiting until all of them finish before returning.
+
+    **Options**
+
+    :acts:
+      An array of individual Actor definitions.
+
+    :contexts:
+      A list of dictionaries with *contextual tokens* to pass into the actors
+      at instantiation time. If the list has more than one element, then every
+      actor defined in ``acts`` will be instantiated once for each item in the
+      ``contexts`` list.
+
+    **Timeouts**
+
+    Timeouts are disabled specifically in this actor. The sub-actors can still
+    raise their own `kingpin.actors.exceptions.ActorTimedOut` exceptions, but
+    since the group actors run an arbitrary number of sub actors, we have
+    chosen to not have this actor specifically raise its own
+    `kingpin.actors.exceptions.ActorTimedOut` exception unless the user sets
+    the ``timeout`` setting.
+
+    **Examples**
+
+    Clone two arrays quickly.
+
+    .. code-block:: json
+
+       { "desc": "Clone two arrays",
+         "actor": "group.Async",
+         "options": {
+           "contexts": [
+             { "ARRAY": "NewArray1" },
+             { "ARRAY": "NewArray2" }
+           ],
+           "acts": [
+             { "desc": "do something",
+               "actor": "server_array.Clone",
+               "options": {
+                 "source": "template",
+                 "dest": "{ARRAY}",
+               }
+             }
+           ]
+         }
+       }
+
+    **Dry Mode**
+
+    Passes on the Dry mode setting to the sub-actors that are called.
+
+    **Failure**
+
+    In the event that one or more ``acts`` fail in this group, the entire group
+    acts will return a failure to Kingpin. Because multiple actors are
+    executing all at the same time, the all of these actors will be allowed to
+    finish before the failure is returned.
+    """
 
     @gen.coroutine
     def _run_actions(self):

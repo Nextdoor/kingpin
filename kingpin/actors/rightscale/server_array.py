@@ -12,7 +12,10 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
-"""RightScale Actors"""
+"""
+:mod:`kingpin.actors.rightscale.server_array`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+"""
 
 from random import randint
 import logging
@@ -155,7 +158,89 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
 
 class Clone(ServerArrayBaseActor):
 
-    """Clones a RightScale Server Array."""
+    """Clones a RightScale Server Array.
+
+    Clones a ServerArray in RightScale and renames it to the newly supplied
+    name.  By default, this actor is extremely strict about validating that the
+    ``source`` array already exists, and that the ``dest`` array does not yet
+    exist. This behavior can be overridden though if your Kingpin script
+    creates the ``source``, or destroys an existing ``dest`` ServerArray
+    sometime before this actor executes.
+
+    **Options**
+
+    :source:
+      The name of the ServerArray to clone
+
+    :strict_source:
+      Whether or not to fail if the source ServerArray does not exist.
+      (default: True)
+
+    :dest:
+      The new name for your cloned ServerArray
+
+    :strict_dest:
+      Whether or not to fail if the destination ServerArray already exists.
+      (default: True)
+
+    **Examples**
+
+    Clone my-template-array to my-new-array:
+
+    .. code-block:: json
+
+       { "desc": "Clone my array",
+         "actor": "rightscale.server_array.Clone",
+         "options": {
+           "source": "my-template-array",
+           "dest": "my-new-array"
+         }
+       }
+
+    Clone an array that was created sometime earlier in the Kingpin JSON,
+    and thus does not exist yet during the dry run:
+
+    .. code-block:: json
+
+       { "desc": "Clone that array we created earlier",
+         "actor": "rightscale.server_array.Clone",
+         "options": {
+           "source": "my-template-array",
+           "strict_source": false,
+           "dest": "my-new-array"
+         }
+       }
+
+    Clone an array into a destination name that was destroyed sometime
+    earlier in the Kingpin JSON:
+
+    .. code-block:: json
+
+       { "desc": "Clone that array we created earlier",
+         "actor": "rightscale.server_array.Clone",
+         "options": {
+           "source": "my-template-array",
+           "dest": "my-new-array",
+           "strict_dest": false,
+         }
+       }
+
+    **Dry Mode**
+
+    In Dry mode this actor *does* validate that the ``source`` array exists. If
+    it does not, a `kingpin.actors.rightscale.api.ServerArrayException` is
+    thrown. Once that has been validated, the dry mode execution pretends to
+    copy the array by creating a mocked cloned array resource. This mocked
+    resource is then operated on during the rest of the execution of the actor,
+    guaranteeing that no live resources are modified.
+
+    Example *dry* output::
+
+        [Copy Test (DRY Mode)] Verifying that array "temp" exists
+        [Copy Test (DRY Mode)] Verifying that array "new" does not exist
+        [Copy Test (DRY Mode)] Cloning array "temp"
+        [Copy Test (DRY Mode)] Renaming array "<mocked clone of temp>" to "new"
+    """
 
     all_options = {
         'source': (str, REQUIRED, 'Name of the ServerArray to clone.'),
@@ -219,17 +304,86 @@ class Clone(ServerArrayBaseActor):
 
 class Update(ServerArrayBaseActor):
 
-    """Patch a RightScale Server Array.
+    """Update ServerArray Settings
 
-    Note, the Array name is required. The params and inputs options are
-    optional -- but if you want the actor to actually make any changes, you
-    need to supply one of these.
+    Updates an existing ServerArray in RightScale with the supplied parameters.
+    Can update any parameter that is described in the RightScale API docs here:
 
-    Actor Options (example):
-          { 'array': <server array name>,
-            'params': { 'description': 'foo bar',
-                        'state': 'enabled' },
-            'inputs': { 'ELB_NAME': 'foo bar' } }
+    Parameters are passed into the actor in the form of a dictionary, and are
+    then converted into the RightScale format. See below for examples.
+
+    **Options**
+
+    :array:
+      (str) The name of the ServerArray to update
+
+    :exact:
+      (bool) whether or not to search for the exact array name.
+      (default: `true`)
+
+    :params:
+      (dict) Dictionary of parameters to update
+
+    :inputs:
+      (dict) Dictionary of next-instance server arryay inputs to update
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "desc": "Update my array",
+         "actor": "rightscale.server_array.Update",
+         "options": {
+           "array": "my-new-array",
+           "params": {
+             "elasticity_params": {
+               "bounds": {
+                 "min_count": 4
+               },
+               "schedule": [
+                 {"day": "Sunday", "max_count": 2,
+                  "min_count": 1, "time": "07:00" },
+                 {"day": "Sunday", "max_count": 2,
+                  "min_count": 2, "time": "09:00" }
+               ]
+             },
+             "name": "my-really-new-name"
+           }
+         }
+       }
+
+    .. code-block:: json
+
+       { "desc": "Update my array inputs",
+         "actor": "rightscale.server_array.Update",
+         "options": {
+           "array": "my-new-array",
+           "inputs": {
+             "ELB_NAME": "text:foobar"
+           }
+         }
+       }
+
+    **Dry Mode**
+
+    In Dry mode this actor *does* search for the ``array``, but allows it to be
+    missing because its highly likely that the array does not exist yet. If the
+    array does not exist, a mocked array object is created for the rest of the
+    execution.
+
+    During the rest of the execution, the code bypasses making any real changes
+    and just tells you what changes it would have made.
+
+    *This means that the dry mode cannot validate that the supplied inputs will
+    work.*
+
+    Example *dry* output::
+
+       [Update Test (DRY Mode)] Verifying that array "new" exists
+       [Update Test (DRY Mode)] Array "new" not found -- creating a mock.
+       [Update Test (DRY Mode)] Would have updated "<mocked array new>" with
+       params: {'server_array[name]': 'my-really-new-name',
+                'server_array[elasticity_params][bounds][min_count]': '4'}
     """
 
     all_options = {
@@ -346,7 +500,51 @@ class Update(ServerArrayBaseActor):
 
 class Terminate(ServerArrayBaseActor):
 
-    """Terminate all instances in a RightScale Server Array."""
+    """Terminate all instances in a ServerArray
+
+    Terminates all instances for a ServerArray in RightScale marking the array
+    disabled.
+
+    **Options**
+
+    :array:
+      (str) The name of the ServerArray to destroy
+
+    :exact:
+      (bool) Whether or not to search for the exact array name.
+      (default: `true`)
+
+    :strict:
+      (bool) Whether or not to fail if the ServerArray does not exist.
+      (default: `true`)
+
+    **Examples**
+
+    .. code-block:: json
+
+        { "desc": "Terminate my array",
+         "actor": "rightscale.server_array.Terminate",
+         "options": {
+           "array": "my-array"
+         }
+       }
+
+    .. code-block:: json
+
+       { "desc": "Terminate many arrays",
+         "actor": "rightscale.server_array.Terminate",
+         "options": {
+           "array": "array-prefix",
+           "exact": false,
+         }
+       }
+
+    **Dry Mode**
+
+    Dry mode still validates that the server array you want to terminate is
+    actually gone. If you want to bypass this check, then set the
+    ``warn_on_failure`` flag for the actor.
+    """
 
     all_options = {
         'array': (str, REQUIRED, 'ServerArray name to Terminate'),
@@ -458,10 +656,71 @@ class Terminate(ServerArrayBaseActor):
 
 class Destroy(Terminate):
 
-    """Destroy a ServerArray.
+    """Destroy a ServerArray in RightScale
 
-    First terminates all of the running instances, then destroys the actual
-    ServerArray in RightScale."""
+    Destroys a ServerArray in RightScale by first invoking the Terminate actor,
+    and then deleting the array as soon as all of the running instances have
+    been terminated.
+
+    **Options**
+
+    :array:
+      (str) The name of the ServerArray to destroy
+
+    :exact:
+      (bool) Whether or not to search for the exact array name.
+      (default: `true`)
+
+    :strict:
+      (bool) Whether or not to fail if the ServerArray does not exist.
+      (default: `true`)
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "desc": "Destroy my array",
+         "actor": "rightscale.server_array.Destroy",
+         "options": {
+           "array": "my-array"
+         }
+       }
+
+    .. code-block:: json
+
+       { "desc": "Destroy many arrays",
+         "actor": "rightscale.server_array.Destroy",
+         "options": {
+           "array": "array-prefix",
+           "exact": false,
+         }
+       }
+
+    **Dry Mode**
+
+    In Dry mode this actor *does* search for the `array`, but allows it to be
+    missing because its highly likely that the array does not exist yet. If the
+    array does not exist, a mocked array object is created for the rest of the
+    execution.
+
+    During the rest of the execution, the code bypasses making any real changes
+    and just tells you what changes it would have made.
+
+    Example *dry* output::
+
+       [Destroy Test (DRY Mode)] Beginning
+       [Destroy Test (DRY Mode)] Terminating array before destroying it.
+       [Destroy Test (terminate) (DRY Mode)] Array "my-array" not found --
+       creating a mock.
+       [Destroy Test (terminate) (DRY Mode)] Disabling Array "my-array"
+       [Destroy Test (terminate) (DRY Mode)] Would have terminated all array
+       "<mocked array my-array>" instances.
+       [Destroy Test (terminate) (DRY Mode)] Pretending that array <mocked
+       array my-array> instances are terminated.
+       [Destroy Test (DRY Mode)] Pretending to destroy array "<mocked array
+       my-array>"
+       [Destroy Test (DRY Mode)] Finished successfully. Result: True
+    """
 
     @gen.coroutine
     def _destroy_array(self, array):
@@ -493,7 +752,86 @@ class Destroy(Terminate):
 
 class Launch(ServerArrayBaseActor):
 
-    """Launches the min_instances in a RightScale Server Array."""
+    """Launch instances in a ServerArray
+
+    Launches instances in an existing ServerArray and waits until that array
+    has become healthy before returning. *Healthy* means that the array has at
+    least the user-specified ``count`` or ``min_count`` number of instances
+    running as defined by the array definition in RightScale.
+
+    **Options**
+
+    :array:
+      (str) The name of the ServerArray to launch
+    :count:
+      (str, int) Optional number of instance to launch. Defaults to min_count
+      of the array.
+
+    :enable:
+      (bool) Should the autoscaling of the array be enabled? Settings this to
+      `false`, or omitting the parameter will not disable an enabled array.
+
+    :exact:
+      (bool) Whether or not to search for the exact array name.
+      (default: `true`)
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "desc": "Enable array and launch it",
+         "actor": "rightscale.server_array.Launch",
+         "options": {
+           "array": "my-array",
+           "enable": true
+         }
+       }
+
+    .. code-block:: json
+
+       { "desc": "Enable arrays starting with my-array and launch them",
+         "actor": "rightscale.server_array.Launch",
+         "options": {
+           "array": "my-array",
+           "enable": true,
+           "exact": false
+         }
+       }
+
+    .. code-block:: json
+
+       { "desc": "Enable array and launch 1 instance",
+         "actor": "rightscale.server_array.Launch",
+         "options": {
+           "array": "my-array",
+           "count": 1
+         }
+       }
+
+    **Dry Mode**
+
+    In Dry mode this actor *does* search for the ``array``, but allows it to be
+    missing because its highly likely that the array does not exist yet. If the
+    array does not exist, a mocked array object is created for the rest of the
+    execution.
+
+    During the rest of the execution, the code bypasses making any real changes
+    and just tells you what changes it would have made.
+
+    Example *dry* output::
+
+       [Launch Array Test #0 (DRY Mode)] Verifying that array "my-array" exists
+       [Launch Array Test #0 (DRY Mode)] Array "my-array" not found -- creating
+           a mock.
+       [Launch Array Test #0 (DRY Mode)] Enabling Array "my-array"
+       [Launch Array Test #0 (DRY Mode)] Launching Array "my-array" instances
+       [Launch Array Test #0 (DRY Mode)] Would have launched instances of array
+           <MagicMock name='my-array.self.show().soul.__getitem__()'
+           id='4420453200'>
+       [Launch Array Test #0 (DRY Mode)] Pretending that array <MagicMock
+           name='my-array.self.show().soul.__getitem__()' id='4420453200'>
+           instances are launched.
+    """
 
     all_options = {
         'array': (str, REQUIRED, 'ServerArray name to launch'),
@@ -659,10 +997,79 @@ class Launch(ServerArrayBaseActor):
 
 class Execute(ServerArrayBaseActor):
 
-    """Executes a RightScript or Recipe on a ServerArray.
+    """Executes a RightScale script/recipe on a ServerArray
 
-    # TODO: Add a 'wait timer' that allows the execution to fail if it
-    # takes too long to launch the instances.
+    Executes a RightScript or Recipe on a set of hosts in a ServerArray in
+    RightScale using individual calls to the live running instances. These can
+    be found in your RightScale account under *Design -> RightScript* or
+    *Design -> Cookbooks*
+
+    The RightScale API offers a *multi_run_executable* method that can be used
+    to run a single script on all servers in an array -- but unfortunately this
+    API method provides no way to monitor the progress of the individual jobs
+    on the hosts. Furthermore, the method often executes on recently terminated
+    or terminating hosts, which throws false-negative error results.
+
+    Our actor explicitly retrieves a list of the *operational* hosts in an
+    array and kicks off individual execution tasks for every host. It then
+    tracks the execution of those tasks from start to finish and returns the
+    results.
+
+    **Options**
+
+    :array:
+      (str) The name of the ServerArray to operate on
+
+    :script:
+      (str) The name of the RightScript or Recipe to execute
+
+    :execute_runtime:
+      (str, int) Expected number of seconds to execute.
+      (default: `5`)
+
+    :inputs:
+      (dict) Dictionary of Key/Value pairs to use as inputs for the script
+
+    :exact:
+      (str) Boolean whether or not to search for the exact array name.
+      (default: `true`)
+
+    **Examples**
+
+    .. code-block:: json
+
+        { "desc":" Execute script on my-array",
+          "actor": "rightscale.server_array.Execute",
+          "options": {
+            "array": "my-array",
+            "script": "connect to elb",
+            "expected_runtime": 3,
+            "inputs": {
+              "ELB_NAME": "text:my-elb"
+            }
+          }
+        }
+
+    **Dry Mode**
+
+    In Dry mode this actor *does* search for the `array`, but allows it to be
+    missing because its highly likely that the array does not exist yet. If the
+    array does not exist, a mocked array object is created for the rest of the
+    execution.
+
+    During the rest of the execution, the code bypasses making any real changes
+    and just tells you what changes it would have made.
+
+    Example *dry* output::
+
+        [Destroy Test (DRY Mode)] Verifying that array "my-array" exists
+        [Execute Test (DRY Mode)]
+            kingpin.actors.rightscale.server_array.Execute Initialized
+        [Execute Test (DRY Mode)] Beginning execution
+        [Execute Test (DRY Mode)] Verifying that array "my-array" exists
+        [Execute Test (DRY Mode)] Would have executed "Connect instance to ELB"
+            with inputs "{'inputs[ELB_NAME]': 'text:my-elb'}" on "my-array".
+        [Execute Test (DRY Mode)] Returning result: True
     """
 
     all_options = {
