@@ -1,6 +1,7 @@
 Rollbar
 ~~~~~~~
-.. automodule:: kingpin.actors.rollbar
+
+Deploy
+^^^^^^
+.. autoclass:: kingpin.actors.rollbar.Deploy
    :noindex:
-   :members:
-   :exclude-members: RollbarBase

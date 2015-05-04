@@ -2,7 +2,7 @@ Grouping Actors
 ~~~~~~~~~~~~~~~
 
 Async
-^^^^
+^^^^^
 .. autoclass:: kingpin.actors.group.Sync
    :noindex:
 

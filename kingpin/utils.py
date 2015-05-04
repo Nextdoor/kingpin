@@ -85,8 +85,8 @@ def setup_root_logger(level='warn', syslog=None, color=False):
 
     Args:
         level: Logging level string ('warn' is default)
-        syslog: String representing syslog facility to output to.
-                If empty, logs are written to console.
+        syslog: String representing syslog facility to output to.  If empty,
+        logs are written to console.
         color: Colorize the log output
 
     Returns:
@@ -336,19 +336,21 @@ def create_repeating_log(logger, message, handle=None, **kwargs):
     """Create a repeating log message.
 
     This function sets up tornado to repeatedly log a message in a way that
-    does not need to be `yield`ed.
-    Example:
-    >>> yield do_tornado_stuff(1)
-    >>> log_handle = create_repeating_log('Computing...')
-    >>> yield do_slow_computation_with_insufficient_logging()
-    >>> clear_repeating_log(log_handle)
+    does not need to be `yield`-ed.
+
+    Example::
+
+       >>> yield do_tornado_stuff(1)
+       >>> log_handle = create_repeating_log('Computing...')
+       >>> yield do_slow_computation_with_insufficient_logging()
+       >>> clear_repeating_log(log_handle)
 
     This is similar to javascript's setInterval() and clearInterval().
 
     Args:
         message: String to pass to log.info()
-        **kwargs: values accepted by datetime.timedelta
-                  namely seconds, and milliseconds.
+        kwargs: values accepted by datetime.timedelta namely seconds, and
+        milliseconds.
 
     Must be cleared via clear_repeating_log()
     Only handles one interval per actor.

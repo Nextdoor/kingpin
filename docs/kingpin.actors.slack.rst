@@ -1,6 +1,7 @@
 Slack
 ~~~~~
-.. automodule:: kingpin.actors.slack
+
+Message
+^^^^^^^
+.. autoclass:: kingpin.actors.slack.Message
    :noindex:
-   :members:
-   :exclude-members: SlackBase
