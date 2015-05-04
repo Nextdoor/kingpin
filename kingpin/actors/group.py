@@ -195,8 +195,7 @@ class Sync(BaseGroupActor):
              { "ARRAY": "Second", "SLEEP": "0", }
            ],
            "acts": [
-             { "desc":
-               "do something",
+             { "desc": "do something",
                "actor": "server_array.Clone",
                "options": {
                  "source": "template",

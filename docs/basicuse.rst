@@ -17,7 +17,8 @@ Basic Use
       -c, --color           Colorize the log output
 
 The simplest use cases of this code can be better understood by looking at the
-`simple.json <examples/simple.json>`__ file. Executing it is a simple as this:
+:download:`simple.json <../examples/simple.json>` file. Executing it is a
+simple as this:
 
 .. code-block:: bash
 
@@ -54,9 +55,10 @@ JSON-based DSL
 
 The entire model for the configuration is based on the concept of a JSON
 dictionary that contains at least one *actor* configuration. This JSON format
-is highly structured and must rigidly conform to the `JSON Schema <kingpin/schema.py>`__.
+is highly structured and must rigidly conform to the :py:mod:`kingpin.schema`.
 
-*Validation*
+Validation
+^^^^^^^^^^
 The JSON file will be validated for schema-conformity as one of the first
 things that happens at load-time when the app starts up. If it fails, you will
 be notified immediately. This is performed in ``misc.Macro`` actor.
@@ -254,8 +256,8 @@ swapped with environment variables found at execution time. Any missing
 environment variables will cause the JSON parsing to fail and will notify you
 immediately.
 
-For an example, take a look at the `complex.json <examples/complex.json>`__ file,
-and these examples of execution.
+For an example, take a look at the :download:`complex.json
+<../examples/complex.json>` file, and these examples of execution.
 
 .. code-block:: bash
 

@@ -46,7 +46,7 @@ Unit Tests
 ^^^^^^^^^^
 
 The code is 100% unit test coverage complete, and no pull-requests will be
-accepted that do not maintain this level of coverage. That said, its possible
+accepted that do not maintain this level of coverage. That said, it's possible
 (*likely*) that we have not covered every possible scenario in our unit tests
 that could cause failures. We will strive to fill out every reasonable failure
 scenario.
@@ -54,7 +54,7 @@ scenario.
 Integration Tests
 ^^^^^^^^^^^^^^^^^
 
-Because its hard to predict cloud failures, we provide integration tests for
+Because it's hard to predict cloud failures, we provide integration tests for
 most of our modules. These integration tests actually go off and execute real
 operations in your accounts, and rely on particular environments being setup
 in order to run. These tests are great to run though to validate that your
@@ -203,7 +203,7 @@ This is the basic structure for an actor class.
 
     # All actors must have an __author__ tag. This is used actively
     # by the Kingpin code, do not forget this!
-    __author__ = 'Billy Joe Armstrong <american_idiot@broadway.com'
+    __author__ = 'Billy Joe Armstrong <american_idiot@broadway.com>'
 
     # Perhaps you need an API token?
     TOKEN = os.getenv('HELLO_WORLD_TOKEN', None)
@@ -303,7 +303,8 @@ the behavior of Kingpin, and should not be bypassed or ignored.
 
 A string describing the stage or action thats occuring. Meant to be human
 readable and useful for logging. You do not need to do anything intentinally to
-support this option (its handled in *kingpin.actors.base.BaseActor.\ **init**\ ()*).
+support this option (it's handled in
+:py:mod:`kingpin.actors.base.BaseActor`).
 
 ``dry``
 '''''''
@@ -341,7 +342,7 @@ Required Methods
 ''''''''''''''''''
 
 Your actor can execute any code you would like in the ``_execute()`` method. This
-method should make sure that its a tornado-style generator (thus, can be
+method should make sure that it's a tornado-style generator (thus, can be
 yielded), and that it never calls any blocking operations.
 
 Actors must *not*:

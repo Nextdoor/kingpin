@@ -141,8 +141,11 @@ class Message(HipchatBase):
 
     **Options**
 
-    - ``room`` - The string-name (or ID) of the room to send a message to
-    - ``message`` - String of the message to send
+    :room:
+      (str) The string-name (or ID) of the room to send a message to
+
+    :message:
+      (str) Message to send
 
     **Examples**
 
