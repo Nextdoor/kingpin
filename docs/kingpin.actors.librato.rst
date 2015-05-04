@@ -1,5 +1,7 @@
 Librato
 ~~~~~~~
-.. automodule:: kingpin.actors.librato
+
+Annotation
+^^^^^^^^^^
+.. autoclass:: kingpin.actors.librato.Annotation
    :noindex:
-   :members:

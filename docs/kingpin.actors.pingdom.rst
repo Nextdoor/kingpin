@@ -1,6 +1,12 @@
 Pingdom
 ~~~~~~~
-.. automodule:: kingpin.actors.pingdom
+
+Pause
+^^^^^
+.. autoclass:: kingpin.actors.pingdom.Pause
    :noindex:
-   :members:
-   :exclude-members: PingdomAPI, PingdomClient, PingdomBase
+
+Unpause
+^^^^^^^
+.. autoclass:: kingpin.actors.pingdom.Unpause
+   :noindex:

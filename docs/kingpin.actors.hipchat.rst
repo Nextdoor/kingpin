@@ -1,6 +1,12 @@
 Hipchat
 ~~~~~~~
-.. automodule:: kingpin.actors.hipchat
+
+Message
+^^^^^^^
+.. autoclass:: kingpin.actors.hipchat.Message
    :noindex:
-   :members:
-   :exclude-members: HipchatBase
+
+Topic
+^^^^^^^
+.. autoclass:: kingpin.actors.hipchat.Topic
+   :noindex:

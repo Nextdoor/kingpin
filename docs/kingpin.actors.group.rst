@@ -1,6 +1,12 @@
-Group
-~~~~~
-.. automodule:: kingpin.actors.group
+Grouping Actors
+~~~~~~~~~~~~~~~
+
+Async
+^^^^
+.. autoclass:: kingpin.actors.group.Sync
    :noindex:
-   :members:
-   :exclude-members: BaseGroupActor
+
+Sync
+^^^^
+.. autoclass:: kingpin.actors.group.Sync
+   :noindex:
