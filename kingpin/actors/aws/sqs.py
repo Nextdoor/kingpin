@@ -114,8 +114,8 @@ class Create(SQSBaseActor):
 
     **Dry Mode**
 
-    Will not create any queue, or even contact SQS. Will create a mock.Mock object
-    and exit with success.
+    Will not create any queue, or even contact SQS. Will create a mock.Mock
+    object and exit with success.
     """
 
     all_options = {
@@ -209,7 +209,8 @@ class Delete(SQSBaseActor):
     **Dry Mode**
 
     Will find the specified queue, but will have a noop regarding its deletion.
-    Dry mode will fail if no queues are found, and idempotent flag is set to False.
+    Dry mode will fail if no queues are found, and idempotent flag is set to
+    False.
     """
 
     all_options = {

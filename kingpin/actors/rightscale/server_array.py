@@ -341,8 +341,10 @@ class Update(ServerArrayBaseActor):
                  "min_count": 4
                },
                "schedule": [
-                 {"day": "Sunday", "max_count": 2, "min_count": 1, "time": "07:00" },
-                 {"day": "Sunday", "max_count": 2, "min_count": 2, "time": "09:00" }
+                 {"day": "Sunday", "max_count": 2,
+                  "min_count": 1, "time": "07:00" },
+                 {"day": "Sunday", "max_count": 2,
+                  "min_count": 2, "time": "09:00" }
                ]
              },
              "name": "my-really-new-name"
@@ -754,8 +756,8 @@ class Launch(ServerArrayBaseActor):
 
     Launches instances in an existing ServerArray and waits until that array
     has become healthy before returning. *Healthy* means that the array has at
-    least the user-specified ``count`` or ``min_count`` number of instances running
-    as defined by the array definition in RightScale.
+    least the user-specified ``count`` or ``min_count`` number of instances
+    running as defined by the array definition in RightScale.
 
     **Options**
 
@@ -819,8 +821,8 @@ class Launch(ServerArrayBaseActor):
     Example *dry* output::
 
        [Launch Array Test #0 (DRY Mode)] Verifying that array "my-array" exists
-       [Launch Array Test #0 (DRY Mode)] Array "my-array" not found -- creating a
-           mock.
+       [Launch Array Test #0 (DRY Mode)] Array "my-array" not found -- creating
+           a mock.
        [Launch Array Test #0 (DRY Mode)] Enabling Array "my-array"
        [Launch Array Test #0 (DRY Mode)] Launching Array "my-array" instances
        [Launch Array Test #0 (DRY Mode)] Would have launched instances of array
@@ -1008,9 +1010,10 @@ class Execute(ServerArrayBaseActor):
     on the hosts. Furthermore, the method often executes on recently terminated
     or terminating hosts, which throws false-negative error results.
 
-    Our actor explicitly retrieves a list of the *operational* hosts in an array
-    and kicks off individual execution tasks for every host. It then tracks the
-    execution of those tasks from start to finish and returns the results.
+    Our actor explicitly retrieves a list of the *operational* hosts in an
+    array and kicks off individual execution tasks for every host. It then
+    tracks the execution of those tasks from start to finish and returns the
+    results.
 
     **Options**
 
@@ -1060,8 +1063,8 @@ class Execute(ServerArrayBaseActor):
     Example *dry* output::
 
         [Destroy Test (DRY Mode)] Verifying that array "my-array" exists
-        [Execute Test (DRY Mode)] kingpin.actors.rightscale.server_array.Execute
-            Initialized
+        [Execute Test (DRY Mode)]
+            kingpin.actors.rightscale.server_array.Execute Initialized
         [Execute Test (DRY Mode)] Beginning execution
         [Execute Test (DRY Mode)] Verifying that array "my-array" exists
         [Execute Test (DRY Mode)] Would have executed "Connect instance to ELB"
