@@ -17,7 +17,6 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 """
 
-from random import randint
 import logging
 
 from tornado import gen
@@ -35,16 +34,6 @@ log = logging.getLogger(__name__)
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
-class ArrayNotFound(exceptions.RecoverableActorFailure):
-
-    """Raised when a ServerArray could not be found."""
-
-
-class ArrayAlreadyExists(exceptions.RecoverableActorFailure):
-
-    """Raised when a ServerArray already exists by a given name."""
-
-
 class InvalidInputs(exceptions.InvalidOptions):
 
     """Raised when supplied inputs are invalid for a ServerArray."""
@@ -58,72 +47,6 @@ class TaskExecutionFailed(exceptions.RecoverableActorFailure):
 class ServerArrayBaseActor(base.RightScaleBaseActor):
 
     """Abstract ServerArray Actor that provides some utility methods."""
-
-    @gen.coroutine
-    def _find_server_arrays(self, array_name,
-                            raise_on='notfound',
-                            allow_mock=True,
-                            exact=True):
-        """Find a ServerArray by name and return it.
-
-        Args:
-            array_name: String name of the ServerArray to find.
-            raise_on: Either None, 'notfound' or 'found'
-            allow_mock: Boolean whether or not to allow a Mock object to be
-                        returned instead.
-            exact: Boolean whether or not to allow multiple arrays to be
-                   returned.
-
-        Raises:
-            gen.Return(<rightscale.Resource of Server Array>)
-            ArrayNotFound()
-            ArrayAlreadyExists()
-        """
-        if raise_on == 'notfound':
-            msg = 'Verifying that array "%s" exists' % array_name
-        elif raise_on == 'found':
-            msg = 'Verifying that array "%s" does not exist' % array_name
-        elif not raise_on:
-            msg = 'Searching for array named "%s"' % array_name
-        else:
-            raise exceptions.UnrecoverableActorFailure(
-                'Invalid "raise_on" setting in actor code.')
-
-        self.log.debug(msg)
-        array = yield self._client.find_server_arrays(array_name, exact=exact)
-
-        if not array and self._dry and allow_mock:
-            # Create a fake ServerArray object thats mocked up to help with
-            # execution of the rest of the code.
-            self.log.info('Array "%s" not found -- creating a mock.' %
-                          array_name)
-            array = mock.MagicMock(name=array_name)
-            # Give the mock a real identity and give it valid elasticity
-            # parameters so the Launch() actor can behave properly.
-            array.soul = {
-                # Used elsewhere to know whether we're working on a mock
-                'fake': True,
-
-                # Fake out common server array object properties
-                'name': '<mocked array %s>' % array_name,
-                'elasticity_params': {'bounds': {'min_count': 4}}
-            }
-            array.self.path = '/fake/array/%s' % randint(10000, 20000)
-            array.self.show.return_value = array
-
-        if array and raise_on == 'found':
-            raise ArrayAlreadyExists('Array "%s" already exists!' % array_name)
-
-        if not array and raise_on == 'notfound':
-            raise ArrayNotFound('Array "%s" not found!' % array_name)
-
-        # Quick note. If many arrays were returned, lets make sure we throw a
-        # note to the user so they know whats going on.
-        if isinstance(array, list):
-            for a in array:
-                self.log.info('Matching array found: %s' % a.soul['name'])
-
-        raise gen.Return(array)
 
     @gen.coroutine
     def _apply(self, function, arrays, *args, **kwargs):
