@@ -245,29 +245,18 @@ class RightScale(object):
             if f.soul['name'] == name:
                 return f
 
-    @gen.coroutine
-    def find_alert_spec(self, name, subject_href):
-        """Search for an AlertSpec by-name and return the resource.
+    @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=10,
+                wait_exponential_multiplier=5000,
+                wait_exponential_max=60000)
+    @utils.exception_logger
+    def destroy_resource(self, res):
+        """Destroy an RightScale resource.
 
         Args:
-            name: RightScale AlertSpec Name
-            subject_href: The HREF of the subject this AlertSpec is assigned
-              to.
-
-        Return:
-            rightcale.Resource object
+            res: Resource object to destroy
         """
-        log.debug('Searching for AlertSpec matching: %s' % name)
-        found_spec = yield self.find_by_name_and_keys(
-            self._client.alert_specs, name, exact=True,
-            subject_href=subject_href)
-
-        if not found_spec:
-            log.debug('AlertSpec matching "%s" could not be found.' % name)
-            return
-
-        log.debug('Got AlertSpec: %s' % found_spec)
-        raise gen.Return(found_spec)
+        return res.self.destroy()
 
     @concurrent.run_on_executor
     @utils.exception_logger

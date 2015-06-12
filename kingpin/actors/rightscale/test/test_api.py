@@ -130,25 +130,10 @@ class TestRightScale(testing.AsyncTestCase):
             params={'filter[]': ['href==/123', 'name==FakeResource']})
 
     @testing.gen_test
-    def test_find_alert_spec(self):
-        fake_spec = mock.MagicMock(name='FakeSpec')
-        fake_spec.soul = {'name': 'FakeSpec'}
-
-        # Now create a fake Rightscale resource collection object and make sure
-        with mock.patch.object(self.client, 'find_by_name_and_keys') as u_mock:
-            # Try a search with no exact matching
-            u_mock.return_value = helper.tornado_value(fake_spec)
-            ret = yield self.client.find_alert_spec('FakeSpec', 'fake_href')
-            self.assertEquals(ret.soul['name'], 'FakeSpec')
-
-    @testing.gen_test
-    def test_find_alert_spec_empty_result(self):
-        # Now create a fake Rightscale resource collection object and make sure
-        with mock.patch.object(self.client, 'find_by_name_and_keys') as u_mock:
-            # Try a search with no exact matching
-            u_mock.return_value = helper.tornado_value(None)
-            ret = yield self.client.find_alert_spec('FakeSpec', 'fake_href')
-            self.assertEquals(ret, None)
+    def test_destroy_resource(self):
+        mock_res = mock.MagicMock(res='MockedResource')
+        yield self.client.destroy_resource(mock_res)
+        mock_res.self.destroy.assert_called_once()
 
     @testing.gen_test
     def test_clone_server_array(self):
