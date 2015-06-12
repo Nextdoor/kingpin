@@ -20,6 +20,7 @@
 import logging
 
 from tornado import gen
+import requests
 
 from kingpin.actors import exceptions
 from kingpin.actors.rightscale import base
@@ -59,11 +60,11 @@ class AlertsBaseActor(base.RightScaleBaseActor):
               to.
 
         Return:
-            rightcale.Resource object
+            [<rightcale.Resource objects>]
         """
         log.debug('Searching for AlertSpec matching: %s' % name)
         found_spec = yield self._client.find_by_name_and_keys(
-            self._client._client.alert_specs, name, exact=True,
+            self._client._client.alert_specs, name, exact=False,
             subject_href=subject_href)
 
         if not found_spec:
@@ -84,7 +85,7 @@ class Create(AlertsBaseActor):
       The name of the Server or ServerArray to create the AlertSpec on.
 
     :strict_array:
-      Whether or not to fail if the subject Server/ServerArray does not exist.
+      Whether or not to fail if the Server/ServerArray does not exist.
       (default: False)
 
     :condition:
@@ -93,7 +94,7 @@ class Create(AlertsBaseActor):
 
     :description:
       The description of the AlertSpec.
-      (_optional_)
+      (*optional*)
 
     :duration:
       The duration in minutes of the condition sentence.
@@ -101,7 +102,7 @@ class Create(AlertsBaseActor):
 
     :escalation_name:
       Escalate to the named alert escalation when the alert is triggered.
-      (_optional_)
+      (*optional*)
 
     :file:
       The RRD path/file_name of the condition sentence.
@@ -133,8 +134,8 @@ class Create(AlertsBaseActor):
        { "desc": "Create high network rx alert",
          "actor": "rightscale.alerts.Create",
          "options": {
-           "subject": "my-array",
-           "strict_subject": true,
+           "array": "my-array",
+           "strict_array": true,
            "condition": ">",
            "description": "Alert if amount of network data received is high",
            "duration": 180,
@@ -148,7 +149,7 @@ class Create(AlertsBaseActor):
 
     **Dry Mode**
 
-    In Dry mode this actor *does* validate that the ``subject`` array exists.
+    In Dry mode this actor *does* validate that the ``array`` array exists.
     If it does not, a `kingpin.actors.rightscale.api.ServerArrayException` is
     thrown. Once that has been validated, the dry mode execution simply logs
     the Alert Spec that it would have created.
@@ -159,8 +160,8 @@ class Create(AlertsBaseActor):
     """
 
     all_options = {
-        'subject': (str, REQUIRED, 'Name of the ServerArray act on.'),
-        'strict_subject': (bool, False, 'Strict subject ServerArray validation.'),
+        'array': (str, REQUIRED, 'Name of the ServerArray act on.'),
+        'strict_array': (bool, False, 'Strict ServerArray validation.'),
         'condition': (str, REQUIRED,
                       'The condition (operator) in the condition sentence.'),
         'description': (str, None, 'The description of the AlertSpec.'),
@@ -188,26 +189,25 @@ class Create(AlertsBaseActor):
     def __init__(self, *args, **kwargs):
         """Validate the user-supplied parameters at instantiation time."""
         super(Create, self).__init__(*args, **kwargs)
-        # By default, we're strict on our subject array validation
-        self._subject_raise_on = 'notfound'
-        self._subject_allow_mock = False
+        # By default, we're strict on our array array validation
+        self._array_raise_on = 'notfound'
+        self._array_allow_mock = False
 
-        if not self.option('strict_subject'):
-            self._subject_raise_on = None
-            self._subject_allow_mock = True
+        if not self.option('strict_array'):
+            self._array_raise_on = None
+            self._array_allow_mock = True
 
     @gen.coroutine
     def _execute(self):
         # Find the array we're adding an alert spec to. Specifically, we need
         # the servers HREF.
-        subject = yield self._find_server_arrays(
-            self.option('subject'),
-            raise_on=self._subject_raise_on,
-            allow_mock=self._subject_allow_mock)
-        self.log.info('Found %s (%s) to create alert spec on' %
-                      (subject.soul['name'], subject.href))
+        array = yield self._find_server_arrays(
+            self.option('array'),
+            raise_on=self._array_raise_on,
+            allow_mock=self._array_allow_mock)
+        self.log.info('Found %s (%s)' % (array.soul['name'], array.href))
 
-        # Ad all of the required parameters to a dictionary
+        # Add all of the required parameters to a dictionary
         params = {
             'condition': self.option('condition'),
             'description': self.option('description'),
@@ -215,7 +215,7 @@ class Create(AlertsBaseActor):
             'escalation_name': self.option('escalation_name'),
             'file': self.option('file'),
             'name': self.option('name'),
-            'subject_href': subject.href,
+            'subject_href': array.href,
             'threshold': self.option('threshold'),
             'variable': self.option('variable'),
         }
@@ -236,17 +236,30 @@ class Create(AlertsBaseActor):
         if self._dry:
             # In dry run mode, just log out what we would have done.
             self.log.info('Would have created the alert spec \"%s\" on %s' %
-                          (self.option('name'), subject.soul['name']))
+                          (self.option('name'), array.soul['name']))
         else:
-            # We're really doin this!
-            yield self._client.create_alert_spec(source_array)
-
-        raise gen.Return()
+            # We're really doin this. If we get a known exception back, handle
+            # it. Otherwise, raise it.
+            try:
+                yield self._client.create_resource(
+                    self._client._client.alert_specs, params)
+                self.log.info('Alert spec has been created')
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code in (422, 400):
+                    msg = ('Invalid parameters supplied to Alert Spec "%s": %s'
+                           % (self.option('name'), params))
+                    raise exceptions.RecoverableActorFailure(msg)
+                raise
 
 
 class Destroy(AlertsBaseActor):
 
-    """Destroy an existing RightScale Alert Spec
+    """Destroy existing RightScale Alert Specs
+
+    This actor searches RightScale for any Alert Specs that match the ``name``
+    and ``array`` that you supplied, then deletes all of them. RightScale lets
+    you have multiple alert specs with the same name, so if this actor finds
+    multiple specs, it will delete them all.
 
     **Options**
 
@@ -311,24 +324,36 @@ class Destroy(AlertsBaseActor):
                       (array.soul['name'], array.href))
 
         # Find the AlertSpec on this server, if it exists.
-        alert = yield self._find_alert_spec(
+        alerts = yield self._find_alert_spec(
             self.option('name'), array.href)
 
         # If we can't find the AlertSpec specific to the subjet array that was
         # supplied, raise an exception and bail.
-        if not alert:
+        if not alerts:
             raise AlertSpecNotFound(
                 '"%s" could not be found on %s' %
                 (self.option('name'), array.soul['name']))
 
-        log.debug('Found Alert Spec: %s' % alert.soul)
+        # We'll store our 'delete spec' futures in here
+        deletes = []
 
-        if self._dry:
-            # In dry run mode, just log out what we would have done.
-            self.log.info('Would have deleted the alert spec \"%s\" on %s' %
-                          (self.option('name'), array.soul['name']))
-        else:
-            # We're really doin this!
-            yield self._client.destroy_resource(alert)
+        for spec in alerts:
+            log.debug('Found Alert Spec %s' % spec.soul)
 
-        raise gen.Return()
+            if self._dry:
+                # In dry run mode, just log out what we would have done.
+                self.log.info('Would have deleted alert \"%s\" (%s) on %s' %
+                              (spec.soul['name'],
+                               spec.href,
+                               array.soul['name']))
+            else:
+                # We're really doin this!
+                self.log.info('Deleting alert \"%s\" (%s) on %s' %
+                              (spec.soul['name'],
+                               spec.href,
+                               array.soul['name']))
+                deletes = self._client.destroy_resource(spec)
+
+        # Wait for the deletes to finish
+        if deletes:
+            yield deletes

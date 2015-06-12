@@ -60,6 +60,7 @@ import rightscale
 import simplejson
 
 from kingpin import utils
+from kingpin.actors.rightscale import settings
 
 log = logging.getLogger(__name__)
 
@@ -208,9 +209,7 @@ class RightScale(object):
         return found_script
 
     @concurrent.run_on_executor
-    @sync_retry(stop_max_attempt_number=10,
-                wait_exponential_multiplier=5000,
-                wait_exponential_max=60000)
+    @sync_retry(**settings.RETRYING_SETTINGS)
     @utils.exception_logger
     def find_by_name_and_keys(self, collection, name, exact=True, **kwargs):
         """Search for a RightScale resource by name, and optional keys.
@@ -246,9 +245,7 @@ class RightScale(object):
                 return f
 
     @concurrent.run_on_executor
-    @sync_retry(stop_max_attempt_number=10,
-                wait_exponential_multiplier=5000,
-                wait_exponential_max=60000)
+    @sync_retry(**settings.RETRYING_SETTINGS)
     @utils.exception_logger
     def destroy_resource(self, res):
         """Destroy an RightScale resource.
@@ -257,6 +254,21 @@ class RightScale(object):
             res: Resource object to destroy
         """
         return res.self.destroy()
+
+    @concurrent.run_on_executor
+    @sync_retry(**settings.RETRYING_SETTINGS)
+    @utils.exception_logger
+    def create_resource(self, res, params):
+        """Create an RightScale resource.
+
+        Args:
+            res: Resource object to destroy
+            params: Dict of RightScale parameters to pass in
+
+        Returns:
+            The Rightscale Resource itself
+        """
+        return res.create(params=params)
 
     @concurrent.run_on_executor
     @utils.exception_logger
@@ -367,9 +379,7 @@ class RightScale(object):
         next_inst.inputs.multi_update(params=inputs)
 
     @concurrent.run_on_executor
-    @sync_retry(stop_max_attempt_number=10,
-                wait_exponential_multiplier=5000,
-                wait_exponential_max=60000)
+    @sync_retry(**settings.RETRYING_SETTINGS)
     @utils.exception_logger
     def launch_server_array(self, array, count=1):
         """Launches an instance of a ServerArray..
@@ -409,9 +419,7 @@ class RightScale(object):
             res_id=array_id, params=params)
 
     @concurrent.run_on_executor
-    @sync_retry(stop_max_attempt_number=10,
-                wait_exponential_multiplier=1000,
-                wait_exponential_max=10000)
+    @sync_retry(**settings.RETRYING_SETTINGS)
     @utils.exception_logger
     def get_server_array_current_instances(
             self, array, filters=['state<>terminated']):
@@ -575,9 +583,7 @@ class RightScale(object):
         raise gen.Return(status)
 
     @concurrent.run_on_executor
-    @sync_retry(stop_max_attempt_number=20,
-                wait_exponential_multiplier=1000,
-                wait_exponential_max=10000)
+    @sync_retry(**settings.RETRYING_SETTINGS)
     @utils.exception_logger
     def _get_task_info(self, task):
         """Fetch data for a particular RightScale task.
@@ -588,9 +594,7 @@ class RightScale(object):
         return task.self.show()
 
     @concurrent.run_on_executor
-    @sync_retry(stop_max_attempt_number=10,
-                wait_exponential_multiplier=5000,
-                wait_exponential_max=60000)
+    @sync_retry(**settings.RETRYING_SETTINGS)
     @utils.exception_logger
     def get_audit_logs(self, instance, start, end, match=None):
         """Fetch a set of audit logs belonging to an instance.
@@ -730,9 +734,7 @@ class RightScale(object):
         raise gen.Return(yielded_tasks)
 
     @concurrent.run_on_executor
-    @sync_retry(stop_max_attempt_number=3,
-                wait_exponential_multiplier=1000,
-                wait_exponential_max=10000)
+    @sync_retry(**settings.RETRYING_SETTINGS)
     def make_generic_request(self, url, post=None):
         """Make a generic API call and return a Resource Object.
 
@@ -748,7 +750,7 @@ class RightScale(object):
             post: Optional POST Body Data
 
         Returns:
-            <rightscale.Resource object>
+            <rightscale.Resource objects>
         """
         # Make the initial web call
         log.debug('Making generic API call: %s (%s)' % (url, post))

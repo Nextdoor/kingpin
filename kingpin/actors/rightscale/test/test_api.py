@@ -136,6 +136,12 @@ class TestRightScale(testing.AsyncTestCase):
         mock_res.self.destroy.assert_called_once()
 
     @testing.gen_test
+    def test_create_resource(self):
+        mock_res = mock.MagicMock(res='MockedResource')
+        yield self.client.create_resource(mock_res, params=123)
+        mock_res.self.create.assert_called_once()
+
+    @testing.gen_test
     def test_clone_server_array(self):
         # First, create the rightscale.server_array api mock
         sa_rsr_mock = mock.MagicMock()
