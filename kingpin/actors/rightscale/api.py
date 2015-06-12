@@ -208,6 +208,68 @@ class RightScale(object):
         return found_script
 
     @concurrent.run_on_executor
+    @sync_retry(stop_max_attempt_number=10,
+                wait_exponential_multiplier=5000,
+                wait_exponential_max=60000)
+    @utils.exception_logger
+    def find_by_name_and_keys(self, collection, name, exact=True, **kwargs):
+        """Search for a RightScale resource by name, and optional keys.
+
+        This code is blatently stolen from rightscale.util.find_by_name and
+        just re-worked so that we can search with the subject_href.
+        RightScale deliberately clones AlertSpecs all of the place. For our
+        purposes, searching with the subject_href becomes a requirement to
+        avoid complex scenarios where we may return the wrong AlertSpec.
+
+        Args:
+            collection: RightScale.<xxx> resource object
+            name: Name of the resource to search for
+            exact: If True, returns the first match. If False, returns a list
+                of all returned resources.
+            **kwargs: Any additional keys-and-values to use in the search.
+
+        Returns:
+            RightScale Resource Objects
+        """
+        filter_keys = []
+        kwargs['name'] = name
+        for key, val in kwargs.items():
+            filter_keys.append('%s==%s' % (key, val))
+        params = {'filter[]': filter_keys}
+
+        found = collection.index(params=params)
+        if not exact and len(found) > 0:
+            return found
+
+        for f in found:
+            if f.soul['name'] == name:
+                return f
+
+    @gen.coroutine
+    def find_alert_spec(self, name, subject_href):
+        """Search for an AlertSpec by-name and return the resource.
+
+        Args:
+            name: RightScale AlertSpec Name
+            subject_href: The HREF of the subject this AlertSpec is assigned
+              to.
+
+        Return:
+            rightcale.Resource object
+        """
+        log.debug('Searching for AlertSpec matching: %s' % name)
+        found_spec = yield self.find_by_name_and_keys(
+            self._client.alert_specs, name, exact=True,
+            subject_href=subject_href)
+
+        if not found_spec:
+            log.debug('AlertSpec matching "%s" could not be found.' % name)
+            return
+
+        log.debug('Got AlertSpec: %s' % found_spec)
+        raise gen.Return(found_spec)
+
+    @concurrent.run_on_executor
     @utils.exception_logger
     def clone_server_array(self, array):
         """Clone a Server Array.
