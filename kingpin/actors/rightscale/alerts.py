@@ -54,6 +54,10 @@ class AlertsBaseActor(base.RightScaleBaseActor):
     def _find_alert_spec(self, name, subject_href):
         """Search for an AlertSpec by-name and return the resource.
 
+        Note: A non-exact resource match is used below so that we return all of
+        the Alert Specs that are matched by name. This method returns the
+        resources in a list.
+
         Args:
             name: RightScale AlertSpec Name
             subject_href: The HREF of the subject this AlertSpec is assigned
@@ -78,6 +82,9 @@ class AlertsBaseActor(base.RightScaleBaseActor):
 class Create(AlertsBaseActor):
 
     """Create a RightScale Alert Spec
+
+    Options match the documentation in RightScale:
+    http://reference.rightscale.com/api1.5/resources/ResourceAlertSpecs.html#create
 
     **Options**
 
@@ -161,7 +168,9 @@ class Create(AlertsBaseActor):
 
     all_options = {
         'array': (str, REQUIRED, 'Name of the ServerArray act on.'),
-        'strict_array': (bool, False, 'Strict ServerArray validation.'),
+        'strict_array': (bool, False,
+                         ('Whether or not to fail if the  Server/ServerArray ',
+                          'does not exist.')),
         'condition': (str, REQUIRED,
                       'The condition (operator) in the condition sentence.'),
         'description': (str, None, 'The description of the AlertSpec.'),
@@ -212,7 +221,6 @@ class Create(AlertsBaseActor):
             'condition': self.option('condition'),
             'description': self.option('description'),
             'duration': self.option('duration'),
-            'escalation_name': self.option('escalation_name'),
             'file': self.option('file'),
             'name': self.option('name'),
             'subject_href': array.href,
@@ -237,19 +245,20 @@ class Create(AlertsBaseActor):
             # In dry run mode, just log out what we would have done.
             self.log.info('Would have created the alert spec \"%s\" on %s' %
                           (self.option('name'), array.soul['name']))
-        else:
-            # We're really doin this. If we get a known exception back, handle
-            # it. Otherwise, raise it.
-            try:
-                yield self._client.create_resource(
-                    self._client._client.alert_specs, params)
-                self.log.info('Alert spec has been created')
-            except requests.exceptions.HTTPError as e:
-                if e.response.status_code in (422, 400):
-                    msg = ('Invalid parameters supplied to Alert Spec "%s": %s'
-                           % (self.option('name'), params))
-                    raise exceptions.RecoverableActorFailure(msg)
-                raise
+            raise gen.Return()
+
+        # We're really doin this. If we get a known exception back, handle
+        # it. Otherwise, raise it.
+        try:
+            yield self._client.create_resource(
+                self._client._client.alert_specs, params)
+            self.log.info('Alert spec has been created')
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code in (422, 400):
+                msg = ('Invalid parameters supplied to Alert Spec "%s": %s'
+                       % (self.option('name'), params))
+                raise exceptions.RecoverableActorFailure(msg)
+            raise
 
 
 class Destroy(AlertsBaseActor):
@@ -352,7 +361,7 @@ class Destroy(AlertsBaseActor):
                               (spec.soul['name'],
                                spec.href,
                                array.soul['name']))
-                deletes = self._client.destroy_resource(spec)
+                deletes.append(self._client.destroy_resource(spec))
 
         # Wait for the deletes to finish
         if deletes:
