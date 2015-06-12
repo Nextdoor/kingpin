@@ -88,18 +88,17 @@ class TestCreateActor(testing.AsyncTestCase):
 
         # Do it, then check the mock calls
         yield self.actor._execute()
-        mock_create_res.assert_called_once_with(
-            self.client_mock._client.alert_specs,
-            [('alert_spec[escalation_name]', 'critical'),
-             ('alert_spec[threshold]', '500'),
-             ('alert_spec[variable]', 'tx'),
-             ('alert_spec[subject_href]', '/href'),
-             ('alert_spec[description]', 'test alert'),
-             ('alert_spec[file]', '/test'),
-             ('alert_spec[duration]', 500),
-             ('alert_spec[condition]', '<'),
-             ('alert_spec[name]', 'newunitarray')]
-        )
+        call_arg_str = str(mock_create_res.call_args_list)
+        for arg in ['alert_spec[escalation_name]',
+                    'alert_spec[threshold]',
+                    'alert_spec[variable]',
+                    'alert_spec[subject_href]',
+                    'alert_spec[description]',
+                    'alert_spec[file]',
+                    'alert_spec[duration]',
+                    'alert_spec[condition]',
+                    'alert_spec[name]']:
+            self.assertIn(arg, call_arg_str)
 
     @testing.gen_test
     def test_execute_dry(self):
