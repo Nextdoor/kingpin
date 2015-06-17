@@ -7,6 +7,7 @@ from tornado import testing
 
 from kingpin.actors import exceptions
 from kingpin.actors.rightscale import server_array
+from kingpin.actors.rightscale import base
 
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
@@ -93,7 +94,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Clone missing array',
             {'source': 'unit-test-fake-array',
              'dest': self.clone_name})
-        with self.assertRaises(server_array.ArrayNotFound):
+        with self.assertRaises(base.ArrayNotFound):
             yield actor.execute()
 
     @attr('integration', 'dry')

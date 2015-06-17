@@ -100,6 +100,48 @@ class TestRightScale(testing.AsyncTestCase):
             self.assertEquals(None, ret)
 
     @testing.gen_test
+    def test_find_bu_name_and_keys(self):
+        # Create a single object that we'll return in our search
+        res_mock = mock.MagicMock(name='FakeResource')
+        res_mock.soul = {'name': 'FakeResource'}
+        fake_return = [res_mock]
+
+        # Now create a fake Rightscale resource collection object and make sure
+        # that its index() method returns the fake_return value above
+        collection = mock.MagicMock(name='collection')
+        collection.index.return_value = fake_return
+
+        # Do a search for a single resource with an additional keyword argument
+        # passed in to the search
+        ret = yield self.client.find_by_name_and_keys(
+            collection=collection, exact=True,
+            name='FakeResource', href='/123')
+        self.assertEquals(ret, res_mock)
+        collection.index.assert_called_once_with(
+            params={'filter[]': ['href==/123', 'name==FakeResource']})
+        collection.reset_mock()
+
+        # Now do the same search, but with exact=False
+        ret = yield self.client.find_by_name_and_keys(
+            collection=collection, exact=False,
+            name='FakeResource', href='/123')
+        self.assertEquals(ret, [res_mock])
+        collection.index.assert_called_once_with(
+            params={'filter[]': ['href==/123', 'name==FakeResource']})
+
+    @testing.gen_test
+    def test_destroy_resource(self):
+        mock_res = mock.MagicMock(res='MockedResource')
+        yield self.client.destroy_resource(mock_res)
+        mock_res.self.destroy.assert_called_once()
+
+    @testing.gen_test
+    def test_create_resource(self):
+        mock_res = mock.MagicMock(res='MockedResource')
+        yield self.client.create_resource(mock_res, params=123)
+        mock_res.self.create.assert_called_once()
+
+    @testing.gen_test
     def test_clone_server_array(self):
         # First, create the rightscale.server_array api mock
         sa_rsr_mock = mock.MagicMock()
