@@ -946,7 +946,7 @@ class Execute(ServerArrayBaseActor):
     :script:
       (str) The name of the RightScript or Recipe to execute
 
-    :execute_runtime:
+    :expected_runtime:
       (str, int) Expected number of seconds to execute.
       (default: `5`)
 
