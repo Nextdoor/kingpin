@@ -273,6 +273,11 @@ class Async(BaseGroupActor):
 
     **Options**
 
+    :concurrency:
+      Max number of concurrent executions. This will fire off N executions
+      in parallel, and continue with the remained as soon as the first
+      execution is done. This is faster than creating N Sync executions.
+
     :acts:
       An array of individual Actor definitions.
 
@@ -328,6 +333,12 @@ class Async(BaseGroupActor):
     finish before the failure is returned.
     """
 
+    all_options = {
+        'concurrency': (int, 0, "Max number of concurrent executions."),
+        'contexts': (list, [], "List of contextual hashes."),
+        'acts': (list, REQUIRED, "Array of actor definitions.")
+    }
+
     @gen.coroutine
     def _run_actions(self):
         """Asynchronously executes all of the Actor.execute() methods.
@@ -343,8 +354,30 @@ class Async(BaseGroupActor):
         # references to those tasks. However, we don't yield (wait) on them to
         # finish.
         tasks = []
+
+        if self.option('concurrency'):
+            self.log.info('Concurrency set to %s' % self.option('concurrency'))
+
         for act in self._actions:
             tasks.append(act.execute())
+
+            if not self.option('concurrency'):
+                # No concurrency limit - continue the loop without checks.
+                continue
+
+            running_tasks = len([t for t in tasks if t.running()])
+
+            if running_tasks < self.option('concurrency'):
+                # We can queue more tasks, continue the loop to add one more.
+                continue
+
+            self.log.debug('Concurrency saturated. Waiting...')
+            while running_tasks >= self.option('concurrency'):
+                yield gen.moment
+                running_tasks = len([t for t in tasks if t.running()])
+
+            self.log.debug('Concurrency desaturated: %s<%s. Continuing.' % (
+                running_tasks, self.option('concurrency')))
 
         # Now that we've fired them off, we walk through them one-by-one and
         # check on their status. If they've raised an exception, we catch it

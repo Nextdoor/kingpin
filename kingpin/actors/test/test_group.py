@@ -298,6 +298,22 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         self.assertTrue(0.1 < exe_time < 0.3)
 
     @testing.gen_test
+    def test_execute_concurrent(self):
+        sleeper = {'actor': 'misc.Sleep',
+                   'desc': 'Sleep',
+                   'options': {'sleep': 0.1}}
+        actor = group.Async('Unit Test Action', {
+            'concurrency': 2,
+            'acts': [sleeper, sleeper, sleeper, sleeper]})
+
+        start = time.time()
+        yield actor.execute()
+        stop = time.time()
+        exe_time = stop - start
+        # Concurrency of 2 execution should take half the cumulative time.
+        self.assertTrue(0.2 < exe_time < 0.3)
+
+    @testing.gen_test
     def test_run_actions_with_two_acts(self):
         # Call the executor and test it out
         actor = group.Async(
