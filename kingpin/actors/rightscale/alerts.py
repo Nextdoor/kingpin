@@ -174,7 +174,7 @@ class Create(AlertsBaseActor):
         'condition': (str, REQUIRED,
                       'The condition (operator) in the condition sentence.'),
         'description': (str, None, 'The description of the AlertSpec.'),
-        'duration': (int, REQUIRED,
+        'duration': ((int, str), REQUIRED,
                      'The duration in minutes of the condition sentence.'),
         'escalation_name': (str, None,
                             ('Escalate to the named alert escalation when the',
@@ -206,6 +206,10 @@ class Create(AlertsBaseActor):
             self._array_raise_on = None
             self._array_allow_mock = True
 
+        if self.option('vote_type') not in ('grow', 'shrink', None):
+            raise exceptions.InvalidOptions(
+                'vote_type must be either: grow, shrink, None')
+
     @gen.coroutine
     def _execute(self):
         # Find the array we're adding an alert spec to. Specifically, we need
@@ -220,7 +224,7 @@ class Create(AlertsBaseActor):
         params = {
             'condition': self.option('condition'),
             'description': self.option('description'),
-            'duration': self.option('duration'),
+            'duration': int(self.option('duration')),
             'file': self.option('file'),
             'name': self.option('name'),
             'subject_href': array.href,
