@@ -74,6 +74,21 @@ class TestCreateActor(testing.AsyncTestCase):
         self.actor._client = self.client_mock
 
     @testing.gen_test
+    def test_invalid_inputs(self):
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor = alerts.Create(
+                'Create an AlertSpec',
+                {'array': 'unittestarray',
+                 'condition': '<',
+                 'description': 'test alert',
+                 'duration': 500,
+                 'file': '/test',
+                 'threshold': '500',
+                 'variable': 'tx',
+                 'name': 'newunitarray',
+                 'vote_type': 'foobar-bad-value'})
+
+    @testing.gen_test
     def test_execute(self):
         # Mock out the array calls. Make sure that a fake array is returned
         mock_array = mock.MagicMock(name='mockarray')
