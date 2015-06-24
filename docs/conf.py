@@ -112,43 +112,12 @@ modindex_common_prefix = ['kingpin.', 'kingpin.actors.']
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'classic'
+html_theme = 'alabaster'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
-# documentation: http://sphinx.readthedocs.org/en/latest/theming.html
-html_theme_options = {
-    'rightsidebar': False,
-    'stickysidebar': False,
-    'collapsiblesidebar': False,
-    'externalrefs': True,
-# There are also various color and font options that can change the color
-# scheme without having to write a custom stylesheet:
-    'relbarbgcolor': '#19975D',
-    'relbartextcolor': 'green',
-    'relbarlinkcolor': 'white',
-
-    'headbgcolor': '#f2f2f2',
-    'headtextcolor': 'black',
-    'headlinkcolor': '#c8c8c8',
-    #'headfont': '',
-
-    'sidebarbgcolor': '#f2f2f2',
-    'sidebarbtncolor': '#19975D',
-    'sidebartextcolor': '#818080',
-    'sidebarlinkcolor': 'black',
-
-    #'bgcolor': 'white',
-    #'textcolor': 'black',
-    #'bodyfont': '',
-    'codebgcolor': '#f8f8f8',
-    'codetextcolor': 'black',
-    'linkcolor': '#0061A5',
-    'visitedlinkcolor': '#0061A5',
-
-    'footerbgcolor': '#19975D',
-    'footertextcolor': 'white',
-}
+# documentation.
+#html_theme_options = {}
 
 # Add any paths that contain custom themes here, relative to this directory.
 #html_theme_path = []
@@ -321,3 +290,8 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
+
+# Force the RTD theme for all builds
+import sphinx_rtd_theme
+html_theme = 'sphinx_rtd_theme'
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
