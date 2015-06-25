@@ -123,6 +123,7 @@ class RightScale(object):
         return int(path.split(resource.self.path)[-1])
 
     @concurrent.run_on_executor
+    @sync_retry(**settings.RETRYING_SETTINGS)
     @utils.exception_logger
     def find_server_arrays(self, name, exact=True):
         """Search for a list of ServerArray by name and return the resources.
@@ -152,6 +153,20 @@ class RightScale(object):
         log.debug('Got ServerArray(s): %s' % ', '.join(names))
 
         return found_arrays
+
+    @concurrent.run_on_executor
+    @sync_retry(**settings.RETRYING_SETTINGS)
+    @utils.exception_logger
+    def show(self, resource):
+        """Async wrapping of <resource>.show() with retry wrapper.
+
+        Args:
+            resource: rightscale.Resource object
+
+        Returns:
+            <rightscale.Resource object>.show()
+        """
+        return resource.show()
 
     @concurrent.run_on_executor
     @utils.exception_logger
@@ -186,6 +201,7 @@ class RightScale(object):
         return recipe
 
     @concurrent.run_on_executor
+    @sync_retry(**settings.RETRYING_SETTINGS)
     @utils.exception_logger
     def find_right_script(self, name):
         """Search for a RightScript by-name and return the resource.
@@ -310,16 +326,18 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @utils.exception_logger
-    def update_server_array(self, array, params):
-        """Updates a ServerArray with the supplied parameters.
+    def update(self, resource, params):
+        """Updates a RightScale resource with the supplied parameters.
 
         Valid parameters can be found at the following URL:
 
             http://reference.rightscale.com/api1.5/resources/
             ResourceServerArrays.html#update
+            http://reference.rightscale.com/api1.5/resources/
+            ResourceInstances.html#update
 
         Args:
-            array: rightscale.Resource object to update.
+            resource: rightscale.Resource object to update.
             params: The parameters to update. eg:
                 { 'server_array[name]': 'new name' }
 
@@ -327,11 +345,11 @@ class RightScale(object):
             <updated rightscale array object>
         """
 
-        log.debug('Patching ServerArray (%s) with new params: %s' %
-                  (array.soul['name'], params))
-        array.self.update(params=params)
-        updated_array = array.self.show()
-        return updated_array
+        log.debug('Patching %s with new params: %s' %
+                  (resource.soul['name'], params))
+        resource.self.update(params=params)
+        updated_resource = resource.self.show()
+        return updated_resource
 
     @concurrent.run_on_executor
     @utils.exception_logger

@@ -66,6 +66,13 @@ class TestRightScale(testing.AsyncTestCase):
             self.assertEquals(None, ret)
 
     @testing.gen_test
+    def test_show(self):
+        mock_rsr = mock.MagicMock(name='resource')
+        mock_rsr.show.return_value = 1
+        ret = yield self.client.show(mock_rsr)
+        self.assertEquals(1, ret)
+
+    @testing.gen_test
     def test_find_cookbook(self):
         self.client._client = mock.Mock()
         resource = mock.Mock(name='Resource')
@@ -177,14 +184,14 @@ class TestRightScale(testing.AsyncTestCase):
         self.assertEquals(None, ret)
 
     @testing.gen_test
-    def test_update_server_array(self):
+    def test_update(self):
         # Create a mock and the params we're going to pass in
         sa_mock = mock.MagicMock()
         sa_mock.self.update.return_value = True
         sa_mock.self.show.return_value = 'test'
         params = {'server_array[name]': 'new_name'}
 
-        ret = yield self.client.update_server_array(sa_mock, params)
+        ret = yield self.client.update(sa_mock, params)
         sa_mock.self.update.assert_called_once_with(params=params)
 
         self.assertEquals(ret, 'test')
@@ -199,7 +206,7 @@ class TestRightScale(testing.AsyncTestCase):
             array.next_instance.show().inputs.index())
 
     @testing.gen_test
-    def test_update_server_array_inputs(self):
+    def test_update_inputs(self):
         ni_mock = mock.MagicMock(name='next_instance')
         ni_mock.inputs.multi_update.return_value = None
         sa_mock = mock.MagicMock(name='server_array')
