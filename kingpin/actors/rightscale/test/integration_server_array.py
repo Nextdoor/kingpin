@@ -185,6 +185,20 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield actor.execute()
 
+    @attr('integration')
+    @testing.gen_test(timeout=60)
+    def integration_04f_update_next_instance(self):
+        # This is a quick test. It executes a long path of code to find the
+        # 'default AMI image' for the ServerTemplate of the cloned array, and
+        # then just sets the 'image_href' setting to that HREF. Basically its a
+        # no-op, but it executes a ton of API calls which we want to test.
+        actor = server_array.UpdateNextInstance(
+            'Update %s' % self.clone_name,
+            {'array': self.clone_name,
+             'params': {'image_href': 'default'}})
+
+        yield actor.execute()
+
     @attr('integration', 'dry')
     @testing.gen_test(timeout=30)
     def integration_05a_launch_dry(self):

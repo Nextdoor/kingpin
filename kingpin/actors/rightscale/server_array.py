@@ -15,6 +15,10 @@
 """
 :mod:`kingpin.actors.rightscale.server_array`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _ResourceInstances:
+   http://reference.rightscale.com/api1.5/resources/
+   ResourceInstances.html#update
 """
 
 import logging
@@ -221,7 +225,7 @@ class Clone(ServerArrayBaseActor):
             'server_array', {'name': self.option('dest')})
         self.log.info('Renaming array "%s" to "%s"' % (new_array.soul['name'],
                                                        self.option('dest')))
-        yield self._client.update_server_array(new_array, params)
+        yield self._client.update(new_array, params)
         raise gen.Return()
 
 
@@ -371,7 +375,7 @@ class Update(ServerArrayBaseActor):
         self.log.info('Updating array "%s" with params: %s' %
                       (array.soul['name'], self._params))
         try:
-            yield self._client.update_server_array(array, self._params)
+            yield self._client.update(array, self._params)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code in (422, 400):
                 msg = ('Invalid parameters supplied to patch array "%s"' %
@@ -419,6 +423,185 @@ class Update(ServerArrayBaseActor):
         yield self._apply(self._update_params, arrays)
         yield self._apply(self._update_inputs, arrays)
         raise gen.Return()
+
+
+class UpdateNextInstance(ServerArrayBaseActor):
+
+    """Update the Next Instance parameters for a Server Array
+
+    Updates an existing ServerArray in RightScale with the supplied parameters.
+    Can update any parameter that is described in the RightScale
+    `ResourceInstances`_ docs.
+
+    **Note about the image_href parameter**
+
+    If you pass in the string `default` to the `image_href` key in your
+    `params` dictionary, we will search and find the default image that your
+    ServerArray's Multi Cloud Image refers to. This helper is useful if you
+    update your ServerArrays to use custom AMIs, and then occasionally want to
+    go back to using a stock AMI. For example, if you boot up your instances
+    occasionally off a stock AMI, customize the host, and then bake that host
+    into a custom AMI.
+
+    Parameters are passed into the actor in the form of a dictionary, and are
+    then converted into the RightScale format. See below for examples.
+
+    **Options**
+
+    :array:
+      (str) The name of the ServerArray to update
+
+    :exact:
+      (bool) whether or not to search for the exact array name.
+      (default: `true`)
+
+    :params:
+      (dict) Dictionary of parameters to update
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "desc": "Update my array",
+         "actor": "rightscale.server_array.UpdateNextInstance",
+         "options": {
+           "array": "my-new-array",
+           "params": {
+             "associate_public_ip_address": true,
+             "image_href": "/image/href/123",
+           }
+         }
+       }
+
+    .. code-block:: json
+
+       { "desc": "Reset the AMI image to the MCI default",
+         "actor": "rightscale.server_array.UpdateNextInstance",
+         "options": {
+           "array": "my-new-array",
+           "params": {
+             "image_href": "default",
+           }
+         }
+       }
+
+    **Dry Mode**
+
+    In Dry mode this actor *does* search for the ``array``, but allows it to be
+    missing because its highly likely that the array does not exist yet. If the
+    array does not exist, a mocked array object is created for the rest of the
+    execution.
+
+    During the rest of the execution, the code bypasses making any real changes
+    and just tells you what changes it would have made.
+
+    *This means that the dry mode cannot validate that the supplied params will
+    work.*
+
+    Example *dry* output::
+
+       [Update my array (DRY Mode)] Verifying that array "new" exists
+       [Update my array (DRY Mode)] Array "new" not found -- creating a mock.
+       [Update my array (DRY Mode)] Would have updated "<mocked array new>"
+       with params: {'server_array[associate_public_ip_address]': true,
+                'server_array[image_href]': '/image/href/'}
+    """
+
+    all_options = {
+        'array': (str, REQUIRED, 'ServerArray name to Update'),
+        'exact': (bool, True, (
+            'Whether to search for multiple ServerArrays and act on them.')),
+        'params': (dict, REQUIRED, 'Next Instance RightScale parameters'),
+    }
+
+    def __init__(self, *args, **kwargs):
+        """Validate the user-supplied parameters at instantiation time."""
+        super(UpdateNextInstance, self).__init__(*args, **kwargs)
+        self._params = self._generate_rightscale_params(
+            'instance', self.option('params'))
+
+    @gen.coroutine
+    def _update_params(self, array):
+        """Update the parameters on a RightScale Instance.
+
+        args:
+            array: The ServerArray to operate on
+        """
+        # Get the 'next instance' of the array that we're going to work on
+        instance = yield self._client.show(array.next_instance)
+
+        # Get our parameters
+        params = self.option('params')
+
+        # Magic: If a user supplies 'default' to the image_href then we do some
+        # digging for them and find the 'default' AMI HREF for that server
+        # array.
+        if ('image_href' in params and params['image_href'] == 'default'):
+            params['image_href'] = yield self._find_def_image_href(instance)
+
+        # Second pass at the generating the parameters. We did this at
+        # instantiation time as a sanity check to make sure the parameters were
+        # half-decent. Now we run it a second time in case any the 'image_href'
+        # magic above was executed.
+        rs_params = self._generate_rightscale_params(
+            'instance', self.option('params'))
+
+        self.log.info('Updating array\'s next_instance "%s" with params: %s' %
+                      (instance.soul['name'], rs_params))
+        try:
+            yield self._client.update(instance, rs_params)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code in (422, 400):
+                msg = ('Invalid parameters supplied to patch array "%s"' %
+                       self.option('array'))
+                raise exceptions.RecoverableActorFailure(msg)
+            raise
+
+        raise gen.Return()
+
+    @gen.coroutine
+    def _find_def_image_href(self, instance):
+        self.log.debug('Searching for default boot AMI for %s' %
+                       instance.soul['name'])
+
+        # Find the MultiCloudImage associated with this 'instance' object, then
+        # get the full list of 'settings' for that MCI.
+        mci = yield self._client.show(instance.multi_cloud_image)
+        self.log.debug('Got MCI: %s' % mci.soul['name'])
+        mci_settings = yield self._client.show(mci.settings)
+        self.log.debug('Got %s MCI Cloud Settings.' % len(mci_settings))
+
+        # Now, find the 'setting' that matches the cloud of our instance. Note,
+        # there should never be more than one returned -- so we take the first
+        # one in the list and save it.
+        try:
+            setting = [s for s in mci_settings if
+                       s.cloud.path == instance.cloud.path][0]
+            image_href = [l['href'] for l in setting.soul['links']
+                          if l['rel'] == 'image'][0]
+        except KeyError:
+            raise InvalidInputs(
+                'Unable to locate default image_href for %s.' % instance.soul)
+
+        self.log.info('%s default AMI HREF found: %s' %
+                      (instance.soul['name'], image_href))
+
+        raise gen.Return(image_href)
+
+    @gen.coroutine
+    def _execute(self):
+        # First, find the arrays we're going to be patching.
+        arrays = yield self._find_server_arrays(
+            self.option('array'), exact=self.option('exact'))
+
+        # In dry run, just comment that we would have made the change.
+        if self._dry:
+            self.log.debug('Not making any changes.')
+            self.log.info('Params would be: %s' % self.option('params'))
+            raise gen.Return()
+
+        # Do the real work
+        yield self._apply(self._update_params, arrays)
 
 
 class Terminate(ServerArrayBaseActor):
@@ -552,7 +735,7 @@ class Terminate(ServerArrayBaseActor):
             raise gen.Return()
 
         self.log.info('Disabling Array "%s"' % array.soul['name'])
-        yield self._client.update_server_array(array, params)
+        yield self._client.update(array, params)
         raise gen.Return()
 
     @gen.coroutine
@@ -896,7 +1079,7 @@ class Launch(ServerArrayBaseActor):
                 self.log.info('Enabling Array "%s"' % array.soul['name'])
                 params = self._generate_rightscale_params(
                     'server_array', {'state': 'enabled'})
-                array = yield self._client.update_server_array(array, params)
+                array = yield self._client.update(array, params)
             else:
                 self.log.info('Would enable array "%s"' % array.soul['name'])
 
