@@ -511,7 +511,8 @@ class HTTPBaseActor(BaseActor):
     # garbled data (ie, maybe a 500 errror or something else thats not in
     # JSON format, we should back off and try again.
     @gen.coroutine
-    def _fetch(self, url, post=None, auth_username=None, auth_password=None):
+    def _fetch(self, url, post=None, auth_username=None, auth_password=None,
+               method='GET'):
         """Executes a web request asynchronously and yields the body.
 
         Args:
@@ -519,16 +520,22 @@ class HTTPBaseActor(BaseActor):
             post: (Str) POST body data to submit (if any)
             auth_username: (str) HTTP auth username
             auth_password: (str) HTTP auth password
+            method: HTTP method
         """
 
         # Generate the full request URL and log out what we're doing...
         self.log.debug('Making HTTP request to %s with data: %s' % (url, post))
 
+        if not method and post:
+            method = 'POST'
+        elif not method and not post:
+            method = 'GET'
+
         # Create the http_request object
         http_client = self._get_http_client()
         http_request = httpclient.HTTPRequest(
             url=url,
-            method=self._get_method(post),
+            method=method,
             body=post,
             headers=self.headers,
             auth_username=auth_username,
