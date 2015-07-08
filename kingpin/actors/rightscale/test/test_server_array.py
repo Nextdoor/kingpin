@@ -1,5 +1,6 @@
 import logging
 import mock
+import time
 
 from tornado import testing
 from tornado import gen
@@ -878,6 +879,46 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.assertEquals(2, len(ret))
 
     @testing.gen_test
+    def test_exec_and_wait(self):
+        self.client_mock.run_executable_on_instances = mock_tornado(['test'])
+        self.client_mock.wait_for_task = mock_tornado('success-test')
+        ret = yield self.actor._exec_and_wait('', {}, [], 1)
+
+        self.assertEquals(ret, 'success-test')
+        self.assertEquals(
+            self.client_mock.run_executable_on_instances._call_count, 1)
+        self.assertEquals(self.client_mock.wait_for_task._call_count, 1)
+
+    @testing.gen_test
+    def test_execute_array_with_concurrency_dry(self):
+        self.actor._get_operational_instances = mock_tornado(['test'])
+        self.actor._dry = True
+        yield self.actor._execute_array_with_concurrency(
+            arrays=['a1', 'a2', 'a3', 'a4'], inputs={})
+
+    @testing.gen_test
+    def test_execute_array_with_concurrency(self):
+        self.actor._get_operational_instances = mock_tornado(['test'])
+
+        @gen.coroutine
+        def local_sleep(name, inputs, instance, sleep):
+            yield gen.sleep(.1)
+            raise gen.Return(True)
+
+        self.actor._exec_and_wait = local_sleep
+
+        self.actor._options['concurrency'] = 2
+        start = time.time()
+        yield self.actor._execute_array_with_concurrency(
+            arrays=['a1', 'a2', 'a3', 'a4'], inputs={})
+        stop = time.time()
+        exe_time = stop - start
+
+        # Execution should take at least .2 seconds, but not .3
+        self.assertTrue(.2 < exe_time < .3,
+                        "Bad exec time. Expected .2 < %s < .3" % exe_time)
+
+    @testing.gen_test
     def test_execute_array(self):
         mock_array = mock.MagicMock(name='array')
         mock_op_instance = mock.MagicMock(name='mock_instance')
@@ -936,6 +977,21 @@ class TestExecuteActor(testing.AsyncTestCase):
 
         ret = yield self.actor._execute_array(mock_array, 1)
         self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_execute_concurrent(self):
+        mock_array = mock.MagicMock(name='array')
+        mock_array.soul = {'name': 'array'}
+        self.actor._options['concurrency'] = 2
+        self.actor._find_server_arrays = mock_tornado(mock_array)
+        self.actor._execute_array_with_concurrency = mock.MagicMock()
+        self.actor._execute_array_with_concurrency.side_effect = mock_tornado()
+
+        yield self.actor._execute()
+
+        self.actor._execute_array_with_concurrency.assert_has_calls([
+            mock.call(mock_array,
+                      [(u'inputs[foo]', u'text:bar')])])
 
     @testing.gen_test
     def test_execute(self):

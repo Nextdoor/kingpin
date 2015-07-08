@@ -295,7 +295,8 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         stop = time.time()
         exe_time = stop - start
         # Parallel execution of sleep should not take 3x as long!
-        self.assertTrue(0.1 < exe_time < 0.3)
+        self.assertTrue(0.1 < exe_time < 0.3,
+                        "Bad exec time. Expected 0.1 < %s < 0.3" % exe_time)
 
     @testing.gen_test
     def test_execute_concurrent(self):
