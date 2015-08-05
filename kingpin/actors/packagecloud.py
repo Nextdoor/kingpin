@@ -254,6 +254,16 @@ class Delete(PackagecloudBase):
             'Which packagecloud repo to delete from'),
     }
 
+    def __init__(self, *args, **kwargs):
+        """Check required environment variables."""
+        super(Delete, self).__init__(*args, **kwargs)
+
+        try:
+            re.compile(self.option('packages_to_delete'))
+        except re.error:
+            raise exceptions.InvalidOptions(
+                'packages_to_delete is an invalid regex')
+
     @gen.coroutine
     def _execute(self):
         """Deletes all packages that match the `packages_to_delete` pattern"""
@@ -371,6 +381,22 @@ class WaitForPackage(PackagecloudBase):
         'sleep': (
             int, 10, 'Number of seconds to sleep for between each search')
     }
+
+    def __init__(self, *args, **kwargs):
+        """Check required environment variables."""
+        super(WaitForPackage, self).__init__(*args, **kwargs)
+
+        try:
+            re.compile(self.option('name'))
+        except re.error:
+            raise exceptions.InvalidOptions(
+                'name is an invalid regex')
+
+        try:
+            re.compile(self.option('version'))
+        except re.error:
+            raise exceptions.InvalidOptions(
+                'version is an invalid regex')
 
     @gen.coroutine
     def _search(self, repo, name, version):

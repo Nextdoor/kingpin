@@ -212,6 +212,13 @@ class TestDelete(testing.AsyncTestCase):
         packagecloud.ACCOUNT = 'Unittest'
 
     @testing.gen_test
+    def test_bad_regex_packages_to_delete(self):
+        with self.assertRaises(exceptions.InvalidOptions):
+            packagecloud.Delete(
+                'Unit test action',
+                {'packages_to_delete': '[', 'repo': 'unittest'})
+
+    @testing.gen_test
     def test_execute(self):
         actor = packagecloud.Delete(
             'Unit test action',
@@ -276,6 +283,20 @@ class TestWaitForPackage(testing.AsyncTestCase):
         super(TestWaitForPackage, self).setUp(*args, **kwargs)
         packagecloud.TOKEN = 'Unittest'
         packagecloud.ACCOUNT = 'Unittest'
+
+    @testing.gen_test
+    def test_bad_regex_name(self):
+        with self.assertRaises(exceptions.InvalidOptions):
+            packagecloud.WaitForPackage(
+                'Unit test action',
+                {'name': '[', 'version': '1', 'repo': 'unittest'})
+
+    @testing.gen_test
+    def test_bad_regex_version(self):
+        with self.assertRaises(exceptions.InvalidOptions):
+            packagecloud.WaitForPackage(
+                'Unit test action',
+                {'name': 'unittest', 'version': '[', 'repo': 'unittest'})
 
     @testing.gen_test
     def test_execute(self):
