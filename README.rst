@@ -21,6 +21,6 @@ Documentation is hosted at `https://kingpin.readthedocs.org <https://kingpin.rea
 .. |doc_status| image:: https://readthedocs.org/projects/kingpin/badge/?version=latest
 .. _doc_status: https://kingpin.readthedocs.org
 .. |pypi_ver| image:: https://pypip.in/d/kingpin/badge.png
-.. _pypi_ver: https://https://pypi.python.org/pypi/kingpin
+.. _pypi_ver: https://pypi.python.org/pypi/kingpin
 .. |pypi_download| image:: https://badge.fury.io/py/kingpin.png
-.. _pypi_download: https://https://pypi.python.org/pypi/kingpin
+.. _pypi_download: https://pypi.python.org/pypi/kingpin
