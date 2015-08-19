@@ -1,5 +1,5 @@
 nose
-mock
+mock==1.0.1
 pep8
 pyflakes
 coverage
