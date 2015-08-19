@@ -338,6 +338,48 @@ ability to define usable tokens, but any actor can then reference these tokens.
     2015-01-14 15:02:22,165 INFO      [DRY: Notify Engineering] Sending message "Hey room .. I'm done with the release. Get back to work" to Hipchat room "Engineering"
     2015-01-14 15:02:22,239 INFO      [DRY: Notify Cust Service] Sending message "Hey room .. I'm done with the release. Have a nice day" to Hipchat room "Cust Service"
 
+Contextual tokens stored in separate file
+'''''''''''''''''''''''''''''''''''''''''
+
+When multiple Kingping JSON files need to leverage the same context for
+different purposes it is useful to put the contexts into a stand alone file and
+then reference that file. Context files support `token-replacement`_ just like
+:py:mod:`misc.Macro` actor. See example below.
+
+*kingpin.json*
+
+.. code-block:: json
+
+    { "desc": "Send ending notifications...",
+      "actor": "group.Async",
+      "options": {
+        "contexts": {
+          "file": "data/notification-rooms.json",
+          "tokens": {
+            "USER": "%USER%,
+          }
+        },
+        "acts": [
+          { "desc": "Notify {ROOM}",
+            "actor": "hipchat.Message",
+            "options": {
+                "room": "{ROOM}",
+                "message": "Hey room .. I'm done with the release. {WISDOM}"
+            }
+          }
+        ]
+      }
+    }
+
+*data/notification-rooms.json*
+
+.. code-block:: json
+
+    [
+      { "ROOM": "Engineering", "WISDOM": "%USER% says: Get back to work" },
+      { "ROOM": "Cust Service", "WISDOM": "%USER% says: Have a nice day" }
+    ]
+
 Early Actor Instantiation
 '''''''''''''''''''''''''
 

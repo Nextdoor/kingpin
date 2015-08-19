@@ -188,7 +188,8 @@ class BaseActor(object):
 
         for opt, value in self._options.items():
             if opt not in self.all_options:
-                option_warnings.append('Option "%s" is not expected.' % opt)
+                option_warnings.append('Option "%s" is not expected by %s.' % (
+                    opt, self.__class__.__name__))
                 continue
 
             expected_type = self.all_options[opt][0]

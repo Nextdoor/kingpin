@@ -1,0 +1,5 @@
+/* A file of contexts to be used in an actor */
+[
+  {"key": "value1"},
+  {"key": "%TOKEN_VALUE%"}
+]

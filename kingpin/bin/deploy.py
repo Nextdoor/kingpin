@@ -99,11 +99,13 @@ def main():
             log.info('Rehearsal OK! Performing!')
 
     try:
-        log.info('Lights, camera ... action!')
         runner = Macro(desc='Kingpin',
                        options={'macro': json_file,
                                 'tokens': env_tokens},
                        dry=options.dry)
+        log.info('')
+        log.warn('Lights, camera ... action!')
+        log.info('')
         yield runner.execute()
     except actor_exceptions.ActorException as e:
         log.error('Kingpin encountered mistakes during the play.')
