@@ -37,6 +37,15 @@ class DeploymentBaseActor(base.RightScaleBaseActor):
 
     """Abstract Deployment Actor that provides some utility methods."""
 
+    @gen.coroutine
+    def _find_deployment(self, name):
+
+        dep = yield self._client.find_by_name_and_keys(
+            collection=self._client._client.deployments,
+            name=name)
+
+        raise gen.Return(dep)
+
 
 class Create(DeploymentBaseActor):
 
@@ -98,13 +107,43 @@ class Create(DeploymentBaseActor):
             self.log.info('Would create a deployment %s' % self.option('name'))
             self.log.debug('Deployment params: %s' % params)
             raise gen.Return()
-        self.log.info('Deployment params: %s' % params)
 
         try:
             yield self._client.create_resource(
                 self._client._client.deployments, params)
         except Exception as e:
-            self.log.critical('Encountered error: %s' % e)
-            raise exceptions.UnrecoverableActorFailure(
+            self.log.debug('Encountered error: %s' % e)
+            raise exceptions.RecoverableActorFailure(
                 'Could not create deployment %s. Does it exist already?' %
                 self.option('name'))
+
+
+class Destroy(DeploymentBaseActor):
+
+    """Deletes a RightScale deployment.
+
+    Options match the documentation in RightScale:
+    http://reference.rightscale.com/api1.5/resources/ResourceDeployments.html
+
+    **Options**
+
+    :name:
+      The name of the deployment to be deleted.
+    """
+
+    all_options = {
+        'name': (str, REQUIRED, 'The name of the deployment to be deleted.'),
+    }
+
+    @gen.coroutine
+    def _execute(self):
+
+        dep = yield self._find_deployment(self.option('name'))
+        info = (yield self._client.show(dep.self)).soul
+
+        if self._dry:
+            self.log.info('Would delete deployment %s' % info['name'])
+            raise gen.Return()
+
+        self.log.info('Deleting deployment %s' % info['name'])
+        yield self._client.destroy_resource(dep)
