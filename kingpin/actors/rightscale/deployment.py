@@ -95,6 +95,11 @@ class Create(DeploymentBaseActor):
     @gen.coroutine
     def _execute(self):
 
+        dep = yield self._find_deployment(self.option('name'))
+        if dep:
+            raise exceptions.InvalidOptions(
+                'Deployment "%s" already exists.' % self.option('name'))
+
         params = {'name': self.option('name'),
                   'description': self.option('description')}
 
@@ -108,14 +113,10 @@ class Create(DeploymentBaseActor):
             self.log.debug('Deployment params: %s' % params)
             raise gen.Return()
 
-        try:
-            yield self._client.create_resource(
-                self._client._client.deployments, params)
-        except Exception as e:
-            self.log.debug('Encountered error: %s' % e)
-            raise exceptions.RecoverableActorFailure(
-                'Could not create deployment %s. Does it exist already?' %
-                self.option('name'))
+        self.log.info('Creating deployment %s' % self.option('name'))
+
+        yield self._client.create_resource(
+            self._client._client.deployments, params)
 
 
 class Destroy(DeploymentBaseActor):
@@ -139,6 +140,10 @@ class Destroy(DeploymentBaseActor):
     def _execute(self):
 
         dep = yield self._find_deployment(self.option('name'))
+        if not dep:
+            raise exceptions.InvalidOptions(
+                'Deployment "%s" does not exist.' % self.option('name'))
+
         info = (yield self._client.show(dep.self)).soul
 
         if self._dry:

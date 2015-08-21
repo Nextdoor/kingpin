@@ -8,6 +8,13 @@ Documentation
    :members:
    :exclude-members: RightScaleBaseActor
 
+Deployment
+^^^^^^^^^^
+.. automodule:: kingpin.actors.rightscale.deployment
+   :noindex:
+   :members:
+   :exclude-members: DeploymentBaseActor
+
 Alert Specs
 ^^^^^^^^^^^
 .. automodule:: kingpin.actors.rightscale.alerts

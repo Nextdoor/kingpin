@@ -56,26 +56,24 @@ class TestDeploymentCreateActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_exec_dry(self):
         self.actor._dry = True
-        with mock.patch.object(self.actor._client, 'create_resource'):
-            yield self.actor._execute()
-
-            self.assertEquals(self.actor._client.create_resource.call_count, 0)
+        self.actor._find_deployment = helper.mock_tornado(None)
+        self.actor._client.create_resource = helper.mock_tornado()
+        yield self.actor._execute()
+        self.assertEquals(self.actor._client.create_resource._call_count, 0)
 
     @testing.gen_test
     def test_exec(self):
-        with mock.patch.object(self.actor._client, 'create_resource') as cr:
-            cr.return_value = helper.tornado_value()
-            yield self.actor._execute()
-
-            self.assertEquals(self.actor._client.create_resource.call_count, 1)
+        self.actor._find_deployment = helper.mock_tornado(None)
+        self.actor._client.create_resource = helper.mock_tornado()
+        yield self.actor._execute()
+        self.assertEquals(self.actor._client.create_resource._call_count, 1)
 
     @testing.gen_test
     def test_exec_duplicate(self):
-        with mock.patch.object(self.actor._client, 'create_resource') as cr:
-            cr.return_value = helper.tornado_value()
-            cr.side_effect = Exception('422: Client error')
-            with self.assertRaises(exceptions.RecoverableActorFailure):
-                yield self.actor._execute()
+        self.actor._find_deployment = helper.mock_tornado('found_deployment')
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            yield self.actor._execute()
 
 
 class TestDeploymentDestroyActor(testing.AsyncTestCase):
@@ -95,17 +93,23 @@ class TestDeploymentDestroyActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_exec_dry(self):
         self.actor._dry = True
-        with mock.patch.object(self.actor._client, 'destroy_resource'):
-            yield self.actor._execute()
+        self.actor._client.destroy_resource = helper.mock_tornado()
+        yield self.actor._execute()
 
-            self.assertEquals(
-                self.actor._client.destroy_resource.call_count, 0)
+        self.assertEquals(self.actor._client.destroy_resource._call_count, 0)
 
     @testing.gen_test
     def test_exec(self):
-        with mock.patch.object(self.actor._client, 'destroy_resource') as cr:
-            cr.return_value = helper.tornado_value()
+        self.actor._client.destroy_resource = helper.mock_tornado()
+        yield self.actor._execute()
+
+        self.assertEquals(self.actor._client.destroy_resource._call_count, 1)
+
+    @testing.gen_test
+    def test_exec_not_found(self):
+        self.actor._client.destroy_resource = helper.mock_tornado()
+        self.actor._find_deployment = helper.mock_tornado(None)
+        with self.assertRaises(exceptions.InvalidOptions):
             yield self.actor._execute()
 
-            self.assertEquals(
-                self.actor._client.destroy_resource.call_count, 1)
+        self.assertEquals(self.actor._client.destroy_resource._call_count, 0)

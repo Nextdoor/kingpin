@@ -1,4 +1,5 @@
 from nose.plugins.attrib import attr
+import uuid
 
 from tornado import testing
 
@@ -6,6 +7,7 @@ from kingpin.actors.rightscale import deployment
 
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
+UUID = uuid.uuid4().hex
 
 
 class IntegrationDeployment(testing.AsyncTestCase):
@@ -14,7 +16,7 @@ class IntegrationDeployment(testing.AsyncTestCase):
 
     def setUp(self, *args, **kwargs):
         super(IntegrationDeployment, self).setUp(*args, **kwargs)
-        self.deployment_name = 'Kingpin Deployment Integration Test'
+        self.deployment_name = 'Kingpin Deployment Integration Test %s' % UUID
 
     @attr('integration', 'dry')
     @testing.gen_test()
