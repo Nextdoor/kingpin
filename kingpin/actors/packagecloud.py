@@ -176,8 +176,13 @@ class PackagecloudBase(base.BaseActor):
             # Delete individual packages if they meet our criteria
             number_in_repo = len(package_versions)
             for package in package_versions:
+
+                # Safety check -- if there aren't more than the number_to_keep
+                # in the repo, then don't bother continuing through the loop
+                # for this package. Break out and move to the next name in
+                # packages_list_to_delete.
                 if number_in_repo <= number_to_keep:
-                    raise gen.Return(deleted_packages)
+                    break
 
                 if older_than:
                     package_age = (datetime.datetime.now() -
