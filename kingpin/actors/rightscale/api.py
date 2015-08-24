@@ -264,7 +264,7 @@ class RightScale(object):
     @sync_retry(**settings.RETRYING_SETTINGS)
     @utils.exception_logger
     def destroy_resource(self, res):
-        """Destroy an RightScale resource.
+        """Destroy a RightScale resource.
 
         Args:
             res: Resource object to destroy
@@ -275,7 +275,7 @@ class RightScale(object):
     @sync_retry(**settings.RETRYING_SETTINGS)
     @utils.exception_logger
     def create_resource(self, res, params):
-        """Create an RightScale resource.
+        """Create a RightScale resource.
 
         Args:
             res: Resource object to destroy

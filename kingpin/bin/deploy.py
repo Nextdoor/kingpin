@@ -92,8 +92,8 @@ def main():
                               dry=True)
             yield dry_actor.execute()
         except actor_exceptions.ActorException as e:
-            log.critical('Dry run failed. Reason:')
-            log.critical(e)
+            log.error('Dry run failed. Reason:')
+            log.error(e)
             sys.exit(2)
         else:
             log.info('Rehearsal OK! Performing!')

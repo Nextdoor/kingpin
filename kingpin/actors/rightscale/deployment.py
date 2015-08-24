@@ -51,9 +51,6 @@ class Create(DeploymentBaseActor):
 
     """Creates a RightScale deployment.
 
-    Options match the documentation in RightScale:
-    http://reference.rightscale.com/api1.5/resources/ResourceDeployments.html
-
     **Options**
 
     :name:
@@ -119,12 +116,105 @@ class Create(DeploymentBaseActor):
             self._client._client.deployments, params)
 
 
+class Clone(DeploymentBaseActor):
+
+    """Clones a RightScale deployment.
+
+    **Options**
+
+    :clone:
+      The name of the deployment to clone.
+
+    :name:
+      The name of the deployment to create.
+
+    :description:
+       The description of the new deployment.
+       (*optional*)
+
+    :server_tag_scope:
+       The routing scope for tags for servers in the deployment.
+       Can be 'deployment' or 'account'
+       (*optional*, default: deployment)
+    """
+
+    all_options = {
+        'clone': (str, REQUIRED, 'The name of the deployment to clone.'),
+        'name': (str, REQUIRED, 'The name of the deployment to create.'),
+        'description': (
+            str, '',
+            'The description of the deployment to be cloned.'),
+        'server_tag_scope': (
+            str, '',
+            'The routing scope for tags for servers in the deployment.'),
+        'delete_servers': (bool, False, 'Delete servers and arrays after cloning')
+    }
+
+    def __init__(self, *args, **kwargs):
+        """Validate the user-supplied parameters at instantiation time."""
+
+        super(Clone, self).__init__(*args, **kwargs)
+
+        allowed_scopes = ('deployment', 'account', '')
+
+        scope = self.option('server_tag_scope')
+        if scope not in allowed_scopes:
+            raise exceptions.InvalidOptions(
+                'server_tag_scope "%s" is not one of: %s' % (scope,
+                                                             allowed_scopes))
+
+    @gen.coroutine
+    def _execute(self):
+
+        dep = yield self._find_deployment(self.option('clone'))
+        if not dep:
+            raise exceptions.InvalidOptions(
+                'Deployment "%s" does not exist.' % self.option('clone'))
+        self.log.info('Found "%s" to clone.' % self.option('clone'))
+
+        newdep = yield self._find_deployment(self.option('name'))
+        if newdep:
+            self.log.error('Cannot create new "%s".' % self.option('name'))
+            raise exceptions.InvalidOptions(
+                'Deployment "%s" already exists.' % self.option('name'))
+
+        optional_params = {'name', 'description', 'server_tag_scope'}
+        params = {}
+        for p in optional_params:
+            if self.option(p):
+                params[p] = self.option(p)
+
+        params = self._generate_rightscale_params('deployment', params)
+
+        if self._dry:
+            self.log.info('Would clone a deployment %s' % self.option('name'))
+            self.log.debug('Deployment params: %s' % params)
+            raise gen.Return()
+
+        self.log.info('Creating deployment %s' % self.option('name'))
+
+        dep_id = self._client.get_res_id(dep)
+        newdep = self._client._client.deployments.clone(res_id=dep_id, params=params)
+
+        if self.option('delete_servers'):
+            servers = newdep.servers.show()
+            self.log.info('Found %s servers' % len(servers))
+            for s in servers:
+                self.log.info('Deleting %s' % s.soul['name'])
+                yield self._client.destroy_resource(s)
+
+            arrays = newdep.server_arrays.show()
+            self.log.info('Found %s arrays' % len(arrays))
+            for a in arrays:
+                self.log.info('Deleting %s' % s.soul['name'])
+                yield self._client.destroy_resource(a)
+
+            self.log.info('Done deleting servers and arrays.')
+
+
 class Destroy(DeploymentBaseActor):
 
     """Deletes a RightScale deployment.
-
-    Options match the documentation in RightScale:
-    http://reference.rightscale.com/api1.5/resources/ResourceDeployments.html
 
     **Options**
 
