@@ -4,6 +4,9 @@
 # http://tornado.readthedocs.org/en/latest/gen.html#tornado.gen.with_timeout
 tornado>=4.1
 
+# Our custom rest client
+tornado_rest_client
+
 # Used to make synchronous tasks asynchronous
 futures
 
