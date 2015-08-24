@@ -231,14 +231,14 @@ class Delete(PackagecloudBase):
 
     .. code-block:: json
 
-    { "desc": "packagecloud Delete example",
-      "actor": "packagecloud.Delete",
-      "options": {
+      { "desc": "packagecloud Delete example",
+        "actor": "packagecloud.Delete",
+        "options": {
           "number_to_keep": 10,
           "packages_to_delete": "deleteme",
           "repo": "test"
+        }
       }
-    }
 
     """
 
@@ -300,15 +300,15 @@ class DeleteByDate(PackagecloudBase):
 
     .. code-block:: json
 
-    { "desc": "packagecloud DeleteByDate example",
-      "actor": "packagecloud.DeleteByDate",
-      "options": {
+      { "desc": "packagecloud DeleteByDate example",
+        "actor": "packagecloud.DeleteByDate",
+        "options": {
           "number_to_keep": 10,
           "older_than": 600,
           "packages_to_delete": "deleteme",
           "repo": "test"
+        }
       }
-    }
 
     """
 
@@ -359,15 +359,15 @@ class WaitForPackage(PackagecloudBase):
 
     .. code-block:: json
 
-    { "desc": "packagecloud WaitForPackage example",
-      "actor": "packagecloud.WaitForPackage",
-      "options": {
+      { "desc": "packagecloud WaitForPackage example",
+        "actor": "packagecloud.WaitForPackage",
+        "options": {
           "name": "findme",
           "version": "0.1",
           "repo": "test",
           "sleep": 10,
+        }
       }
-    }
 
     """
 
