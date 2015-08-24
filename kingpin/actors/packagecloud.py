@@ -127,7 +127,6 @@ class PackagecloudBase(base.BaseActor):
         versions.sort(key=lambda x: x.get('created_at'), reverse=False)
         return versions
 
-    @gen.coroutine
     def _get_packages_list_to_delete(self, packages_to_delete, all_packages):
         """Extracts a list of unique package names to delete
 
@@ -145,7 +144,7 @@ class PackagecloudBase(base.BaseActor):
         self.log.debug('List of packages matching regex (%s): %s' %
                        (packages_to_delete, packages_list_to_delete))
 
-        raise gen.Return(packages_list_to_delete)
+        return packages_list_to_delete
 
     @gen.coroutine
     def _delete(self, packages_to_delete, repo, older_than=0,
@@ -163,7 +162,7 @@ class PackagecloudBase(base.BaseActor):
             A list of the packages that were deleted
         """
         all_packages = yield self._get_all_packages(repo=repo)
-        packages_list_to_delete = yield self._get_packages_list_to_delete(
+        packages_list_to_delete = self._get_packages_list_to_delete(
             packages_to_delete, all_packages)
 
         # Loop through each unique package to delete

@@ -113,7 +113,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         actor._packagecloud_client.packages().http_get = mock_tornado(
             ALL_PACKAGES_MOCK_RESPONSE)
         all_packages = yield actor._get_all_packages(repo='unittest')
-        packages_list_to_delete = yield actor._get_packages_list_to_delete(
+        packages_list_to_delete = actor._get_packages_list_to_delete(
             packages_to_delete='unittest', all_packages=all_packages)
         self.assertEquals(packages_list_to_delete, set(['unittest']))
 
