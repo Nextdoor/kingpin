@@ -73,7 +73,7 @@ class PackagecloudAPI(api.RestConsumer):
     }
 
 
-class PackagecloudBase(base.HTTPBaseActor):
+class PackagecloudBase(base.BaseActor):
 
     """Simple packagecloud Abstract Base Object"""
 
@@ -143,8 +143,8 @@ class PackagecloudBase(base.HTTPBaseActor):
                                    if pattern.match(package['name'])]
         packages_list_to_delete = set(packages_list_to_delete)
 
-        log.debug('List of packages matching regex (%s): %s' %
-                  (packages_to_delete, packages_list_to_delete))
+        self.log.debug('List of packages matching regex (%s): %s' %
+                       (packages_to_delete, packages_list_to_delete))
 
         raise gen.Return(packages_list_to_delete)
 
@@ -189,9 +189,9 @@ class PackagecloudBase(base.HTTPBaseActor):
                 msg = '%s/%s/%s' % (
                     repo, package['distro_version'], package['filename'])
                 if self._dry:
-                    log.info('Would have deleted %s' % msg)
+                    self.log.info('Would have deleted %s' % msg)
                 else:
-                    log.info('Deleting %s' % msg)
+                    self.log.info('Deleting %s' % msg)
 
                     yield self._packagecloud_client.delete(
                         token=TOKEN, account=ACCOUNT, repo=repo,
@@ -415,7 +415,7 @@ class WaitForPackage(PackagecloudBase):
         """
 
         all_packages = yield self._get_all_packages(repo=repo)
-        log.debug('Found all packages: %s' % all_packages)
+        self.log.debug('Found all packages: %s' % all_packages)
 
         name_pattern = re.compile(name)
         version_pattern = re.compile(version)
@@ -430,8 +430,8 @@ class WaitForPackage(PackagecloudBase):
     def _execute(self):
         """Execute method for the WaitForPackage actor"""
         while True:
-            log.info('Searching for %s %s...' % (
-                self.option('name'), self.option('version')))
+            self.log.info('Searching for %s %s...' %
+                          (self.option('name'), self.option('version')))
 
             matched_packages = yield self._search(
                 repo=self.option('repo'),
@@ -439,7 +439,7 @@ class WaitForPackage(PackagecloudBase):
                 version=self.option('version'))
 
             if len(matched_packages) > 0:
-                log.info('Found it!')
+                self.log.info('Found it!')
                 raise gen.Return(matched_packages)
 
             yield gen.sleep(self.option('sleep'))
