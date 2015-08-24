@@ -15,6 +15,18 @@ ALL_PACKAGES_MOCK_RESPONSE = [
     {'name': 'unittest', 'uploader_name': 'unittest',
      'created_at': '2015-07-07T20:27:18.000Z',
      'distro_version': 'ubuntu/trusty',
+     'filename': 'unittest_0.2-1_all.deb', 'epoch': 0,
+     'version': '0.2', 'private': True, 'release': '1',
+     'package_url': ('/api/v1/repos/unittest/test/package/deb/ubuntu/'
+                     'trusty/unittest/all/0.2-1.json'),
+     'type': 'deb',
+     'package_html_url': ('/unittest/test/packages/ubuntu/trusty/'
+                          'unittest_0.2-1_all.deb'),
+     'repository_html_url': '/unittest/test'},
+
+    {'name': 'unittest', 'uploader_name': 'unittest',
+     'created_at': '2014-07-07T20:27:18.000Z',
+     'distro_version': 'ubuntu/trusty',
      'filename': 'unittest_0.1-1_all.deb', 'epoch': 0,
      'version': '0.1', 'private': True, 'release': '1',
      'package_url': ('/api/v1/repos/unittest/test/package/deb/ubuntu/'
@@ -22,18 +34,6 @@ ALL_PACKAGES_MOCK_RESPONSE = [
      'type': 'deb',
      'package_html_url': ('/unittest/test/packages/ubuntu/trusty/'
                           'unittest_0.1-1_all.deb'),
-     'repository_html_url': '/unittest/test'},
-
-    {'name': 'unittest', 'uploader_name': 'unittest',
-     'created_at': '2014-07-07T20:27:18.000Z',
-     'distro_version': 'ubuntu/trusty',
-     'filename': 'unittest_0.1-2_all.deb', 'epoch': 0,
-     'version': '0.2', 'private': True, 'release': '1',
-     'package_url': ('/api/v1/repos/unittest/test/package/deb/ubuntu/'
-                     'trusty/unittest/all/0.1-2.json'),
-     'type': 'deb',
-     'package_html_url': ('/unittest/test/packages/ubuntu/trusty/'
-                          'unittest_0.1-2_all.deb'),
      'repository_html_url': '/unittest/test'}
 ]
 
@@ -61,6 +61,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         super(TestPackagecloudBase, self).setUp(*args, **kwargs)
         packagecloud.TOKEN = 'Unittest'
         packagecloud.ACCOUNT = 'Unittest'
+        self.maxDiff = None
 
     @testing.gen_test
     def test_init_missing_token(self):
@@ -97,14 +98,14 @@ class TestPackagecloudBase(testing.AsyncTestCase):
 
         self.assertEquals(
             versions,
-            [{'created_at': datetime.datetime(2015, 7, 7, 20, 27, 18),
+            [{'created_at': datetime.datetime(2014, 7, 7, 20, 27, 18),
               'name': 'unittest',
               'distro_version': 'ubuntu/trusty',
               'filename': 'unittest_0.1-1_all.deb'},
-             {'created_at': datetime.datetime(2014, 7, 7, 20, 27, 18),
+             {'created_at': datetime.datetime(2015, 7, 7, 20, 27, 18),
               'name': 'unittest',
               'distro_version': 'ubuntu/trusty',
-              'filename': 'unittest_0.1-2_all.deb'}])
+              'filename': 'unittest_0.2-1_all.deb'}])
 
     @testing.gen_test
     def test_get_packages_list_to_delete(self):
@@ -130,15 +131,15 @@ class TestPackagecloudBase(testing.AsyncTestCase):
 
         self.assertEquals(deleted_packages,
                           [{'created_at': datetime.datetime(
-                              2015, 7, 7, 20, 27, 18),
+                              2014, 7, 7, 20, 27, 18),
                             'name': 'unittest',
                             'distro_version': 'ubuntu/trusty',
                             'filename': 'unittest_0.1-1_all.deb'},
                            {'created_at': datetime.datetime(
-                               2014, 7, 7, 20, 27, 18),
+                               2015, 7, 7, 20, 27, 18),
                             'name': 'unittest',
                             'distro_version': 'ubuntu/trusty',
-                            'filename': 'unittest_0.1-2_all.deb'}])
+                            'filename': 'unittest_0.2-1_all.deb'}])
 
     @testing.gen_test
     def test_delete_dry(self):
@@ -154,15 +155,15 @@ class TestPackagecloudBase(testing.AsyncTestCase):
 
         self.assertEquals(deleted_packages,
                           [{'created_at': datetime.datetime(
-                              2015, 7, 7, 20, 27, 18),
+                              2014, 7, 7, 20, 27, 18),
                             'name': 'unittest',
                             'distro_version': 'ubuntu/trusty',
                             'filename': 'unittest_0.1-1_all.deb'},
                            {'created_at': datetime.datetime(
-                               2014, 7, 7, 20, 27, 18),
+                               2015, 7, 7, 20, 27, 18),
                             'name': 'unittest',
                             'distro_version': 'ubuntu/trusty',
-                            'filename': 'unittest_0.1-2_all.deb'}])
+                            'filename': 'unittest_0.2-1_all.deb'}])
 
     @testing.gen_test
     def test_delete_keep_one(self):
@@ -177,7 +178,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
 
         self.assertEquals(
             deleted_packages,
-            [{'created_at': datetime.datetime(2015, 7, 7, 20, 27, 18),
+            [{'created_at': datetime.datetime(2014, 7, 7, 20, 27, 18),
               'name': 'unittest', 'distro_version': 'ubuntu/trusty',
               'filename': 'unittest_0.1-1_all.deb'}])
 
@@ -199,7 +200,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
             deleted_packages,
             [{'created_at': datetime.datetime(2014, 7, 7, 20, 27, 18),
               'name': 'unittest', 'distro_version': 'ubuntu/trusty',
-              'filename': 'unittest_0.1-2_all.deb'}])
+              'filename': 'unittest_0.1-1_all.deb'}])
 
 
 class TestDelete(testing.AsyncTestCase):
@@ -210,6 +211,7 @@ class TestDelete(testing.AsyncTestCase):
         super(TestDelete, self).setUp(*args, **kwargs)
         packagecloud.TOKEN = 'Unittest'
         packagecloud.ACCOUNT = 'Unittest'
+        self.maxDiff = None
 
     @testing.gen_test
     def test_bad_regex_packages_to_delete(self):
@@ -230,17 +232,7 @@ class TestDelete(testing.AsyncTestCase):
 
         deleted_packages = yield actor._execute()
 
-        self.assertEquals(deleted_packages,
-                          [{'created_at': datetime.datetime(
-                              2015, 7, 7, 20, 27, 18),
-                            'name': 'unittest',
-                            'distro_version': 'ubuntu/trusty',
-                            'filename': 'unittest_0.1-1_all.deb'},
-                           {'created_at': datetime.datetime(
-                               2014, 7, 7, 20, 27, 18),
-                            'name': 'unittest',
-                            'distro_version': 'ubuntu/trusty',
-                            'filename': 'unittest_0.1-2_all.deb'}])
+        self.assertEquals(deleted_packages, None)
 
 
 class TestDeleteByDate(testing.AsyncTestCase):
@@ -251,6 +243,7 @@ class TestDeleteByDate(testing.AsyncTestCase):
         super(TestDeleteByDate, self).setUp(*args, **kwargs)
         packagecloud.TOKEN = 'Unittest'
         packagecloud.ACCOUNT = 'Unittest'
+        self.maxDiff = None
 
     @testing.gen_test
     def test_execute(self):
@@ -268,11 +261,7 @@ class TestDeleteByDate(testing.AsyncTestCase):
 
         deleted_packages = yield actor._execute()
 
-        self.assertEquals(
-            deleted_packages,
-            [{'created_at': datetime.datetime(2014, 7, 7, 20, 27, 18),
-              'name': 'unittest', 'distro_version': 'ubuntu/trusty',
-              'filename': 'unittest_0.1-2_all.deb'}])
+        self.assertEquals(deleted_packages, None)
 
 
 class TestWaitForPackage(testing.AsyncTestCase):
@@ -283,6 +272,7 @@ class TestWaitForPackage(testing.AsyncTestCase):
         super(TestWaitForPackage, self).setUp(*args, **kwargs)
         packagecloud.TOKEN = 'Unittest'
         packagecloud.ACCOUNT = 'Unittest'
+        self.maxDiff = None
 
     @testing.gen_test
     def test_bad_regex_name(self):
@@ -311,7 +301,7 @@ class TestWaitForPackage(testing.AsyncTestCase):
 
         matched_packages = yield actor._execute()
 
-        self.assertEquals(matched_packages, [ALL_PACKAGES_MOCK_RESPONSE[1]])
+        self.assertEquals(matched_packages, None)
 
     @testing.gen_test
     def test_execute_with_sleep(self):
@@ -339,4 +329,4 @@ class TestWaitForPackage(testing.AsyncTestCase):
         matched_packages = yield actor._search(
             repo='unittest', name='unittest', version='0.2')
 
-        self.assertEquals(matched_packages, [ALL_PACKAGES_MOCK_RESPONSE[1]])
+        self.assertEquals(matched_packages, [ALL_PACKAGES_MOCK_RESPONSE[0]])

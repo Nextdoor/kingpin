@@ -164,6 +164,7 @@ class PackagecloudBase(base.BaseActor):
         all_packages = yield self._get_all_packages(repo=repo)
         packages_list_to_delete = self._get_packages_list_to_delete(
             packages_to_delete, all_packages)
+        all_packages_deleted = []
 
         # Loop through each unique package to delete
         for name in packages_list_to_delete:
@@ -203,7 +204,8 @@ class PackagecloudBase(base.BaseActor):
                     if package_age <= allowed_age:
                         self.log.debug(
                             '%s/%s is only %s old, skipping deletion' %
-                            (package['distro_version'], package['name'], package_age))
+                            (package['distro_version'],
+                             package['name'], package_age))
                         continue
 
                 # Finally if we got here, then we have enough packages left in
@@ -225,6 +227,11 @@ class PackagecloudBase(base.BaseActor):
                 # Decrement list of packages to track how many are left
                 number_in_repo = number_in_repo - 1
 
+                # Track *every* package we delete in one big dict -- this is
+                # used purely for the unit tests to validate which packages
+                # were deleted.
+                all_packages_deleted.append(package)
+
                 # Track that this package was deleted -- used in the parent for
                 # loop to give the user a final tally of the packages that
                 # were kept, and that were deleted.
@@ -240,7 +247,7 @@ class PackagecloudBase(base.BaseActor):
             files_left = list(set(all_files) - set(deleted_files))
             self.log.debug('%s remaining packages: %s' % (name, files_left))
 
-        raise gen.Return()
+        raise gen.Return(all_packages_deleted)
 
 
 class Delete(PackagecloudBase):
@@ -474,6 +481,6 @@ class WaitForPackage(PackagecloudBase):
 
             if len(matched_packages) > 0:
                 self.log.info('Found it!')
-                raise gen.Return(matched_packages)
+                raise gen.Return()
 
             yield gen.sleep(self.option('sleep'))
