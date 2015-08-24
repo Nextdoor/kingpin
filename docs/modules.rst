@@ -25,6 +25,8 @@ Full Module Docs
    :members:
 .. automodule:: kingpin.actors.misc
    :members:
+.. automodule:: kingpin.actors.packagecloud
+   :members:
 .. automodule:: kingpin.actors.pingdom
    :members:
 .. automodule:: kingpin.actors.rightscale.api
