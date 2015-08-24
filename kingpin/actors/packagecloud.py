@@ -106,7 +106,6 @@ class PackagecloudBase(base.HTTPBaseActor):
             token=TOKEN, account=ACCOUNT, repo=repo).http_get()
         raise gen.Return(all_packages)
 
-    @gen.coroutine
     def _get_package_versions(self, name, all_packages):
         """Find all versions of a given package.
 
@@ -126,7 +125,7 @@ class PackagecloudBase(base.HTTPBaseActor):
         } for package in all_packages if package['name'] == name]
 
         versions.sort(key=lambda x: x.get('created_at'), reverse=True)
-        raise gen.Return(versions)
+        return versions
 
     @gen.coroutine
     def _get_packages_list_to_delete(self, packages_to_delete, all_packages):
@@ -143,6 +142,10 @@ class PackagecloudBase(base.HTTPBaseActor):
         packages_list_to_delete = [package['name'] for package in all_packages
                                    if pattern.match(package['name'])]
         packages_list_to_delete = set(packages_list_to_delete)
+
+        log.debug('List of packages matching regex (%s): %s' %
+                  (packages_to_delete, packages_list_to_delete))
+
         raise gen.Return(packages_list_to_delete)
 
     @gen.coroutine
@@ -167,7 +170,7 @@ class PackagecloudBase(base.HTTPBaseActor):
 
         # Loop through each unique package to delete
         for name in packages_list_to_delete:
-            package_versions = yield self._get_package_versions(
+            package_versions = self._get_package_versions(
                 name, all_packages)
 
             # Delete individual packages if they meet our criteria

@@ -92,7 +92,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         actor._packagecloud_client.packages().http_get = mock_tornado(
             ALL_PACKAGES_MOCK_RESPONSE)
         all_packages = yield actor._get_all_packages(repo='unittest')
-        versions = yield actor._get_package_versions(
+        versions = actor._get_package_versions(
             name='unittest', all_packages=all_packages)
 
         self.assertEquals(
