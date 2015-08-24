@@ -102,16 +102,16 @@ class PackagecloudBase(base.BaseActor):
         Returns:
             A hash of the packages.
         """
-        all_packages = yield self._packagecloud_client.packages(
+        packages = yield self._packagecloud_client.packages(
             token=TOKEN, account=ACCOUNT, repo=repo).http_get()
-        raise gen.Return(all_packages)
+        raise gen.Return(packages)
 
-    def _get_package_versions(self, name, all_packages):
+    def _get_package_versions(self, name, packages):
         """Find all versions of a given package.
 
         Args:
             name: name of the package to look for
-            all_packages: hash of all the packages, as returned by the API
+            packages: hash of all the packages, as returned by the API
 
         Returns:
             A hash of package versions sorted by creation date
@@ -122,38 +122,38 @@ class PackagecloudBase(base.BaseActor):
             'distro_version': package['distro_version'],
             'filename': package['package_html_url'].split('/')[-1],
             'name': package['name']
-        } for package in all_packages if package['name'] == name]
+        } for package in packages if package['name'] == name]
 
         versions.sort(key=lambda x: x.get('created_at'), reverse=False)
         return versions
 
-    def _get_packages_list_to_delete(self, packages_to_delete, all_packages):
+    def _filter_packages(self, regex, packages):
         """Extracts a list of unique package names to delete
 
         Args:
-            packages_to_delete: regex of package names to delete
-            all_packages: hash of all the packages, as returned by the API
+            regex: regex of package names to delete
+            packages: hash of all the packages, as returned by the API
 
         Returns:
             A list of unique package names that match the delete pattern.
             """
-        pattern = re.compile(packages_to_delete)
-        packages_list_to_delete = {package['name'] for package in all_packages
+        pattern = re.compile(regex)
+        packages_list_to_delete = {package['name'] for package in packages
                                    if pattern.match(package['name'])}
 
         self.log.debug('List of packages matching regex (%s): %s' %
-                       (packages_to_delete, packages_list_to_delete))
+                       (regex, packages_list_to_delete))
 
         return packages_list_to_delete
 
     @gen.coroutine
-    def _delete(self, packages_to_delete, repo, older_than=0,
+    def _delete(self, regex, repo, older_than=0,
                 number_to_keep=0):
         """Generic packagecloud delete method, optionally supporting deleting
         old packages by date and/or keeping a certain number of packages.
 
         Args:
-            packages_to_delete: Regex of packages to delete, e.g. pkg1|pkg2
+            regex: Regex of packages to delete, e.g. pkg1|pkg2
             repo: name of the packagecloud repo to delete from
             older_than: Delete packages created before this number of seconds
             number_to_keep: Keep at least this number of each package
@@ -162,8 +162,7 @@ class PackagecloudBase(base.BaseActor):
             A list of the packages that were deleted
         """
         all_packages = yield self._get_all_packages(repo=repo)
-        packages_list_to_delete = self._get_packages_list_to_delete(
-            packages_to_delete, all_packages)
+        packages_list_to_delete = self._filter_packages(regex, all_packages)
         all_packages_deleted = []
 
         # Loop through each unique package to delete
@@ -314,7 +313,7 @@ class Delete(PackagecloudBase):
     def _execute(self):
         """Deletes all packages that match the `packages_to_delete` pattern"""
         yield self._delete(
-            packages_to_delete=self.option('packages_to_delete'),
+            regex=self.option('packages_to_delete'),
             number_to_keep=self.option('number_to_keep'),
             repo=self.option('repo'))
 
@@ -374,7 +373,7 @@ class DeleteByDate(PackagecloudBase):
     @gen.coroutine
     def _execute(self):
         yield self._delete(
-            packages_to_delete=self.option('packages_to_delete'),
+            regex=self.option('packages_to_delete'),
             number_to_keep=self.option('number_to_keep'),
             older_than=self.option('older_than'),
             repo=self.option('repo'))
@@ -483,4 +482,6 @@ class WaitForPackage(PackagecloudBase):
                 self.log.info('Found it!')
                 raise gen.Return()
 
+            self.log.debug('Not found, sleeping for (%s)'
+                           % self.option('sleep'))
             yield gen.sleep(self.option('sleep'))

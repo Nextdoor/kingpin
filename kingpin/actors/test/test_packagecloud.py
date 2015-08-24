@@ -92,9 +92,9 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         actor._packagecloud_client = mock.Mock()
         actor._packagecloud_client.packages().http_get = mock_tornado(
             ALL_PACKAGES_MOCK_RESPONSE)
-        all_packages = yield actor._get_all_packages(repo='unittest')
+        packages = yield actor._get_all_packages(repo='unittest')
         versions = actor._get_package_versions(
-            name='unittest', all_packages=all_packages)
+            name='unittest', packages=packages)
 
         self.assertEquals(
             versions,
@@ -108,14 +108,14 @@ class TestPackagecloudBase(testing.AsyncTestCase):
               'filename': 'unittest_0.2-1_all.deb'}])
 
     @testing.gen_test
-    def test_get_packages_list_to_delete(self):
+    def test_filter_packages(self):
         actor = packagecloud.PackagecloudBase('Unit test action', {})
         actor._packagecloud_client = mock.Mock()
         actor._packagecloud_client.packages().http_get = mock_tornado(
             ALL_PACKAGES_MOCK_RESPONSE)
-        all_packages = yield actor._get_all_packages(repo='unittest')
-        packages_list_to_delete = actor._get_packages_list_to_delete(
-            packages_to_delete='unittest', all_packages=all_packages)
+        packages = yield actor._get_all_packages(repo='unittest')
+        packages_list_to_delete = actor._filter_packages(
+            regex='unittest', packages=packages)
         self.assertEquals(packages_list_to_delete, set(['unittest']))
 
     @testing.gen_test
@@ -127,7 +127,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         actor._packagecloud_client.delete().http_delete = mock_tornado({})
 
         deleted_packages = yield actor._delete(
-            packages_to_delete='unittest', repo='unittest')
+            regex='unittest', repo='unittest')
 
         self.assertEquals(deleted_packages,
                           [{'created_at': datetime.datetime(
@@ -151,7 +151,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         actor._dry = True
 
         deleted_packages = yield actor._delete(
-            packages_to_delete='unittest', repo='unittest')
+            regex='unittest', repo='unittest')
 
         self.assertEquals(deleted_packages,
                           [{'created_at': datetime.datetime(
@@ -174,7 +174,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         actor._packagecloud_client.delete().http_delete = mock_tornado({})
 
         deleted_packages = yield actor._delete(
-            packages_to_delete='unittest', repo='unittest', number_to_keep=1)
+            regex='unittest', repo='unittest', number_to_keep=1)
 
         self.assertEquals(
             deleted_packages,
@@ -193,7 +193,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         older_than = _get_older_than()
 
         deleted_packages = yield actor._delete(
-            packages_to_delete='unittest', repo='unittest',
+            regex='unittest', repo='unittest',
             older_than=older_than.total_seconds())
 
         self.assertEquals(
