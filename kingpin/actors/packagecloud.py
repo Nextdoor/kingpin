@@ -124,7 +124,7 @@ class PackagecloudBase(base.BaseActor):
             'name': package['name']
         } for package in all_packages if package['name'] == name]
 
-        versions.sort(key=lambda x: x.get('created_at'), reverse=True)
+        versions.sort(key=lambda x: x.get('created_at'), reverse=False)
         return versions
 
     @gen.coroutine
@@ -139,9 +139,8 @@ class PackagecloudBase(base.BaseActor):
             A list of unique package names that match the delete pattern.
             """
         pattern = re.compile(packages_to_delete)
-        packages_list_to_delete = [package['name'] for package in all_packages
-                                   if pattern.match(package['name'])]
-        packages_list_to_delete = set(packages_list_to_delete)
+        packages_list_to_delete = {package['name'] for package in all_packages
+                                   if pattern.match(package['name'])}
 
         self.log.debug('List of packages matching regex (%s): %s' %
                        (packages_to_delete, packages_list_to_delete))
@@ -166,31 +165,51 @@ class PackagecloudBase(base.BaseActor):
         all_packages = yield self._get_all_packages(repo=repo)
         packages_list_to_delete = yield self._get_packages_list_to_delete(
             packages_to_delete, all_packages)
-        deleted_packages = []
 
         # Loop through each unique package to delete
         for name in packages_list_to_delete:
             package_versions = self._get_package_versions(
                 name, all_packages)
 
-            # Delete individual packages if they meet our criteria
-            number_in_repo = len(package_versions)
-            for package in package_versions:
+            # Create a tally of the packages we delete -- usd to give the user
+            # a final helpful log statement about the work we did.
+            packages_deleted = []
 
+            # Get a total count of the number of versions of this package in
+            # the repo -- this variable will then be counted down as we loop,
+            # to prevent us from deleting more than 'number_to_keep' packages.
+            number_in_repo = len(package_versions)
+            self.log.debug('Scanning %s versions (%s)' %
+                           (name, number_in_repo))
+
+            for package in package_versions:
                 # Safety check -- if there aren't more than the number_to_keep
                 # in the repo, then don't bother continuing through the loop
                 # for this package. Break out and move to the next name in
                 # packages_list_to_delete.
                 if number_in_repo <= number_to_keep:
+                    self.log.debug(
+                        '%s has only %s package versions left, skipping'
+                        % (name, number_in_repo))
                     break
 
+                # If older_than (time in seconds) was supplied, figure out how
+                # old the package is. If the package_age (in seconds) is
+                # younger than allowed_age (in seconds), then skip to the next
+                # package version in the set.
                 if older_than:
                     package_age = (datetime.datetime.now() -
                                    package['created_at'])
                     allowed_age = datetime.timedelta(seconds=older_than)
                     if package_age <= allowed_age:
+                        self.log.debug(
+                            '%s/%s is only %s old, skipping deletion' %
+                            (package['distro_version'], package['name'], package_age))
                         continue
 
+                # Finally if we got here, then we have enough packages left in
+                # the repo, AND (optionally) this package is older than our
+                # cutoff age... so delete the package.
                 msg = '%s/%s/%s' % (
                     repo, package['distro_version'], package['filename'])
                 if self._dry:
@@ -206,10 +225,23 @@ class PackagecloudBase(base.BaseActor):
 
                 # Decrement list of packages to track how many are left
                 number_in_repo = number_in_repo - 1
-                # Keeping track of removed packages for return value
-                deleted_packages.append(package)
 
-        raise gen.Return(deleted_packages)
+                # Track that this package was deleted -- used in the parent for
+                # loop to give the user a final tally of the packages that
+                # were kept, and that were deleted.
+                packages_deleted.append(package)
+
+            # Print out the packages that were not deleted and left in the repo
+            all_files = ['%s/%s' %
+                         (package['distro_version'], package['filename'])
+                         for package in package_versions]
+            deleted_files = ['%s/%s' %
+                             (package['distro_version'], package['filename'])
+                             for package in packages_deleted]
+            files_left = list(set(all_files) - set(deleted_files))
+            self.log.debug('%s remaining packages: %s' % (name, files_left))
+
+        raise gen.Return()
 
 
 class Delete(PackagecloudBase):
@@ -275,11 +307,10 @@ class Delete(PackagecloudBase):
     @gen.coroutine
     def _execute(self):
         """Deletes all packages that match the `packages_to_delete` pattern"""
-        deleted_packages = yield self._delete(
+        yield self._delete(
             packages_to_delete=self.option('packages_to_delete'),
             number_to_keep=self.option('number_to_keep'),
             repo=self.option('repo'))
-        raise gen.Return(deleted_packages)
 
 
 class DeleteByDate(PackagecloudBase):
@@ -336,12 +367,11 @@ class DeleteByDate(PackagecloudBase):
 
     @gen.coroutine
     def _execute(self):
-        deleted_packages = yield self._delete(
+        yield self._delete(
             packages_to_delete=self.option('packages_to_delete'),
             number_to_keep=self.option('number_to_keep'),
             older_than=self.option('older_than'),
             repo=self.option('repo'))
-        raise gen.Return(deleted_packages)
 
 
 class WaitForPackage(PackagecloudBase):
