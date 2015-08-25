@@ -190,6 +190,17 @@ class Clone(DeploymentBaseActor):
         if self._dry:
             self.log.info('Would clone a deployment %s' % self.option('name'))
             self.log.debug('Deployment params: %s' % params)
+            if self.option('delete_servers'):
+                servers = dep.servers.show()
+                self.log.info('Found %s servers' % len(servers))
+                for s in servers:
+                    self.log.info('Would delete %s' % s.soul['name'])
+
+                arrays = dep.server_arrays.show()
+                self.log.info('Found %s arrays' % len(arrays))
+                for a in arrays:
+                    self.log.info('Would delete %s' % s.soul['name'])
+
             raise gen.Return()
 
         self.log.info('Creating deployment %s' % self.option('name'))

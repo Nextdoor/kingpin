@@ -102,9 +102,22 @@ class TestDeploymentCloneActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_exec_dry(self):
         self.actor._dry = True
+
+        # Set up deployment servers and arrays to test deletion
+        mock_servers = mock.Mock(name='Servers')
+        mock_arrays = mock.Mock(name='Arrays')
+        dep = mock.Mock()
+        dep.servers.show = mock_servers
+        dep.server_arrays.show = mock_arrays
+        mock_servers.return_value = [mock.MagicMock(name='Server1'),
+                                     mock.MagicMock(name='Server2')]
+        mock_arrays.return_value = [mock.MagicMock(name='Array1'),
+                                    mock.MagicMock(name='Array2')]
+
         self.actor._find_deployment = mock.Mock(side_effect=[
-            helper.tornado_value('found'),
+            helper.tornado_value(dep),
             helper.tornado_value(None)])
+
         yield self.actor._execute()
         self.assertEquals(
             self.actor._client._client.deployments.clone.call_count, 0)
