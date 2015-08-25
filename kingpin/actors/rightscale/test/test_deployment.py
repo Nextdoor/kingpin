@@ -122,9 +122,12 @@ class TestDeploymentCloneActor(testing.AsyncTestCase):
         self.assertEquals(
             self.actor._client._client.deployments.clone.call_count, 0)
 
+        self.assertEquals(self.actor._client.destroy_resource.call_count, 0)
+
     @testing.gen_test
     def test_exec(self):
-        self.actor._client.destroy_resource = helper.mock_tornado()
+        self.actor._client.destroy_resource = mock.Mock(
+            return_value=helper.tornado_value())
         self.actor._find_deployment = mock.Mock(side_effect=[
             helper.tornado_value('Found!'),
             helper.tornado_value(None)])
@@ -140,10 +143,20 @@ class TestDeploymentCloneActor(testing.AsyncTestCase):
         mock_arrays.return_value = [mock.MagicMock(name='Array1'),
                                     mock.MagicMock(name='Array2')]
 
-        self.actor._client.create_resource = helper.mock_tornado()
         yield self.actor._execute()
+
+        # Cloning actually happened!
         self.assertEquals(
             self.actor._client._client.deployments.clone.call_count, 1)
+
+        calls = [mock.call(m) for m in
+                 mock_servers.return_value + mock_arrays.return_value]
+
+        # New Servers & Arrays deleted
+        self.actor._client.destroy_resource.assert_has_calls(calls)
+
+        # Exactly 4 calls means old servers and arrays were not destroyed
+        self.assertEquals(self.actor._client.destroy_resource.call_count, 4)
 
     @testing.gen_test
     def test_exec_notfound(self):

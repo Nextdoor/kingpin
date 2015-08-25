@@ -199,7 +199,7 @@ class Clone(DeploymentBaseActor):
                 arrays = dep.server_arrays.show()
                 self.log.info('Found %s arrays' % len(arrays))
                 for a in arrays:
-                    self.log.info('Would delete %s' % s.soul['name'])
+                    self.log.info('Would delete %s' % a.soul['name'])
 
             raise gen.Return()
 
@@ -219,7 +219,7 @@ class Clone(DeploymentBaseActor):
             arrays = newdep.server_arrays.show()
             self.log.info('Found %s arrays' % len(arrays))
             for a in arrays:
-                self.log.info('Deleting %s' % s.soul['name'])
+                self.log.info('Deleting %s' % a.soul['name'])
                 yield self._client.destroy_resource(a)
 
             self.log.info('Done deleting servers and arrays.')
