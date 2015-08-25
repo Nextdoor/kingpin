@@ -147,7 +147,8 @@ class Clone(DeploymentBaseActor):
         'server_tag_scope': (
             str, '',
             'The routing scope for tags for servers in the deployment.'),
-        'delete_servers': (bool, False, 'Delete servers and arrays after cloning')
+        'delete_servers': (
+            bool, False, 'Delete servers and arrays after cloning')
     }
 
     def __init__(self, *args, **kwargs):
@@ -194,7 +195,8 @@ class Clone(DeploymentBaseActor):
         self.log.info('Creating deployment %s' % self.option('name'))
 
         dep_id = self._client.get_res_id(dep)
-        newdep = self._client._client.deployments.clone(res_id=dep_id, params=params)
+        newdep = self._client._client.deployments.clone(
+            res_id=dep_id, params=params)
 
         if self.option('delete_servers'):
             servers = newdep.servers.show()
