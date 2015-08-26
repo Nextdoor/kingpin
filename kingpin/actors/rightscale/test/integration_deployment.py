@@ -36,8 +36,27 @@ class IntegrationDeployment(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('integration', 'dry')
+    @testing.gen_test(timeout=60)
+    def integration_02a_clone_deployment_dry(self):
+        actor = deployment.Clone('Integ. Test',
+                                 {'clone': self.deployment_name,
+                                  'name': '%s clone' % self.deployment_name},
+                                 dry=True)
+
+        yield actor.execute()
+
+    @attr('integration')
+    @testing.gen_test(timeout=60)
+    def integration_02b_clone_deployment(self):
+        actor = deployment.Clone('Integ. Test',
+                                 {'clone': self.deployment_name,
+                                  'name': '%s clone' % self.deployment_name})
+
+        yield actor.execute()
+
+    @attr('integration', 'dry')
     @testing.gen_test()
-    def integration_02a_destroy_deployment_dry(self):
+    def integration_03a_destroy_deployment_dry(self):
         actor = deployment.Destroy('Integ. Test',
                                    {'name': self.deployment_name},
                                    dry=True)
@@ -46,8 +65,16 @@ class IntegrationDeployment(testing.AsyncTestCase):
 
     @attr('integration')
     @testing.gen_test(timeout=60)
-    def integration_02b_destroy_deployment(self):
+    def integration_03b_destroy_deployment(self):
         actor = deployment.Destroy('Integ. Test',
                                    {'name': self.deployment_name})
+
+        yield actor.execute()
+
+    @attr('integration')
+    @testing.gen_test(timeout=60)
+    def integration_04b_destroy_cloned_deployment(self):
+        actor = deployment.Destroy('Integ. Test',
+                                   {'name': '%s clone' % self.deployment_name})
 
         yield actor.execute()
