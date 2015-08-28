@@ -217,14 +217,13 @@ class Create(CloudFormationBaseActor):
        { "desc": "Create production backend stack",
          "actor": "aws.cloudformation.Create",
          "options": {
-           "compatibilities": [ "CAPABILITY_IAM" ],
            "disable_rollback": true,
            "name": "%CF_NAME%",
            "parameters": {
              "test_param": "%TEST_PARAM_NAME%",
            },
            "region": "us-west-1",
-           "template": "file:///examples/cloudformation_test.json",
+           "template": "/examples/cloudformation_test.json",
            "timeout_in_minutes": 45,
          }
        }
