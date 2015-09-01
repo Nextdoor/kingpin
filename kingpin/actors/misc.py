@@ -40,6 +40,8 @@ from kingpin import schema
 from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
+from kingpin.actors.aws import base as aws_base
+from kingpin.actors.rightscale import base as rs_base
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -349,3 +351,142 @@ class GenericHTTP(base.HTTPBaseActor):
         except httpclient.HTTPError as e:
             if e.code == 401:
                 raise exceptions.InvalidCredentials(e.message)
+
+
+class SyncRSAWSResources(base.BaseActor):
+
+    """Merges two things."""
+
+    all_options = {
+        'region': (str, REQUIRED, 'AWS Region to connect to.'),
+    }
+
+    @gen.coroutine
+    def _sync_vpcs(self):
+        # Get the list of AWS VPCs
+        aws = aws_base.AWSBaseActor('helper',
+                                    {'region': self.option('region')})
+        aws_vpcs = aws.vpc_conn.get_all_vpcs()
+
+        # Get the list of RS VPCs
+        rs = rs_base.RightScaleBaseActor('helper', {})
+        rs_vpcs = rs._client._client.networks.show()
+        # Update RS names with AWS tag.Name
+
+        self.log.info('Found %s VPCs in RightScale.' % len(rs_vpcs))
+        self.log.info('Found %s VPCs in AWS.' % len(aws_vpcs))
+        for rs_vpc in rs_vpcs:
+            aws_vpc = [v for v in aws_vpcs
+                       if v.id == rs_vpc.soul['resource_uid']]
+            if not len(aws_vpc):
+                continue
+            aws_vpc = aws_vpc[0]
+
+            if not aws_vpc.tags.get('Name'):
+                self.log.debug('VPC %s does not have a Name tag.' % aws_vpc.id)
+                continue
+
+            self.log.info('Comparing %s. %s => %s' % (
+                aws_vpc.id, rs_vpc.soul['name'], aws_vpc.tags['Name']))
+
+            if aws_vpc.tags['Name'] != rs_vpc.soul['name']:
+                if not self._dry:
+                    newname = rs._generate_rightscale_params(
+                        'network', {'name': aws_vpc.tags['Name']})
+                    rs_vpc.self.update(params=newname)
+                    self.log.info('Fixed!')
+                else:
+                    self.log.warning('Needs fixing!')
+
+    @gen.coroutine
+    def _sync_subnets(self):
+        # Get the list of AWS Subnets
+        aws = aws_base.AWSBaseActor('helper',
+                                    {'region': self.option('region')})
+        aws_subnets = aws.vpc_conn.get_all_subnets()
+
+        # Get the list of RS Clouds and the Subnets
+        rs = rs_base.RightScaleBaseActor('helper', {})
+        rs_clouds = rs._client._client.clouds.show()
+        rs_clouds = [c for c in rs_clouds
+                     if self.option('region') in c.soul['name']]
+
+        if len(rs_clouds) != 1:
+            raise Exception('aw hell')
+
+        rs_cloud = rs_clouds[0]
+
+        rs_subnets = rs_cloud.subnets.show()
+
+        # Update RS names with AWS tag.Name
+        self.log.info('Found %s Subnets in RightScale.' % len(rs_subnets))
+        self.log.info('Found %s Subnets in AWS.' % len(aws_subnets))
+        for rs_subnet in rs_subnets:
+            aws_subnet = [v for v in aws_subnets
+                          if v.id == rs_subnet.soul['resource_uid']]
+            if not len(aws_subnet):
+                continue
+            aws_subnet = aws_subnet[0]
+
+            if not aws_subnet.tags.get('Name'):
+                self.log.debug(
+                    'Subnet %s does not have a Name tag.' % aws_subnet.id)
+                continue
+
+            self.log.info('Comparing %s. %s => %s' % (aws_subnet.id,
+                                                      rs_subnet.soul['name'],
+                                                      aws_subnet.tags['Name']))
+
+            if aws_subnet.tags['Name'] != rs_subnet.soul['name']:
+                if not self._dry:
+                    newname = rs._generate_rightscale_params(
+                        'subnet', {'name': aws_subnet.tags['Name']})
+                    rs_subnet.self.update(params=newname)
+                    self.log.info('Fixed!')
+                else:
+                    self.log.warning('Needs fixing!')
+
+    @gen.coroutine
+    def _sync_routetables(self):
+        aws = aws_base.AWSBaseActor('helper',
+                                    {'region': self.option('region')})
+        rs = rs_base.RightScaleBaseActor('helper', {})
+
+        # Get the list of AWS resources
+        aws_tables = aws.vpc_conn.get_all_route_tables()
+        # Get the list of RS resources
+        rs_tables = rs._client._client.route_tables.show()
+
+        # Update RS names with AWS tag.Name
+        self.log.info('Found %s route tables in RightScale.' % len(rs_tables))
+        self.log.info('Found %s route tables in AWS.' % len(aws_tables))
+        for rs_table in rs_tables:
+            aws_table = [v for v in aws_tables
+                         if v.id == rs_table.soul['resource_uid']]
+            if not len(aws_table):
+                continue
+            aws_table = aws_table[0]
+
+            if not aws_table.tags.get('Name'):
+                self.log.debug(
+                    'Subnet %s does not have a Name tag.' % aws_table.id)
+                continue
+
+            self.log.info('Comparing %s. %s => %s' % (aws_table.id,
+                                                      rs_table.soul['name'],
+                                                      aws_table.tags['Name']))
+
+            if aws_table.tags['Name'] != rs_table.soul['name']:
+                if not self._dry:
+                    newname = rs._generate_rightscale_params(
+                        'route_table', {'name': aws_table.tags['Name']})
+                    rs_table.self.update(params=newname)
+                    self.log.info('Fixed!')
+                else:
+                    self.log.warning('Needs fixing!')
+
+    @gen.coroutine
+    def _execute(self):
+        yield self._sync_vpcs()
+        yield self._sync_subnets()
+        yield self._sync_routetables()

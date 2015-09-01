@@ -44,6 +44,7 @@ import boto.ec2
 import boto.ec2.elb
 import boto.iam
 import boto.sqs
+import boto.vpc
 
 from kingpin import utils
 from kingpin.actors import base
@@ -135,6 +136,11 @@ class AWSBaseActor(base.BaseActor):
             aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
 
         self.sqs_conn = boto.sqs.connect_to_region(
+            region,
+            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
+
+        self.vpc_conn = boto.vpc.connect_to_region(
             region,
             aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
