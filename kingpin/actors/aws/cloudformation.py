@@ -216,8 +216,8 @@ class Create(CloudFormationBaseActor):
 
        { "desc": "Create production backend stack",
          "actor": "aws.cloudformation.Create",
-         "capabilities": [ "CAPABILITY_IAM" ],
          "options": {
+           "capabilities": [ "CAPABILITY_IAM" ],
            "disable_rollback": true,
            "name": "%CF_NAME%",
            "parameters": {
