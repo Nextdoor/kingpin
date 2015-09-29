@@ -60,6 +60,7 @@ import rightscale
 import simplejson
 
 from kingpin import utils
+from kingpin.actors import exceptions
 from kingpin.actors.rightscale import settings
 
 log = logging.getLogger(__name__)
@@ -286,7 +287,14 @@ class RightScale(object):
         Returns:
             The Rightscale Resource itself
         """
-        return res.create(params=params)
+        try:
+            return res.create(params=params)
+        except requests.exceptions.HTTPError as e:
+            if 400 <= e.response.status_code < 500:
+                log.critical('[RightScale API] HTTP Error %s: %s' % (
+                    e.response.status_code, e.response._content))
+                raise exceptions.UnrecoverableActorFailure(e)
+            raise
 
     @concurrent.run_on_executor
     @utils.exception_logger
@@ -435,8 +443,14 @@ class RightScale(object):
         log.debug('Launching a new instance of ServerArray %s' %
                   array.soul['name'])
         array_id = self.get_res_id(array)
-        return self._client.server_arrays.launch(
-            res_id=array_id, params=params)
+        try:
+            return self._client.server_arrays.launch(
+                res_id=array_id, params=params)
+        except requests.exceptions.HTTPError as e:
+            if 400 <= e.response.status_code < 500:
+                log.critical('[RightScale API] HTTP Error %s: %s' % (
+                    e.response.status_code, e.response._content))
+            raise exceptions.UnrecoverableActorFailure(e)
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)

@@ -183,7 +183,7 @@ class AWSBaseActor(base.BaseActor):
                                      load_balancer_names=name)
         except boto_exception.BotoServerError as e:
             msg = '%s: %s' % (e.error_code, e.message)
-            log.error('Received exception: %s' % msg)
+            self.log.error('Received exception: %s' % msg)
 
             if e.status == 400:
                 raise ELBNotFound(msg)

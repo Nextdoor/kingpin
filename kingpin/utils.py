@@ -268,7 +268,8 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
     # First things first, swap out all instances of %<str>% with any matching
     # token variables found. If no items are in the hash (none, empty hash,
     # etc), then skip this.
-    allowed_types = (str, unicode, bool, int, float)
+    allowed_types = (str, unicode, bool, int, float, list, dict)
+    json_types = (list, dict)
     if tokens:
         for k, v in tokens.iteritems():
 
@@ -277,8 +278,14 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
                     k, v, allowed_types))
                 continue
 
-            string = string.replace(
-                ('%s%s%s' % (left_wrapper, k, right_wrapper)), str(v))
+            if type(v) not in json_types:
+                log.debug('Replacing %s with %s' % (k, str(v)))
+                string = string.replace(
+                    ('%s%s%s' % (left_wrapper, k, right_wrapper)), str(v))
+            else:
+                log.debug('Replacing %s with %s' % (k, demjson.encode(v)))
+                string = string.replace(
+                    ('%s%s%s' % (left_wrapper, k, right_wrapper)), demjson.encode(v))
 
     # If we aren't strict, we return...
     if not strict:

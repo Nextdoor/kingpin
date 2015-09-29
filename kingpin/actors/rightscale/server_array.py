@@ -83,6 +83,126 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
         raise gen.Return(ret)
 
 
+class Create(ServerArrayBaseActor):
+
+    """Creates a RightScale Server Array.
+
+    **Options**
+
+    :name:
+      The new name for your cloned ServerArray
+
+    **Examples**
+
+    Create my-new-array:
+
+    .. code-block:: json
+
+       { "desc": "Create my array",
+         "actor": "rightscale.server_array.Create",
+         "options": {
+           "name": "my-new-array"
+         }
+       }
+    """
+
+    all_options = {
+        'params': (dict, REQUIRED, 'Parameters required by the RS API call.'),
+        'subnets': (str, REQUIRED, '...'),
+        'multi_cloud_image': (str, REQUIRED, '...'),
+        'ssh_key': (str, REQUIRED, '...'),
+        'server_template': (str, REQUIRED, '...'),
+        'instance_type': (str, REQUIRED, '...'),
+        'security_groups': (list, REQUIRED, '...'),
+        'deployment': (str, REQUIRED, '...'),
+        'cloud': (str, REQUIRED, '...'),
+    }
+
+    @gen.coroutine
+    def _check_existing(self):
+        array_name = self.option('params')['name']
+
+        exists = yield self._find_server_arrays(
+            array_name, allow_mock=False, raise_on=None)
+        if exists:
+            raise exceptions.RecoverableActorFailure(
+                'Array %s alredy exists.' % array_name)
+
+    @gen.coroutine
+    def _get_href(self, resource, match):
+
+        found = yield self._client.find_by_name_and_keys(
+            resource, match, exact=False)
+
+        if not found:
+            self.log.error('%s => %s' % (resource, match))
+            raise Exception('Did not find resource.')
+
+        found = found[0]
+
+        raise gen.Return(found.links['self'])
+
+    @gen.coroutine
+    def _get_hrefs(self, resource, match):
+
+        self.log.debug('Searching for %s matching %s' % (resource, match))
+
+        found = yield self._client.find_by_name_and_keys(
+            resource, match, exact=False)
+
+        hrefs = [f.links['self'] for f in found]
+        raise gen.Return(hrefs)
+        
+    @gen.coroutine
+    def _execute(self):
+
+        yield self._check_existing()
+
+        array_name = self.option('params')['name']
+
+        params = self.option('params')
+        rs = self._client._client
+
+        params['deployment_href'] = yield self._get_href(
+            rs.deployments, self.option('deployment'))
+
+        cloud = yield self._client.find_by_name_and_keys(
+            rs.clouds, self.option('cloud'))
+
+        params['instance']['cloud_href'] = cloud.links['self']
+
+        params['instance']['instance_type_href'] = yield self._get_href(
+            cloud.instance_types, self.option('instance_type'))
+
+        params['instance']['multi_cloud_image_href'] = yield self._get_href(
+            rs.multi_cloud_images, self.option('multi_cloud_image'))
+
+        params['instance']['server_template_href'] = yield self._get_href(
+            rs.server_templates, self.option('server_template'))
+
+        params['instance']['ssh_key_href'] = yield self._get_href(
+            cloud.ssh_keys, self.option('ssh_key'))
+
+        params['instance']['subnet_hrefs'] = yield self._get_hrefs(
+            cloud.subnets, self.option('subnets'))
+
+        params['instance']['security_group_hrefs'] = yield [
+                self._get_href(cloud.security_groups, sg)
+                for sg in self.option('security_groups')]
+
+        final_params = self._generate_rightscale_params('server_array', params)
+                                              
+        self.log.info('Creating a new array: %s' % array_name)
+        self.log.debug('Params: %s' % final_params)
+
+        if not self._dry:
+            yield self._client.create_resource(
+                self._client._client.server_arrays, final_params)
+            self.log.info('Created %s' % array_name)
+        else:
+            self.log.info('Would create %s' % array_name)
+
+
 class Clone(ServerArrayBaseActor):
 
     """Clones a RightScale Server Array.

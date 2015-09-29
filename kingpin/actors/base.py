@@ -197,7 +197,11 @@ class BaseActor(object):
             # Unicode is not a `str` but it is a `basestring`
             # Cast the passed value explicitly as a string
             if isinstance(value, basestring):
-                value = str(value)
+                try:
+                    value = str(value)
+                except Exception as e:
+                    self.log.critical('Failed to parse %s' % value)
+                    raise exceptions.InvalidOptions(e)
 
             if not (value is None or isinstance(value, expected_type)):
                 message = 'Option "%s" has to be %s and is %s.' % (
@@ -322,7 +326,7 @@ class BaseActor(object):
 
         try:  # Treat as string
             value = self._condition.lower()
-            check = (value not in ('false', '0'))
+            check = (value not in ('false', '0', ''))
         except AttributeError:  # Not a string
             value = self._condition
             check = bool(value)
