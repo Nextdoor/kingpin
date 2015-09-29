@@ -54,7 +54,7 @@ parser.add_option('-l', '--level', dest='level', default='info',
                   help='Set logging level (INFO|WARN|DEBUG|ERROR)')
 parser.add_option('', '--debug', dest='level_debug', default=False,
                   action='store_true', help='Equivalent to --level=DEBUG')
-parser.add_option('-c', '--color', dest='color', default=False,
+parser.add_option('-c', '--color', dest='color', default=True,
                   action='store_true', help='Colorize the log output')
 
 (options, args) = parser.parse_args()

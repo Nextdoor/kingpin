@@ -1,0 +1,41 @@
+{ "desc": "fix",
+    "actor": "rightscale.server_array.Create",
+    "options": {
+        "params": {
+            "name": "Mikhail-test",
+            "state": "disabled",
+            "array_type": "alert",
+            "instance": {
+                "server_template_href": "/api/server_templates/346690003", /* Puppetized host v14 */
+                "cloud_href": "/api/clouds/2", /* Ireland */
+                "ssh_key_href": "/api/clouds/2/ssh_keys/ONNUTU12MKUJ",
+                "subnet_hrefs": [
+                  "/api/clouds/2/subnets/102JK4SB4QVB2", /* Private A */
+                  "/api/clouds/2/subnets/6GG4UA8K1DM7M", /* Private B */
+                  "/api/clouds/2/subnets/93AF1DV6JHE7F", /* Private C */
+                ],
+                "security_group_hrefs": [ "/api/clouds/2/security_groups/BRDE7T8G8G5CD" /* default */ ]
+            },
+            "deployment_href": "/api/deployments/327789001", /* Development */
+            "elasticity_params": {
+                "bounds": { "min_count": 1, "max_count": 1 },
+                "pacing": { "resize_up_by": 1, "resize_down_by": 1, "resize_calm_time": 30},
+                "alert_specific_params": { "decision_threshold": 51 }
+            },
+            "datacenter_policy": [
+            {"datacenter_href": "/api/clouds/2/datacenters/8V9I36LTCUGP8",
+                "max": 10,
+                "weight": 33
+            },
+            {"datacenter_href": "/api/clouds/2/datacenters/7SA5NK31GGAU6",
+                "max": 10,
+                "weight": 33
+            },
+            {"datacenter_href": "/api/clouds/2/datacenters/C9RAKO60MLH4N",
+                "max": 10,
+                "weight": 34
+            }
+            ]
+        }
+    }
+}

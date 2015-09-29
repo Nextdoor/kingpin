@@ -361,7 +361,8 @@ class Create(CloudFormationBaseActor):
         # If we're in dry mode, exit at this point. We can't do anything
         # further to validate that the creation process will work.
         if self._dry:
-            self.log.info('Skipping CloudFormation Stack creation.')
+            self.log.info('Would create CF Stack with the following params: '
+                          '%s' % self.option('parameters'))
             raise gen.Return()
 
         # Create the stack

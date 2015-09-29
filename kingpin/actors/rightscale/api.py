@@ -60,6 +60,7 @@ import rightscale
 import simplejson
 
 from kingpin import utils
+from kingpin.actors import exceptions
 from kingpin.actors.rightscale import settings
 
 log = logging.getLogger(__name__)
@@ -284,7 +285,14 @@ class RightScale(object):
         Returns:
             The Rightscale Resource itself
         """
-        return res.create(params=params)
+        try:
+            return res.create(params=params)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 422:
+                log.critical('[RightScale API] HTTP Error 422: %s' % (
+                    e.response._content))
+                raise exceptions.UnrecoverableActorFailure(e)
+            raise
 
     @concurrent.run_on_executor
     @utils.exception_logger
