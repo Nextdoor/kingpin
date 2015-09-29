@@ -200,6 +200,16 @@ class Clone(DeploymentBaseActor):
                 self.log.info('Found %s arrays' % len(arrays))
                 for a in arrays:
                     self.log.info('Would delete %s' % a.soul['name'])
+            if self.option('rename_servers'):
+                servers = dep.servers.show()
+                self.log.info('Found %s servers' % len(servers))
+                for s in servers:
+                    self.log.info('Would rename %s' % s.soul['name'])
+
+                arrays = dep.server_arrays.show()
+                self.log.info('Found %s arrays' % len(arrays))
+                for a in arrays:
+                    self.log.info('Would rename %s' % a.soul['name'])
 
             raise gen.Return()
 
@@ -221,6 +231,29 @@ class Clone(DeploymentBaseActor):
             for a in arrays:
                 self.log.info('Deleting %s' % a.soul['name'])
                 yield self._client.destroy_resource(a)
+
+            self.log.info('Done deleting servers and arrays.')
+        if self.option('rename_servers'):
+            servers = newdep.servers.show()
+            self.log.info('Found %s servers' % len(servers))
+            for s in servers:
+                new_name = '%s-%s-%s' % (
+                    self.option('rename_servers')['prefix'],
+                    s.soul['name'],
+                    self.option('rename_servers')['suffix'])
+                self.log.info('Renaming %s => %s' % (s.soul['name'], new_name))
+                yield self._client.update(s, {'server[name]': new_name})
+
+            arrays = newdep.server_arrays.show()
+            self.log.info('Found %s arrays' % len(arrays))
+            for a in arrays:
+                self.log.info('Deleting %s' % a.soul['name'])
+                new_name = '%s-%s-%s' % (
+                    self.option('rename_servers')['prefix'],
+                    a.soul['name'],
+                    self.option('rename_servers')['suffix'])
+                self.log.info('Renaming %s => %s' % (a.soul['name'], new_name))
+                yield self._client.update(a, {'server_array[name]': new_name})
 
             self.log.info('Done deleting servers and arrays.')
 
