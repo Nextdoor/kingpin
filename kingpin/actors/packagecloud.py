@@ -89,7 +89,7 @@ class PackagecloudBase(base.BaseActor):
             raise exceptions.InvalidCredentials(
                 'Missing the "PACKAGECLOUD_TOKEN" environment variable.')
 
-        rest_client = api.RestClient()
+        rest_client = api.RestClient(timeout=120)
         self._packagecloud_client = PackagecloudAPI(client=rest_client)
 
     @gen.coroutine
