@@ -159,8 +159,8 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             # First, lets see if the stack is still in progress (either
             # creation, deletion, or rollback .. doesn't really matter)
             if stack.stack_status in IN_PROGRESS:
-                self.log.info('Stack is in %s, waiting %s(s)...' %
-                              (stack.stack_status, sleep))
+                self.log.info('%s: %s.' %
+                              (stack.stack_name, stack.stack_status))
                 yield utils.tornado_sleep(sleep)
                 continue
 
@@ -375,6 +375,223 @@ class Create(CloudFormationBaseActor):
         raise gen.Return()
 
 
+class Update(CloudFormationBaseActor):
+
+    """Updates a CloudFormation stack.
+
+    Updates a CloudFormation stack from scratch and waits until the stack is
+    fully built before exiting the actor.
+
+    **Options**
+
+    :capabilities:
+      A list of CF capabilities to add to the stack.
+
+    :disable_rollback:
+      Set to True to disable rollback of the stack if creation failed.
+
+    :name:
+      The name of the queue to create
+
+    :parameters:
+      A dictionary of key/value pairs used to fill in the parameters for the
+      CloudFormation template.
+
+    :region:
+      AWS region (or zone) string, like 'us-west-2'
+
+    :template:
+      String of path to CloudFormation template. Can either be in the form of a
+      local file path (ie, `./my_template.json`) or a URI (ie
+      `https://my_site.com/cf.json`).
+
+    :timeout_in_minutes:
+      The amount of time that can pass before the stack status becomes
+      CREATE_FAILED.
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "desc": "Update production backend stack",
+         "actor": "aws.cloudformation.Update",
+         "options": {
+           "capabilities": [ "CAPABILITY_IAM" ],
+           "disable_rollback": true,
+           "name": "%CF_NAME%",
+           "parameters": {
+             "test_param": "%TEST_PARAM_NAME%",
+           },
+           "region": "us-west-1",
+           "template": "/examples/cloudformation_test.json",
+           "timeout_in_minutes": 45,
+         }
+       }
+
+    **Dry Mode**
+
+    Validates the template.
+    """
+
+    all_options = {
+        'capabilities': (list, [],
+                         'The list of capabilities that you want to allow '
+                         'in the stack'),
+        'disable_rollback': (bool, False,
+                             'Set to `True` to disable rollback of the stack '
+                             'if stack creation failed.'),
+        'name': (str, REQUIRED, 'Name of the stack'),
+        'parameters': (dict, {}, 'Parameters passed into the CF '
+                                 'template execution'),
+        'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
+        'template': (str, REQUIRED,
+                     'Path to the AWS CloudFormation File. http(s)://, '
+                     'file:///, absolute or relative file paths.'),
+        'timeout_in_minutes': (int, 60,
+                               'The amount of time that can pass before the '
+                               'stack status becomes CREATE_FAILED'),
+    }
+
+    def __init__(self, *args, **kwargs):
+        """Initialize our object variables."""
+        super(Update, self).__init__(*args, **kwargs)
+
+        # Check if the supplied CF template is a local file. If it is, read it
+        # into memory.
+        (self._template_body, self._template_url) = self._get_template_body(
+            self.option('template'))
+
+    def _get_template_body(self, template):
+        """Reads in a local template file and returns the contents.
+
+        If the template string supplied is a local file resource (has no
+        URI prefix), then this method will return the contents of the file.
+        Otherwise, returns None.
+
+        Args:
+            template: String with a reference to a template location.
+
+        Returns:
+            One tuple of:
+              (Contents of template file, None)
+              (None, URL of template)
+
+        Raises:
+            InvalidTemplate
+        """
+        remote_types = ('http://', 'https://')
+
+        if template.startswith(remote_types):
+            return (None, template)
+
+        try:
+            # TODO: leverage self.readfile()
+            return (open(template, 'r').read(), None)
+        except IOError as e:
+            raise InvalidTemplate(e)
+
+    @gen.coroutine
+    def _validate_template(self):
+        """Validates the CloudFormation template.
+
+        Raises:
+            InvalidTemplate
+            exceptions.InvalidCredentials
+        """
+        if self._template_body is not None:
+            self.log.info('Validating template with AWS...')
+        else:
+            self.log.info('Validating template (%s) with AWS...' %
+                          self._template_url)
+
+        try:
+            yield self.thread(
+                self.cf_conn.validate_template,
+                template_body=self._template_body,
+                template_url=self._template_url)
+        except BotoServerError as e:
+            msg = '%s: %s' % (e.error_code, e.message)
+
+            if e.status == 400:
+                raise InvalidTemplate(msg)
+
+            raise
+
+    @gen.coroutine
+    def _update_stack(self):
+        """Executes the stack creation."""
+        # Update the stack, and get its ID.
+        self.log.info('Updating stack %s' % self.option('name'))
+        try:
+            stack_id = yield self.thread(
+                self.cf_conn.update_stack,
+                self.option('name'),
+                template_body=self._template_body,
+                template_url=self._template_url,
+                parameters=self.option('parameters').items(),
+                disable_rollback=self.option('disable_rollback'),
+                timeout_in_minutes=self.option('timeout_in_minutes'),
+                capabilities=self.option('capabilities'))
+        except BotoServerError as e:
+            msg = '%s: %s' % (e.error_code, e.message)
+
+            if e.status == 400:
+                raise CloudFormationError(msg)
+
+            raise
+
+        self.log.info('Stack %s updated: %s' % (self.option('name'), stack_id))
+        raise gen.Return(stack_id)
+
+    @gen.coroutine
+    def _execute(self):
+        stack_name = self.option('name')
+
+        yield self._validate_template()
+
+        existing = yield self._get_stack(stack_name)
+        if not existing:
+            raise StackAlreadyExists('Stack %s not found!' % stack_name)
+
+        # If we're in dry mode, exit at this point. We can't do anything
+        # further to validate that the creation process will work.
+        if self._dry:
+            self.log.info('Skipping CloudFormation Stack creation.')
+            raise gen.Return()
+
+        # Update the stack
+        yield self._update_stack()
+
+        # Now wait until the stack creation has finished
+        yield self._wait_until_state(COMPLETE)
+
+        raise gen.Return()
+
+
+class CreateOrUpdate(CloudFormationBaseActor):
+
+    @gen.coroutine
+    def _execute(self):
+        stack_name = self.option('name')
+
+        existing = yield self._get_stack(stack_name)
+        if not existing:
+            Helper = Create
+        else:
+            Helper = Update
+
+        act = Helper(desc=self._desc,
+                     options=self._options,
+                     dry=self._dry,
+                     warn_on_failure=self._warn_on_failure,
+                     condition=self._condition,
+                     init_context=self._init_context,
+                     timeout=self._timeout)
+        yield act.execute()
+
+
+
+
 class Delete(CloudFormationBaseActor):
 
     """Deletes a CloudFormation stack
@@ -392,7 +609,7 @@ class Delete(CloudFormationBaseActor):
     .. code-block:: json
 
        { "desc": "Delete production backend stack",
-         "actor": "aws.cloudformation.Create",
+         "actor": "aws.cloudformation.Delete",
          "options" {
            "region": "us-west-1",
            "name": "%CF_NAME%",
@@ -414,7 +631,7 @@ class Delete(CloudFormationBaseActor):
     @gen.coroutine
     def _delete_stack(self):
         """Executes the stack deletion."""
-        # Create the stack, and get its ID.
+        # Delete the stack, and get its ID.
         self.log.info('Deleting stack %s' % self.option('name'))
         try:
             ret = yield self.thread(
