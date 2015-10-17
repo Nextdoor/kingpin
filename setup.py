@@ -158,7 +158,7 @@ setup(
     setup_requires=[],
     install_requires=open('%s/requirements.txt' % DIR).readlines(),
     dependency_links=[
-        'https://github.com/diranged/python-rightscale-1/tarball/fix_find_server_array#egg=python-rightscale-0.1.5'
+        'https://github.com/diranged/python-rightscale-1/tarball/fix_timeout_on_all_api_calls#egg=python-rightscale-0.1.6'
     ],
     entry_points={
         'console_scripts': [
