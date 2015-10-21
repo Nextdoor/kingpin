@@ -44,7 +44,7 @@ class IntegrationCreate(testing.AsyncTestCase):
     bucket_name = 'kingpin-%s' % UUID
 
     @attr('integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=600)
     def integration_01_create_stack(self):
         actor = cloudformation.Create(
             'Create Stack',
