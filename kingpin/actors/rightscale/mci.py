@@ -79,6 +79,33 @@ class Create(MCIBaseActor):
     :user_data:
       The custom user data to pass to the instance on-bootup.
       (*optional*)
+
+    **Examples**
+
+    .. code-block:: json
+
+        { "actor": "rightscale.mci.Create",
+          "desc": "Create an MCI",
+          "options": {
+              "name": "Ubuntu i386 14.04",
+              "description": "this is our test mci",
+              "images": [
+                {
+                    "cloud": "EC2 us-west-2",
+                    "image": "ami-e29774d1",
+                    "instance_type": "m1.small",
+                    "user_data": "cd /bin/bash"
+                },
+                {
+                    "cloud": "EC2 us-west-1",
+                    "image": "ami-b58142f1",
+                    "instance_type": "m1.small",
+                    "user_data": "cd /bin/bash"
+                }
+              ]
+          }
+        }
+
     """
 
     all_options = {
@@ -229,6 +256,18 @@ class Destroy(MCIBaseActor):
 
     :name:
       The name of the multi cloud image to be deleted.
+
+    **Examples**
+
+    .. code-block:: json
+
+        { "actor": "rightscale.mci.Destroy",
+          "desc": "Create an MCI",
+          "options": {
+              "name": "Ubuntu i386 14.04",
+          }
+        }
+
     """
 
     all_options = {
