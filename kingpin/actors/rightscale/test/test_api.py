@@ -116,7 +116,7 @@ class TestRightScale(testing.AsyncTestCase):
         ret = yield self.client.find_by_name_and_keys(
             collection=mock.MagicMock(), exact=True,
             name='FakeResource', href='/123')
-        self.assertEquals(ret, None)
+        self.assertEquals(ret, [])
 
         # Now create a fake Rightscale resource collection object.
         collection = mock.MagicMock(name='collection')

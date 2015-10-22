@@ -243,7 +243,7 @@ class RightScale(object):
             **kwargs: Any additional keys-and-values to use in the search.
 
         Returns:
-            RightScale Resource Objects
+            One RightScale Resource Object or a List of objects.
         """
         filter_keys = []
         for key, val in kwargs.items():
@@ -255,7 +255,7 @@ class RightScale(object):
             return found
 
         if len(found) < 1:
-            return None
+            return []
 
         if len(found) == 1:
             return found[0]
