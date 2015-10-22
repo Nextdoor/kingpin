@@ -65,27 +65,6 @@ class IntegrationAlerts(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration', 'dry')
-    @testing.gen_test(timeout=60)
-    def integration_01b_create_alert_with_bogus_inputs(self):
-        actor = alerts.Create(
-            'Create alert: %s' % self.test_alert_name,
-            {'array': self.template_array,
-             'strict_array': False,
-             'condition': '>',
-             'description': 'Integration test alert',
-             'duration': 180,
-             'vote_tag': 'test',
-             'vote_type': 'grow',
-             'file': 'interface/if_octets-eth0',
-             'name': 'test alert',
-             'threshold': 'xyz',  # bogus input
-             'variable': 'rx'
-             })
-
-        with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield actor.execute()
-
     @attr('integration')
     @testing.gen_test(timeout=60)
     def integration_02a_create_alert(self):
