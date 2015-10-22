@@ -107,19 +107,23 @@ class TestRightScale(testing.AsyncTestCase):
             self.assertEquals(None, ret)
 
     @testing.gen_test
-    def test_find_bu_name_and_keys(self):
+    def test_find_by_name_and_keys(self):
         # Create a single object that we'll return in our search
         res_mock = mock.MagicMock(name='FakeResource')
         res_mock.soul = {'name': 'FakeResource'}
-        fake_return = [res_mock]
 
-        # Now create a fake Rightscale resource collection object and make sure
-        # that its index() method returns the fake_return value above
+        # Do a search, but return nothing.
+        ret = yield self.client.find_by_name_and_keys(
+            collection=mock.MagicMock(), exact=True,
+            name='FakeResource', href='/123')
+        self.assertEquals(ret, [])
+
+        # Now create a fake Rightscale resource collection object.
         collection = mock.MagicMock(name='collection')
-        collection.index.return_value = fake_return
 
         # Do a search for a single resource with an additional keyword argument
         # passed in to the search
+        collection.index.return_value = [res_mock]
         ret = yield self.client.find_by_name_and_keys(
             collection=collection, exact=True,
             name='FakeResource', href='/123')
@@ -128,13 +132,26 @@ class TestRightScale(testing.AsyncTestCase):
             params={'filter[]': ['href==/123', 'name==FakeResource']})
         collection.reset_mock()
 
+        # Same search -- but we return two resources instead of one. We should
+        # get both back.
+        collection.index.return_value = [res_mock, res_mock]
+        ret = yield self.client.find_by_name_and_keys(
+            collection=collection, exact=True,
+            name='FakeResource', href='/123')
+        self.assertEquals(ret, [res_mock, res_mock])
+        collection.index.assert_called_once_with(
+            params={'filter[]': ['href==/123', 'name==FakeResource']})
+        collection.reset_mock()
+
         # Now do the same search, but with exact=False
+        collection.index.return_value = [res_mock]
         ret = yield self.client.find_by_name_and_keys(
             collection=collection, exact=False,
             name='FakeResource', href='/123')
         self.assertEquals(ret, [res_mock])
         collection.index.assert_called_once_with(
             params={'filter[]': ['href==/123', 'name==FakeResource']})
+        collection.reset_mock()
 
     @testing.gen_test
     def test_destroy_resource(self):

@@ -194,4 +194,4 @@ class RightScaleBaseActor(base.BaseActor):
 
             return items
 
-        return flatten(params)
+        return sorted(flatten(params))

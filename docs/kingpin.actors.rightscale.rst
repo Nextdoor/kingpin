@@ -28,3 +28,10 @@ Server Arrays
    :noindex:
    :members:
    :exclude-members: ArrayNotFound, ArrayAlreadyExists, InvalidInputs, TaskExecutionFailed, ServerArrayBaseActor
+
+Multi Cloud Images
+^^^^^^^^^^^^^^^^^^
+.. automodule:: kingpin.actors.rightscale.mci
+   :noindex:
+   :members:
+   :exclude-members: MCIBaseActor

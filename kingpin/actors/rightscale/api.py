@@ -227,7 +227,7 @@ class RightScale(object):
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
     @utils.exception_logger
-    def find_by_name_and_keys(self, collection, name, exact=True, **kwargs):
+    def find_by_name_and_keys(self, collection, exact=True, **kwargs):
         """Search for a RightScale resource by name, and optional keys.
 
         This code is blatently stolen from rightscale.util.find_by_name and
@@ -238,27 +238,29 @@ class RightScale(object):
 
         Args:
             collection: RightScale.<xxx> resource object
-            name: Name of the resource to search for
             exact: If True, returns the first match. If False, returns a list
                 of all returned resources.
             **kwargs: Any additional keys-and-values to use in the search.
 
         Returns:
-            RightScale Resource Objects
+            One RightScale Resource Object or a List of objects.
         """
         filter_keys = []
-        kwargs['name'] = name
         for key, val in kwargs.items():
             filter_keys.append('%s==%s' % (key, val))
-        params = {'filter[]': filter_keys}
+        params = {'filter[]': sorted(filter_keys)}
 
         found = collection.index(params=params)
         if not exact and len(found) > 0:
             return found
 
-        for f in found:
-            if f.soul['name'] == name:
-                return f
+        if len(found) < 1:
+            return []
+
+        if len(found) == 1:
+            return found[0]
+
+        return found
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
