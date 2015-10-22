@@ -44,7 +44,7 @@ class Create(MCIBaseActor):
     """Creates a RightScale Multi Cloud Image.
 
     Options match the documentation in RightScale:
-    http://reference.rightscale.com/api1.5/resources/ResourceDeployments.html
+    http://reference.rightscale.com/api1.5/resources/ResourceMultiCloudImages.html
 
     **Options**
 
