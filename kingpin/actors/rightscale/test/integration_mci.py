@@ -27,7 +27,7 @@ class IntegrationMCI(testing.AsyncTestCase):
         ]
 
     @attr('integration', 'dry')
-    @testing.gen_test()
+    @testing.gen_test(timeout=60)
     def integration_01a_create_mci_dry(self):
         actor = mci.Create('Integ. Test',
                            {'name': self.mci_name,
@@ -44,7 +44,7 @@ class IntegrationMCI(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('integration', 'dry')
-    @testing.gen_test()
+    @testing.gen_test(timeout=60)
     def integration_02a_destroy_mci_dry(self):
         actor = mci.Destroy('Integ. Test',
                             {'name': self.mci_name},
