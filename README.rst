@@ -1,7 +1,7 @@
 Kingpin: Deployment Automation Engine
 =====================================
 
-|build_status|_ |doc_status|_ |pypi_ver|_ |pypi_download|_
+|build_status|_ |doc_status|_ |pypi_download|_
 
 *Kingpin: the chief element of any system, plan, or the like.*
 
@@ -20,7 +20,5 @@ Documentation is hosted at `https://kingpin.readthedocs.org <https://kingpin.rea
 .. _build_status: https://travis-ci.org/Nextdoor/kingpin
 .. |doc_status| image:: https://readthedocs.org/projects/kingpin/badge/?version=latest
 .. _doc_status: https://kingpin.readthedocs.org
-.. |pypi_ver| image:: https://pypip.in/d/kingpin/badge.png
-.. _pypi_ver: https://pypi.python.org/pypi/kingpin
 .. |pypi_download| image:: https://badge.fury.io/py/kingpin.png
 .. _pypi_download: https://pypi.python.org/pypi/kingpin
