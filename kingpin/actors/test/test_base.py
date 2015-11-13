@@ -96,7 +96,7 @@ class TestBaseActor(testing.AsyncTestCase):
         # Set our timeout to 2s, test should work
         self.actor._timeout = 1
         yield self.actor.timeout(_execute)
-        tracker.assert_has_calls(mock.call.call_me())
+        tracker.assert_has_calls([mock.call.call_me()])
 
         # Now set our timeout to 500ms. Exception should be raised, and the
         # tracker should NOT be called.
