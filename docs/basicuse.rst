@@ -151,7 +151,7 @@ Example usage:
 JSON Commenting
 '''''''''''''''
 
-Because these JSON scripts can get quite large, Kingping leverages the
+Because these JSON scripts can get quite large, Kingpin leverages the
 ``demjson`` package to parse your script. This package is slightly more graceful
 when handling syntax issues (extra commas, for example), and allows for
 JavaScript style commenting inside of the script.
