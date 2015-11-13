@@ -341,7 +341,7 @@ ability to define usable tokens, but any actor can then reference these tokens.
 Contextual tokens stored in separate file
 '''''''''''''''''''''''''''''''''''''''''
 
-When multiple Kingping JSON files need to leverage the same context for
+When multiple Kingpin JSON files need to leverage the same context for
 different purposes it is useful to put the contexts into a stand alone file and
 then reference that file. Context files support `token-replacement`_ just like
 :py:mod:`misc.Macro` actor. See example below.
