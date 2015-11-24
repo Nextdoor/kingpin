@@ -955,19 +955,10 @@ class Launch(ServerArrayBaseActor):
         # Base class does everything to set up a generic class
         super(Launch, self).__init__(*args, **kwargs)
 
-        # Either enable the array (and launch min_count) or
-        # specify the exact count of instances to launch.
-        enabled = self._options.get('enable', False)
-
         try:
-            count_specified = int(self._options.get('count', False))
+            int(self._options.get('count', False))
         except ValueError:
             raise exceptions.InvalidOptions('`count` must be an integer.')
-
-        if not (enabled or count_specified):
-            raise exceptions.InvalidOptions(
-                'Either set the `enable` flag to true, or '
-                'specify an integer for `count`.')
 
     @gen.coroutine
     def _wait_until_healthy(self, array, sleep=60):
