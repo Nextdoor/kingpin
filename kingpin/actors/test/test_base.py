@@ -264,8 +264,10 @@ class TestBaseActor(testing.AsyncTestCase):
         self.actor = base.BaseActor(
             desc='Unit Test Action - {NAME}',
             options={'test_opt': 'Foo bar'},
+            condition='{NAME}',
             init_context={'NAME': 'TEST'})
         self.assertEquals('Unit Test Action - TEST', self.actor._desc)
+        self.assertEquals('TEST', self.actor._condition)
 
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor = base.BaseActor(
@@ -277,6 +279,13 @@ class TestBaseActor(testing.AsyncTestCase):
             self.actor = base.BaseActor(
                 desc='Unit Test Action - {NAME}',
                 options={},
+                init_context={})
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor = base.BaseActor(
+                desc='Unit Test Action',
+                options={'test_opt': 'Foo bar'},
+                condition='{NAME}',
                 init_context={})
 
         # Reset the all options so we dont break other tests
