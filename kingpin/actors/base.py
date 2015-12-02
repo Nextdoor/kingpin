@@ -327,6 +327,8 @@ class BaseActor(object):
             value = self._condition
             check = bool(value)
 
+        self.log.debug('Condition %s evaluates to %s' % (
+            self._condition, check))
         return check
 
     def _fill_in_contexts(self, context={}, strict=True):
@@ -344,6 +346,7 @@ class BaseActor(object):
         Raises:
             exceptions.InvalidOptions
         """
+        # Inject contexts into Description
         try:
             self._desc = utils.populate_with_tokens(
                 self._desc,
@@ -353,6 +356,18 @@ class BaseActor(object):
                 strict=strict)
         except LookupError as e:
             msg = 'Context for description failed: %s' % e
+            raise exceptions.InvalidOptions(msg)
+
+        # Inject contexts into condition
+        try:
+            self._condition = utils.populate_with_tokens(
+                str(self._condition),
+                context,
+                self.left_context_separator,
+                self.right_context_separator,
+                strict=strict)
+        except LookupError as e:
+            msg = 'Context for condition failed: %s' % e
             raise exceptions.InvalidOptions(msg)
 
         # Convert our self._options dict into a string for fast parsing
