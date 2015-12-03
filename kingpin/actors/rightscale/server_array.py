@@ -83,6 +83,58 @@ class ServerArrayBaseActor(base.RightScaleBaseActor):
         raise gen.Return(ret)
 
 
+class Create(ServerArrayBaseActor):
+
+    """Creates a RightScale Server Array.
+
+    **Options**
+
+    :name:
+      The new name for your cloned ServerArray
+
+    **Examples**
+
+    Create my-new-array:
+
+    .. code-block:: json
+
+       { "desc": "Create my array",
+         "actor": "rightscale.server_array.Create",
+         "options": {
+           "name": "my-new-array"
+         }
+       }
+    """
+
+    all_options = {
+        'params': (dict, REQUIRED, 'Parameters required by the RS API call.')
+    }
+
+    @gen.coroutine
+    def _execute(self):
+
+        array_name = self.option('params')['name']
+
+        exists = yield self._find_server_arrays(
+            array_name, allow_mock=False, raise_on=None)
+        if exists:
+            raise exceptions.InvalidOptions(
+                'Array %s alredy exists.' % array_name)
+
+        params = self._generate_rightscale_params('server_array',
+                                                  self.option('params'))
+
+        self.log.info('Creating a new array: %s' % array_name)
+        self.log.debug('Params: %s' % params)
+
+        if not self._dry:
+            yield self._client.create_resource(
+                self._client._client.server_arrays, params)
+            self.log.info('Created %s' % array_name)
+        else:
+            self.log.info('Would create %s' % array_name)
+
+
 class Clone(ServerArrayBaseActor):
 
     """Clones a RightScale Server Array.
