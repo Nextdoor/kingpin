@@ -85,7 +85,7 @@ class TestCreateActor(testing.AsyncTestCase):
 
             ret = yield actor._get_image_def(description)
 
-            self.assertEquals(ret, expected_result)
+            self.assertItemsEqual(ret, expected_result)
 
     @testing.gen_test
     def test_get_image_def_unable_to_find_hrefs(self):
