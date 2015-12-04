@@ -130,39 +130,41 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
 
     def test_generate_rightscale_params_with_array(self):
         self.maxDiff = None
-        params = {'name': 'unittest-name',
-                  'status': 'enabled',
-                  'elasticity_params': {
-                      'schedule': [
-                          {'day': 'Sunday', 'max_count': 2,
-                           'min_count': 1, 'time': '07:00'},
-                          {'day': 'Monday', 'max_count': 2,
-                           'min_count': 1, 'time': '07:00'},
-                          {'day': 'Tuesday', 'max_count': 2,
-                           'min_count': 1, 'time': '07:00'}
-                      ]
-                  }}
-        expected_params = [
-            ('server_array[status]', 'enabled'),
-            ('server_array[name]', 'unittest-name'),
+        schedule = [
+            {'day': 'Sunday', 'max_count': 2, 'min_count': 1, 'time': '07:00'},
+            {'day': 'Monday', 'max_count': 2, 'min_count': 1, 'time': '07:00'},
+            {'day': 'Tuesday', 'max_count': 2, 'min_count': 1, 'time': '07:00'}
+        ]
+        params = {
+            'elasticity_params': {'schedule': schedule}
+        }
 
+        expected_params = [[
             ('server_array[elasticity_params][schedule][][day]', 'Sunday'),
             ('server_array[elasticity_params][schedule][][max_count]', 2),
             ('server_array[elasticity_params][schedule][][min_count]', 1),
             ('server_array[elasticity_params][schedule][][time]', '07:00'),
-
+        ], [
             ('server_array[elasticity_params][schedule][][day]', 'Monday'),
             ('server_array[elasticity_params][schedule][][max_count]', 2),
             ('server_array[elasticity_params][schedule][][min_count]', 1),
             ('server_array[elasticity_params][schedule][][time]', '07:00'),
-
+        ], [
             ('server_array[elasticity_params][schedule][][day]', 'Tuesday'),
             ('server_array[elasticity_params][schedule][][max_count]', 2),
             ('server_array[elasticity_params][schedule][][min_count]', 1),
             ('server_array[elasticity_params][schedule][][time]', '07:00')
-        ]
+        ]]
 
         actor = base.RightScaleBaseActor('Unit Test Action', {})
         ret = actor._generate_rightscale_params('server_array', params)
 
-        self.assertItemsEqual(expected_params, ret)
+        # Relevant commit: d403420ccc482f2f91eab0eebd38100b3eff6344
+        # Groups of 4 have to contain all the needed data
+
+        # Break into chunks of 4 items.
+        ret_chunks = zip(*[iter(ret)] * 4)
+
+        self.assertItemsEqual(expected_params[0], ret_chunks[0])
+        self.assertItemsEqual(expected_params[1], ret_chunks[1])
+        self.assertItemsEqual(expected_params[2], ret_chunks[2])
