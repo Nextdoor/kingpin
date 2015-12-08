@@ -319,7 +319,7 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         """Make sure this actor starts all processes in parallel!"""
         sleeper = {'actor': 'misc.Sleep',
                    'desc': 'Sleep',
-                   'options': {'sleep': 0.1}}
+                   'options': {'sleep': 1}}
         actor = group.Async('Unit Test Action', {'acts': [
             sleeper, sleeper, sleeper]})
 
@@ -328,14 +328,14 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         stop = time.time()
         exe_time = stop - start
         # Parallel execution of sleep should not take 3x as long!
-        self.assertTrue(0.1 < exe_time < 0.3,
-                        "Bad exec time. Expected 0.1 < %s < 0.3" % exe_time)
+        self.assertTrue(1 < exe_time < 3,
+                        "Bad exec time. Expected 1 < %s < 3" % exe_time)
 
     @testing.gen_test
     def test_execute_concurrent(self):
         sleeper = {'actor': 'misc.Sleep',
                    'desc': 'Sleep',
-                   'options': {'sleep': 0.1}}
+                   'options': {'sleep': 1}}
         actor = group.Async('Unit Test Action', {
             'concurrency': 2,
             'acts': [sleeper, sleeper, sleeper, sleeper]})
@@ -344,7 +344,7 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         yield actor.execute()
         stop = time.time()
         exe_time = stop - start
-        self.assertTrue(0.2 < exe_time < 0.4)
+        self.assertTrue(2 < exe_time < 4)
 
     @testing.gen_test
     def test_run_actions_with_two_acts(self):

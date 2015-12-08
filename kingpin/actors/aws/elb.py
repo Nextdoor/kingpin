@@ -66,6 +66,78 @@ class ELBBaseActor(base.AWSBaseActor):
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2')
     }
 
+    @gen.coroutine
+    def _check_access(self, elb):
+        """Perform a dummy operation to check credential accesss.
+
+        Intended to be used in a dry run, this method attempts to perform an
+        invalid set_listener call and monitors the output of the error. If the
+        error is anything other than AccessDenied then the provided credentials
+        are sufficient and we do nothing.
+
+        Args:
+            elb: boto LoadBalancer object.
+        """
+        try:
+            # A blank ARN value should have code 'CertificateNotFound'
+            # We're only checking if credentials have sufficient access
+            yield self.thread(
+                elb.set_listener_SSL_certificate,
+                self.option('port'),
+                '')
+        except BotoServerError as e:
+            if e.error_code == 'AccessDenied':
+                raise exceptions.InvalidCredentials(e)
+
+    @gen.coroutine
+    def _use_cert(self, elb, arn, port):
+        """Assign an ssl cert to a given ELB.
+
+        Args:
+            elb: boto elb object.
+            arn: ARN for server certificate to use.
+        """
+
+        self.log.info('Setting ELB "%s" to use cert arn: %s' % (elb, arn))
+        try:
+            yield self.thread(
+                elb.set_listener_SSL_certificate, port, arn)
+        except BotoServerError as e:
+            raise exceptions.RecoverableActorFailure(
+                'Applying new SSL cert to %s failed: %s' % (elb, e))
+
+    @gen.coroutine
+    def _get_cert_arn(self, name):
+        """Return a server_certificate ARN.
+
+        Searches for a certificate object and returns the "ARN" value.
+
+        Args:
+            name: certificate name
+
+        Raises:
+            CertNotFound - if the name doesn't match an existing cert.
+
+        Returns:
+            string: the ARN value of the certificate
+        """
+
+        self.log.debug('Searching for cert "%s"...' % name)
+        try:
+            cert = yield self.thread(
+                self.iam_conn.get_server_certificate, name)
+        except BotoServerError as e:
+            raise CertNotFound(
+                'Could not find cert %s. Reason: %s' % (name, e))
+
+        # Get the ARN of this cert
+        arn = cert['get_server_certificate_response'].get(
+            'get_server_certificate_result').get(
+            'server_certificate').get(
+            'server_certificate_metadata').get('arn')
+
+        raise gen.Return(arn)
+
 
 class WaitUntilHealthy(ELBBaseActor):
 
@@ -255,78 +327,6 @@ class SetCert(ELBBaseActor):
         'cert_name': (str, REQUIRED, 'Unique IAM certificate name, or ARN'),
     }
 
-    @gen.coroutine
-    def _check_access(self, elb):
-        """Perform a dummy operation to check credential accesss.
-
-        Intended to be used in a dry run, this method attempts to perform an
-        invalid set_listener call and monitors the output of the error. If the
-        error is anything other than AccessDenied then the provided credentials
-        are sufficient and we do nothing.
-
-        Args:
-            elb: boto LoadBalancer object.
-        """
-        try:
-            # A blank ARN value should have code 'CertificateNotFound'
-            # We're only checking if credentials have sufficient access
-            yield self.thread(
-                elb.set_listener_SSL_certificate,
-                self.option('port'),
-                '')
-        except BotoServerError as e:
-            if e.error_code == 'AccessDenied':
-                raise exceptions.InvalidCredentials(e)
-
-    @gen.coroutine
-    def _get_cert_arn(self, name):
-        """Return a server_certificate ARN.
-
-        Searches for a certificate object and returns the "ARN" value.
-
-        Args:
-            name: certificate name
-
-        Raises:
-            CertNotFound - if the name doesn't match an existing cert.
-
-        Returns:
-            string: the ARN value of the certificate
-        """
-
-        self.log.debug('Searching for cert "%s"...' % name)
-        try:
-            cert = yield self.thread(
-                self.iam_conn.get_server_certificate, name)
-        except BotoServerError as e:
-            raise CertNotFound(
-                'Could not find cert %s. Reason: %s' % (name, e))
-
-        # Get the ARN of this cert
-        arn = cert['get_server_certificate_response'].get(
-            'get_server_certificate_result').get(
-            'server_certificate').get(
-            'server_certificate_metadata').get('arn')
-
-        raise gen.Return(arn)
-
-    @gen.coroutine
-    def _use_cert(self, elb, arn):
-        """Assign an ssl cert to a given ELB.
-
-        Args:
-            elb: boto elb object.
-            arn: ARN for server certificate to use.
-        """
-
-        self.log.info('Setting ELB "%s" to use cert arn: %s' % (elb, arn))
-        try:
-            yield self.thread(
-                elb.set_listener_SSL_certificate, self.option('port'), arn)
-        except BotoServerError as e:
-            raise exceptions.RecoverableActorFailure(
-                'Applying new SSL cert to %s failed: %s' % (elb, e))
-
     def _compare_certs(self, elb, new_arn):
         """Check if a given ELB is using a provided ARN for its certificate.
 
@@ -362,7 +362,93 @@ class SetCert(ELBBaseActor):
             self.log.info('Would instruct %s to use %s' % (
                 self.option('name'), self.option('cert_name')))
         else:
-            yield self._use_cert(elb, cert_arn)
+            yield self._use_cert(elb, cert_arn, self.option('port'))
+
+
+class UpdateCert(ELBBaseActor):
+
+    """Update all ELBs that use a certificate to use a new one.
+
+    **Options**
+
+    :region:
+      (str) AWS region (or zone) name, like us-west-2
+
+    :old_cert:
+      (str) Name (or ARN) of the Server Certificate currently in use by ELBs
+
+    :new_cert:
+      (str) Unique IAM certificate name, or ARN
+
+    **Example**
+
+    .. code-block:: json
+
+       { "actor": "aws.elb.UpdateCert",
+         "desc": "Replace old certs",
+         "options": {
+           "old_cert": "cert-soon-to-expire",
+           "new_cert": "awesome-new-cert",
+           "region": "us-west-2"
+         }
+       }
+
+    **Dry run**
+
+    Will check that Cert names are existent, and will also check that the
+    credentials provided for AWS have access to the new cert for ssl.
+    """
+
+    all_options = {
+        'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
+        'old_cert': (str, REQUIRED, 'Unique IAM certificate name, or ARN'),
+        'new_cert': (str, REQUIRED, 'Unique IAM certificate name, or ARN'),
+    }
+
+    def _find_cert_port(self, elb, cert_arn):
+        """Find the port associated with the certificate on this ELB.
+
+        Args:
+            elb: ELB object returned by boto's list get_all_load_balancers.
+            cert_arn: ARN of the cert to find.
+
+        Returns:
+            int: of the port if found.
+            False: if no listener is using specified certificate.
+        """
+
+        for lis in elb.listeners:
+            ssl_arn = lis[4]
+            port = lis[0]
+            if ssl_arn == cert_arn:
+                return port
+
+        return False
+
+    @gen.coroutine
+    def _execute(self):
+        """Find ELB, and a Cert, then apply it."""
+
+        elbs = yield self.thread(self.elb_conn.get_all_load_balancers)
+        old_cert = yield self._get_cert_arn(self.option('old_cert'))
+        new_cert = yield self._get_cert_arn(self.option('new_cert'))
+
+        tasks = []
+
+        for elb in elbs:
+            self.log.info('Considering %s' % elb)
+            port_with_ssl = self._find_cert_port(elb, old_cert)
+
+            if port_with_ssl:
+                self.log.info('ELB %s is using old cert.' % elb)
+                if self._dry:
+                    tasks.append(self._check_access(elb))
+                    self.log.info('Would instruct %s to use %s' % (
+                        elb, new_cert))
+                else:
+                    tasks.append(self._use_cert(elb, new_cert, port_with_ssl))
+
+        yield tasks
 
 
 class RegisterInstance(base.AWSBaseActor):

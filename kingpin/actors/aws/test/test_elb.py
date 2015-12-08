@@ -326,6 +326,60 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
         self.assertTrue(val)
 
 
+class TestUpdateCert(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestUpdateCert, self).setUp()
+        settings.AWS_ACCESS_KEY_ID = 'unit-test'
+        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        reload(elb_actor)
+
+    @testing.gen_test
+    def test_port_found(self):
+        actor = elb_actor.UpdateCert(
+            'Unit Test', {'old_cert': 'unit-old',
+                          'region': 'us-east-1',
+                          'new_cert': 'unit-cert'}
+            )
+
+        elb = mock.Mock()
+        elb.listeners = (['port_found', '', '', '', 'arn:stuff'],)
+
+        port = actor._find_cert_port(elb, 'arn:stuff')
+        self.assertEquals(port, 'port_found')
+
+    @testing.gen_test
+    def test_port_not_found(self):
+        actor = elb_actor.UpdateCert(
+            'Unit Test', {'old_cert': 'unit-old',
+                          'region': 'us-east-1',
+                          'new_cert': 'unit-cert'}
+            )
+
+        elb = mock.Mock()
+        elb.listeners = (['port_found', '', '', '', 'arn:stuff'],)
+
+        port = actor._find_cert_port(elb, 'arn:stuff:wrong')
+        self.assertEquals(port, False)
+
+    @testing.gen_test
+    def test_execute(self):
+        actor = elb_actor.UpdateCert(
+            'Unit Test', {'old_cert': 'unit-old',
+                          'region': 'us-east-1',
+                          'new_cert': 'unit-cert'}
+            )
+
+        elb = mock.Mock()
+        elb.listeners = (['port_found', '', '', '', 'arn:stuff'],)
+        actor.elb_conn.get_all_load_balancers = mock.Mock(return_value=[elb])
+        actor._get_cert_arn = helper.mock_tornado('rawr')
+        actor._find_cert_port = mock.Mock()
+        actor._use_cert = helper.mock_tornado()
+        yield actor._execute()
+
+
 class TestSetCert(testing.AsyncTestCase):
 
     def setUp(self):
@@ -407,13 +461,13 @@ class TestSetCert(testing.AsyncTestCase):
             )
         elb = mock.Mock()
 
-        yield actor._use_cert(elb, 'test')
+        yield actor._use_cert(elb, 'test', 433)
         self.assertEquals(elb.set_listener_SSL_certificate.call_count, 1)
 
         error = BotoServerError(400, 'test')
         elb.set_listener_SSL_certificate.side_effect = error
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield actor._use_cert(elb, 'test')
+            yield actor._use_cert(elb, 'test', 433)
 
     @testing.gen_test
     def test_execute(self):

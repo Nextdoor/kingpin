@@ -431,7 +431,7 @@ class BaseActor(object):
             recover = isinstance(e, exceptions.RecoverableActorFailure)
             if not recover or not self._warn_on_failure:
                 self.log.critical(e)
-                raise
+                raise e.__class__('%s failed.' % self._desc)
 
             # Otherwise - flag this failure as a warning, and continue
             self.log.warning(e)
