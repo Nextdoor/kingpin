@@ -381,3 +381,30 @@ def create_repeating_log(logger, message, handle=None, **kwargs):
 def clear_repeating_log(handle):
     """Stops the timeout function from being called."""
     ioloop.IOLoop.current().remove_timeout(handle.timeout_id)
+
+
+def get_script_from_args(args):
+    """Creates a proper Kingpin script from the CLI options.
+
+    Args:
+        args: The ArgumentParser object
+    """
+    log.debug('Generating a JSON-script from an ArgumentParser object')
+    config = {
+        'desc': 'Commandline Execution',
+        'actor': args.actor,
+        'options': {}
+    }
+
+    if args.params:
+        for arg in args.params:
+            (key, val) = arg.split('=')
+            config[key] = val
+
+    if args.options:
+        for arg in args.options:
+            (key, val) = arg.split('=')
+            config['options'][key] = val
+
+    log.debug('Generated config object: %s' % config)
+    return str(config)
