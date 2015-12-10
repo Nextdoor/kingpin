@@ -388,6 +388,9 @@ def get_script_from_args(args):
 
     Args:
         args: The ArgumentParser object
+
+    Returns:
+        A JSON-formatted Kingpin script.
     """
     log.debug('Generating a JSON-script from an ArgumentParser object')
     config = {
@@ -407,4 +410,4 @@ def get_script_from_args(args):
             config['options'][key] = val
 
     log.debug('Generated config object: %s' % config)
-    return str(config)
+    return demjson.encode(config)

@@ -24,7 +24,6 @@ from tornado import ioloop
 
 from kingpin import utils
 from kingpin.actors import exceptions as actor_exceptions
-from kingpin.actors import utils as actor_utils
 from kingpin.actors.misc import Macro
 from kingpin.version import __version__
 
@@ -88,7 +87,8 @@ def main():
             json_file = args.json or sys.argv[1] if sys.argv else None
         except Exception as e:
             kingpin_fail(
-                '%s You must specify --json or provide it as first argument.' % e)
+                '%s You must specify --json or provide it as first argument.'
+                % e)
     # Begin doing real stuff!
     if os.environ.get('SKIP_DRY', False):
         log.warn('')
