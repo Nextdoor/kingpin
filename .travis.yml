@@ -3,19 +3,29 @@ python:
   - "2.7"
   - "pypy"
 install:
-- make build
+  - make build
 script: make test
 sudo: false
 before_deploy:
   - make kingpin.zip
 deploy:
-  provider: releases
-  api_key:
-    secure: TMRRd3PeZIRf4wvD2Bh+ykvvBVIztE6M6JE89WBb/CbaIbdUqoDoldYjybYbbXDPPPs+ybVOYZTwMylx6TDy40WsYlzlaabnbTZedvUWDC3GcqD3E4I5XMBVBColP1cKZqHYaa/p23V9QfJFoXCJzGJ5VWOXclj0A0NEvb+oUpU=
-  file: kingpin.zip
-  on:
-    tags: true
-    python: "2.7"
-    all_branches: true
-    condition: "$TRAVIS_TAG =~ ^v[0-9]+.[0-9]+.[0-9]+[a-z]?$"
-    repo: Nextdoor/kingpin
+  - provider: releases
+    api_key:
+      secure: "TMRRd3PeZIRf4wvD2Bh+ykvvBVIztE6M6JE89WBb/CbaIbdUqoDoldYjybYbbXDPPPs+ybVOYZTwMylx6TDy40WsYlzlaabnbTZedvUWDC3GcqD3E4I5XMBVBColP1cKZqHYaa/p23V9QfJFoXCJzGJ5VWOXclj0A0NEvb+oUpU="
+    file: kingpin.zip
+    on:
+      tags: true
+      python: '2.7'
+      all_branches: true
+      condition: $TRAVIS_TAG =~ ^(v[0-9]+.[0-9]+.[0-9]+[a-z]?)|pre_release$
+      repo: Nextdoor/kingpin
+  - provider: pypi
+    user: nextdoor
+    password:
+      secure: "Xi9h1g1AECHV8dzV+Pz0JnD46lFCYkIaX3IYnWjrknbX8KAbcUxvcRmx1NfTxNTI7/jm4Sl0UakEmvG9GFleldLp0vXrxEIqyuZtT3bNlD6xD6SVt4XXZ6lIGFuzVfMhE2FJSkPlqSjKOzEzGSIUwmO3D7ZSqLl7LYBYQKwNslM="
+    on:
+      tags: true
+      python: '2.7'
+      all_branches: true
+      condition: $TRAVIS_TAG =~ ^v[0-9]+.[0-9]+.[0-9]+[a-z]?$
+      repo: Nextdoor/kingpin
