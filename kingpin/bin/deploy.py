@@ -15,7 +15,7 @@
 """CLI Script Runner for Kingpin."""
 
 import logging
-import optparse
+import argparse
 import os
 import sys
 
@@ -38,26 +38,30 @@ __author__ = 'Matt Wise (matt@nextdoor.com)'
 logging.getLogger('boto').setLevel(logging.CRITICAL)
 
 # Initial option handler to set up the basic application environment.
-usage = 'usage: %prog [json file] <options>'
-parser = optparse.OptionParser(usage=usage, version=__version__,
-                               add_help_option=True)
+parser = argparse.ArgumentParser(description='Kingpin v%s' % __version__)
 parser.set_defaults(verbose=True)
 
 # Job Configuration
-parser.add_option('-j', '--json', dest='json',
-                  help='Path to JSON Deployment File')
-parser.add_option('-d', '--dry', dest='dry', action='store_true',
-                  help='Executes a dry run only.')
+parser.add_argument('-j', '--json', dest='json',
+                    help='Path to JSON Deployment File')
+parser.add_argument('-a', '--actor', dest='actor',
+                    help='Name of an Actor to execute (overrides --json)')
+parser.add_argument('-p', '--param', dest='params', action='append',
+                    help='Actor Parameter to set (ie, warn_on_failure=true)')
+parser.add_argument('-o', '--option', dest='options', action='append',
+                    help='Actor Options to set (ie, elb_name=foobar)')
+parser.add_argument('-d', '--dry', dest='dry', action='store_true',
+                    help='Executes a dry run only.')
 
 # Logging Configuration
-parser.add_option('-l', '--level', dest='level', default='info',
-                  help='Set logging level (INFO|WARN|DEBUG|ERROR)')
-parser.add_option('', '--debug', dest='level_debug', default=False,
-                  action='store_true', help='Equivalent to --level=DEBUG')
-parser.add_option('-c', '--color', dest='color', default=False,
-                  action='store_true', help='Colorize the log output')
+parser.add_argument('-l', '--level', dest='level', default='info',
+                    help='Set logging level (INFO|WARN|DEBUG|ERROR)')
+parser.add_argument('-D', '--debug', dest='level_debug', default=False,
+                    action='store_true', help='Equivalent to --level=DEBUG')
+parser.add_argument('-c', '--color', dest='color', default=False,
+                    action='store_true', help='Colorize the log output')
 
-(options, args) = parser.parse_args()
+args = parser.parse_args()
 
 
 def kingpin_fail(message):
@@ -66,16 +70,39 @@ def kingpin_fail(message):
     sys.exit(1)
 
 
-@gen.coroutine
-def main():
-
+def get_main_actor(dry):
     env_tokens = dict(os.environ)
 
+    # Cannot specify a json file an an actor at the same time.
+    if args.json and args.actor:
+        kingpin_fail('You may only specify --actor or --json, not both!')
+
+    if args.actor:
+        ActorClass = utils.str_to_class(args.actor)
+        parameters = dict([i.split('=') for i in args.params])
+        options = dict([i.split('=') for i in args.options])
+
+        return ActorClass(desc='Command Line',
+                          options=options,
+                          dry=dry,
+                          **parameters)
+
+    # Actor not specified. Process JSON file.
     try:
-        json_file = options.json or sys.argv[1] if sys.argv else None
+        json_file = args.json or sys.argv[1] if sys.argv else None
     except Exception as e:
         kingpin_fail(
-            '%s You must specify --json or provide it as first argument.' % e)
+            '%s You must specify --json or provide it as first argument.'
+            % e)
+
+    return Macro(desc='Kingpin',
+                 options={'macro': json_file,
+                          'tokens': env_tokens},
+                 dry=dry)
+
+
+@gen.coroutine
+def main():
 
     # Begin doing real stuff!
     if os.environ.get('SKIP_DRY', False):
@@ -83,29 +110,26 @@ def main():
         log.warn('*** You have disabled the dry run.')
         log.warn('*** Execution will begin with no expectation of success.')
         log.warn('')
-    elif not options.dry:
+    elif not args.dry:
         log.info('Rehearsing... Break a leg!')
+
+        dry_actor = get_main_actor(dry=True)
+
         try:
-            dry_actor = Macro(desc='Kingpin',
-                              options={'macro': json_file,
-                                       'tokens': env_tokens},
-                              dry=True)
             yield dry_actor.execute()
         except actor_exceptions.ActorException as e:
             log.critical('Dry run failed. Reason:')
             log.critical(e)
             sys.exit(2)
-        else:
-            log.info('Rehearsal OK! Performing!')
 
+        log.info('Rehearsal OK! Performing!')
+
+    runner = get_main_actor(dry=args.dry)
+
+    log.info('')
+    log.warn('Lights, camera ... action!')
+    log.info('')
     try:
-        runner = Macro(desc='Kingpin',
-                       options={'macro': json_file,
-                                'tokens': env_tokens},
-                       dry=options.dry)
-        log.info('')
-        log.warn('Lights, camera ... action!')
-        log.info('')
         yield runner.execute()
     except actor_exceptions.ActorException as e:
         log.error('Kingpin encountered mistakes during the play.')
@@ -115,9 +139,9 @@ def main():
 
 def begin():
     # Set up logging before we do anything else
-    if options.level_debug:
-        options.level = 'DEBUG'
-    utils.setup_root_logger(level=options.level, color=options.color)
+    if args.level_debug:
+        args.level = 'DEBUG'
+    utils.setup_root_logger(level=args.level, color=args.color)
 
     try:
         ioloop.IOLoop.instance().run_sync(main)

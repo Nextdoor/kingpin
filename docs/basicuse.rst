@@ -386,3 +386,36 @@ Early Actor Instantiation
 Again, in an effort to prevent mid-run errors, we pre-instantiate all Actor
 objects all at once before we ever begin executing code. This ensures that
 major typos or misconfigurations in the JSON will be caught early on.
+
+Command-line Execution without JSON
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For the simple case of executing a single actor without too many options, you
+are able to pass these options in on the commandline to avoid writing any JSON.
+
+.. code-block:: bash
+
+    $ kingpin --actor misc.Sleep --param warn_on_failure=true --option sleep=5
+    17:54:53   INFO      Rehearsing... Break a leg!
+    17:54:53   INFO      [DRY: Kingpin] Preparing actors from {"actor":"misc.Sleep","desc":"Commandline Execution","options":{"sleep":"5"},"warn_on_failure":"true"}
+    17:54:53   INFO      Rehearsal OK! Performing!
+    17:54:53   INFO      [Kingpin] Preparing actors from {"actor":"misc.Sleep","desc":"Commandline Execution","options":{"sleep":"5"},"warn_on_failure":"true"}
+    17:54:53   INFO
+    17:54:53   WARNING   Lights, camera ... action!
+    17:54:53   INFO
+
+You can stack as many ``--option`` and `--param`` command line options as you wish.
+
+.. code-block:: bash
+
+    $ kingpin --actor misc.Sleep --param warn_on_failure=true --param condition=false --option "sleep=0.1"
+    17:59:46   INFO      Rehearsing... Break a leg!
+    17:59:46   INFO      [DRY: Kingpin] Preparing actors from {"actor":"misc.Sleep","condition":"false","desc":"Commandline Execution","options":{"sleep":"0.1"},"warn_on_failure":"true"}
+    17:59:46   WARNING   [DRY: Commandline Execution] Skipping execution. Condition: false
+    17:59:46   INFO      Rehearsal OK! Performing!
+    17:59:46   INFO      [Kingpin] Preparing actors from {"actor":"misc.Sleep","condition":"false","desc":"Commandline Execution","options":{"sleep":"0.1"},"warn_on_failure":"true"}
+    17:59:46   INFO
+    17:59:46   WARNING   Lights, camera ... action!
+    17:59:46   INFO
+    17:59:46   WARNING   [Commandline Execution] Skipping execution. Condition: false
+
