@@ -464,13 +464,16 @@ class DeregisterInstance(base.AWSBaseActor):
     **Options**
 
     :elb:
-      (str) Name of the ELB
+      (str) Name of the ELB. Optionally this may also be a `*`.
 
     :instances:
       (str, list) Instance id, or list of ids
 
     :region:
       (str) AWS region (or zone) name, like us-west-2
+
+    :wait_on_draining:
+      (bool) Whether or not to wait for connection draining
 
     **Example**
 
@@ -479,9 +482,22 @@ class DeregisterInstance(base.AWSBaseActor):
        { "actor": "aws.elb.DeregisterInstance",
          "desc": "Run DeregisterInstance",
          "options": {
-           "elb": "fill-in",
-           "instances": "fill-in",
-           "region": "fill-in"
+           "elb": "my-webserver-elb",
+           "instances": "i-abcdeft",
+           "region": "us-west-2"
+         }
+       }
+
+    Extremely simple way to remove the local instance running this code from
+    all ELBs its been joined to:
+
+    .. code-block:: json
+
+       { "actor": "aws.elb.DeregisterInstance",
+         "desc": "Run DeregisterInstance",
+         "options": {
+           "elb": "*",
+           "region": "us-west-2"
          }
        }
 
@@ -495,7 +511,10 @@ class DeregisterInstance(base.AWSBaseActor):
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
         'instances': ((str, list), None, (
             'Instance id, or list of ids. If no value is specified then '
-            'the instance id of the executing machine is used.'))
+            'the instance id of the executing machine is used.')),
+        'wait_on_draining': (bool, True, (
+            'Whether or not to wait for the ELB to drain connections '
+            'before returning from the actor.'))
     }
 
     @gen.coroutine
@@ -506,11 +525,65 @@ class DeregisterInstance(base.AWSBaseActor):
             elb: boto Loadbalancer object
             instances: list of instance ids.
         """
-        yield self.thread(elb.deregister_instances, instances)
+        self.log.info(('Removing instances from %s: %s'
+                      % (elb, ', '.join(instances))))
+
+        if not self._dry:
+            yield self.thread(elb.deregister_instances, instances)
+            yield self._wait_on_draining(elb)
+            self.log.info('Done.')
+
+    @gen.coroutine
+    def _wait_on_draining(self, elb):
+        """Waits for the ELB Connection Draining to occur.
+
+        ELB Connection Draining is a configured-setting on the ELB that will
+        continue to allow existing connections to be handeled before finally
+        cutting them off at the timeout. This method will detect if connection
+        draining is enabled, and optionally "sleep" for that time period before
+        returning from the actor.
+
+        Args:
+            elb: boto Loadbalancer object
+        """
+        if not self.option('wait_on_draining'):
+            self.log.warning('Not waiting for connections to drain!')
+
+        attrs = yield self.thread(elb.get_attributes)
+        if attrs.connection_draining.enabled:
+            timeout = attrs.connection_draining.timeout
+
+            self.log.info('Connection Draining Enabled, waiting %s(s)'
+                          % timeout)
+            yield utils.tornado_sleep(timeout)
+
+    @gen.coroutine
+    def _find_instance_elbs(self, instances):
+        """Finds all ELBs that Instances are members of.
+
+        Searches through all of the ELBs in a particular region and looks for
+        which ones have any of the instances supplied in them. Creates a list
+        of the ELBs, and returns the entire list.
+
+        Args:
+            instances: A list of Instance IDs
+
+        Returns:
+            a list of LoadBalancer objects
+        """
+        all_elbs = yield self.thread(self.elb_conn.get_all_load_balancers)
+        elbs_with_members = []
+
+        for instance in instances:
+            elbs = filter(lambda lb: instance in [i.id for i in lb.instances],
+                          all_elbs)
+            self.log.debug('%s is a member of %s' % (instance, elbs))
+            elbs_with_members.extend(elbs)
+
+        raise gen.Return(elbs_with_members)
 
     @gen.coroutine
     def _execute(self):
-        elb = yield self._find_elb(self.option('elb'))
         instances = self.option('instances')
 
         if not instances:
@@ -522,8 +595,14 @@ class DeregisterInstance(base.AWSBaseActor):
         if type(instances) is not list:
             instances = [instances]
 
-        self.log.info(('Removing the following instances from elb: '
-                       '%s' % ', '.join(instances)))
-        if not self._dry:
-            yield self._remove(elb, instances)
-            self.log.info('Done.')
+        if self.option('elb') == '*':
+            elbs = yield self._find_instance_elbs(instances)
+        else:
+            elb = yield self._find_elb(self.option('elb'))
+            elbs = [elb]
+
+        tasks = []
+        for elb in elbs:
+            tasks.append(self._remove(elb, instances))
+
+        yield tasks

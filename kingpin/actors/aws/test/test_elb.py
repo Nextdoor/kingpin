@@ -149,9 +149,41 @@ class TestDeregisterInstance(testing.AsyncTestCase):
 
         elb = mock.Mock()
         instance = 'i-un173s7'
+
+        act._wait_on_draining = mock.Mock()
+        act._wait_on_draining.return_value = helper.tornado_value(mock.Mock())
         yield act._remove(elb, [instance])
 
         elb.deregister_instances.assert_called_with([instance])
+
+    @testing.gen_test
+    def test_wait_on_draining(self):
+        act = elb_actor.DeregisterInstance('UTA', {
+            'elb': 'test',
+            'region': 'us-east-1',
+            'isntances': 'test'})
+
+        # Quick test with draining enabled
+        fake_elb_attrs = mock.Mock(name='attrs')
+        fake_elb_attrs.connection_draining.enabled = True
+        fake_elb_attrs.connection_draining.timeout = 0.1
+        elb = mock.Mock()
+        elb.get_attributes.return_value = fake_elb_attrs
+        yield act._wait_on_draining(elb)
+        elb.get_attributes.assert_called_with()
+
+        # Quick re-test with draining disabled
+        act._options['wait_on_draining'] = False
+        elb.reset_mock()
+        yield act._wait_on_draining(elb)
+        elb.get_attributes.assert_not_called()
+
+        # Quick re-test with draining disabled
+        act._options['wait_on_draining'] = True
+        fake_elb_attrs.connection_draining.enabled = False
+        elb.reset_mock()
+        yield act._wait_on_draining(elb)
+        elb.get_attributes.assert_called_with()
 
     @testing.gen_test
     def test_execute(self):
@@ -169,6 +201,48 @@ class TestDeregisterInstance(testing.AsyncTestCase):
         act._find_elb.assert_called_with('elb-test')
         lb = yield act._find_elb()
         act._remove.assert_called_with(lb, ['i-test'])
+
+    @testing.gen_test
+    def test_execute_wildcard(self):
+        act = elb_actor.DeregisterInstance('UTA', {
+            'elb': '*',
+            'region': 'us-east-1',
+            'instances': 'i-test'})
+
+        act._find_instance_elbs = mock.Mock()
+        act._find_instance_elbs.return_value = helper.tornado_value(
+            [mock.Mock()])
+        act._remove = mock.Mock()
+        act._remove.return_value = helper.tornado_value(mock.Mock())
+
+        yield act._execute()
+
+        act._find_instance_elbs.assert_called_with(['i-test'])
+
+    @testing.gen_test
+    def test_find_instance_elbs(self):
+        act = elb_actor.DeregisterInstance('UTA', {
+            'elb': '*',
+            'region': 'us-east-1',
+            'instances': 'i-test'})
+
+        fake_instance_1 = mock.Mock(name='i-1234567')
+        fake_instance_1.id = 'i-1234567'
+        fake_instance_2 = mock.Mock(name='i-test')
+        fake_instance_2.id = 'i-test'
+
+        fake_elb_1 = mock.Mock(name='elb_1')
+        fake_elb_1.instances = [fake_instance_1]
+        fake_elb_2 = mock.Mock(name='elb_2')
+        fake_elb_2.instances = [fake_instance_1, fake_instance_2]
+        fake_elbs = [fake_elb_1, fake_elb_2]
+
+        act.elb_conn.get_all_load_balancers = mock.Mock()
+        act.elb_conn.get_all_load_balancers.return_value = fake_elbs
+
+        ret = yield act._find_instance_elbs(['i-test'])
+
+        self.assertEquals(ret, [fake_elb_2])
 
     @testing.gen_test
     def test_execute_self(self):
@@ -198,13 +272,7 @@ class TestDeregisterInstance(testing.AsyncTestCase):
 
         act._find_elb = mock.Mock()
         act._find_elb.return_value = helper.tornado_value(mock.Mock())
-        act._remove = mock.Mock()
-        act._remove.return_value = helper.tornado_value(mock.Mock())
         yield act._execute()
-
-        act._find_elb.assert_called_with('elb-test')
-        yield act._find_elb()
-        self.assertEquals(0, act._remove.call_count)
 
 
 class TestWaitUntilHealthy(testing.AsyncTestCase):
