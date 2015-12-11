@@ -472,6 +472,9 @@ class DeregisterInstance(base.AWSBaseActor):
     :region:
       (str) AWS region (or zone) name, like us-west-2
 
+    :wait_on_draining:
+      (bool) Whether or not to wait for connection draining
+
     **Example**
 
     .. code-block:: json
@@ -495,7 +498,10 @@ class DeregisterInstance(base.AWSBaseActor):
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
         'instances': ((str, list), None, (
             'Instance id, or list of ids. If no value is specified then '
-            'the instance id of the executing machine is used.'))
+            'the instance id of the executing machine is used.')),
+        'wait_on_draining': (bool, True, (
+            'Whether or not to wait for the ELB to drain connections '
+            'before returning from the actor.'))
     }
 
     @gen.coroutine
@@ -507,6 +513,31 @@ class DeregisterInstance(base.AWSBaseActor):
             instances: list of instance ids.
         """
         yield self.thread(elb.deregister_instances, instances)
+        yield self._wait_on_draining(elb)
+
+    @gen.coroutine
+    def _wait_on_draining(self, elb):
+        """Waits for the ELB Connection Draining to occur.
+
+        ELB Connection Draining is a configured-setting on the ELB that will
+        continue to allow existing connections to be handeled before finally
+        cutting them off at the timeout. This method will detect if connection
+        draining is enabled, and optionally "sleep" for that time period before
+        returning from the actor.
+
+        Args:
+            elb: boto Loadbalancer object
+        """
+        if not self.option('wait_on_draining'):
+            self.log.warning('Not waiting for connections to drain!')
+
+        attrs = yield self.thread(elb.get_attributes)
+        if attrs.connection_draining.enabled:
+            timeout = attrs.connection_draining.timeout
+
+            self.log.info('Connection Draining Enabled, waiting %s(s)'
+                          % timeout)
+            yield utils.tornado_sleep(timeout)
 
     @gen.coroutine
     def _execute(self):

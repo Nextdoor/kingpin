@@ -149,9 +149,41 @@ class TestDeregisterInstance(testing.AsyncTestCase):
 
         elb = mock.Mock()
         instance = 'i-un173s7'
+
+        act._wait_on_draining = mock.Mock()
+        act._wait_on_draining.return_value = helper.tornado_value(mock.Mock())
         yield act._remove(elb, [instance])
 
         elb.deregister_instances.assert_called_with([instance])
+
+    @testing.gen_test
+    def test_wait_on_draining(self):
+        act = elb_actor.DeregisterInstance('UTA', {
+            'elb': 'test',
+            'region': 'us-east-1',
+            'isntances': 'test'})
+
+        # Quick test with draining enabled
+        fake_elb_attrs = mock.Mock(name='attrs')
+        fake_elb_attrs.connection_draining.enabled = True
+        fake_elb_attrs.connection_draining.timeout = 0.1
+        elb = mock.Mock()
+        elb.get_attributes.return_value = fake_elb_attrs
+        yield act._wait_on_draining(elb)
+        elb.get_attributes.assert_called_with()
+
+        # Quick re-test with draining disabled
+        act._options['wait_on_draining'] = False
+        elb.reset_mock()
+        yield act._wait_on_draining(elb)
+        elb.get_attributes.assert_not_called()
+
+        # Quick re-test with draining disabled
+        act._options['wait_on_draining'] = True
+        fake_elb_attrs.connection_draining.enabled = False
+        elb.reset_mock()
+        yield act._wait_on_draining(elb)
+        elb.get_attributes.assert_called_with()
 
     @testing.gen_test
     def test_execute(self):
