@@ -47,9 +47,11 @@ parser.add_argument('-j', '--json', dest='json',
 parser.add_argument('-a', '--actor', dest='actor',
                     help='Name of an Actor to execute (overrides --json)')
 parser.add_argument('-p', '--param', dest='params', action='append',
-                    help='Actor Parameter to set (ie, warn_on_failure=true)')
+                    help='Actor Parameter to set (ie, warn_on_failure=true)',
+                    default=[])
 parser.add_argument('-o', '--option', dest='options', action='append',
-                    help='Actor Options to set (ie, elb_name=foobar)')
+                    help='Actor Options to set (ie, elb_name=foobar)',
+                    default=[])
 parser.add_argument('-d', '--dry', dest='dry', action='store_true',
                     help='Executes a dry run only.')
 
@@ -113,9 +115,8 @@ def main():
     elif not args.dry:
         log.info('Rehearsing... Break a leg!')
 
-        dry_actor = get_main_actor(dry=True)
-
         try:
+            dry_actor = get_main_actor(dry=True)
             yield dry_actor.execute()
         except actor_exceptions.ActorException as e:
             log.critical('Dry run failed. Reason:')
@@ -124,12 +125,12 @@ def main():
 
         log.info('Rehearsal OK! Performing!')
 
-    runner = get_main_actor(dry=args.dry)
-
-    log.info('')
-    log.warn('Lights, camera ... action!')
-    log.info('')
     try:
+        runner = get_main_actor(dry=args.dry)
+
+        log.info('')
+        log.warn('Lights, camera ... action!')
+        log.info('')
         yield runner.execute()
     except actor_exceptions.ActorException as e:
         log.error('Kingpin encountered mistakes during the play.')
