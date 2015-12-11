@@ -540,16 +540,7 @@ class DeregisterInstance(base.AWSBaseActor):
             yield utils.tornado_sleep(timeout)
 
     @gen.coroutine
-    def _execute(self):
-        elb = yield self._find_elb(self.option('elb'))
-        instances = self.option('instances')
-
-        if not instances:
-            self.log.debug('No instance provided. Using current instance id.')
-            iid = yield self._get_meta_data('instance-id')
-            instances = [iid]
-            self.log.debug('Instances is: %s' % instances)
-
+    def _remove_wrapper(self, elb, instances):
         if type(instances) is not list:
             instances = [instances]
 
@@ -558,3 +549,16 @@ class DeregisterInstance(base.AWSBaseActor):
         if not self._dry:
             yield self._remove(elb, instances)
             self.log.info('Done.')
+
+    @gen.coroutine
+    def _execute(self):
+        instances = self.option('instances')
+
+        if not instances:
+            self.log.debug('No instance provided. Using current instance id.')
+            iid = yield self._get_meta_data('instance-id')
+            instances = [iid]
+            self.log.debug('Instances is: %s' % instances)
+
+        elb = yield self._find_elb(self.option('elb'))
+        yield self._remove_wrapper(elb, instances)
