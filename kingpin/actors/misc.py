@@ -277,6 +277,8 @@ class Sleep(base.BaseActor):
 
         if not self._dry:
             yield utils.tornado_sleep(seconds=sleep)
+        else:
+            self.log.info('Would sleep for %s seconds' % sleep)
 
 
 class GenericHTTP(base.HTTPBaseActor):
