@@ -38,6 +38,17 @@ class TestMacro(testing.AsyncTestCase):
             self.assertEquals(schema_validate.call_count, 1)
             self.assertEquals(actor.initial_actor, get_actor())
 
+    def test_init_raw_json(self):
+        json_script = ('{"desc": "",'
+                       ' "actor": "misc.Sleep",'
+                       ' "options": {"sleep": 0.1}}')
+        misc.Macro._get_config_from_json = mock.Mock()
+        misc.Macro._check_schema = mock.Mock()
+        with mock.patch('kingpin.actors.utils.get_actor'):
+            with mock.patch.object(httpclient.HTTPClient, 'fetch'):
+                misc.Macro('Unit Test', {'macro': json_script,
+                                         'tokens': {}})
+
     def test_init_remote(self):
         misc.Macro._get_config_from_json = mock.Mock()
         misc.Macro._check_schema = mock.Mock()

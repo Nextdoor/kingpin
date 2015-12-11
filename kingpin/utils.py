@@ -35,6 +35,8 @@ from tornado import ioloop
 import httplib
 import rainbow_logging_handler
 
+from kingpin import exceptions
+
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
 log = logging.getLogger(__name__)
@@ -381,3 +383,37 @@ def create_repeating_log(logger, message, handle=None, **kwargs):
 def clear_repeating_log(handle):
     """Stops the timeout function from being called."""
     ioloop.IOLoop.current().remove_timeout(handle.timeout_id)
+
+
+def get_script_from_args(args):
+    """Creates a proper Kingpin script from the CLI options.
+
+    Args:
+        args: The ArgumentParser object
+
+    Returns:
+        A JSON-formatted Kingpin script.
+    """
+    log.debug('Generating a JSON-script from an ArgumentParser object')
+    config = {
+        'desc': 'Commandline Execution',
+        'actor': args.actor,
+        'options': {}
+    }
+
+    try:
+        if args.params:
+            for arg in args.params:
+                (key, val) = arg.split('=')
+                config[key] = val
+
+        if args.options:
+            for arg in args.options:
+                (key, val) = arg.split('=')
+                config['options'][key] = val
+
+    except ValueError:
+        raise exceptions.InvalidJSON(
+            'All arguments and parameters must be in the form of key=value')
+    log.debug('Generated config object: %s' % config)
+    return demjson.encode(config)

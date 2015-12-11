@@ -166,6 +166,12 @@ class Macro(base.BaseActor):
         open the local file and return a buffer to that file.
         """
 
+        if self.option('macro').startswith('{'):
+            buf = StringIO.StringIO()
+            buf.write(self.option('macro'))
+            buf.seek(0)
+            return buf
+
         remote = ('http://', 'https://')
         if self.option('macro').startswith(remote):
             client = httpclient.HTTPClient()

@@ -1,3 +1,4 @@
+import demjson
 import StringIO
 import logging
 import os
@@ -11,6 +12,7 @@ import rainbow_logging_handler
 import requests
 
 from kingpin import utils
+from kingpin import exceptions
 
 
 class TestUtils(unittest.TestCase):
@@ -99,6 +101,28 @@ class TestUtils(unittest.TestCase):
 
         with self.assertRaises(Exception):
             raises_exc()
+
+    def test_get_script_from_args(self):
+        fake_args = mock.MagicMock('args')
+        fake_args.actor = 'FakeActor'
+        fake_args.params = ['key=value', 'key2=value2']
+        fake_args.options = ['key=value', 'key2=value2']
+
+        res = demjson.decode(utils.get_script_from_args(fake_args))
+
+        self.assertEquals(res['actor'], 'FakeActor')
+        self.assertEquals(res['key'], 'value')
+        self.assertEquals(res['key2'], 'value2')
+        self.assertEquals(res['options']['key'], 'value')
+        self.assertEquals(res['options']['key2'], 'value2')
+
+    def test_get_script_from_args_bad_input(self):
+        fake_args = mock.MagicMock('args')
+        fake_args.actor = 'FakeActor'
+        fake_args.params = ['keyvalue']
+
+        with self.assertRaises(exceptions.InvalidJSON):
+            demjson.decode(utils.get_script_from_args(fake_args))
 
 
 class TestSetupRootLoggerUtils(unittest.TestCase):
