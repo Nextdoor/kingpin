@@ -46,7 +46,7 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
 
         # Valid response test
         actor._token = 'Invalid'
-        with self.assertRaises(exceptions.InvalidCredentials):
+        with self.assertRaises(exceptions.RecoverableActorFailure):
             yield actor.execute()
 
     @testing.gen_test(timeout=60)
