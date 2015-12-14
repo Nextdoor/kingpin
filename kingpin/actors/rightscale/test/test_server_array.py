@@ -660,21 +660,6 @@ class TestLaunchActor(testing.AsyncTestCase):
     def test_requirements(self):
 
         with self.assertRaises(exceptions.InvalidOptions):
-            # Missing enable and count flags
-            server_array.Launch(
-                'Unit test', {
-                    'array': 'unit test array',
-                })
-
-        with self.assertRaises(exceptions.InvalidOptions):
-            # Not enabling and missing count flag
-            server_array.Launch(
-                'Unit test', {
-                    'array': 'unit test array',
-                    'enable': False
-                })
-
-        with self.assertRaises(exceptions.InvalidOptions):
             # Bad string passed in as count
             server_array.Launch(
                 'Unit test', {
@@ -803,6 +788,26 @@ class TestLaunchActor(testing.AsyncTestCase):
         # Run it again, object shoudl NOT be updated.
         yield self.actor._enable_array(initial_array)
         self.assertEquals(initial_array.updated.call_count, 0)
+
+    @testing.gen_test
+    def test_disabled_no_launch(self):
+        self.actor._options['enable'] = False
+        self.actor._options['count'] = 0
+
+        mocked_array = mock.MagicMock(name='unittest')
+        mocked_array.soul = {'name': 'unittest'}
+        self.actor._find_server_arrays = mock_tornado(mocked_array)
+        self.actor._apply = mock.MagicMock(name='apply')
+        self.actor._apply.side_effect = mock_tornado()
+
+        yield self.actor._execute()
+
+        # Now verify that the right calls were made
+        self.actor._apply.assert_has_calls([
+            mock.call(self.actor._enable_array, mocked_array),
+            mock.call(self.actor._launch_instances, mocked_array, False),
+            mock.call(self.actor._wait_until_healthy, mocked_array),
+        ])
 
     @testing.gen_test
     def test_execte(self):
