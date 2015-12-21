@@ -407,7 +407,7 @@ class RegisterInstance(base.AWSBaseActor):
         'instances': ((str, list), None, (
             'Instance id, or list of ids. If no value is specified then '
             'the instance id of the executing machine is used.')),
-        'enable_zones': (bool, True, 'Enable all zones for this ELB.')
+        'enable_zones': ((str, bool), True, 'Enable all zones for this ELB.')
     }
 
     @gen.coroutine
@@ -453,7 +453,7 @@ class RegisterInstance(base.AWSBaseActor):
             yield self._add(elb, instances)
             self.log.info('Done.')
 
-            if self.option('enable_zones'):
+            if self.str2bool(self.option('enable_zones')):
                 yield self._check_elb_zones(elb)
 
 
@@ -512,7 +512,7 @@ class DeregisterInstance(base.AWSBaseActor):
         'instances': ((str, list), None, (
             'Instance id, or list of ids. If no value is specified then '
             'the instance id of the executing machine is used.')),
-        'wait_on_draining': (bool, True, (
+        'wait_on_draining': ((str, bool), True, (
             'Whether or not to wait for the ELB to drain connections '
             'before returning from the actor.'))
     }
@@ -546,7 +546,7 @@ class DeregisterInstance(base.AWSBaseActor):
         Args:
             elb: boto Loadbalancer object
         """
-        if not self.option('wait_on_draining'):
+        if not self.str2bool(self.option('wait_on_draining')):
             self.log.warning('Not waiting for connections to drain!')
 
         attrs = yield self.thread(elb.get_attributes)
