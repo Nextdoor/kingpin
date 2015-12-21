@@ -23,6 +23,7 @@ from tornado import gen
 from tornado import ioloop
 
 from kingpin import utils
+from kingpin.actors import utils as actor_utils
 from kingpin.actors import exceptions as actor_exceptions
 from kingpin.actors.misc import Macro
 from kingpin.version import __version__
@@ -80,7 +81,7 @@ def get_main_actor(dry):
         kingpin_fail('You may only specify --actor or --json, not both!')
 
     if args.actor:
-        ActorClass = utils.str_to_class(args.actor)
+        ActorClass = actor_utils.get_actor_class(args.actor)
         parameters = dict([i.split('=') for i in args.params])
         options = dict([i.split('=') for i in args.options])
 
