@@ -312,6 +312,17 @@ class BaseActor(object):
 
         raise gen.Return(ret)
 
+    def str2bool(self, v):
+        """Returns a Boolean from a variety of inputs.
+
+        args:
+            value: String/Bool
+
+        returns:
+            A boolean
+        """
+        return str(v).lower() not in ("no", "false", "f", "0")
+
     def _check_condition(self):
         """Check if specified condition allows this actor to run.
 
@@ -320,13 +331,7 @@ class BaseActor(object):
         the value of self._condition is a string "False" or string "0".
         """
 
-        try:  # Treat as string
-            value = self._condition.lower()
-            check = (value not in ('false', '0'))
-        except AttributeError:  # Not a string
-            value = self._condition
-            check = bool(value)
-
+        check = self.str2bool(self._condition)
         self.log.debug('Condition %s evaluates to %s' % (
             self._condition, check))
         return check
