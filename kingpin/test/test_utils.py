@@ -11,6 +11,7 @@ import rainbow_logging_handler
 import requests
 
 from kingpin import utils
+from kingpin.actors import misc
 
 
 class TestUtils(unittest.TestCase):
@@ -19,6 +20,10 @@ class TestUtils(unittest.TestCase):
         class_string_name = 'tornado.testing.AsyncTestCase'
         returned_class = utils.str_to_class(class_string_name)
         self.assertEquals(testing.AsyncTestCase, returned_class)
+
+        class_string_name = 'misc.Sleep'
+        returned_class = utils.str_to_class(class_string_name)
+        self.assertEquals(misc.Sleep, returned_class)
 
     def test_populate_with_env(self):
         tokens = {'UNIT_TEST': 'FOOBAR'}

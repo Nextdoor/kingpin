@@ -60,7 +60,10 @@ def str_to_class(string):
 
     Args:
         cls: String name of the wanted class and package.
-             eg: kingpin.actor.foo.bar
+             eg: kingpin.actors.foo.bar
+             eg: misc.Sleep
+             eg: actors.misc.Sleep
+             eg: my.private.Actor
 
     Returns:
         A reference to the actual Class to be instantiated
@@ -71,13 +74,25 @@ def str_to_class(string):
     class_name = string_elements.pop()
     module_name = '.'.join(string_elements)
 
-    # load the module, will raise ImportError if module cannot be loaded
-    # or if that module has a failed import inside of it.
-    m = __import__(module_name, globals(), locals(), class_name)
-    # get the class, will raise AttributeError if class cannot be found
-    c = getattr(m, class_name)
+    for prefix in ['kingpin.actors', 'actors']:
+        try:
+            prefixed_module_name = "%s.%s" % (prefix, module_name)
 
-    return c
+            # load the module, will raise ImportError if module cannot be
+            # loaded or if that module has a failed import inside of it.
+            m = __import__(prefixed_module_name, globals(), locals(),
+                           class_name)
+
+            # get the class, will raise AttributeError if class cannot be found
+            return getattr(m, class_name)
+
+        except ImportError:
+            # pass right now -- will try one more time at the end of this class
+            # to import the raw string without any kingpin prefixes.
+            pass
+
+    m = __import__(module_name, globals(), locals(), class_name)
+    return getattr(m, class_name)
 
 
 def setup_root_logger(level='warn', syslog=None, color=False):
