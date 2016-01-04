@@ -47,6 +47,9 @@ parser.add_argument('-j', '--json', dest='json',
                     help='Path to JSON Deployment File')
 parser.add_argument('-a', '--actor', dest='actor',
                     help='Name of an Actor to execute (overrides --json)')
+parser.add_argument('-E', '--explain', dest='explain', action='store_true',
+                    help='Explain how an actor works. Requires --actor.',
+                    default=False)
 parser.add_argument('-p', '--param', dest='params', action='append',
                     help='Actor Parameter to set (ie, warn_on_failure=true)',
                     default=[])
@@ -106,6 +109,11 @@ def get_main_actor(dry):
 
 @gen.coroutine
 def main():
+
+    if args.actor and args.explain:
+        ActorClass = actor_utils.get_actor_class(args.actor)
+        print ActorClass.__doc__
+        sys.exit(0)
 
     # Begin doing real stuff!
     if os.environ.get('SKIP_DRY', False):
