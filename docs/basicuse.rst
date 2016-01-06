@@ -395,6 +395,35 @@ are able to pass these options in on the commandline to avoid writing any JSON.
 
 .. code-block:: bash
 
+    $ kingpin --actor misc.Sleep --explain
+    Sleeps for an arbitrary number of seconds.
+
+    **Options**
+
+    :sleep:
+      Integer of seconds to sleep.
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "actor": "misc.Sleep",
+         "desc": "Sleep for 60 seconds",
+         "options": {
+           "sleep": 60
+         }
+       }
+
+    **Dry Mode**
+
+    Fully supported -- does not actually sleep, just pretends to.
+
+``--explain`` provides the same text that is available in this used in this
+documentation.
+
+
+.. code-block:: bash
+
     $ kingpin --actor misc.Sleep --param warn_on_failure=true --option sleep=5
     17:54:53   INFO      Rehearsing... Break a leg!
     17:54:53   INFO      [DRY: Kingpin] Preparing actors from {"actor":"misc.Sleep","desc":"Commandline Execution","options":{"sleep":"5"},"warn_on_failure":"true"}
@@ -404,7 +433,7 @@ are able to pass these options in on the commandline to avoid writing any JSON.
     17:54:53   WARNING   Lights, camera ... action!
     17:54:53   INFO
 
-You can stack as many ``--option`` and `--param`` command line options as you wish.
+You can stack as many ``--option`` and ``--param`` command line options as you wish.
 
 .. code-block:: bash
 
