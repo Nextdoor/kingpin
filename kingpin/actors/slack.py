@@ -33,6 +33,7 @@ sending the messages.
 
 import logging
 import os
+import re
 
 from tornado import gen
 
@@ -127,7 +128,8 @@ class Message(SlackBase):
     **Options**
 
     :channel:
-      The string-name of the channel to send a message to
+      The string-name of the channel to send a message to, or a list of
+      channels
 
     :message:
       String of the message to send
@@ -152,7 +154,7 @@ class Message(SlackBase):
     """
 
     all_options = {
-        'channel': (str, REQUIRED, 'Slack room name'),
+        'channel': ((str, list), REQUIRED, 'Slack channel or a list of names'),
         'message': (str, REQUIRED, 'Message to send')
     }
 
@@ -161,25 +163,34 @@ class Message(SlackBase):
         self.log.info('Sending message "%s" to Slack channel "%s"' %
                       (self.option('message'), self.option('channel')))
 
-        # Check if our authentication creds are valid
-        auth_ok = yield self._slack_client.auth_test().http_post()
-        self._check_results(auth_ok)
-
-        # If we're in dry mode, bail out!
         if self._dry:
+            # Check if our authentication creds are valid
+            auth_ok = yield self._slack_client.auth_test().http_post()
+            self._check_results(auth_ok)
+
             self.log.info('API Credentials verified, skipping send.')
             raise gen.Return()
 
-        # Finally, send the message and check our return value
-        ret = yield self._slack_client.chat_postMessage().http_post(
-            channel=self.option('channel'),
-            text=self.option('message'),
-            username=NAME,
-            parse='none',
-            link_names=1,
-            unfurl_links=True,
-            unfurl_media=True
-        )
-        self._check_results(ret)
+        # If only one channel was supplied as string then prepare the list
+        if type(self.option('channel')) == list:
+            channels = self.option('channel')
+        else:
+            channels = re.split('[, ]+', self.option('channel'))
 
-        raise gen.Return()
+        posts = []
+        for channel in channels:
+            self.log.debug('Posting to %s' % channel)
+            # Finally, send the message and check our return value
+            posts.append(self._slack_client.chat_postMessage().http_post(
+                channel=channel,
+                text=self.option('message'),
+                username=NAME,
+                parse='none',
+                link_names=1,
+                unfurl_links=True,
+                unfurl_media=True
+            ))
+
+        results = yield posts
+        for res in results:
+            self._check_results(res)

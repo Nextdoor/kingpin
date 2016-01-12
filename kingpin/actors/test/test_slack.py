@@ -99,13 +99,8 @@ class TestMessage(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute(self):
-        # Mock out the calls to SlackAPI.auth_test().auth_test()
-        auth_test_mock = mock.MagicMock(name='auth_test')
-        auth_test_mock.http_post.side_effect = mock_tornado({'ok': 'true'})
-        self._slack_mock.auth_test.return_value = auth_test_mock
-
         # Mock out the calls to SlackAPI.chat_postMessage().http_post()
-        post_mock = mock.MagicMock(name='auth_test')
+        post_mock = mock.MagicMock()
         post_mock.http_post.side_effect = mock_tornado({'ok': 'true'})
         self._slack_mock.chat_postMessage.return_value = post_mock
 
@@ -113,7 +108,50 @@ class TestMessage(testing.AsyncTestCase):
         self.assertEquals(None, ret)
 
         # Ensure the calls were made to the API
-        auth_test_mock.http_post.assert_has_calls([mock.call()])
+        post_mock.http_post.assert_has_calls([mock.call(
+            username='Kingpin', unfurl_links=True, text='Unittest',
+            unfurl_media=True, parse='none', link_names=1, channel='#testing'
+        )])
+
+    @testing.gen_test
+    def test_execute_list_rooms(self):
+        actor = slack.Message(
+            'Unit test message',
+            {'channel': ['#testing', '#testing2'],
+             'message': 'Unittest'})
+        actor._slack_client = self._slack_mock
+
+        # Mock out the calls to SlackAPI.chat_postMessage().http_post()
+        post_mock = mock.MagicMock()
+        post_mock.http_post.side_effect = mock_tornado({'ok': 'true'})
+        self._slack_mock.chat_postMessage.return_value = post_mock
+
+        ret = yield actor._execute()
+        self.assertEquals(None, ret)
+
+        # Ensure the calls were made to the API
+        post_mock.http_post.assert_has_calls([mock.call(
+            username='Kingpin', unfurl_links=True, text='Unittest',
+            unfurl_media=True, parse='none', link_names=1, channel='#testing'
+        )])
+
+    @testing.gen_test
+    def test_execute_csv_rooms(self):
+        actor = slack.Message(
+            'Unit test message',
+            {'channel': '#testing, #testing2',
+             'message': 'Unittest'})
+        actor._slack_client = self._slack_mock
+
+        # Mock out the calls to SlackAPI.chat_postMessage().http_post()
+        post_mock = mock.MagicMock()
+        post_mock.http_post.side_effect = mock_tornado({'ok': 'true'})
+        self._slack_mock.chat_postMessage.return_value = post_mock
+
+        ret = yield actor._execute()
+        self.assertEquals(None, ret)
+
+        # Ensure the calls were made to the API
         post_mock.http_post.assert_has_calls([mock.call(
             username='Kingpin', unfurl_links=True, text='Unittest',
             unfurl_media=True, parse='none', link_names=1, channel='#testing'
