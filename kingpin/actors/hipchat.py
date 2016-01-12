@@ -116,15 +116,12 @@ class HipchatBase(base.HTTPBaseActor):
             # These are HTTPErrors that we know about, and can log specific
             # error messages for.
 
-            if e.code == 401:
+            self.log.critical(e)
+            if e.code in (401, 403):
                 # "The authentication you provided is invalid."
                 raise exceptions.InvalidCredentials(
                     'The "HIPCHAT_NAME" or "HIPCHAT_TOKEN" supplied is '
-                    'invalid.')
-            elif e.code == 403:
-                # "You have exceeded the rate limit"
-                raise exceptions.RecoverableActorFailure(
-                    'Hit the HipChat API Rate Limit. Try again later.')
+                    'invalid. %s' % e)
             else:
                 # We ran into a problem we can't handle. Also, keep in mind
                 # that @utils.retry() was used, so this error happened several
