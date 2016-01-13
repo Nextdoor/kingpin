@@ -44,6 +44,25 @@ class TestActorRaises(base.BaseActor):
         raise exc
 
 
+class TestActorPopulate(base.BaseActor):
+
+    """Fake Actor for Tests"""
+
+    all_options = {
+        'object': (list, [], 'A list to append values.'),
+        'value': (object, True, 'Add this value to the object two times.'),
+    }
+
+    last_value = None
+
+    @gen.coroutine
+    def _execute(self):
+        self.option('object').append(self.option('value'))
+        yield gen.moment
+        self.option('object').append(self.option('value'))
+        raise gen.Return(None)
+
+
 class TestGroupActorBaseClass(testing.AsyncTestCase):
 
     def setUp(self, *args, **kwargs):
@@ -317,19 +336,33 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
     @testing.gen_test
     def test_execute_async(self):
         """Make sure this actor starts all processes in parallel!"""
-        sleeper = {'actor': 'misc.Sleep',
-                   'desc': 'Sleep',
-                   'options': {'sleep': 0.1}}
-        actor = group.Async('Unit Test Action', {'acts': [
-            sleeper, sleeper, sleeper]})
+        check_order = []
+        actor_1 = {'actor': 'kingpin.actors.test.test_group.TestActorPopulate',
+                   'desc': 'test',
+                   'options': {
+                       'object': ['fake'],
+                       'value': 1}}
+        actor_2 = {'actor': 'kingpin.actors.test.test_group.TestActorPopulate',
+                   'desc': 'test',
+                   'options': {
+                       'object': ['fake'],
+                       'value': 2}}
+        actor = group.Async(
+            'Unit Test Action',
+            {
+                'acts': [actor_1, actor_2]
+            })
 
-        start = time.time()
+        # The options above were copied by value
+        # This test requires same object to be modified so we set it directly
+        actor._actions[0]._options['object'] = check_order
+        actor._actions[1]._options['object'] = check_order
+
         yield actor.execute()
-        stop = time.time()
-        exe_time = stop - start
-        # Parallel execution of sleep should not take 3x as long!
-        self.assertTrue(0.1 < exe_time < 0.3,
-                        "Bad exec time. Expected 0.1 < %s < 0.3" % exe_time)
+
+        # if the actions above were executed sequentially then the resulting
+        # list would be [1,1,2,2] and here we know it's hopping between actors
+        self.assertEquals(check_order, [1, 2, 1, 2])
 
     @testing.gen_test
     def test_execute_concurrent(self):
