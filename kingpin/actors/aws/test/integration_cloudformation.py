@@ -76,7 +76,7 @@ class IntegrationCreate(testing.AsyncTestCase):
             yield actor.execute()
 
     @attr('integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=600)
     def integration_03_delete_stack(self):
         actor = cloudformation.Delete(
             'Delete Stack',
