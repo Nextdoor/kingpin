@@ -1,7 +1,7 @@
 Basic Use
 ---------
 
-.. code-block:: bash
+.. code-block:: guess
 
     $ kingpin --help
     Usage: kingpin [json file] <options>
@@ -356,7 +356,7 @@ then reference that file. Context files support `token-replacement`_ just like
         "contexts": {
           "file": "data/notification-rooms.json",
           "tokens": {
-            "USER": "%USER%,
+            "USER": "%USER%",
           }
         },
         "acts": [
