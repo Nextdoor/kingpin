@@ -899,6 +899,13 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.actor._get_operational_instances = mock_tornado(['test'])
         self.actor._dry = True
         yield self.actor._execute_array_with_concurrency(
+            arrays='a4', inputs={})
+
+    @testing.gen_test
+    def test_execute_arrays_with_concurrency_dry(self):
+        self.actor._get_operational_instances = mock_tornado(['test'])
+        self.actor._dry = True
+        yield self.actor._execute_array_with_concurrency(
             arrays=['a1', 'a2', 'a3', 'a4'], inputs={})
 
     @testing.gen_test
