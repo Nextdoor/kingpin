@@ -76,6 +76,105 @@ class TestDeploymentCreateActor(testing.AsyncTestCase):
             yield self.actor._execute()
 
 
+class TestDeploymentCloneActor(testing.AsyncTestCase):
+
+    def setUp(self, *args, **kwargs):
+        super(TestDeploymentCloneActor, self).setUp()
+        base.TOKEN = 'unittest'
+
+        self.actor = deployment.Clone('Test',
+                                      {'clone': 'unit-test',
+                                       'name': 'unit-test',
+                                       'description': 'unit test',
+                                       'server_tag_scope': 'deployment',
+                                       'delete_servers': True})
+
+        # Prevent actual API calls
+        self.actor._client = mock.MagicMock(name='mock_client')
+
+    @testing.gen_test
+    def test_bad_scope(self):
+        with self.assertRaises(exceptions.InvalidOptions):
+            deployment.Clone('Test', {'clone': 'test',
+                                      'name': 'test',
+                                      'server_tag_scope': 'fail'})
+
+    @testing.gen_test
+    def test_exec_dry(self):
+        self.actor._dry = True
+
+        # Set up deployment servers and arrays to test deletion
+        mock_servers = mock.Mock(name='Servers')
+        mock_arrays = mock.Mock(name='Arrays')
+        dep = mock.Mock()
+        dep.servers.show = mock_servers
+        dep.server_arrays.show = mock_arrays
+        mock_servers.return_value = [mock.MagicMock(name='Server1'),
+                                     mock.MagicMock(name='Server2')]
+        mock_arrays.return_value = [mock.MagicMock(name='Array1'),
+                                    mock.MagicMock(name='Array2')]
+
+        self.actor._find_deployment = mock.Mock(side_effect=[
+            helper.tornado_value(dep),
+            helper.tornado_value(None)])
+
+        yield self.actor._execute()
+        self.assertEquals(
+            self.actor._client._client.deployments.clone.call_count, 0)
+
+        self.assertEquals(self.actor._client.destroy_resource.call_count, 0)
+
+    @testing.gen_test
+    def test_exec(self):
+        self.actor._client.destroy_resource = mock.Mock(
+            return_value=helper.tornado_value())
+        self.actor._find_deployment = mock.Mock(side_effect=[
+            helper.tornado_value('Found!'),
+            helper.tornado_value(None)])
+
+        # Set up deployment servers and arrays to test deletion
+        mock_servers = mock.Mock(name='Servers')
+        mock_arrays = mock.Mock(name='Arrays')
+        dep_clone = self.actor._client._client.deployments.clone
+        dep_clone.return_value.servers.show = mock_servers
+        dep_clone.return_value.server_arrays.show = mock_arrays
+        mock_servers.return_value = [mock.MagicMock(name='Server1'),
+                                     mock.MagicMock(name='Server2')]
+        mock_arrays.return_value = [mock.MagicMock(name='Array1'),
+                                    mock.MagicMock(name='Array2')]
+
+        yield self.actor._execute()
+
+        # Cloning actually happened!
+        self.assertEquals(
+            self.actor._client._client.deployments.clone.call_count, 1)
+
+        calls = [mock.call(m) for m in
+                 mock_servers.return_value + mock_arrays.return_value]
+
+        # New Servers & Arrays deleted
+        self.actor._client.destroy_resource.assert_has_calls(calls)
+
+        # Exactly 4 calls means old servers and arrays were not destroyed
+        self.assertEquals(self.actor._client.destroy_resource.call_count, 4)
+
+    @testing.gen_test
+    def test_exec_notfound(self):
+        self.actor._find_deployment = helper.mock_tornado(None)
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            yield self.actor._execute()
+
+    @testing.gen_test
+    def test_exec_duplicate(self):
+        self.actor._find_deployment = mock.Mock(side_effect=[
+            helper.tornado_value('found'),
+            helper.tornado_value('also_found')])
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            yield self.actor._execute()
+
+
 class TestDeploymentDestroyActor(testing.AsyncTestCase):
 
     def setUp(self, *args, **kwargs):

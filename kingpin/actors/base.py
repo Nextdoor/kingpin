@@ -209,7 +209,7 @@ class BaseActor(object):
 
         if option_errors:
             for e in option_errors:
-                self.log.critical(e)
+                self.log.error(e)
             raise exceptions.InvalidOptions(
                 'Found %s issue(s) with passed options.' % len(option_errors))
 
@@ -435,7 +435,7 @@ class BaseActor(object):
             # or if warn_on_failure is not set, then escalate.
             recover = isinstance(e, exceptions.RecoverableActorFailure)
             if not recover or not self._warn_on_failure:
-                self.log.critical(e)
+                self.log.error(e)
                 raise
 
             # Otherwise - flag this failure as a warning, and continue
