@@ -28,6 +28,7 @@ dedicated packages. Things like sleep timers, loggers, etc.
 """
 
 import StringIO
+import json
 import logging
 import urllib
 
@@ -291,7 +292,12 @@ class GenericHTTP(base.HTTPBaseActor):
       Destination URL
 
     :data:
-      Optional POST data as a `dict`
+      Optional POST data as a `dict`. Will convert into key=value&key2=value2..
+      Exclusive of `data-json` option.
+
+    :data-json:
+      Optional POST data as a `dict`. Will stringify and pass as JSON.
+      Exclusive of `data` option.
 
     :username:
       Optional for HTTPAuth.
@@ -320,6 +326,7 @@ class GenericHTTP(base.HTTPBaseActor):
     all_options = {
         'url': (str, REQUIRED, 'Domain name + query string to fetch'),
         'data': (dict, {}, 'Data to attach as a POST query'),
+        'data-json': (dict, {}, 'JSON data to attach as POST query'),
         'username': (str, '', 'HTTPAuth username'),
         'password': (str, '', 'HTTPAuth password')
     }
@@ -327,7 +334,7 @@ class GenericHTTP(base.HTTPBaseActor):
     @gen.coroutine
     def _execute_dry(self):
         is_post = bool(self.option('data'))
-        method = ['POST', 'GET'][is_post]
+        method = ['GET', 'POST'][is_post]
 
         self.log.info("Would do a %s request to %s"
                       % (method, self.option('url')))
@@ -339,7 +346,10 @@ class GenericHTTP(base.HTTPBaseActor):
         if self._dry:
             raise gen.Return(self._execute_dry())
 
-        escaped_post = urllib.urlencode(self.option('data')) or None
+        escaped_post = (
+                urllib.urlencode(self.option('data')) or
+                json.dumps(self.option('data-json')) or
+                None)
 
         try:
             yield self._fetch(self.option('url'),
