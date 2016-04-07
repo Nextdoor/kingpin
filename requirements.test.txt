@@ -3,5 +3,5 @@ mock==1.0.1
 pep8
 pyflakes
 coverage
-Sphinx
+Sphinx==1.4
 sphinx_rtd_theme
