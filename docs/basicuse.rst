@@ -4,16 +4,26 @@ Basic Use
 .. code-block:: guess
 
     $ kingpin --help
-    Usage: kingpin [json file] <options>
+    usage: kingpin [-h] [-j JSON] [-a ACTOR] [-E] [-p PARAMS] [-o OPTIONS] [-d]
+                   [--build-only] [-l LEVEL] [-D] [-c]
 
-    Options:
-      --version             show program's version number and exit
+    Kingpin v0.3.1a
+
+    optional arguments:
       -h, --help            show this help message and exit
-      -j JSON, --json=JSON  Path to JSON Deployment File
+      -j JSON, --json JSON  Path to JSON Deployment File
+      -a ACTOR, --actor ACTOR
+                            Name of an Actor to execute (overrides --json)
+      -E, --explain         Explain how an actor works. Requires --actor.
+      -p PARAMS, --param PARAMS
+                            Actor Parameter to set (ie, warn_on_failure=true)
+      -o OPTIONS, --option OPTIONS
+                            Actor Options to set (ie, elb_name=foobar)
       -d, --dry             Executes a dry run only.
-      -l LEVEL, --level=LEVEL
+      --build-only          Compile the input JSON without executing any runs
+      -l LEVEL, --level LEVEL
                             Set logging level (INFO|WARN|DEBUG|ERROR)
-      --debug               Equivalent to --level=DEBUG
+      -D, --debug           Equivalent to --level=DEBUG
       -c, --color           Colorize the log output
 
 The simplest use cases of this code can be better understood by looking at the
@@ -386,6 +396,11 @@ Early Actor Instantiation
 Again, in an effort to prevent mid-run errors, we pre-instantiate all Actor
 objects all at once before we ever begin executing code. This ensures that
 major typos or misconfigurations in the JSON will be caught early on.
+
+You can test the correctness of all actor instantiation without executing
+a run or a dry-run by passing in the `--build-only` flag. Kingpin will exit
+with status 0 on success and status 1 if any actor instantiations have failed.
+
 
 Command-line Execution without JSON
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
