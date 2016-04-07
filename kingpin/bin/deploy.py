@@ -58,6 +58,8 @@ parser.add_argument('-o', '--option', dest='options', action='append',
                     default=[])
 parser.add_argument('-d', '--dry', dest='dry', action='store_true',
                     help='Executes a dry run only.')
+parser.add_argument('--build-only', dest='build_only', action='store_true',
+                    help='Compile the input JSON without executing any runs')
 
 # Logging Configuration
 parser.add_argument('-l', '--level', dest='level', default='info',
@@ -113,6 +115,14 @@ def main():
     if args.actor and args.explain:
         ActorClass = actor_utils.get_actor_class(args.actor)
         print ActorClass.__doc__
+        sys.exit(0)
+
+    if args.build_only:
+        try:
+            get_main_actor(dry=False)
+        except actor_exceptions.ActorException as e:
+            log.critical(e)
+            sys.exit(1)
         sys.exit(0)
 
     # Begin doing real stuff!
