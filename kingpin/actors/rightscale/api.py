@@ -347,8 +347,7 @@ class RightScale(object):
             <updated rightscale array object>
         """
 
-        log.debug('Patching %s with new params: %s' %
-                  (resource.soul['name'], params))
+        log.debug('Resource: %s' % resource)
         resource.self.update(params=params)
         updated_resource = resource.self.show()
         return updated_resource
