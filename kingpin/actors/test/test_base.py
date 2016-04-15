@@ -17,7 +17,7 @@ from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors.test.helper import mock_tornado
-from kingpin.constants import REQUIRED
+from kingpin.constants import REQUIRED, STATE
 
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
@@ -136,6 +136,21 @@ class TestBaseActor(testing.AsyncTestCase):
         self.actor._options = {'test': 'b', 'test2': 'b'}
         ret = self.actor._validate_options()
         self.assertEquals(None, ret)
+
+        # The STATE type requires either 'present' or 'absent' to be passed in.
+        self.actor.all_options = {'test': (STATE, REQUIRED, '')}
+
+        self.actor._options = {'test': 'present'}
+        ret = self.actor._validate_options()
+        self.assertEquals(None, ret)
+
+        self.actor._options = {'test': 'absent'}
+        ret = self.actor._validate_options()
+        self.assertEquals(None, ret)
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._options = {'test': 'abse'}
+            ret = self.actor._validate_options()
 
     def test_validation_issues(self):
         self.actor.all_options = {'needed': (str, REQUIRED, ''),

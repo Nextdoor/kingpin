@@ -16,4 +16,17 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
 
 class REQUIRED(object):
+
     """Meta class to identify required arguments for actors."""
+
+
+class STATE(object):
+
+    """Meta class to identify the desired state for a resource.
+
+    This basic type of constant allows someone to easily define a set of valid
+    strings for their option and have the base actor class automatically
+    validate the inputs against those strings.
+    """
+
+    valid = ('present', 'absent')

@@ -199,6 +199,16 @@ class BaseActor(object):
             if isinstance(value, basestring):
                 value = str(value)
 
+            # If the expected_type has an attribute 'valid', then verify that
+            # the option passed in is one of those valid options.
+            if hasattr(expected_type, 'valid'):
+                if value in expected_type.valid:
+                    continue
+
+                option_errors.append(
+                    'Option "%s" has to be %s, and is %s.' %
+                    (opt, expected_type.valid, value))
+
             if not (value is None or isinstance(value, expected_type)):
                 message = 'Option "%s" has to be %s and is %s.' % (
                     opt, expected_type, type(value))
