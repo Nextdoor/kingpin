@@ -1,0 +1,29 @@
+/***
+ * These JSON files are also parsed with demjson, allowing you to comment
+ * easily in them!
+ */
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+
+            /***
+             * Note, these are out-of-order intetionally as part of our test
+             * that the code properly re-orders them before comparing them to
+             * whats currently in Amazon
+             */
+            "Action": [
+                "s3:Get*",
+                "s3:Create*",
+                "s3:List*",
+                "s3:Put*"
+            ],
+
+            "Resource": [
+                "arn:aws:s3:::example.bucket.com*/*",
+                "arn:aws:s3:::example.bucket.com*"
+            ]
+        }
+    ]
+}

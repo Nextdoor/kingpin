@@ -27,6 +27,7 @@ from tornado import gen
 from kingpin.actors.aws import base
 from kingpin.actors import exceptions
 from kingpin.constants import REQUIRED
+from kingpin.constants import STATE
 
 log = logging.getLogger(__name__)
 
@@ -190,3 +191,172 @@ class DeleteCert(IAMBaseActor):
 
         self.log.info('Deleting cert "%s"' % self.option('name'))
         yield self._delete(cert_name=self.option('name'))
+
+
+class User(IAMBaseActor):
+
+    """Manages an IAM User.
+
+    **Options**
+
+    :name:
+      (str) Name of the User profile to manage
+
+    :state:
+      (str) Present or Absent. Default: "present"
+
+    :inline_policies:
+      (array) A list of strings that point to JSON files to use as inline
+      policies. Default: []
+
+    :inline_policies_purge:
+      (bool) Whether or not to purge un-managed policies. Default: true
+
+    **Example**
+
+    .. code-block:: json
+
+       { "actor": "aws.iam.User",
+         "desc": "Ensure that Bob exists",
+         "options": {
+           "name": "bob",
+           "state": "present",
+           "inline_policies": [
+             "read-all-s3.json",
+             "create-other-stuff.json"
+           ],
+           "inline_policies_purge": true,
+         }
+       }
+
+    **Dry run**
+
+    Will find the cert by name or raise an exception if it's not found.
+    """
+
+    all_options = {
+        'name': (str, REQUIRED, 'The name of the user.'),
+        'state': (STATE, 'present',
+                  'Desired state of the User: present/absent'),
+        'inline_policies': (list, [],
+                            'List of inline policy JSON files to apply.'),
+        'inline_policies_purge': (bool, True,
+                                  'Purge unmanaged inline policies?')
+    }
+
+    @gen.coroutine
+    def _get_user(self, name):
+        """Returns an IAM User JSON Blob.
+
+        Searches for an IAM user and either returns None, or a JSON blob that
+        describes the user.
+
+        args:
+            name: The IAM User Name
+        """
+        self.log.debug('Searching for user %s' % name)
+
+        # Get a list of all of our users.
+        try:
+            users = yield self.thread(self.iam_conn.get_all_users)
+        except BotoServerError as e:
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected API error occurred: %s' % e)
+
+        # Now search for the user
+        user = [user for user in
+                users['list_users_response']['list_users_result']['users'] if
+                user['user_name'] == name]
+
+        # If there aren't any users, return None.
+        if not user:
+            raise gen.Return()
+
+        # If there is more than one user, something went really wrong. Raise an
+        # exception.
+        if len(user) > 1:
+            raise exceptions.RecoverableActorFailure(
+                'More than one user found matching %s! Am I crazy?!' % name)
+
+        # Finally, return the result!
+        self.log.debug('Found user %s' % user[0]['arn'])
+        raise gen.Return(user[0])
+
+    @gen.coroutine
+    def _ensure_user(self, name, state):
+        """Ensures a user is either present or absent.
+
+        Looks up the users current state and then makes a decision about
+        creating or deleting the user. If the user is already in the correct
+        state, not changes are made.
+
+        args:
+            name: The IAM User Name
+            state: 'present' or 'absent'
+        """
+        self.log.info('Ensuring that user %s is %s' % (name, state))
+
+        user = yield self._get_user(name)
+
+        if user and state == 'present':
+            self.log.debug('User %s exists' % name)
+        elif not user and state == 'present':
+            yield self._create_user(name)
+        elif user and state == 'absent':
+            yield self._delete_user(name)
+        elif not user and state == 'absent':
+            self.log.debug('User %s does not exist' % name)
+
+    @gen.coroutine
+    def _create_user(self, name):
+        """Creates an IAM User.
+
+        If the user exists, we just warn and move on.
+
+        args:
+            name: The IAM User Name
+        """
+        if self._dry:
+            self.log.warning('Would create user %s' % name)
+            raise gen.Return()
+
+        try:
+            ret = yield self.thread(
+                self.iam_conn.create_user, name)
+        except BotoServerError as e:
+            if e.status != 409:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
+            self.log.warning(
+                'User %s already exists, skipping creation.' % name)
+            raise gen.Return()
+
+        arn = ret['create_user_response']['create_user_result']['user']['arn']
+        self.log.info('User %s created' % arn)
+
+    @gen.coroutine
+    def _delete_user(self, name):
+        """Deletes and IAM User.
+
+        If the user doesn't exist, we just warn and move on.
+
+        args:
+            name: The IAM User Name
+        """
+        if self._dry:
+            self.log.warning('Would delete user %s' % name)
+            raise gen.Return()
+
+        try:
+            yield self.thread(self.iam_conn.delete_user, name)
+            self.log.info('User %s deleted' % name)
+        except BotoServerError as e:
+            if e.status != 404:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
+            self.log.warning('User %s doesn\'t exist' % name)
+
+    @gen.coroutine
+    def _execute(self):
+        yield self._ensure_user(self.option('name'), self.option('state'))
+        raise gen.Return()

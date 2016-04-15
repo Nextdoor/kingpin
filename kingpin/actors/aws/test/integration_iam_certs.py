@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 logging.getLogger('boto').setLevel(logging.INFO)
 
 
-class IntegrationIAM(testing.AsyncTestCase):
+class IntegrationIAMCerts(testing.AsyncTestCase):
 
     integration = True
 
