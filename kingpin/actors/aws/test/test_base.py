@@ -1,5 +1,6 @@
 import logging
 
+from boto.exception import NoAuthHandlerFound
 from boto.exception import BotoServerError
 from boto import utils
 from tornado import testing
@@ -20,6 +21,12 @@ class TestBase(testing.AsyncTestCase):
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
         reload(base)
+
+    @mock.patch('boto.iam.connection.IAMConnection')
+    def test_missing_auth(self, mock_iam):
+        mock_iam.side_effect = NoAuthHandlerFound('bad')
+        with self.assertRaises(exceptions.InvalidCredentials):
+            base.AWSBaseActor('Unit Test Action', {'region': 'fail'})
 
     def test_region_check(self):
         with self.assertRaises(exceptions.InvalidOptions):
