@@ -347,6 +347,30 @@ def convert_json_to_dict(json_file, tokens):
     return decoded
 
 
+def order_dict(obj):
+    """Re-orders a dict into a predictable pattern.
+
+    Used so that you can compare two dicts with the same values, but that were
+    created in different orders.
+
+    Stolen from:
+      http://stackoverflow.com/questions/25851183/how-to-compare-two-json-
+      objects-with-the-same-elements-in-a-different-order-equa
+
+    args:
+        obj: Object to order
+
+    returns:
+        obj: A sorted version of the object
+    """
+    if isinstance(obj, dict):
+        return sorted((k, order_dict(v)) for k, v in obj.items())
+    if isinstance(obj, list):
+        return sorted(order_dict(x) for x in obj)
+    else:
+        return obj
+
+
 def create_repeating_log(logger, message, handle=None, **kwargs):
     """Create a repeating log message.
 

@@ -163,6 +163,15 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
         logger = utils.super_httplib_debug_logging()
         self.assertEquals(10, logger.level)
 
+    def test_order_dict(self):
+        d1 = {'foo': [1, 2, 3]}
+        d2 = {'foo': [3, 2, 1]}
+
+        ordered_d1 = utils.order_dict(d1)
+        ordered_d2 = utils.order_dict(d2)
+
+        self.assertEquals(ordered_d1, ordered_d2)
+
 
 class TestCoroutineHelpers(testing.AsyncTestCase):
 
