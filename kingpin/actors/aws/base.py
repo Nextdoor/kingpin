@@ -32,7 +32,9 @@ _Note, these can be skipped only if you have a .aws/credentials file in place._
   Your AWS secret
 """
 
+import json
 import logging
+import urllib
 import re
 
 from boto import utils as boto_utils
@@ -230,3 +232,11 @@ class AWSBaseActor(base.BaseActor):
             raise InvalidMetaData('Metadata for key `%s` is not available')
 
         return data
+
+    def _policy_doc_to_dict(self, policy):
+        """Converts a Boto UUEncoded Policy document to a Dict.
+
+        args:
+            policy: The policy string returned by Boto
+        """
+        return json.loads(urllib.unquote(policy))

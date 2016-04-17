@@ -113,3 +113,31 @@ class TestBase(testing.AsyncTestCase):
             md.return_value = {'key': 'value'}
             with self.assertRaises(base.InvalidMetaData):
                 yield actor._get_meta_data('ut-key')
+
+    @testing.gen_test
+    def test_policy_doc_to_dict(self):
+        policy_str = ''.join([
+            '%7B%22Version%22%3A%20%222012-10-17%22%2C%20',
+            '%22Statement%22%3A%20%5B%7B%22Action%22%3A%20%5B',
+            '%22s3%3ACreate%2A%22%2C%20%22s3%3AGet%2A%22%2C%20',
+            '%22s3%3APut%2A%22%2C%20%22s3%3AList%2A%22%5D%2C%20',
+            '%22Resource%22%3A%20%5B',
+            '%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%2F%2A%22%2C%20',
+            '%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%22%5D%2C%20',
+            '%22Effect%22%3A%20%22Allow%22%7D%5D%7D'])
+        policy_dict = {
+            u'Version': u'2012-10-17',
+            u'Statement': [
+                {u'Action': [
+                    u's3:Create*',
+                    u's3:Get*',
+                    u's3:Put*',
+                    u's3:List*'],
+                 u'Resource': [
+                    u'arn:aws:s3:::kingpin*/*',
+                    u'arn:aws:s3:::kingpin*'],
+                 u'Effect': u'Allow'}]}
+
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        ret = actor._policy_doc_to_dict(policy_str)
+        self.assertEqual(ret, policy_dict)
