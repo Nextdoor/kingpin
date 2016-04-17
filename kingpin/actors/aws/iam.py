@@ -231,7 +231,8 @@ class User(IAMBaseActor):
 
     **Dry run**
 
-    Will find the cert by name or raise an exception if it's not found.
+    Will let you know if the user exists or not, and what changes it would make
+    to the users policy and settings.
     """
 
     all_options = {
@@ -243,6 +244,60 @@ class User(IAMBaseActor):
         'inline_policies_purge': (bool, True,
                                   'Purge unmanaged inline policies?')
     }
+
+    @gen.coroutine
+    def _get_user_policies(self, name):
+        """Returns a dictionary of all the inline policies attached to a user.
+
+        args:
+            name: The IAM User Name
+
+        returns:
+            A dict of key/value pairs - key is the policy name, value is the
+            dict-version of the policy document.
+        """
+        policies = {}
+
+        # Get the list of inline policies attached to a user.
+        self.log.debug('Searching for any inline policies for %s' % name)
+        try:
+            ret = yield self.thread(self.iam_conn.get_all_user_policies, name)
+            response = ret['list_user_policies_response']
+            result = response['list_user_policies_result']
+            policy_names = result['policy_names']
+        except BotoServerError as e:
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected API error occurred: %s' % e)
+
+        # Iterate through all of the named policies and fire off
+        # get-requests, but don't yield on them yet.
+        tasks = []
+        for p_name in policy_names:
+            tasks.append(
+                (p_name,
+                 self.thread(self.iam_conn.get_user_policy, name, p_name)))
+
+        # Now that we've fired off all the calls, we walk through each yielded
+        # result, parse the returned policy, and append it to our policies
+        # list. We also catch any raised exceptions here.
+        for t in tasks:
+            (p_name, p_task) = t
+            try:
+                raw = yield p_task
+            except BotoServerError as e:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred downloading '
+                    'policy %s: %s' % (p_name, e))
+
+            # Convert the uuencoded doc string into a dict
+            result = raw['get_user_policy_response']['get_user_policy_result']
+            p_doc = self._policy_doc_to_dict(result['policy_document'])
+
+            # Store the converted document under the policy name key
+            policies[p_name] = p_doc
+            self.log.debug('Got policy %s/%s: %s' % (name, p_name, p_doc))
+
+        raise gen.Return(policies)
 
     @gen.coroutine
     def _get_user(self, name):
@@ -358,5 +413,10 @@ class User(IAMBaseActor):
 
     @gen.coroutine
     def _execute(self):
-        yield self._ensure_user(self.option('name'), self.option('state'))
+        name = self.option('name')
+        state = self.option('state')
+        # inline_policies = self.option('inline_policies')
+        # inline_policies_purge = self.option('inline_policies_purge')
+
+        yield self._ensure_user(name, state)
         raise gen.Return()

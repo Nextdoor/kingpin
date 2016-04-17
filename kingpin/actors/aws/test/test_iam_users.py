@@ -45,6 +45,73 @@ class TestUser(testing.AsyncTestCase):
         ensure_mock.assert_called_with('test', 'present')
 
     @testing.gen_test
+    def test_get_user_policies(self):
+        policy_str = ''.join([
+            '%7B%22Version%22%3A%20%222012-10-17%22%2C%20',
+            '%22Statement%22%3A%20%5B%7B%22Action%22%3A%20%5B',
+            '%22s3%3ACreate%2A%22%2C%20%22s3%3AGet%2A%22%2C%20',
+            '%22s3%3APut%2A%22%2C%20%22s3%3AList%2A%22%5D%2C%20',
+            '%22Resource%22%3A%20%5B',
+            '%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%2F%2A%22%2C%20',
+            '%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%22%5D%2C%20',
+            '%22Effect%22%3A%20%22Allow%22%7D%5D%7D'])
+        policy_dict = {
+            u'Version': u'2012-10-17',
+            u'Statement': [
+                {u'Action': [
+                    u's3:Create*',
+                    u's3:Get*',
+                    u's3:Put*',
+                    u's3:List*'],
+                 u'Resource': [
+                    u'arn:aws:s3:::kingpin*/*',
+                    u'arn:aws:s3:::kingpin*'],
+                 u'Effect': u'Allow'}]}
+
+        # First test, throw an exception getting the user policies..
+        self.actor.iam_conn.get_all_user_policies.side_effect = BotoServerError(
+            500, 'Yikes!')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._get_user_policies('test')
+
+        # Now unset the side effect so we can do a real test
+        self.actor.iam_conn.get_all_user_policies.side_effect = None
+
+        # Return a list of user policy names...
+        policies = {
+            'list_user_policies_response': {
+                'list_user_policies_result': {
+                    'policy_names': ['test1', 'test2', 'test3']
+                }
+            }
+        }
+        self.actor.iam_conn.get_all_user_policies.return_value = policies
+
+        # Now mock out the policy responses too -- each request for a policy
+        # will return a single copy of the policy_str above.
+        self.actor.iam_conn.get_user_policy.return_value = {
+            'get_user_policy_response': {
+                'get_user_policy_result': {
+                    'policy_document': policy_str,
+                }
+            }
+        }
+
+        # Finally, make the call and see if we get all the policies
+        ret = yield self.actor._get_user_policies('test')
+        self.assertEquals(len(ret), 3)
+        self.assertEquals(ret['test1'], policy_dict)
+        self.assertEquals(ret['test2'], policy_dict)
+        self.assertEquals(ret['test3'], policy_dict)
+
+        # One final test.. make sure we raise an exception if any of the get
+        # user policy calls fail.
+        self.actor.iam_conn.get_user_policy.side_effect = BotoServerError(
+            500, 'Yikes!')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._get_user_policies('test')
+
+    @testing.gen_test
     def test_get_user(self):
         # Test a random unexpected failure
         self.actor.iam_conn.get_all_users.side_effect = BotoServerError(
