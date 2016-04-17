@@ -201,8 +201,8 @@ class BaseActor(object):
 
             # If the expected_type has an attribute 'valid', then verify that
             # the option passed in is one of those valid options.
-            if hasattr(expected_type, 'valid'):
-                if value in expected_type.valid:
+            if hasattr(expected_type, 'validate'):
+                if expected_type.validate(value):
                     continue
 
                 option_errors.append(

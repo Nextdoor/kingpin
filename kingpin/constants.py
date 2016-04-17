@@ -20,13 +20,29 @@ class REQUIRED(object):
     """Meta class to identify required arguments for actors."""
 
 
-class STATE(object):
+class StringCompareBase(object):
 
     """Meta class to identify the desired state for a resource.
 
     This basic type of constant allows someone to easily define a set of valid
     strings for their option and have the base actor class automatically
     validate the inputs against those strings.
+    """
+
+    valid = None
+
+    @classmethod
+    def validate(self, option):
+        if option in self.valid:
+            return True
+
+
+class STATE(StringCompareBase):
+
+    """Meta class to identify the desired state for a resource.
+
+    Simple tester for 'present' or 'absent' on actors. Used for any actor thats
+    idempotent and used to ensure some state of a resource.
     """
 
     valid = ('present', 'absent')
