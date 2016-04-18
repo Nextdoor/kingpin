@@ -209,6 +209,16 @@ class BaseActor(object):
                     'Option "%s" has to be %s, and is %s.' %
                     (opt, expected_type.valid, value))
 
+            # If the option type is Bool, try to convert the strings True/False
+            # into booleans. If this doesn't work, siletly move on and let the
+            # failure get caught below.
+            if expected_type is bool:
+                try:
+                    value = self.str2bool(value, strict=True)
+                    self._options[opt] = value
+                except exceptions.InvalidOptions as e:
+                    self.log.warning(e)
+
             if not (value is None or isinstance(value, expected_type)):
                 message = 'Option "%s" has to be %s and is %s.' % (
                     opt, expected_type, type(value))
@@ -322,16 +332,30 @@ class BaseActor(object):
 
         raise gen.Return(ret)
 
-    def str2bool(self, v):
+    def str2bool(self, v, strict=False):
         """Returns a Boolean from a variety of inputs.
 
         args:
             value: String/Bool
+            strict: Whether or not to _only_ convert the known words into
+            booleans, or whether to allow "any" word to be considered True
+            other than the known False words.
 
         returns:
             A boolean
         """
-        return str(v).lower() not in ("no", "false", "f", "0")
+        false = ('no', 'false', 'f', '0')
+        true = ('yes', 'true', 't', '1')
+
+        string = str(v).lower()
+
+        if strict:
+            if string not in true and string not in false:
+                raise exceptions.InvalidOptions(
+                    'Expected [%s, %s] but got: %s' %
+                    (true, false, string))
+
+        return string not in false
 
     def _check_condition(self):
         """Check if specified condition allows this actor to run.
