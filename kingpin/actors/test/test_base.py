@@ -131,6 +131,11 @@ class TestBaseActor(testing.AsyncTestCase):
         ret = self.actor._validate_options()
         self.assertEquals(None, ret)
 
+        self.actor.all_options = {'test': (bool, REQUIRED, '')}
+        self.actor._options = {'test': 'junk_text'}
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._validate_options()
+
         self.actor.all_options = {'test': (str, REQUIRED, ''),
                                   'test2': (str, REQUIRED, '')}
         self.actor._options = {'test': 'b', 'test2': 'b'}
@@ -139,7 +144,6 @@ class TestBaseActor(testing.AsyncTestCase):
 
         # The STATE type requires either 'present' or 'absent' to be passed in.
         self.actor.all_options = {'test': (STATE, REQUIRED, '')}
-
         self.actor._options = {'test': 'present'}
         ret = self.actor._validate_options()
         self.assertEquals(None, ret)
