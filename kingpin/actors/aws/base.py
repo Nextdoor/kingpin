@@ -34,6 +34,7 @@ _Note, these can be skipped only if you have a .aws/credentials file in place._
 
 import json
 import logging
+import os
 import urllib
 import re
 
@@ -240,3 +241,29 @@ class AWSBaseActor(base.BaseActor):
             policy: The policy string returned by Boto
         """
         return json.loads(urllib.unquote(policy))
+
+    def _parse_policy_json(self, policy):
+        """Parse a single JSON file into an Amazon policy.
+
+        Validates that the policy document can be parsed, strips out any
+        comments, and fills in any environmental tokens. Returns a dictionary
+        of the contents.
+
+        args:
+            policy: The Policy JSON file to read.
+
+        returns:
+            A dictionary of the parsed policy.
+        """
+        # Run through any supplied Inline IAM Policies and verify that they're
+        # not corrupt very early on.
+        self.log.debug('Parsing and validating %s' % policy)
+
+        try:
+            p_doc = utils.convert_json_to_dict(json_file=policy,
+                                               tokens=os.environ)
+        except (LookupError, ValueError, IOError) as e:
+            msg = 'Error parsing %s: %s' % (policy, e)
+            raise exceptions.UnrecoverableActorFailure(msg)
+
+        return p_doc

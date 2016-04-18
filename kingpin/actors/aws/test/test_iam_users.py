@@ -32,17 +32,36 @@ class TestUser(testing.AsyncTestCase):
         self.actor = iam.User(
             'Unit Test',
             {'name': 'test',
-             'state': 'present'})
+             'state': 'present',
+             'inline_policies': 'examples/aws.iam.user/s3_example.json'})
         self.actor.iam_conn = mock.Mock()
 
     @testing.gen_test
-    def test_execute(self):
-        ensure_mock = mock.MagicMock(name='_ensure_user')
-        self.actor._ensure_user = ensure_mock
-        self.actor._ensure_user.side_effect = [tornado_value(None)]
+    def test_generate_policy_name(self):
+        name = '/some-?funky*-directory/with.my.policy.json'
+        parsed = self.actor._generate_policy_name(name)
+        self.assertEquals(parsed, 'some-funky-directory-with.my.policy')
 
+    @testing.gen_test
+    def test_execute(self):
+        ensure_user = mock.MagicMock()
+        ensure_inline_policies = mock.MagicMock()
+        self.actor._ensure_user = ensure_user
+        self.actor._ensure_inline_policies = ensure_inline_policies
+        self.actor._ensure_user.side_effect = [tornado_value(None)]
+        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
         yield self.actor._execute()
-        ensure_mock.assert_called_with('test', 'present')
+        ensure_user.assert_called_once()
+        ensure_inline_policies.assert_called_once()
+
+    @testing.gen_test
+    def test_execute_absent(self):
+        ensure_user = mock.MagicMock()
+        self.actor._options['state'] = 'absent'
+        self.actor._ensure_user = ensure_user
+        self.actor._ensure_user.side_effect = [tornado_value(None)]
+        yield self.actor._execute()
+        ensure_user.assert_called_once()
 
     @testing.gen_test
     def test_get_user_policies(self):
@@ -73,6 +92,12 @@ class TestUser(testing.AsyncTestCase):
             500, 'Yikes!')
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._get_user_policies('test')
+
+        # Next, what if the user doesn't exist at all?
+        self.actor.iam_conn.get_all_user_policies.side_effect = BotoServerError(
+            404, 'User does not exist!')
+        ret = yield self.actor._get_user_policies('test')
+        self.assertEquals(ret, {})
 
         # Now unset the side effect so we can do a real test
         self.actor.iam_conn.get_all_user_policies.side_effect = None
@@ -110,6 +135,96 @@ class TestUser(testing.AsyncTestCase):
             500, 'Yikes!')
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._get_user_policies('test')
+
+    @testing.gen_test
+    def test_parse_inline_policies(self):
+        parsed_policy = self.actor.inline_policies['examples-aws.iam.user-s3_example']
+        self.assertEquals(parsed_policy['Version'], '2012-10-17')
+
+    @testing.gen_test
+    def test_ensure_inline_policies_purge_false(self):
+        # First, pretend like there are a few policies in place and we're not
+        # passing any in, however we are purging policies we don't manage.
+        fake_pol = {
+            'Policy1': {'junk': 'policy'},
+            'Policy2': {'more': 'junk'},
+        }
+        self.actor._get_user_policies = mock.MagicMock()
+        self.actor._get_user_policies.side_effect = [tornado_value(fake_pol)]
+        self.actor._put_user_policy = mock.MagicMock()
+        self.actor._put_user_policy.side_effect = [tornado_value(None)]
+
+        yield self.actor._ensure_inline_policies('test', False)
+        self.assertEquals(1, self.actor._put_user_policy.call_count)
+
+    @testing.gen_test
+    def test_ensure_inline_policies_purge_true(self):
+        # First, pretend like there are a few policies in place and we're not
+        # passing any in, however we are purging policies we don't manage.
+        fake_pol = {
+            'Policy1': {'junk': 'policy'},
+            'Policy2': {'more': 'junk'},
+        }
+        self.actor._get_user_policies = mock.MagicMock()
+        self.actor._get_user_policies.side_effect = [tornado_value(fake_pol)]
+
+        # Mock out the delete_user_policy and put_user_policy methods
+        self.actor._delete_user_policy = mock.MagicMock()
+        self.actor._delete_user_policy.side_effect = [
+            tornado_value(None), tornado_value(None)
+        ]
+        self.actor._put_user_policy = mock.MagicMock()
+        self.actor._put_user_policy.side_effect = [tornado_value(None)]
+
+        # Same as above, but now we're purging the existing policies
+        yield self.actor._ensure_inline_policies('test', True)
+        self.assertEquals(1, self.actor._put_user_policy.call_count)
+        self.actor._delete_user_policy.assert_has_calls([
+            mock.call('test', 'Policy1'),
+            mock.call('test', 'Policy2'),
+        ])
+
+    @testing.gen_test
+    def test_delete_user_policy_dry(self):
+        self.actor._dry = True
+        self.actor.iam_conn.delete_user_policy = mock.MagicMock()
+        yield self.actor._delete_user_policy('test', 'test-policy')
+        self.assertFalse(self.actor.iam_conn.delete_user_policy.called)
+
+    @testing.gen_test
+    def test_delete_user_policy(self):
+        self.actor.iam_conn.delete_user_policy = mock.MagicMock()
+        yield self.actor._delete_user_policy('test', 'test-policy')
+        self.actor.iam_conn.delete_user_policy.assert_called_once()
+
+    @testing.gen_test
+    def test_delete_user_policy_exception(self):
+        self.actor.iam_conn.delete_user_policy = mock.MagicMock()
+        self.actor.iam_conn.delete_user_policy.side_effect = BotoServerError(
+            500, 'Yikes!')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._delete_user_policy('test', 'test-policy')
+
+    @testing.gen_test
+    def test_put_user_policy_dry(self):
+        self.actor._dry = True
+        self.actor.iam_conn.put_user_policy = mock.MagicMock()
+        yield self.actor._put_user_policy('test', 'test-policy', {})
+        self.assertFalse(self.actor.iam_conn.put_user_policy.called)
+
+    @testing.gen_test
+    def test_put_user_policy(self):
+        self.actor.iam_conn.put_user_policy = mock.MagicMock()
+        yield self.actor._put_user_policy('test', 'test-policy', {})
+        self.actor.iam_conn.put_user_policy.assert_called_once()
+
+    @testing.gen_test
+    def test_put_user_policy_exception(self):
+        self.actor.iam_conn.put_user_policy = mock.MagicMock()
+        self.actor.iam_conn.put_user_policy.side_effect = BotoServerError(
+            500, 'Yikes!')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._put_user_policy('test', 'test-policy', {})
 
     @testing.gen_test
     def test_get_user(self):
@@ -183,7 +298,7 @@ class TestUser(testing.AsyncTestCase):
         self.actor._get_user.side_effect = [tornado_value(None)]
         yield self.actor._ensure_user('test', 'present')
         create_mock.assert_called_with('test')
-        delete_mock.assert_not_called()
+        self.assertFalse(delete_mock.called)
         create_mock.reset_mock()
         delete_mock.reset_mock()
 
@@ -199,8 +314,8 @@ class TestUser(testing.AsyncTestCase):
         # since the user already exists
         self.actor._get_user.side_effect = [tornado_value(user)]
         yield self.actor._ensure_user('test', 'present')
-        create_mock.assert_not_called()
-        delete_mock.assert_not_called()
+        self.assertFalse(create_mock.called)
+        self.assertFalse(delete_mock.called)
         create_mock.reset_mock()
         delete_mock.reset_mock()
 
@@ -208,7 +323,7 @@ class TestUser(testing.AsyncTestCase):
         # deleted?
         self.actor._get_user.side_effect = [tornado_value(user)]
         yield self.actor._ensure_user('test', 'absent')
-        create_mock.assert_not_called()
+        self.assertFalse(create_mock.called)
         delete_mock.assert_called_with('test')
         create_mock.reset_mock()
         delete_mock.reset_mock()
@@ -216,8 +331,8 @@ class TestUser(testing.AsyncTestCase):
         # If the user doesn't exist, make sure we don't try to delete them
         self.actor._get_user.side_effect = [tornado_value(None)]
         yield self.actor._ensure_user('test', 'absent')
-        create_mock.assert_not_called()
-        delete_mock.assert_not_called()
+        self.assertFalse(create_mock.called)
+        self.assertFalse(delete_mock.called)
         create_mock.reset_mock()
         delete_mock.reset_mock()
 
@@ -225,12 +340,18 @@ class TestUser(testing.AsyncTestCase):
     def test_delete_user(self):
         # Pretend it worked...
         self.actor.iam_conn.delete_user.return_value = None
+        self.actor._get_user_policies = mock.MagicMock()
+        self.actor._get_user_policies.side_effect = [tornado_value(['test'])]
+        self.actor._delete_user_policy = mock.MagicMock()
+        self.actor._delete_user_policy.side_effect = [tornado_value(None)]
         yield self.actor._delete_user('test')
         self.actor.iam_conn.delete_user.assert_called_with('test')
 
     @testing.gen_test
     def test_delete_user_already_deleted(self):
         # Exception raised? Handle it!
+        self.actor._get_user_policies = mock.MagicMock()
+        self.actor._get_user_policies.side_effect = [tornado_value([])]
         self.actor.iam_conn.delete_user.side_effect = BotoServerError(
             404, 'User already gone!')
         yield self.actor._delete_user('test')
@@ -239,6 +360,8 @@ class TestUser(testing.AsyncTestCase):
     @testing.gen_test
     def test_delete_user_other_exception(self):
         # Exception raised? Handle it!
+        self.actor._get_user_policies = mock.MagicMock()
+        self.actor._get_user_policies.side_effect = [tornado_value([])]
         self.actor.iam_conn.delete_user.side_effect = BotoServerError(
             500, 'Yikes!')
         with self.assertRaises(exceptions.RecoverableActorFailure):
@@ -250,7 +373,7 @@ class TestUser(testing.AsyncTestCase):
         self.actor._dry = True
         self.actor.iam_conn.delete_user.return_value = None
         yield self.actor._delete_user('test')
-        self.actor.iam_conn.delete_user.assert_not_called()
+        self.assertFalse(self.actor.iam_conn.delete_user.called)
 
     @testing.gen_test
     def test_create_user(self):
@@ -283,4 +406,4 @@ class TestUser(testing.AsyncTestCase):
         # Make sure we did not call the create function!
         self.actor._dry = True
         yield self.actor._create_user('test')
-        self.actor.iam_conn.create_user.assert_not_called()
+        self.assertFalse(self.actor.iam_conn.create_user.called)

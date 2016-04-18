@@ -141,3 +141,15 @@ class TestBase(testing.AsyncTestCase):
         actor = base.AWSBaseActor('Unit Test Action', {})
         ret = actor._policy_doc_to_dict(policy_str)
         self.assertEqual(ret, policy_dict)
+
+    @testing.gen_test
+    def test_parse_policy_json(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+
+        # Should work fine by default with good data
+        ret = actor._parse_policy_json('examples/aws.iam.user/s3_example.json')
+        self.assertEquals(ret['Version'], '2012-10-17')
+
+        # If the file doesn't exist, raise an exception
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            actor._parse_policy_json('junk')
