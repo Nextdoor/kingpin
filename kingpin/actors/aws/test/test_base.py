@@ -153,3 +153,13 @@ class TestBase(testing.AsyncTestCase):
         # If the file doesn't exist, raise an exception
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
             actor._parse_policy_json('junk')
+
+    @testing.gen_test
+    def test_diff_policy_json(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+
+        p1 = {'a': 'a', 'b': 'b'}
+        p2 = {'a': 'a', 'c': 'c'}
+
+        self.assertEquals(None, actor._diff_policy_json(p1, p1))
+        self.assertNotEquals(None, actor._diff_policy_json(p1, p2))

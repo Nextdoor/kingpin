@@ -88,13 +88,14 @@ class TestUser(testing.AsyncTestCase):
                  u'Effect': u'Allow'}]}
 
         # First test, throw an exception getting the user policies..
-        self.actor.iam_conn.get_all_user_policies.side_effect = BotoServerError(
+        a = self.actor
+        a.iam_conn.get_all_user_policies.side_effect = BotoServerError(
             500, 'Yikes!')
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._get_user_policies('test')
 
         # Next, what if the user doesn't exist at all?
-        self.actor.iam_conn.get_all_user_policies.side_effect = BotoServerError(
+        a.iam_conn.get_all_user_policies.side_effect = BotoServerError(
             404, 'User does not exist!')
         ret = yield self.actor._get_user_policies('test')
         self.assertEquals(ret, {})
@@ -138,7 +139,9 @@ class TestUser(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_parse_inline_policies(self):
-        parsed_policy = self.actor.inline_policies['examples-aws.iam.user-s3_example']
+        parsed_policy = self.actor.inline_policies[
+            'examples-aws.iam.user-s3_example'
+        ]
         self.assertEquals(parsed_policy['Version'], '2012-10-17')
 
     @testing.gen_test
@@ -148,6 +151,22 @@ class TestUser(testing.AsyncTestCase):
         fake_pol = {
             'Policy1': {'junk': 'policy'},
             'Policy2': {'more': 'junk'},
+        }
+        self.actor._get_user_policies = mock.MagicMock()
+        self.actor._get_user_policies.side_effect = [tornado_value(fake_pol)]
+        self.actor._put_user_policy = mock.MagicMock()
+        self.actor._put_user_policy.side_effect = [tornado_value(None)]
+
+        yield self.actor._ensure_inline_policies('test', False)
+        self.assertEquals(1, self.actor._put_user_policy.call_count)
+
+    @testing.gen_test
+    def test_ensure_inline_policies_(self):
+        # First, pretend like there are a few policies in place and we're not
+        # passing any in, however we are purging policies we don't manage.
+        fake_pol = {
+            'Policy1': {'junk': 'policy'},
+            'examples-aws.iam.user-s3_example': {'more': 'junk'},
         }
         self.actor._get_user_policies = mock.MagicMock()
         self.actor._get_user_policies.side_effect = [tornado_value(fake_pol)]

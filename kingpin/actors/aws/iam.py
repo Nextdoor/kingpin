@@ -400,6 +400,23 @@ class User(IAMBaseActor):
             tasks.append(self._put_user_policy(name, policy, policy_doc))
         yield tasks
 
+        # Do we have matching policies that we're managing here, and are
+        # already attached to the user profile? Lets make sure each one of
+        # those matches the policy we have here, and update it if necessary.
+        tasks = []
+        for policy in [policy for policy in self.inline_policies.keys()
+                       if policy in existing_policies.keys()]:
+            new = self.inline_policies[policy]
+            exist = existing_policies[policy]
+            diff = self._diff_policy_json(new, exist)
+            if diff:
+                self.log.info('Policy %s differs from Amazons:' % policy)
+                for line in diff.split('\n'):
+                    self.log.info('Diff: %s' % line)
+                policy_doc = self.inline_policies[policy]
+                tasks.append(self._put_user_policy(name, policy, policy_doc))
+        yield tasks
+
         # We're done now -- are we purging unmanaged records? If not, bail!
         if not purge:
             raise gen.Return()
@@ -407,8 +424,6 @@ class User(IAMBaseActor):
         # Finally, are we purging? If so, find any policies (by name) that we
         # don't have in our own inline policies doc, and purge them.
         tasks = []
-        self.log.debug(existing_policies)
-        self.log.debug(self.inline_policies)
         for policy in [policy for policy in existing_policies.keys()
                        if policy not in self.inline_policies.keys()]:
             tasks.append(self._delete_user_policy(name, policy))
@@ -431,7 +446,7 @@ class User(IAMBaseActor):
         try:
             ret = yield self.thread(
                 self.iam_conn.delete_user_policy, name, policy_name)
-            self.log.debug('Policy %s deleted, response: %s' % (policy_name, ret))
+            self.log.debug('Policy %s deleted: %s' % (policy_name, ret))
         except BotoServerError as e:
             if e.error_code != 404:
                 raise exceptions.RecoverableActorFailure(
@@ -458,7 +473,7 @@ class User(IAMBaseActor):
                 name,
                 policy_name,
                 json.dumps(policy_doc))
-            self.log.debug('Policy %s pushed, response: %s' % (policy_name, ret))
+            self.log.debug('Policy %s pushed: %s' % (policy_name, ret))
         except BotoServerError as e:
             raise exceptions.RecoverableActorFailure(
                 'An unexpected API error occurred: %s' % e)

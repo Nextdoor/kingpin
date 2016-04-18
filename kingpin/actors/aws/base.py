@@ -40,6 +40,7 @@ import re
 
 from boto import utils as boto_utils
 from boto import exception as boto_exception
+from datadiff import diff
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
@@ -267,3 +268,24 @@ class AWSBaseActor(base.BaseActor):
             raise exceptions.UnrecoverableActorFailure(msg)
 
         return p_doc
+
+    def _diff_policy_json(self, policy1, policy2):
+        """Compares two dicts and returns True/False.
+
+        Sorts two dicts (including sorting of the lists!!) and then diffs them.
+
+        args:
+            policy1: First policy (a)
+            policy2: Second policy (b)
+
+        returns:
+            None: No diff
+            Str: A diff string
+        """
+        policy1 = utils.order_dict(policy1)
+        policy2 = utils.order_dict(policy2)
+
+        if policy1 == policy2:
+            return
+
+        return str(diff(policy1, policy2))
