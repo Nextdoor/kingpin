@@ -18,6 +18,9 @@
 
 .. autoclass:: User
    :noindex:
+
+.. autoclass:: Group
+   :noindex:
 """
 
 import logging
@@ -31,7 +34,7 @@ from kingpin.actors.aws.iam import base
 from kingpin.constants import REQUIRED
 
 # Bring in our sub class actors into the iam namespace
-from kingpin.actors.aws.iam.entities import User
+from kingpin.actors.aws.iam.entities import User, Group
 
 log = logging.getLogger(__name__)
 
@@ -47,6 +50,7 @@ EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 # Quiet down PyFlakes
 User
+Group
 
 
 class UploadCert(base.IAMBaseActor):
