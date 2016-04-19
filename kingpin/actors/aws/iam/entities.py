@@ -42,56 +42,14 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
-class User(base.IAMBaseActor):
+class EntityBaseActor(base.IAMBaseActor):
 
-    """Manages an IAM User.
+    """User/Group/Role Base Management Class
 
-    This actor manages the state of an Amazon IAM User. It ensures that the
-    user either exists or does not. It also updates any settings for the user
-    that are different from the passed in options.
-
-    At the moment you can mange the users state, its inline policies, and you
-    can purge unmanaged inline policies.
-
-    **Options**
-
-    :name:
-      (str) Name of the User profile to manage
-
-    :state:
-      (str) Present or Absent. Default: "present"
-
-    :inline_policies:
-      (str,array) A list of strings that point to JSON files to use as inline
-      policies. You can also pass in a single inline policy as a string.
-      Default: []
-
-    :inline_policies_purge:
-      (bool) Whether or not to purge un-managed policies. Default: false
-
-    **Example**
-
-    .. code-block:: json
-
-       { "actor": "aws.iam.User",
-         "desc": "Ensure that Bob exists",
-         "options": {
-           "name": "bob",
-           "state": "present",
-           "inline_policies": [
-             "read-all-s3.json",
-             "create-other-stuff.json"
-           ],
-           "inline_policies_purge": false,
-         }
-       }
-
-    **Dry run**
-
-    Will let you know if the user exists or not, and what changes it would make
-    to the users policy and settings. Will also parse the inline policies
-    supplied, make sure any tokens in the files are replaced, and that the
-    files are valid JSON.
+    Managing Users, Groups and Roles in Amazon IAM is nearly identical. This
+    class abstracts that work, so that the actual User/Group/Role actors can be
+    extremely simple and just handle the differences between each type of IAM
+    entity.
     """
 
     all_options = {
@@ -105,7 +63,18 @@ class User(base.IAMBaseActor):
     }
 
     def __init__(self, *args, **kwargs):
-        super(User, self).__init__(*args, **kwargs)
+        super(EntityBaseActor, self).__init__(*args, **kwargs)
+
+        # These IAM Connection methods must be overridden in a subclass of this
+        # actor!
+        self.entity_name = 'base'
+        self.create_entity = None
+        self.delete_entity = None
+        self.delete_entity_policy = None
+        self.get_all_entities = None
+        self.get_all_entity_policies = None
+        self.get_entity_policy = None
+        self.put_entity_policy = None
 
         # Parse the supplied inline policies
         self._parse_inline_policies(self.option('inline_policies'))
@@ -173,11 +142,11 @@ class User(base.IAMBaseActor):
         self.log.info(self.inline_policies)
 
     @gen.coroutine
-    def _get_user_policies(self, name):
-        """Returns a dictionary of all the inline policies attached to a user.
+    def _get_entity_policies(self, name):
+        """Returns a dictionary of all the inline policies attached to a entity.
 
         args:
-            name: The IAM User Name
+            name: The IAM Entity Name (Name/Group)
 
         returns:
             A dict of key/value pairs - key is the policy name, value is the
@@ -185,12 +154,12 @@ class User(base.IAMBaseActor):
         """
         policies = {}
 
-        # Get the list of inline policies attached to a user.
+        # Get the list of inline policies attached to an entity.
         self.log.debug('Searching for any inline policies for %s' % name)
         try:
-            ret = yield self.thread(self.iam_conn.get_all_user_policies, name)
-            response = ret['list_user_policies_response']
-            result = response['list_user_policies_result']
+            ret = yield self.thread(self.get_all_entity_policies, name)
+            response = ret['list_%s_policies_response' % self.entity_name]
+            result = response['list_%s_policies_result' % self.entity_name]
             policy_names = result['policy_names']
         except BotoServerError as e:
             if e.status == 404:
@@ -207,7 +176,7 @@ class User(base.IAMBaseActor):
         for p_name in policy_names:
             tasks.append(
                 (p_name,
-                 self.thread(self.iam_conn.get_user_policy, name, p_name)))
+                 self.thread(self.get_entity_policy, name, p_name)))
 
         # Now that we've fired off all the calls, we walk through each yielded
         # result, parse the returned policy, and append it to our policies
@@ -222,8 +191,10 @@ class User(base.IAMBaseActor):
                     'policy %s: %s' % (p_name, e))
 
             # Convert the uuencoded doc string into a dict
-            result = raw['get_user_policy_response']['get_user_policy_result']
-            p_doc = self._policy_doc_to_dict(result['policy_document'])
+            resp_key = 'get_%s_policy_response' % self.entity_name
+            result_key = 'get_%s_policy_result' % self.entity_name
+            p_doc = self._policy_doc_to_dict(
+                raw[resp_key][result_key]['policy_document'])
 
             # Store the converted document under the policy name key
             policies[p_name] = p_doc
@@ -233,31 +204,32 @@ class User(base.IAMBaseActor):
 
     @gen.coroutine
     def _ensure_inline_policies(self, name, purge):
-        """Ensures that all of the inline IAM policies for a user are managed.
+        """Ensures that all of the inline IAM policies for a entity are managed
 
         This method has three stages.. first it ensures that any missing
-        policies (as determined by the policy name) are applied to a user.
+        policies (as determined by the policy name) are applied to a entity.
         Second, it determines if any existing policies have changed locally and
         need to be updated in IAM. Finally (optionally) it purges unmanaged
-        policies that were applied to a user out of band.
+        policies that were applied to a entity out of band.
 
         args:
-            name: The username to manage
+            name: The entity to manage
             purge: Whether or not to purge unmanaged policies.
         """
-        # Get the list of current user policies first
-        existing_policies = yield self._get_user_policies(name)
+        # Get the list of current entity policies first
+        existing_policies = yield self._get_entity_policies(name)
 
-        # First, push any policies that we have listed, but aren't in the user
+        # First, push any policies that we have listed, but aren't in the
+        # entity
         tasks = []
         for policy in [policy for policy in self.inline_policies.keys()
                        if policy not in existing_policies.keys()]:
             policy_doc = self.inline_policies[policy]
-            tasks.append(self._put_user_policy(name, policy, policy_doc))
+            tasks.append(self._put_entity_policy(name, policy, policy_doc))
         yield tasks
 
         # Do we have matching policies that we're managing here, and are
-        # already attached to the user profile? Lets make sure each one of
+        # already attached to the entity profile? Lets make sure each one of
         # those matches the policy we have here, and update it if necessary.
         tasks = []
         for policy in [policy for policy in self.inline_policies.keys()
@@ -270,7 +242,7 @@ class User(base.IAMBaseActor):
                 for line in diff.split('\n'):
                     self.log.info('Diff: %s' % line)
                 policy_doc = self.inline_policies[policy]
-                tasks.append(self._put_user_policy(name, policy, policy_doc))
+                tasks.append(self._put_entity_policy(name, policy, policy_doc))
         yield tasks
 
         # We're done now -- are we purging unmanaged records? If not, bail!
@@ -282,26 +254,27 @@ class User(base.IAMBaseActor):
         tasks = []
         for policy in [policy for policy in existing_policies.keys()
                        if policy not in self.inline_policies.keys()]:
-            tasks.append(self._delete_user_policy(name, policy))
+            tasks.append(self._delete_entity_policy(name, policy))
         yield tasks
 
     @gen.coroutine
-    def _delete_user_policy(self, name, policy_name):
-        """Optionally pushes a policy to an IAM user.
+    def _delete_entity_policy(self, name, policy_name):
+        """Optionally pushes a policy to an IAM entity.
 
         args:
-            name: The IAM User Name
-            policy_name: The users policy name
+            name: The IAM Entity Name
+            policy_name: The entity policy name
         """
         if self._dry:
-            self.log.warning('Would delete policy %s from user %s' %
-                             (policy_name, name))
+            self.log.warning('Would delete policy %s from %s %s' %
+                             (self.entity_name, policy_name, name))
             raise gen.Return()
 
-        self.log.info('Deleting policy %s from user %s' % (policy_name, name))
+        self.log.info('Deleting policy %s from %s %s' %
+                      (self.entity_name, policy_name, name))
         try:
             ret = yield self.thread(
-                self.iam_conn.delete_user_policy, name, policy_name)
+                self.delete_entity_policy, name, policy_name)
             self.log.debug('Policy %s deleted: %s' % (policy_name, ret))
         except BotoServerError as e:
             if e.error_code != 404:
@@ -309,23 +282,24 @@ class User(base.IAMBaseActor):
                     'An unexpected API error occurred: %s' % e)
 
     @gen.coroutine
-    def _put_user_policy(self, name, policy_name, policy_doc):
-        """Optionally pushes a policy to an IAM user.
+    def _put_entity_policy(self, name, policy_name, policy_doc):
+        """Optionally pushes a policy to an IAM Entity.
 
         args:
-            name: The IAM User Name
-            policy_name: The users policy name
+            name: The IAM Entity Name
+            policy_name: The entity policy name
             policy_doc: The ploicy document object itself
         """
         if self._dry:
-            self.log.warning('Would push policy %s to user %s' %
-                             (policy_name, name))
+            self.log.warning('Would push policy %s to %s %s' %
+                             (self.entity_name, policy_name, name))
             raise gen.Return()
 
-        self.log.info('Pushing policy %s to user %s' % (policy_name, name))
+        self.log.info('Pushing policy %s to %s %s' %
+                      (self.entity_name, policy_name, name))
         try:
             ret = yield self.thread(
-                self.iam_conn.put_user_policy,
+                self.put_entity_policy,
                 name,
                 policy_name,
                 json.dumps(policy_doc))
@@ -335,125 +309,133 @@ class User(base.IAMBaseActor):
                 'An unexpected API error occurred: %s' % e)
 
     @gen.coroutine
-    def _get_user(self, name):
-        """Returns an IAM User JSON Blob.
+    def _get_entity(self, name):
+        """Returns an IAM Entity JSON Blob.
 
-        Searches for an IAM user and either returns None, or a JSON blob that
-        describes the user.
+        Searches for an IAM Entity and either returns None, or a JSON blob that
+        describes the Entity.
 
         args:
-            name: The IAM User Name
+            name: The IAM Entity Name
         """
-        self.log.debug('Searching for user %s' % name)
+        self.log.debug('Searching for %s %s' % (self.entity_name, name))
 
-        # Get a list of all of our users.
+        # Get a list of all of our entities.
         try:
-            users = yield self.thread(self.iam_conn.get_all_users)
+            entities = yield self.thread(self.get_all_entities)
         except BotoServerError as e:
             raise exceptions.RecoverableActorFailure(
                 'An unexpected API error occurred: %s' % e)
 
-        # Now search for the user
-        user = [user for user in
-                users['list_users_response']['list_users_result']['users'] if
-                user['user_name'] == name]
+        # Now search for the entity
+        resp_key = 'list_%ss_response' % self.entity_name
+        result_key = 'list_%ss_result' % self.entity_name
+        entity_key = '%ss' % self.entity_name
+        entity = [entity for entity in
+                  entities[resp_key][result_key][entity_key] if
+                  entity['%s_name' % self.entity_name] == name]
 
-        # If there aren't any users, return None.
-        if not user:
+        # If there aren't any entities, return None.
+        if not entity:
             raise gen.Return()
 
-        # If there is more than one user, something went really wrong. Raise an
-        # exception.
-        if len(user) > 1:
+        # If there is more than one entities, something went really wrong.
+        # Raise an exception.
+        if len(entity) > 1:
             raise exceptions.RecoverableActorFailure(
-                'More than one user found matching %s! Am I crazy?!' % name)
+                'More than one %s found matching %s! Am I crazy?!' %
+                (self.entity_name, name))
 
         # Finally, return the result!
-        self.log.debug('Found user %s' % user[0]['arn'])
-        raise gen.Return(user[0])
+        self.log.debug('Found %s %s' % (self.entity_name, entity[0]['arn']))
+        raise gen.Return(entity[0])
 
     @gen.coroutine
-    def _ensure_user(self, name, state):
-        """Ensures a user is either present or absent.
+    def _ensure_entity(self, name, state):
+        """Ensures a entity is either present or absent.
 
-        Looks up the users current state and then makes a decision about
-        creating or deleting the user. If the user is already in the correct
-        state, not changes are made.
+        Looks up the entities current state and then makes a decision about
+        creating or deleting the entity. If the entity is already in the
+        correct state, not changes are made.
 
         args:
             name: The IAM User Name
             state: 'present' or 'absent'
         """
-        self.log.info('Ensuring that user %s is %s' % (name, state))
+        self.log.info('Ensuring that %s %s is %s' %
+                      (self.entity_name, name, state))
 
-        user = yield self._get_user(name)
+        entity = yield self._get_entity(name)
 
-        if user and state == 'present':
+        if entity and state == 'present':
             raise gen.Return()
-        elif not user and state == 'present':
-            yield self._create_user(name)
-        elif user and state == 'absent':
-            yield self._delete_user(name)
-        elif not user and state == 'absent':
+        elif not entity and state == 'present':
+            yield self._create_entity(name)
+        elif entity and state == 'absent':
+            yield self._delete_entity(name)
+        elif not entity and state == 'absent':
             raise gen.Return()
 
     @gen.coroutine
-    def _create_user(self, name):
-        """Creates an IAM User.
+    def _create_entity(self, name):
+        """Creates an IAM Entity.
 
-        If the user exists, we just warn and move on.
+        If the entity exists, we just warn and move on.
 
         args:
-            name: The IAM User Name
+            name: The IAM Entity Name
         """
         if self._dry:
-            self.log.warning('Would create user %s' % name)
+            self.log.warning('Would create %s %s' % (self.entity_name, name))
             raise gen.Return()
 
         try:
             ret = yield self.thread(
-                self.iam_conn.create_user, name)
+                self.create_entity, name)
         except BotoServerError as e:
             if e.status != 409:
                 raise exceptions.RecoverableActorFailure(
                     'An unexpected API error occurred: %s' % e)
             self.log.warning(
-                'User %s already exists, skipping creation.' % name)
+                '%s %s already exists, skipping creation.' %
+                (self.entity_name, name))
             raise gen.Return()
 
-        arn = ret['create_user_response']['create_user_result']['user']['arn']
-        self.log.info('User %s created' % arn)
+        resp_key = 'create_%s_response' % self.entity_name
+        result_key = 'create_%s_result' % self.entity_name
+        arn = ret[resp_key][result_key][self.entity_name]['arn']
+        self.log.info('%s %s created' % (self.entity_name, arn))
 
     @gen.coroutine
-    def _delete_user(self, name):
-        """Deletes and IAM User.
+    def _delete_entity(self, name):
+        """Deletes and IAM Entity.
 
-        If the user doesn't exist, we just warn and move on.
+        If the entity doesn't exist, we just warn and move on.
 
         args:
-            name: The IAM User Name
+            name: The IAM Entity Name
         """
         if self._dry:
-            self.log.warning('Would delete user %s' % name)
+            self.log.warning('Would delete %s %s' % (self.entity_name, name))
             raise gen.Return()
 
         try:
-            # Get the users policies. They have to be deleted before we can
-            # possibly move forward and delete the user.
-            existing_policies = yield self._get_user_policies(name)
+            # Get the entities policies. They have to be deleted before we can
+            # possibly move forward and delete the entity.
+            existing_policies = yield self._get_entity_policies(name)
             tasks = []
             for policy in existing_policies:
-                tasks.append(self._delete_user_policy(name, policy))
+                tasks.append(self._delete_entity_policy(name, policy))
             yield tasks
 
-            # Now delete the user
-            yield self.thread(self.iam_conn.delete_user, name)
-            self.log.info('User %s deleted' % name)
+            # Now delete the entity
+            yield self.thread(self.delete_entity, name)
+            self.log.info('%s %s deleted' % (self.entity_name, name))
         except BotoServerError as e:
             if e.status != 404:
                 raise exceptions.RecoverableActorFailure(
                     'An unexpected API error occurred: %s' % e)
-            self.log.warning('User %s doesn\'t exist' % name)
+            self.log.warning('%s %s doesn\'t exist' % (self.entity_name, name))
 
     @gen.coroutine
     def _execute(self):
@@ -461,9 +443,84 @@ class User(base.IAMBaseActor):
         state = self.option('state')
         inline_policies_purge = self.option('inline_policies_purge')
 
-        yield self._ensure_user(name, state)
+        yield self._ensure_entity(name, state)
         if state == 'absent':
             raise gen.Return()
 
         yield self._ensure_inline_policies(name, inline_policies_purge)
         raise gen.Return()
+
+
+class User(EntityBaseActor):
+
+    """Manages an IAM User.
+
+    This actor manages the state of an Amazon IAM User. It ensures that the
+    user either exists or does not. It also updates any settings for the user
+    that are different from the passed in options.
+
+    At the moment you can mange the users state, its inline policies, and you
+    can purge unmanaged inline policies.
+
+    **Options**
+
+    :name:
+      (str) Name of the User profile to manage
+
+    :state:
+      (str) Present or Absent. Default: "present"
+
+    :inline_policies:
+      (str,array) A list of strings that point to JSON files to use as inline
+      policies. You can also pass in a single inline policy as a string.
+      Default: []
+
+    :inline_policies_purge:
+      (bool) Whether or not to purge un-managed policies. Default: false
+
+    **Example**
+
+    .. code-block:: json
+
+       { "actor": "aws.iam.User",
+         "desc": "Ensure that Bob exists",
+         "options": {
+           "name": "bob",
+           "state": "present",
+           "inline_policies": [
+             "read-all-s3.json",
+             "create-other-stuff.json"
+           ],
+           "inline_policies_purge": false,
+         }
+       }
+
+    **Dry run**
+
+    Will let you know if the user exists or not, and what changes it would make
+    to the users policy and settings. Will also parse the inline policies
+    supplied, make sure any tokens in the files are replaced, and that the
+    files are valid JSON.
+    """
+
+    all_options = {
+        'name': (str, REQUIRED, 'The name of the user.'),
+        'state': (STATE, 'present',
+                  'Desired state of the User: present/absent'),
+        'inline_policies': ((str, list), [],
+                            'List of inline policy JSON files to apply.'),
+        'inline_policies_purge': (bool, False,
+                                  'Purge unmanaged inline policies?')
+    }
+
+    def __init__(self, *args, **kwargs):
+        super(User, self).__init__(*args, **kwargs)
+
+        self.entity_name = 'user'
+        self.create_entity = self.iam_conn.create_user
+        self.delete_entity = self.iam_conn.delete_user
+        self.delete_entity_policy = self.iam_conn.delete_user_policy
+        self.get_all_entities = self.iam_conn.get_all_users
+        self.get_all_entity_policies = self.iam_conn.get_all_user_policies
+        self.get_entity_policy = self.iam_conn.get_user_policy
+        self.put_entity_policy = self.iam_conn.put_user_policy
