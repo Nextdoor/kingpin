@@ -7,7 +7,7 @@ import mock
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings
-from kingpin.actors.aws import iam
+from kingpin.actors.aws.iam import entities
 
 log = logging.getLogger(__name__)
 
@@ -25,11 +25,11 @@ class TestUser(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(iam)
+        reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
-        self.actor = iam.User(
+        self.actor = entities.User(
             'Unit Test',
             {'name': 'test',
              'state': 'present',
