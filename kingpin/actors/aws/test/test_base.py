@@ -6,9 +6,9 @@ from boto import utils
 from tornado import testing
 import mock
 
-from kingpin.actors.aws import settings
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
+from kingpin.actors.aws import settings
 
 log = logging.getLogger(__name__)
 

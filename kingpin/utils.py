@@ -35,6 +35,9 @@ from tornado import ioloop
 import httplib
 import rainbow_logging_handler
 
+from kingpin import exceptions
+
+
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
 log = logging.getLogger(__name__)
@@ -322,27 +325,35 @@ def convert_json_to_dict(json_file, tokens):
 
     Returns:
         <Dictonary of Config Data>
+
+    Raises:
+        kingpin.exceptions.InvalidJSON
     """
 
     filename = ''
-    if type(json_file) in (str, unicode):
-        filename = json_file
-        instance = open(json_file)
-    elif type(json_file) is file:
-        filename = json_file.name
-        instance = json_file
-    else:
-        filename = str(json_file)
-        instance = json_file
+    try:
+        if type(json_file) in (str, unicode):
+            filename = json_file
+            instance = open(json_file)
+        elif type(json_file) is file:
+            filename = json_file.name
+            instance = json_file
+        else:
+            filename = str(json_file)
+            instance = json_file
+    except IOError as e:
+        raise exceptions.InvalidJSON('Error reading json_file %s: %s' %
+                                     (json_file, e))
 
     raw = instance.read()
     parsed = populate_with_tokens(raw, tokens)
+
     try:
         decoded = demjson.decode(parsed)
     except demjson.JSONError as e:
         # demjson exceptions have `pretty_description()` method with
         # much more useful info.
-        raise ValueError('JSON in `%s` has an error: %s' % (
+        raise exceptions.InvalidJSON('JSON in `%s` has an error: %s' % (
             filename, e.pretty_description()))
     return decoded
 

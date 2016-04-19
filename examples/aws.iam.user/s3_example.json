@@ -9,9 +9,9 @@
             "Effect": "Allow",
 
             /***
-             * Note, these are out-of-order intetionally as part of our test
-             * that the code properly re-orders them before comparing them to
-             * whats currently in Amazon
+             * Note, these are out-of-alphabetical-order intetionally as part
+             * of our test that the code properly re-orders them before
+             * comparing them to whats currently in Amazon
              */
             "Action": [
                 "s3:Get*",

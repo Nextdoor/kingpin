@@ -572,8 +572,8 @@ class Group(EntityBaseActor):
 
     **Dry run**
 
-    Will let you know if the group exists or not, and what changes it would make
-    to the groups policy and settings. Will also parse the inline policies
+    Will let you know if the group exists or not, and what changes it would
+    make to the groups policy and settings. Will also parse the inline policies
     supplied, make sure any tokens in the files are replaced, and that the
     files are valid JSON.
     """

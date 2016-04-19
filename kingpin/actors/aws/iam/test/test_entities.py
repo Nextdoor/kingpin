@@ -474,3 +474,44 @@ class TestUser(testing.AsyncTestCase):
         yield self.actor._execute()
         ensure_entity.assert_called_once()
         ensure_inline_policies.assert_called_once()
+
+
+class TestGroup(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestGroup, self).setUp()
+        settings.AWS_ACCESS_KEY_ID = 'unit-test'
+        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        reload(entities)
+
+        # Create our actor object with some basics... then mock out the IAM
+        # connections..
+        self.actor = entities.Group(
+            'Unit Test',
+            {'name': 'test',
+             'state': 'present',
+             'inline_policies': 'examples/aws.iam.user/s3_example.json'})
+
+        iam_mock = mock.Mock()
+        self.actor.iam_conn = iam_mock
+
+        self.actor.create_entity = iam_mock.create_user
+        self.actor.delete_entity = iam_mock.delete_user
+        self.actor.delete_entity_policy = iam_mock.delete_user_policy
+        self.actor.get_all_entities = iam_mock.get_all_users
+        self.actor.get_all_entity_policies = iam_mock.get_all_user_policies
+        self.actor.get_entity_policy = iam_mock.get_user_policy
+        self.actor.put_entity_policy = iam_mock.put_user_policy
+
+    @testing.gen_test
+    def test_execute(self):
+        ensure_entity = mock.MagicMock()
+        ensure_inline_policies = mock.MagicMock()
+        self.actor._ensure_entity = ensure_entity
+        self.actor._ensure_inline_policies = ensure_inline_policies
+        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
+        yield self.actor._execute()
+        ensure_entity.assert_called_once()
+        ensure_inline_policies.assert_called_once()

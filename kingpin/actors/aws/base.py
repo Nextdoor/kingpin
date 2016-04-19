@@ -52,6 +52,7 @@ import boto.iam
 import boto.sqs
 
 from kingpin import utils
+from kingpin import exceptions as kingpin_exceptions
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings as aws_settings
@@ -263,9 +264,9 @@ class AWSBaseActor(base.BaseActor):
         try:
             p_doc = utils.convert_json_to_dict(json_file=policy,
                                                tokens=os.environ)
-        except (LookupError, ValueError, IOError) as e:
-            msg = 'Error parsing %s: %s' % (policy, e)
-            raise exceptions.UnrecoverableActorFailure(msg)
+        except kingpin_exceptions.InvalidJSON as e:
+            raise exceptions.UnrecoverableActorFailure('Error parsing %s: %s' %
+                                                       (policy, e))
 
         return p_doc
 
