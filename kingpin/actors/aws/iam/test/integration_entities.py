@@ -25,14 +25,14 @@ class IntegrationIAMUsers(testing.AsyncTestCase):
 
     # Not really a test - this is just a state cleaner. Ensure that we start
     # without the testig user in place before we begin.
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01_ensure_user_absent(self):
         actor = iam.User(
             'Test', {'name': self.name, 'state': 'absent'}, dry=False)
         yield actor.execute()
 
-    @attr('integration')
+    @attr('aws', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_02a_create_user_dry(self):
         actor = iam.User(
@@ -45,7 +45,7 @@ class IntegrationIAMUsers(testing.AsyncTestCase):
 
         yield actor.execute()
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02b_create_user(self):
         actor = iam.User(
@@ -58,7 +58,7 @@ class IntegrationIAMUsers(testing.AsyncTestCase):
         yield actor.execute()
 
     # Final cleanup -- delete our test user!
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_09_ensure_user_absent(self):
         actor = iam.User(
@@ -78,14 +78,14 @@ class IntegrationIAMGroups(testing.AsyncTestCase):
 
     # Not really a test - this is just a state cleaner. Ensure that we start
     # without the testig group in place before we begin.
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01_ensure_group_absent(self):
         actor = iam.User(
             'Test', {'name': self.name, 'state': 'absent'}, dry=False)
         yield actor.execute()
 
-    @attr('integration')
+    @attr('aws', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_02a_create_group_dry(self):
         actor = iam.User(
@@ -98,7 +98,7 @@ class IntegrationIAMGroups(testing.AsyncTestCase):
 
         yield actor.execute()
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02b_create_group(self):
         actor = iam.User(
@@ -111,7 +111,7 @@ class IntegrationIAMGroups(testing.AsyncTestCase):
         yield actor.execute()
 
     # Final cleanup -- delete our test group!
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_09_ensure_group_absent(self):
         actor = iam.User(
