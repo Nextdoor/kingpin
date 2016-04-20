@@ -6,7 +6,7 @@ BUILD_DIRS = bin .build build include lib lib64 man share package *.egg
 .PHONY: all build clean test docs
 
 # Only execute a subset of our integration tests by default
-INTEGRATION_TESTS ?= aws,rightscale,http,rollbar,slack,pingdom
+INTEGRATION_TESTS ?= aws,rightscale,http,rollbar,slack
 
 all: build
 
