@@ -44,7 +44,7 @@ class IntegrationSQS(testing.AsyncTestCase):
     queue_name = 'integration-test-%s' % UUID
     region = 'us-east-1'
 
-    @attr('integration', 'dry')
+    @attr('aws', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_01a_create_queue_dry(self):
         actor = sqs.Create(
@@ -55,7 +55,7 @@ class IntegrationSQS(testing.AsyncTestCase):
         done = yield actor.execute()
         self.assertEquals(done, None)
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01b_create_queue(self):
         actor = sqs.Create(
@@ -65,7 +65,7 @@ class IntegrationSQS(testing.AsyncTestCase):
         done = yield actor.execute()
         self.assertEquals(done, None)
 
-    @attr('integration', 'dry')
+    @attr('aws', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_02a_monitor_queue_dry(self):
         actor = sqs.WaitUntilEmpty('Wait until empty',
@@ -75,7 +75,7 @@ class IntegrationSQS(testing.AsyncTestCase):
         done = yield actor.execute()
         self.assertEquals(done, None)
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02b_monitor_queue(self):
 
@@ -91,7 +91,7 @@ class IntegrationSQS(testing.AsyncTestCase):
         yield utils.tornado_sleep()
         self.assertEquals(done, None)
 
-    @attr('integration', 'dry')
+    @attr('aws', 'integration', 'dry')
     @testing.gen_test()
     def integration_03a_delete_queue_dry(self):
         actor = sqs.Delete('Delete %s' % self.queue_name,
@@ -103,7 +103,7 @@ class IntegrationSQS(testing.AsyncTestCase):
         done = yield actor.execute()
         self.assertEquals(done, None)
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=120)  # Delete actor sleeps and retries.
     def integration_03b_delete_queue(self):
         actor = sqs.Delete('Delete %s' % self.queue_name,
@@ -113,7 +113,7 @@ class IntegrationSQS(testing.AsyncTestCase):
         done = yield actor.execute()
         self.assertEquals(done, None)
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=120)  # Delete actor sleeps and retries.
     def integration_03c_delete_fake_queue(self):
         settings.SQS_RETRY_DELAY = 0

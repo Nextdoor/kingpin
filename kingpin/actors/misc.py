@@ -346,10 +346,15 @@ class GenericHTTP(base.HTTPBaseActor):
         if self._dry:
             raise gen.Return(self._execute_dry())
 
+        # Only generate a JSON text string if a populated dict was passed to
+        # data-json.
+        datajson = None
+        if self.option('data-json'):
+            datajson = json.dumps(self.option('data-json'))
+
         escaped_post = (
-                urllib.urlencode(self.option('data')) or
-                json.dumps(self.option('data-json')) or
-                None)
+            urllib.urlencode(self.option('data')) or
+            datajson or None)
 
         try:
             yield self._fetch(self.option('url'),

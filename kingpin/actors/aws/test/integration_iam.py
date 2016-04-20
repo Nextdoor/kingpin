@@ -20,7 +20,7 @@ class IntegrationIAM(testing.AsyncTestCase):
     cert_name = 'kingpin-integration-test'
     region = 'us-east-1'
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01a_upload_cert_dry(self):
         actor = iam.UploadCert(
@@ -32,7 +32,7 @@ class IntegrationIAM(testing.AsyncTestCase):
 
         yield actor.execute()
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01b_upload_cert(self):
         actor = iam.UploadCert(
@@ -43,7 +43,7 @@ class IntegrationIAM(testing.AsyncTestCase):
 
         yield actor.execute()
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02a_delete_cert_dry(self):
         actor = iam.DeleteCert(
@@ -53,7 +53,7 @@ class IntegrationIAM(testing.AsyncTestCase):
 
         yield actor.execute()
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02b_delete_cert(self):
         actor = iam.DeleteCert(

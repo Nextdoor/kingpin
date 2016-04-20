@@ -1,5 +1,7 @@
 """Tests for the pingdom actors"""
 
+from nose.plugins.attrib import attr
+
 from tornado import testing
 
 from kingpin import utils
@@ -15,6 +17,7 @@ class IntegrationPingdom(testing.AsyncTestCase):
 
     check_name = 'kingpin-integration-test'
 
+    @attr('pingdom', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01a_test_pause(self):
 
@@ -28,6 +31,7 @@ class IntegrationPingdom(testing.AsyncTestCase):
 
         self.assertEquals(check['status'], 'paused')
 
+    @attr('pingdom', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02a_test_unpause(self):
 

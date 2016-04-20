@@ -109,12 +109,17 @@ class UnitTestCommand(Command):
 
 class IntegrationTestCommand(UnitTestCommand):
     description = 'Run full integration tests and unit tests'
+    tests = os.environ.get('INTEGRATION_TESTS', 'integration')
+
     args = [PACKAGE,
             '--with-coverage',
             '--cover-package=%s' % PACKAGE,
             '-v',
             '--include=integration',
-            '--attr=integration']
+            ]
+
+    for test in tests.split(','):
+        args.append('--attr=%s' % test)
 
 
 class CleanHook(clean):

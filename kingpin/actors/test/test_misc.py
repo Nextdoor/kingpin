@@ -170,6 +170,15 @@ class TestGenericHTTP(testing.AsyncTestCase):
         yield actor.execute()
 
     @testing.gen_test
+    def test_execute_data_json(self):
+        actor = misc.GenericHTTP('Unit Test Action',
+                                 {'url': 'http://example.com',
+                                  'data-json': {'foo': 'bar'}})
+        actor._fetch = mock_tornado({'success': {'code': 200}})
+
+        yield actor.execute()
+
+    @testing.gen_test
     def test_execute_fail(self):
         actor = misc.GenericHTTP('Unit Test Action',
                                  {'url': 'http://example.com'})

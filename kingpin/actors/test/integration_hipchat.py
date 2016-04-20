@@ -1,5 +1,7 @@
 """Tests for the actors.hipchat package"""
 
+from nose.plugins.attrib import attr
+
 from tornado import testing
 
 from kingpin.actors import hipchat
@@ -21,6 +23,7 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
 
     integration = True
 
+    @attr('hipchat', 'integration')
     @testing.gen_test(timeout=60)
     def integration_test_init_without_environment_creds(self):
         message = 'Unit test message'
@@ -36,6 +39,7 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
         # Reload the hipchat library to re-get the token
         reload(hipchat)
 
+    @attr('hipchat', 'integration')
     @testing.gen_test(timeout=60)
     def integration_test_execute_with_invalid_creds(self):
         message = 'Unit test message'
@@ -49,6 +53,7 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
+    @attr('hipchat', 'integration')
     @testing.gen_test(timeout=60)
     def integration_test_execute_real(self):
         message = 'Unit test message'
@@ -72,6 +77,7 @@ class IntegrationHipchatTopic(testing.AsyncTestCase):
 
     integration = True
 
+    @attr('hipchat', 'integration')
     @testing.gen_test(timeout=60)
     def integration_test_init_without_environment_creds(self):
         topic = 'Unit test topic'
@@ -87,6 +93,7 @@ class IntegrationHipchatTopic(testing.AsyncTestCase):
         # Reload the hipchat library to re-get the token
         reload(hipchat)
 
+    @attr('hipchat', 'integration')
     @testing.gen_test(timeout=60)
     def integration_test_execute_with_invalid_creds(self):
         topic = 'Unit test topic'
@@ -100,6 +107,7 @@ class IntegrationHipchatTopic(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
+    @attr('hipchat', 'integration')
     @testing.gen_test(timeout=60)
     def integration_test_execute_real(self):
         topic = 'Unit test topic'

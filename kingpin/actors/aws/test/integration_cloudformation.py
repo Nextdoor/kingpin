@@ -43,7 +43,7 @@ class IntegrationCreate(testing.AsyncTestCase):
     region = 'us-east-1'
     bucket_name = 'kingpin-%s' % UUID
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
     def integration_01_create_stack(self):
         actor = cloudformation.Create(
@@ -59,7 +59,7 @@ class IntegrationCreate(testing.AsyncTestCase):
         done = yield actor.execute()
         self.assertEquals(done, None)
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02_create_duplicate_stack_should_fail(self):
         actor = cloudformation.Create(
@@ -75,7 +75,7 @@ class IntegrationCreate(testing.AsyncTestCase):
         with self.assertRaises(cloudformation.StackAlreadyExists):
             yield actor.execute()
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
     def integration_03_delete_stack(self):
         actor = cloudformation.Delete(
@@ -86,7 +86,7 @@ class IntegrationCreate(testing.AsyncTestCase):
         done = yield actor.execute()
         self.assertEquals(done, None)
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_04_delete_missing_stack_should_fail(self):
         actor = cloudformation.Delete(

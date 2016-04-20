@@ -23,7 +23,7 @@ class IntegrationBase(testing.AsyncTestCase):
     region = 'us-east-1'
     elb_name = 'kingpin-integration-test'
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01a_check_credentials(self):
 
@@ -38,7 +38,7 @@ class IntegrationBase(testing.AsyncTestCase):
 
         reload(settings)
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02a_find_elb(self):
 

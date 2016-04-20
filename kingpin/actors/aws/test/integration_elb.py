@@ -42,7 +42,7 @@ class IntegrationELB(testing.AsyncTestCase):
     elb_name = 'kingpin-integration-test'
     region = 'us-east-1'
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01a_check_elb_health(self):
         actor = elb.WaitUntilHealthy(
@@ -55,7 +55,7 @@ class IntegrationELB(testing.AsyncTestCase):
 
         self.assertEquals(done, None)
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test
     def integration_01b_check_elb_not_found(self):
         actor = elb.WaitUntilHealthy(
@@ -67,7 +67,7 @@ class IntegrationELB(testing.AsyncTestCase):
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield actor.execute()
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02_wait_for_elb_health(self):
         actor = elb.WaitUntilHealthy(

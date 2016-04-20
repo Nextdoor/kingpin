@@ -5,6 +5,9 @@ BUILD_DIRS = bin .build build include lib lib64 man share package *.egg
 
 .PHONY: all build clean test docs
 
+# Only execute a subset of our integration tests by default
+INTEGRATION_TESTS ?= aws,rightscale,http,rollbar,slack
+
 all: build
 
 build: .build
@@ -24,7 +27,8 @@ test: build docs
 	python setup.py test pep8 pyflakes
 
 integration: build
-	PYFLAKES_NODOCTEST=True python setup.py integration pep8 pyflakes
+	INTEGRATION_TESTS=$(INTEGRATION_TESTS) PYFLAKES_NODOCTEST=True \
+		python setup.py integration pep8 pyflakes
 
 pack: kingpin.zip
 	@python kingpin.zip --help 2>&1 >/dev/null && echo Success || echo Fail

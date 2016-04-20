@@ -43,7 +43,7 @@ class IntegrationAlerts(testing.AsyncTestCase):
         self.template_array = 'kingpin-integration-testing'
         self.test_alert_name = 'unit-test-alert-%s' % UUID
 
-    @attr('integration', 'dry')
+    @attr('aws', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_01a_create_alert_dry(self):
         actor = alerts.Create(
@@ -65,7 +65,7 @@ class IntegrationAlerts(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02a_create_alert(self):
         actor = alerts.Create(
@@ -86,7 +86,7 @@ class IntegrationAlerts(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02b_create_second_alert(self):
         actor = alerts.Create(
@@ -107,7 +107,7 @@ class IntegrationAlerts(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integratin_03a_destroy_alert(self):
         actor = alerts.Destroy(
@@ -118,7 +118,7 @@ class IntegrationAlerts(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration')
+    @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integratin_03a_destroy_alert_should_fail(self):
         # The alerts were all deleted in the previous tests, we hope.
