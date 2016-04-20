@@ -26,7 +26,7 @@ class IntegrationMCI(testing.AsyncTestCase):
              'm1.small', 'user_data': 'cd /bin/bash'}
         ]
 
-    @attr('integration', 'dry')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_01a_create_mci_dry(self):
         actor = mci.Create('Integ. Test',
@@ -35,7 +35,7 @@ class IntegrationMCI(testing.AsyncTestCase):
                            dry=True)
         yield actor.execute()
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01b_create_mci(self):
         actor = mci.Create('Integ. Test',
@@ -43,7 +43,7 @@ class IntegrationMCI(testing.AsyncTestCase):
                             'images': self.images})
         yield actor.execute()
 
-    @attr('integration', 'dry')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_02a_destroy_mci_dry(self):
         actor = mci.Destroy('Integ. Test',
@@ -51,7 +51,7 @@ class IntegrationMCI(testing.AsyncTestCase):
                             dry=True)
         yield actor.execute()
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02b_destroy_mci(self):
         actor = mci.Destroy('Integ. Test',

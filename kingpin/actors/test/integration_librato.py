@@ -23,7 +23,7 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
 
     integration = True
 
-    @attr('integration', 'dry')
+    @attr('librato', 'integration', 'integration', 'dry')
     @testing.gen_test
     def integration_test_init_without_token(self):
         # Un-set auth token and make sure the init fails
@@ -35,7 +35,7 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
                  'description': 'unittest',
                  'name': 'unittest'}, dry=True)
 
-    @attr('integration', 'dry')
+    @attr('librato', 'integration', 'dry')
     @testing.gen_test
     def integration_test_init_without_email(self):
         # Un-set auth email and make sure the init fails
@@ -47,7 +47,7 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
                  'description': 'unittest',
                  'name': 'unittest'}, dry=True)
 
-    @attr('integration', 'dry')
+    @attr('librato', 'integration', 'dry')
     @testing.gen_test
     def integration_test_execute_with_invalid_token(self):
         # Set auth token to invalid value and make sure execute fails
@@ -62,7 +62,7 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
-    @attr('integration', 'dry')
+    @attr('librato', 'integration', 'dry')
     @testing.gen_test
     def integration_test_execute_with_invalid_email(self):
         # Set auth email to invalid value and make sure execute fails
@@ -77,7 +77,7 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
-    @attr('integration', 'dry')
+    @attr('librato', 'integration', 'dry')
     @testing.gen_test
     def integration_test_execute_dry(self):
         actor = librato.Annotation(
@@ -89,7 +89,7 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
         res = yield actor.execute()
         self.assertEquals(res, None)
 
-    @attr('integration')
+    @attr('librato', 'integration')
     @testing.gen_test
     def integration_test_execute(self):
         actor = librato.Annotation(

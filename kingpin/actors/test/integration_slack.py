@@ -1,5 +1,7 @@
 """Tests for the actors.slack package"""
 
+from nose.plugins.attrib import attr
+
 from tornado import testing
 
 from kingpin.actors import slack
@@ -23,6 +25,7 @@ class IntegrationSlackMessage(testing.AsyncTestCase):
     message = 'Unit test message'
     channel = '#kingpin-integration'
 
+    @attr('slack', 'integration', 'dry')
     @testing.gen_test(timeout=2)
     def integration_test_init_without_environment_creds(self):
         # Un-set the token now and make sure the init fails
@@ -36,6 +39,7 @@ class IntegrationSlackMessage(testing.AsyncTestCase):
         # Reload the slack library to re-get the token
         reload(slack)
 
+    @attr('slack', 'integration', 'dry')
     @testing.gen_test(timeout=2)
     def integration_test_execute_with_invalid_creds(self):
         # Un-set the token now and make sure the init fails
@@ -53,6 +57,7 @@ class IntegrationSlackMessage(testing.AsyncTestCase):
         # Reload the slack library to re-get the token
         reload(slack)
 
+    @attr('slack', 'integration')
     @testing.gen_test(timeout=60)
     def integration_test_execute_invalid_room(self):
         actor = slack.Message(
@@ -62,6 +67,7 @@ class IntegrationSlackMessage(testing.AsyncTestCase):
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield actor.execute()
 
+    @attr('slack', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_test_execute_dry(self):
         actor = slack.Message(
@@ -71,6 +77,7 @@ class IntegrationSlackMessage(testing.AsyncTestCase):
         res = yield actor.execute()
         self.assertEquals(res, None)
 
+    @attr('slack', 'integration')
     @testing.gen_test(timeout=60)
     def integration_test_execute_real(self):
         actor = slack.Message(

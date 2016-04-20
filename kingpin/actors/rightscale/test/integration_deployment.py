@@ -18,7 +18,7 @@ class IntegrationDeployment(testing.AsyncTestCase):
         super(IntegrationDeployment, self).setUp(*args, **kwargs)
         self.deployment_name = 'Kingpin Deployment Integration Test %s' % UUID
 
-    @attr('integration', 'dry')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test()
     def integration_01a_create_deployment_dry(self):
         actor = deployment.Create('Integ. Test',
@@ -27,7 +27,7 @@ class IntegrationDeployment(testing.AsyncTestCase):
 
         yield actor.execute()
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01b_create_deployment(self):
         actor = deployment.Create('Integ. Test',
@@ -35,7 +35,7 @@ class IntegrationDeployment(testing.AsyncTestCase):
 
         yield actor.execute()
 
-    @attr('integration', 'dry')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test()
     def integration_02a_destroy_deployment_dry(self):
         actor = deployment.Destroy('Integ. Test',
@@ -44,7 +44,7 @@ class IntegrationDeployment(testing.AsyncTestCase):
 
         yield actor.execute()
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02b_destroy_deployment(self):
         actor = deployment.Destroy('Integ. Test',

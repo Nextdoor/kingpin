@@ -1,5 +1,7 @@
 """Tests for the actors.rollbar package"""
 
+from nose.plugins.attrib import attr
+
 from tornado import testing
 
 from kingpin import version
@@ -22,6 +24,7 @@ class IntegrationRollbarDeploy(testing.AsyncTestCase):
 
     integration = True
 
+    @attr('rollbar', 'integration')
     @testing.gen_test(timeout=60)
     def integration_test_1a_init_without_environment_creds(self):
         # Un-set the token now and make sure the init fails
@@ -37,6 +40,7 @@ class IntegrationRollbarDeploy(testing.AsyncTestCase):
         # Reload the rollbar package so it gets our environment variable back.
         reload(rollbar)
 
+    @attr('rollbar', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_test_2a_execute_with_invalid_creds(self):
         actor = rollbar.Deploy(
@@ -51,6 +55,7 @@ class IntegrationRollbarDeploy(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
+    @attr('rollbar', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_test_2b_execute_dry(self):
         actor = rollbar.Deploy(
@@ -62,6 +67,7 @@ class IntegrationRollbarDeploy(testing.AsyncTestCase):
         res = yield actor.execute()
         self.assertEquals(res, None)
 
+    @attr('rollbar', 'integration')
     @testing.gen_test(timeout=60)
     def integration_test_2c_execute_real(self):
         actor = rollbar.Deploy(
@@ -74,6 +80,7 @@ class IntegrationRollbarDeploy(testing.AsyncTestCase):
         res = yield actor.execute()
         self.assertEquals(res, None)
 
+    @attr('rollbar', 'integration')
     @testing.gen_test(timeout=60)
     def integration_test_2d_execute_real_with_rollbar_username(self):
         actor = rollbar.Deploy(

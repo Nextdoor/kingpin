@@ -45,7 +45,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         self.template_script = 'kingpin-integration-testing-script'
         self.clone_name = 'kingpin-%s' % UUID
 
-    @attr('integration', 'dry')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_01a_clone_dry(self):
         actor = server_array.Clone(
@@ -56,7 +56,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration', 'dry')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_01b_clone_dry_with_missing_template(self):
         actor = server_array.Clone(
@@ -67,7 +67,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield actor.execute()
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02a_clone(self):
         actor = server_array.Clone(
@@ -77,7 +77,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=30)
     def integration_02b_clone_with_duplicate_array(self):
         actor = server_array.Clone(
@@ -87,7 +87,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield actor.execute()
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=30)
     def integration_02c_clone_with_missing_template(self):
         actor = server_array.Clone(
@@ -97,7 +97,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(base.ArrayNotFound):
             yield actor.execute()
 
-    @attr('integration', 'dry')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_03a_update_dry(self):
         actor = server_array.Update(
@@ -106,7 +106,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration', 'dry')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_03b_update_dry_missing_array(self):
         actor = server_array.Update(
@@ -116,7 +116,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
     def integration_04a_update_params(self):
         # Patch the array with some new min_instance settings, then launch it
@@ -130,7 +130,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
     def integration_04b_update_inputs(self):
         # There is no way to validate that the actual inputs were set right,
@@ -144,7 +144,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=10)
     def integration_04c_update_with_invalid_params_422(self):
         actor = server_array.Update(
@@ -156,7 +156,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield actor.execute()
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=10)
     def integration_04d_update_with_invalid_params_400(self):
         actor = server_array.Update(
@@ -171,7 +171,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield actor.execute()
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
     def integration_04e_update_missing_array(self):
         # Patch the array with some new min_instance settings, then launch it
@@ -185,7 +185,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield actor.execute()
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
     def integration_04f_update_next_instance(self):
         # This is a quick test. It executes a long path of code to find the
@@ -199,7 +199,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
 
         yield actor.execute()
 
-    @attr('integration', 'dry')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=30)
     def integration_05a_launch_dry(self):
         # Launch the machines and wait until they boot
@@ -213,7 +213,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
     # Note: These tests can run super slow -- the server boot time
     # itself may take 5-10 minutes, and sometimes Amazon and RightScale
     # slowdown. Give this test up to 30m to execute before we bail out.
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=1800)
     def integration_05b_launch(self):
         # Launch the machines and wait until they boot
@@ -225,7 +225,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration', 'dry')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=120)
     def integration_06a_execute_dry(self):
         actor = server_array.Execute(
@@ -237,7 +237,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=480)
     def integration_06b_execute(self):
         actor = server_array.Execute(
@@ -248,7 +248,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration', 'dry')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=120)
     def integration_06c_execute_missing_script_dry(self):
         actor = server_array.Execute(
@@ -259,7 +259,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidOptions):
             yield actor.execute()
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=120)
     def integration_06d_execute_incorrect_inputs(self):
         actor = server_array.Execute(
@@ -270,7 +270,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield actor.execute()
 
-    @attr('integration', 'dry')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=120)
     def integration_06d_execute_missing_recipe_dry(self):
         actor = server_array.Execute(
@@ -282,7 +282,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidOptions):
             yield actor.execute()
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=120)
     def integration_06d_execute_missing_recipe(self):
         actor = server_array.Execute(
@@ -293,7 +293,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield actor.execute()
 
-    @attr('integration', 'dry')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=120)
     def integration_07a_destroy_dry(self):
         actor = server_array.Destroy(
@@ -303,7 +303,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=600)
     def integration_07b_destroy(self):
         actor = server_array.Destroy(
@@ -312,7 +312,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
         ret = yield actor.execute()
         self.assertEquals(ret, None)
 
-    @attr('integration')
+    @attr('rightscale', 'integration')
     @testing.gen_test(timeout=600)
     def integration_07b_destroy_missing_array(self):
         # Re-run the same destroy.. this time it should fail

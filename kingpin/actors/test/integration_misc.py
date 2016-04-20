@@ -3,6 +3,8 @@
 import os
 import time
 
+from nose.plugins.attrib import attr
+
 from tornado import testing
 
 from kingpin.actors import exceptions
@@ -16,12 +18,14 @@ class IntegrationGenericHTTP(testing.AsyncTestCase):
 
     integration = True
 
+    @attr('http', 'integration')
     @testing.gen_test(timeout=60)
     def integration_get(self):
         actor = misc.GenericHTTP('Test', {'url': 'http://httpbin.org/get'})
 
         yield actor.execute()
 
+    @attr('http', 'integration')
     @testing.gen_test(timeout=60)
     def integration_post(self):
         actor = misc.GenericHTTP('Test', {
@@ -30,6 +34,7 @@ class IntegrationGenericHTTP(testing.AsyncTestCase):
 
         yield actor.execute()
 
+    @attr('http', 'integration')
     @testing.gen_test(timeout=60)
     def integration_auth(self):
         actor = misc.GenericHTTP('Test', {
@@ -39,6 +44,7 @@ class IntegrationGenericHTTP(testing.AsyncTestCase):
 
         yield actor.execute()
 
+    @attr('http', 'integration')
     @testing.gen_test(timeout=60)
     def integration_auth_fail(self):
         actor = misc.GenericHTTP('Test', {
@@ -54,6 +60,7 @@ class IntegrationMacro(testing.AsyncTestCase):
 
     integration = True
 
+    @attr('http', 'integration')
     @testing.gen_test
     def integration_execute(self):
         actor = misc.Macro('Test', {
@@ -66,12 +73,14 @@ class IntegrationMacro(testing.AsyncTestCase):
         runtime = end - start
         self.assertTrue(runtime > 0.1)
 
+    @attr('http', 'integration')
     @testing.gen_test
     def integration_fail_without_env(self):
         # Actor should fail if tokens aren't passed for env. variables.
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
             misc.Macro('Test', {'macro': 'examples/test/sleep.json'})
 
+    @attr('http', 'integration')
     @testing.gen_test
     def integration_execute_remote(self):
         gh_src = 'https://raw.githubusercontent.com/Nextdoor/kingpin/master'
@@ -80,6 +89,7 @@ class IntegrationMacro(testing.AsyncTestCase):
             'macro': gh_src + '/examples/test/sleep.json',
             'tokens': dict(os.environ)})
 
+    @attr('http', 'integration', 'dry')
     @testing.gen_test
     def integration_execute_dry(self):
         actor = misc.Macro('Test', {
