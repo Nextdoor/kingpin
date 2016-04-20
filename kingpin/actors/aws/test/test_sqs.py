@@ -53,14 +53,6 @@ class TestSQSBaseActor(SQSTestCase):
 class TestCreateSQSQueueActor(SQSTestCase):
 
     @testing.gen_test
-    def test_require_env(self):
-        settings.AWS_ACCESS_KEY_ID = ''
-        with self.assertRaises(Exception):
-            sqs.WaitUntilEmpty('Unit Test Action', {
-                'name': 'unit-test-queue',
-                'region': 'us-west-2'})
-
-    @testing.gen_test
     def test_execute(self):
         self.actor = sqs.Create('Unit Test Action',
                                 {'name': 'unit-test-queue',

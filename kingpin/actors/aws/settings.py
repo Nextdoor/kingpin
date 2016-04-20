@@ -26,11 +26,13 @@ import boto
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
-# NOTE: using empty string here instead of None because boto library will try
-# to open a connection if key/secret is None, instead of creating a lazy
-# connection object.
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')
-AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')
+# By default, this means that Boto will make HTTP calls at instantiation time
+# to determine whether or not credentials are available from the metadata
+# service.
+#
+# During tests, we mock these out to blank strings to prevent these calls.
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', None)
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', None)
 
 SQS_RETRY_DELAY = 30
 

@@ -285,16 +285,6 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
         reload(elb_actor)
 
     @testing.gen_test
-    def test_require_env(self):
-
-        settings.AWS_ACCESS_KEY_ID = ''
-        with self.assertRaises(exceptions.InvalidCredentials):
-            elb_actor.WaitUntilHealthy('Unit Test Action', {
-                'name': 'unit-test-queue',
-                'region': 'us-west-2',
-                'count': 3})
-
-    @testing.gen_test
     def test_execute(self):
 
         actor = elb_actor.WaitUntilHealthy(

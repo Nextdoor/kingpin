@@ -14,6 +14,7 @@ futures
 simplejson
 jsonschema
 demjson
+datadiff
 
 # Colorize the log output!
 rainbow_logging_handler

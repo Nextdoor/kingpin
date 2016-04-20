@@ -27,13 +27,6 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
         reload(cloudformation)
 
-    def test_init_with_bad_creds(self):
-        settings.AWS_ACCESS_KEY_ID = None
-        settings.AWS_SECRET_ACCESS_KEY = None
-        with self.assertRaises(exceptions.InvalidCredentials):
-            cloudformation.CloudFormationBaseActor(
-                'unittest', {'region': 'us-east-1'})
-
     @testing.gen_test
     def test_get_stacks(self):
         actor = cloudformation.CloudFormationBaseActor(

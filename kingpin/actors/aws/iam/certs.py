@@ -13,10 +13,9 @@
 # Copyright 2014 Nextdoor.com, Inc
 
 """
-:mod:`kingpin.actors.aws.iam`
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+:mod:`kingpin.actors.aws.iam.certs`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 """
-
 
 import logging
 
@@ -24,8 +23,8 @@ from boto.exception import BotoServerError
 from tornado import concurrent
 from tornado import gen
 
-from kingpin.actors.aws import base
 from kingpin.actors import exceptions
+from kingpin.actors.aws.iam import base
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -40,12 +39,7 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
-class IAMBaseActor(base.AWSBaseActor):
-
-    """Base class for IAM actors."""
-
-
-class UploadCert(IAMBaseActor):
+class UploadCert(base.IAMBaseActor):
 
     """Uploads a new SSL Cert to AWS IAM.
 
@@ -135,7 +129,7 @@ class UploadCert(IAMBaseActor):
             path=self.option('path'))
 
 
-class DeleteCert(IAMBaseActor):
+class DeleteCert(base.IAMBaseActor):
 
     """Delete an existing SSL Cert in AWS IAM.
 

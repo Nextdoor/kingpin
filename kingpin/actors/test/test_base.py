@@ -17,7 +17,7 @@ from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors.test.helper import mock_tornado
-from kingpin.constants import REQUIRED
+from kingpin.constants import REQUIRED, STATE
 
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
@@ -131,11 +131,30 @@ class TestBaseActor(testing.AsyncTestCase):
         ret = self.actor._validate_options()
         self.assertEquals(None, ret)
 
+        self.actor.all_options = {'test': (bool, REQUIRED, '')}
+        self.actor._options = {'test': 'junk_text'}
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._validate_options()
+
         self.actor.all_options = {'test': (str, REQUIRED, ''),
                                   'test2': (str, REQUIRED, '')}
         self.actor._options = {'test': 'b', 'test2': 'b'}
         ret = self.actor._validate_options()
         self.assertEquals(None, ret)
+
+        # The STATE type requires either 'present' or 'absent' to be passed in.
+        self.actor.all_options = {'test': (STATE, REQUIRED, '')}
+        self.actor._options = {'test': 'present'}
+        ret = self.actor._validate_options()
+        self.assertEquals(None, ret)
+
+        self.actor._options = {'test': 'absent'}
+        ret = self.actor._validate_options()
+        self.assertEquals(None, ret)
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._options = {'test': 'abse'}
+            ret = self.actor._validate_options()
 
     def test_validation_issues(self):
         self.actor.all_options = {'needed': (str, REQUIRED, ''),
@@ -185,6 +204,21 @@ class TestBaseActor(testing.AsyncTestCase):
     def test_execute(self):
         res = yield self.actor.execute()
         self.assertEquals(res, True)
+
+    def test_str2bool(self):
+        self.assertEquals(True, self.actor.str2bool('true'))
+        self.assertEquals(True, self.actor.str2bool('junk text'))
+        self.assertEquals(True, self.actor.str2bool('1'))
+        self.assertEquals(True, self.actor.str2bool(True))
+        self.assertEquals(False, self.actor.str2bool('false'))
+        self.assertEquals(False, self.actor.str2bool('0'))
+        self.assertEquals(False, self.actor.str2bool(False))
+
+    def test_str2bool_strict(self):
+        self.assertEquals(True, self.actor.str2bool('true'))
+        self.assertEquals(False, self.actor.str2bool(False))
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor.str2bool('Junk', strict=True)
 
     @testing.gen_test
     def test_check_condition(self):

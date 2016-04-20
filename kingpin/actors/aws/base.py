@@ -23,6 +23,8 @@ below for using each actor.
 
 **Required Environment Variables**
 
+_Note, these can be skipped only if you have a .aws/credentials file in place._
+
 :AWS_ACCESS_KEY_ID:
   Your AWS access key
 
@@ -30,11 +32,15 @@ below for using each actor.
   Your AWS secret
 """
 
+import json
 import logging
+import os
+import urllib
 import re
 
 from boto import utils as boto_utils
 from boto import exception as boto_exception
+from datadiff import diff
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
@@ -46,6 +52,7 @@ import boto.iam
 import boto.sqs
 
 from kingpin import utils
+from kingpin import exceptions as kingpin_exceptions
 from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings as aws_settings
@@ -83,18 +90,33 @@ class AWSBaseActor(base.BaseActor):
 
         super(AWSBaseActor, self).__init__(*args, **kwargs)
 
-        if not (aws_settings.AWS_ACCESS_KEY_ID and
+        # By default, we will try to let Boto handle discovering its
+        # credentials at instantiation time. This _can_ result in synchronous
+        # API calls to the Metadata service, but those should be fast.
+        key = None
+        secret = None
+
+        # In the event though that someone has explicitly set the AWS access
+        # keys in the environment (either for the purposes of a unit test, or
+        # because they wanted to), we use those values.
+        if (aws_settings.AWS_ACCESS_KEY_ID and
                 aws_settings.AWS_SECRET_ACCESS_KEY):
+            key = aws_settings.AWS_ACCESS_KEY_ID
+            secret = aws_settings.AWS_SECRET_ACCESS_KEY
+
+        # On our first simple IAM connection, test the credentials and make
+        # sure things worked!
+        try:
+            # Establish connection objects that don't require a region
+            self.iam_conn = boto.iam.connection.IAMConnection(
+                aws_access_key_id=key,
+                aws_secret_access_key=secret)
+        except boto.exception.NoAuthHandlerFound:
             raise exceptions.InvalidCredentials(
                 'AWS settings imported but not all credentials are supplied. '
                 'AWS_ACCESS_KEY_ID: %s, AWS_SECRET_ACCESS_KEY: %s' % (
                     aws_settings.AWS_ACCESS_KEY_ID,
                     aws_settings.AWS_SECRET_ACCESS_KEY))
-
-        # Establish connection objects that don't require a region
-        self.iam_conn = boto.iam.connection.IAMConnection(
-            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
 
         # Establish region-specific connection objects.
         region = self.option('region')
@@ -121,23 +143,20 @@ class AWSBaseActor(base.BaseActor):
 
         self.ec2_conn = boto.ec2.connect_to_region(
             region,
-            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
-
+            aws_access_key_id=key,
+            aws_secret_access_key=secret)
         self.elb_conn = boto.ec2.elb.connect_to_region(
             region,
-            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
-
+            aws_access_key_id=key,
+            aws_secret_access_key=secret)
         self.cf_conn = boto.cloudformation.connect_to_region(
             region,
-            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
-
+            aws_access_key_id=key,
+            aws_secret_access_key=secret)
         self.sqs_conn = boto.sqs.connect_to_region(
             region,
-            aws_access_key_id=aws_settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=aws_settings.AWS_SECRET_ACCESS_KEY)
+            aws_access_key_id=key,
+            aws_secret_access_key=secret)
 
     @concurrent.run_on_executor
     @retry(**aws_settings.RETRYING_SETTINGS)
@@ -216,3 +235,58 @@ class AWSBaseActor(base.BaseActor):
             raise InvalidMetaData('Metadata for key `%s` is not available')
 
         return data
+
+    def _policy_doc_to_dict(self, policy):
+        """Converts a Boto UUEncoded Policy document to a Dict.
+
+        args:
+            policy: The policy string returned by Boto
+        """
+        return json.loads(urllib.unquote(policy))
+
+    def _parse_policy_json(self, policy):
+        """Parse a single JSON file into an Amazon policy.
+
+        Validates that the policy document can be parsed, strips out any
+        comments, and fills in any environmental tokens. Returns a dictionary
+        of the contents.
+
+        args:
+            policy: The Policy JSON file to read.
+
+        returns:
+            A dictionary of the parsed policy.
+        """
+        # Run through any supplied Inline IAM Policies and verify that they're
+        # not corrupt very early on.
+        self.log.debug('Parsing and validating %s' % policy)
+
+        try:
+            p_doc = utils.convert_json_to_dict(json_file=policy,
+                                               tokens=os.environ)
+        except kingpin_exceptions.InvalidJSON as e:
+            raise exceptions.UnrecoverableActorFailure('Error parsing %s: %s' %
+                                                       (policy, e))
+
+        return p_doc
+
+    def _diff_policy_json(self, policy1, policy2):
+        """Compares two dicts and returns True/False.
+
+        Sorts two dicts (including sorting of the lists!!) and then diffs them.
+
+        args:
+            policy1: First policy (a)
+            policy2: Second policy (b)
+
+        returns:
+            None: No diff
+            Str: A diff string
+        """
+        policy1 = utils.order_dict(policy1)
+        policy2 = utils.order_dict(policy2)
+
+        if policy1 == policy2:
+            return
+
+        return str(diff(policy1, policy2))

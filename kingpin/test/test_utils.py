@@ -10,6 +10,7 @@ import mock
 import rainbow_logging_handler
 import requests
 
+from kingpin import exceptions
 from kingpin import utils
 from kingpin.actors import misc
 
@@ -94,8 +95,11 @@ class TestUtils(unittest.TestCase):
     def test_convert_json_to_dict_error(self):
         instance = StringIO.StringIO()  # Empty buffer will fail demjson.
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(exceptions.InvalidJSON):
             utils.convert_json_to_dict(instance, {})
+
+        with self.assertRaises(exceptions.InvalidJSON):
+            utils.convert_json_to_dict('junk data', {})
 
     def test_exception_logger(self):
         @utils.exception_logger
@@ -162,6 +166,15 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
     def test_super_httplib_debug_logging(self):
         logger = utils.super_httplib_debug_logging()
         self.assertEquals(10, logger.level)
+
+    def test_order_dict(self):
+        d1 = {'foo': [1, 2, 3]}
+        d2 = {'foo': [3, 2, 1]}
+
+        ordered_d1 = utils.order_dict(d1)
+        ordered_d2 = utils.order_dict(d2)
+
+        self.assertEquals(ordered_d1, ordered_d2)
 
 
 class TestCoroutineHelpers(testing.AsyncTestCase):

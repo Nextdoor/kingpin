@@ -6,7 +6,7 @@ import mock
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings
-from kingpin.actors.aws import iam
+from kingpin.actors.aws.iam import certs
 
 log = logging.getLogger(__name__)
 
@@ -18,11 +18,11 @@ class TestUploadCert(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(iam)
+        reload(certs)
 
     @testing.gen_test
     def test_execute(self):
-        actor = iam.UploadCert(
+        actor = certs.UploadCert(
             'Unit Test',
             {'name': 'test',
              'public_key_path': 'test',
@@ -48,7 +48,7 @@ class TestUploadCert(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_dry(self):
-        actor = iam.UploadCert(
+        actor = certs.UploadCert(
             'Unit Test',
             {'name': 'test',
              'public_key_path': 'test',
@@ -74,11 +74,11 @@ class TestDeleteCert(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(iam)
+        reload(certs)
 
     @testing.gen_test(timeout=60)
     def test_delete_cert_dry(self):
-        actor = iam.DeleteCert('Test', {'name': 'test'}, dry=True)
+        actor = certs.DeleteCert('Test', {'name': 'test'}, dry=True)
         actor.iam_conn = mock.Mock()
 
         yield actor.execute()
@@ -94,7 +94,7 @@ class TestDeleteCert(testing.AsyncTestCase):
 
     @testing.gen_test(timeout=60)
     def test_delete_cert(self):
-        actor = iam.DeleteCert(
+        actor = certs.DeleteCert(
             'Test',
             {'name': 'test'})
         actor.iam_conn = mock.Mock()

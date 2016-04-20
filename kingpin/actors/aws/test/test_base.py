@@ -1,13 +1,14 @@
 import logging
 
+from boto.exception import NoAuthHandlerFound
 from boto.exception import BotoServerError
 from boto import utils
 from tornado import testing
 import mock
 
-from kingpin.actors.aws import settings
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
+from kingpin.actors.aws import settings
 
 log = logging.getLogger(__name__)
 
@@ -20,6 +21,12 @@ class TestBase(testing.AsyncTestCase):
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
         reload(base)
+
+    @mock.patch('boto.iam.connection.IAMConnection')
+    def test_missing_auth(self, mock_iam):
+        mock_iam.side_effect = NoAuthHandlerFound('bad')
+        with self.assertRaises(exceptions.InvalidCredentials):
+            base.AWSBaseActor('Unit Test Action', {'region': 'fail'})
 
     def test_region_check(self):
         with self.assertRaises(exceptions.InvalidOptions):
@@ -106,3 +113,53 @@ class TestBase(testing.AsyncTestCase):
             md.return_value = {'key': 'value'}
             with self.assertRaises(base.InvalidMetaData):
                 yield actor._get_meta_data('ut-key')
+
+    @testing.gen_test
+    def test_policy_doc_to_dict(self):
+        policy_str = ''.join([
+            '%7B%22Version%22%3A%20%222012-10-17%22%2C%20',
+            '%22Statement%22%3A%20%5B%7B%22Action%22%3A%20%5B',
+            '%22s3%3ACreate%2A%22%2C%20%22s3%3AGet%2A%22%2C%20',
+            '%22s3%3APut%2A%22%2C%20%22s3%3AList%2A%22%5D%2C%20',
+            '%22Resource%22%3A%20%5B',
+            '%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%2F%2A%22%2C%20',
+            '%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%22%5D%2C%20',
+            '%22Effect%22%3A%20%22Allow%22%7D%5D%7D'])
+        policy_dict = {
+            u'Version': u'2012-10-17',
+            u'Statement': [
+                {u'Action': [
+                    u's3:Create*',
+                    u's3:Get*',
+                    u's3:Put*',
+                    u's3:List*'],
+                 u'Resource': [
+                    u'arn:aws:s3:::kingpin*/*',
+                    u'arn:aws:s3:::kingpin*'],
+                 u'Effect': u'Allow'}]}
+
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        ret = actor._policy_doc_to_dict(policy_str)
+        self.assertEqual(ret, policy_dict)
+
+    @testing.gen_test
+    def test_parse_policy_json(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+
+        # Should work fine by default with good data
+        ret = actor._parse_policy_json('examples/aws.iam.user/s3_example.json')
+        self.assertEquals(ret['Version'], '2012-10-17')
+
+        # If the file doesn't exist, raise an exception
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            actor._parse_policy_json('junk')
+
+    @testing.gen_test
+    def test_diff_policy_json(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+
+        p1 = {'a': 'a', 'b': 'b'}
+        p2 = {'a': 'a', 'c': 'c'}
+
+        self.assertEquals(None, actor._diff_policy_json(p1, p1))
+        self.assertNotEquals(None, actor._diff_policy_json(p1, p2))
