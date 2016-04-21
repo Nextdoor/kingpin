@@ -459,8 +459,11 @@ class User(EntityBaseActor):
     user either exists or does not. It also updates any settings for the user
     that are different from the passed in options.
 
-    At the moment you can mange the users state, its inline policies, and you
-    can purge unmanaged inline policies.
+    Currently we can:
+
+      * Ensure is present or absent
+      * Purge (or not) any unmanaged Inline Policies
+      * Push and Update Inline Policies
 
     **Options**
 
@@ -534,8 +537,11 @@ class Group(EntityBaseActor):
     group either exists or does not. It also updates any settings for the group
     that are different from the passed in options.
 
-    At the moment you can mange the group state, its inline policies, and you
-    can purge unmanaged inline policies.
+    Currently we can:
+
+      * Ensure is present or absent
+      * Purge (or not) any unmanaged Inline Policies
+      * Push and Update Inline Policies
 
     **Options**
 
@@ -599,3 +605,81 @@ class Group(EntityBaseActor):
         self.get_all_entity_policies = self.iam_conn.get_all_group_policies
         self.get_entity_policy = self.iam_conn.get_group_policy
         self.put_entity_policy = self.iam_conn.put_group_policy
+
+
+class Role(EntityBaseActor):
+
+    """Manages an IAM Role.
+
+    This actor manages the state of an Amazon IAM Role. It ensures that the
+    role either exists or does not. It also updates any settings for the role
+    that are different from the passed in options.
+
+    Currently we can:
+
+      * Ensure is present or absent
+      * Purge (or not) any unmanaged Inline Policies
+      * Push and Update Inline Policies
+
+    **Options**
+
+    :name:
+      (str) Name of the Role to manage
+
+    :state:
+      (str) Present or Absent. Default: "present"
+
+    :inline_policies:
+      (str,array) A list of strings that point to JSON files to use as inline
+      policies. You can also pass in a single inline policy as a string.
+      Default: []
+
+    :inline_policies_purge:
+      (bool) Whether or not to purge un-managed policies. Default: false
+
+    **Example**
+
+    .. code-block:: json
+
+       { "actor": "aws.iam.Role",
+         "desc": "Ensure that myapp exists",
+         "options": {
+           "name": "myapp",
+           "state": "present",
+           "inline_policies": [
+             "read-all-s3.json",
+             "create-other-stuff.json"
+           ],
+           "inline_policies_purge": false,
+         }
+       }
+
+    **Dry run**
+
+    Will let you know if the group exists or not, and what changes it would
+    make to the groups policy and settings. Will also parse the inline policies
+    supplied, make sure any tokens in the files are replaced, and that the
+    files are valid JSON.
+    """
+
+    all_options = {
+        'name': (str, REQUIRED, 'The name of the group.'),
+        'state': (STATE, 'present',
+                  'Desired state of the group: present/absent'),
+        'inline_policies': ((str, list), [],
+                            'List of inline policy JSON files to apply.'),
+        'inline_policies_purge': (bool, False,
+                                  'Purge unmanaged inline policies?')
+    }
+
+    def __init__(self, *args, **kwargs):
+        super(Role, self).__init__(*args, **kwargs)
+
+        self.entity_name = 'role'
+        self.create_entity = self.iam_conn.create_role
+        self.delete_entity = self.iam_conn.delete_role
+        self.delete_entity_policy = self.iam_conn.delete_role_policy
+        self.get_all_entities = self.iam_conn.list_roles
+        self.get_all_entity_policies = self.iam_conn.list_role_policies
+        self.get_entity_policy = self.iam_conn.get_role_policy
+        self.put_entity_policy = self.iam_conn.put_role_policy

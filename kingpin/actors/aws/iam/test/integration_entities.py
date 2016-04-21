@@ -81,14 +81,14 @@ class IntegrationIAMGroups(testing.AsyncTestCase):
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01_ensure_group_absent(self):
-        actor = iam.User(
+        actor = iam.Group(
             'Test', {'name': self.name, 'state': 'absent'}, dry=False)
         yield actor.execute()
 
     @attr('aws', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_02a_create_group_dry(self):
-        actor = iam.User(
+        actor = iam.Group(
             'Test',
             {'name': self.name,
              'state': 'present',
@@ -101,7 +101,7 @@ class IntegrationIAMGroups(testing.AsyncTestCase):
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_02b_create_group(self):
-        actor = iam.User(
+        actor = iam.Group(
             'Test',
             {'name': self.name,
              'inline_policies': self.inline_policies,
@@ -114,6 +114,59 @@ class IntegrationIAMGroups(testing.AsyncTestCase):
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_09_ensure_group_absent(self):
-        actor = iam.User(
+        actor = iam.Group(
+            'Test', {'name': self.name, 'state': 'absent'}, dry=False)
+        yield actor.execute()
+
+
+class IntegrationIAMRoles(testing.AsyncTestCase):
+
+    integration = True
+
+    name = 'kingpin-integration-test'
+    inline_policies = [
+        'examples/aws.iam.user/s3_example.json'
+    ]
+    region = 'us-east-1'
+
+    # Not really a test - this is just a state cleaner. Ensure that we start
+    # without the testig role in place before we begin.
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=60)
+    def integration_01_ensure_role_absent(self):
+        actor = iam.Role(
+            'Test', {'name': self.name, 'state': 'absent'}, dry=False)
+        yield actor.execute()
+
+    @attr('aws', 'integration', 'dry')
+    @testing.gen_test(timeout=60)
+    def integration_02a_create_role_dry(self):
+        actor = iam.Role(
+            'Test',
+            {'name': self.name,
+             'state': 'present',
+             'inline_policies': self.inline_policies,
+             'inline_policies_purge': True},
+            dry=True)
+
+        yield actor.execute()
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=60)
+    def integration_02b_create_role(self):
+        actor = iam.Role(
+            'Test',
+            {'name': self.name,
+             'inline_policies': self.inline_policies,
+             'inline_policies_purge': True},
+            dry=False)
+
+        yield actor.execute()
+
+    # Final cleanup -- delete our test role!
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=60)
+    def integration_09_ensure_role_absent(self):
+        actor = iam.Role(
             'Test', {'name': self.name, 'state': 'absent'}, dry=False)
         yield actor.execute()
