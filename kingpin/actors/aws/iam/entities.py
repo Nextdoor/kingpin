@@ -601,7 +601,7 @@ class User(EntityBaseActor):
 
         try:
             self.log.info('Adding %s to %s' % (name, group))
-            yield self.thread(self.iam_conn.add_user_to_group, name, group)
+            yield self.thread(self.iam_conn.add_user_to_group, group, name)
         except BotoServerError as e:
             raise exceptions.RecoverableActorFailure(
                 'An unexpected API error occurred: %s' % e)
@@ -614,7 +614,8 @@ class User(EntityBaseActor):
 
         try:
             self.log.info('Removing %s to %s' % (name, group))
-            yield self.thread(self.iam_conn.remove_user_from_group, name, group)
+            yield self.thread(self.iam_conn.remove_user_from_group,
+                              name, group)
         except BotoServerError as e:
             raise exceptions.RecoverableActorFailure(
                 'An unexpected API error occurred: %s' % e)
@@ -752,14 +753,6 @@ class Role(EntityBaseActor):
     :state:
       (str) Present or Absent. Default: "present"
 
-    :instance_profiles:
-      (str,array) List of Instance Profiles to add this Role to.
-      Default: []
-
-    :instance_profiles_purge:
-      (bool) Whether or not to purge this profile from un-listed Instance
-      Profiles.  Default: false
-
     :inline_policies:
       (str,array) A list of strings that point to JSON files to use as inline
       policies. You can also pass in a single inline policy as a string.
@@ -777,7 +770,6 @@ class Role(EntityBaseActor):
          "options": {
            "name": "myapp",
            "state": "present",
-           "instance_profiles": "my-ecs-profile",
            "inline_policies": [
              "read-all-s3.json",
              "create-other-stuff.json"
@@ -798,11 +790,6 @@ class Role(EntityBaseActor):
         'name': (str, REQUIRED, 'The name of the group.'),
         'state': (STATE, 'present',
                   'Desired state of the group: present/absent'),
-        'instance_profiles': ((str, list), [],
-                              'List of Instance Profiles to add this Role to.'),
-        'instance_profiles_purge': (bool, False,
-                                    ('Whether or not to purge this profile'
-                                     'from un-listed Instance')),
         'inline_policies': ((str, list), [],
                             'List of inline policy JSON files to apply.'),
         'inline_policies_purge': (bool, False,
@@ -858,6 +845,10 @@ class InstanceProfile(EntityBaseActor):
     :state:
       (str) Present or Absent. Default: "present"
 
+    :role:
+      (str) Name of an IAM Role to assign to the Instance Profile.
+      Default: None
+
     **Example**
 
     .. code-block:: json
@@ -880,6 +871,7 @@ class InstanceProfile(EntityBaseActor):
         'name': (str, REQUIRED, 'The name of the group.'),
         'state': (STATE, 'present',
                   'Desired state of the group: present/absent'),
+        'role': (str, None, 'Name of an IAM Role to assign')
     }
 
     def __init__(self, *args, **kwargs):
@@ -891,9 +883,90 @@ class InstanceProfile(EntityBaseActor):
         self.get_all_entities = self.iam_conn.list_instance_profiles
 
     @gen.coroutine
+    def _add_role(self, name, role):
+        """Adds a role to an Instance Profile.
+
+        args:
+            name: The name of the Instance Profile we're managing
+            role: The name of the role to assign to the profile
+        """
+        if self._dry:
+            self.log.warning('Would add role %s from %s' % (role, name))
+            raise gen.Return()
+
+        try:
+            self.log.info('Adding role %s to %s' % (role, name))
+            yield self.thread(self.iam_conn.add_role_to_instance_profile,
+                              name, role)
+        except BotoServerError as e:
+            if e.status != 409:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
+
+    @gen.coroutine
+    def _remove_role(self, name, role):
+        """Removes a role assigned to an Instance Profile.
+
+        args:
+            name: The name of the InstanceProfile we're managing
+            role: The name of the role to remove
+        """
+        if self._dry:
+            self.log.warning('Would remove role %s from %s' % (role, name))
+            raise gen.Return()
+
+        try:
+            self.log.info('Removing role %s from %s' % (role, name))
+            yield self.thread(self.iam_conn.remove_role_from_instance_profile,
+                              name, role)
+        except BotoServerError as e:
+            if e.status != 404:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
+
+    @gen.coroutine
+    def _ensure_role(self, name, role):
+        """Ensures that an Instance Profile role is set correctly.
+
+        Adds, Deletes or Changes the Role assigned to an Instance Profile.
+
+        args:
+            name: The IAM Instance Profile we're managing
+            role: The desired role (or None)
+        """
+        existing = None
+        try:
+            raw = yield self.thread(
+                self.iam_conn.get_instance_profile, name)
+            resp = raw['get_instance_profile_response']
+            res = resp['get_instance_profile_result']
+            existing = res['instance_profile']['roles']['member']['role_name']
+        except BotoServerError as e:
+            if e.status != 404:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
+        except KeyError:
+            # Profile is not a member of any roles
+            pass
+
+        if not existing and not role:
+            raise gen.Return()
+        elif existing and not role:
+            yield self._remove_role(name, existing)
+        elif not existing and role:
+            yield self._add_role(name, role)
+        elif existing != role:
+            yield self._remove_role(name, existing)
+            yield self._add_role(name, role)
+
+    @gen.coroutine
     def _execute(self):
         name = self.option('name')
         state = self.option('state')
+        role = self.option('role')
 
         yield self._ensure_entity(name, state)
-        raise gen.Return()
+        if state == 'absent':
+            raise gen.Return()
+
+        yield self._ensure_role(name, role)

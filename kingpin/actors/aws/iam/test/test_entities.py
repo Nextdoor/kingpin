@@ -479,8 +479,8 @@ class TestUser(testing.AsyncTestCase):
             tornado_value(None), tornado_value(None)]
         yield self.actor._ensure_groups('test', ['ng1', 'ng2'], False)
         self.actor._add_user_to_group.ensure_has_calls([
-            mock.call('test', 'ng1'),
-            mock.call('test', 'ng2')
+            mock.call('ng1', 'test'),
+            mock.call('ng2', 'test')
         ])
         self.assertFalse(self.actor._remove_user_from_group.called)
         self.actor._add_user_to_group.reset_mock()
@@ -494,7 +494,7 @@ class TestUser(testing.AsyncTestCase):
         ]
         yield self.actor._ensure_groups('test', 'ng1', True)
         self.actor._add_user_to_group.assert_has_calls([
-            mock.call('test', 'ng1')])
+            mock.call('ng1', 'test')])
         self.actor._remove_user_from_group.assert_has_calls([
             mock.call('test', 'test-group-1'),
             mock.call('test', 'test-group-2')])
@@ -564,7 +564,8 @@ class TestUser(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_remove_user_from_group_exception(self):
-        self.actor.iam_conn.remove_user_from_group.side_effect = BotoServerError(
+        remove_group = self.actor.iam_conn.remove_user_from_group
+        remove_group.side_effect = BotoServerError(
             500, 'Yikes')
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._remove_user_from_group('test', 'group')
@@ -715,13 +716,165 @@ class TestInstanceProfile(testing.AsyncTestCase):
         self.actor.get_all_entities = iam_mock.list_instance_profiles
 
     @testing.gen_test
-    def test_execute(self):
-        ensure_entity = mock.MagicMock()
-        ensure_inline_policies = mock.MagicMock()
-        self.actor._ensure_entity = ensure_entity
-        self.actor._ensure_inline_policies = ensure_inline_policies
+    def test_add_role(self):
+        yield self.actor._add_role('test', 'testrole')
+        self.actor.iam_conn.add_role_to_instance_profile.assert_has_calls(
+            [mock.call('test', 'testrole')])
+
+    @testing.gen_test
+    def test_add_role_409(self):
+        add_role = self.actor.iam_conn.add_role_to_instance_profile
+        add_role.side_effect = BotoServerError(409, 'Not there man!')
+        yield self.actor._add_role('test', 'testrole')
+        self.actor.iam_conn.add_role_to_instance_profile.assert_has_calls(
+            [mock.call('test', 'testrole')])
+
+    @testing.gen_test
+    def test_add_role_500(self):
+        add_role = self.actor.iam_conn.add_role_to_instance_profile
+        add_role.side_effect = BotoServerError(500, 'Yikes')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._add_role('test', 'testrole')
+
+    @testing.gen_test
+    def test_add_role_dry(self):
+        self.actor._dry = True
+        yield self.actor._add_role('test', 'testrole')
+        self.assertFalse(
+            self.actor.iam_conn.add_role_to_instance_profile.called)
+
+    @testing.gen_test
+    def test_remove_role(self):
+        yield self.actor._remove_role('test', 'testrole')
+        self.actor.iam_conn.remove_role_from_instance_profile.assert_has_calls(
+            [mock.call('test', 'testrole')])
+
+    @testing.gen_test
+    def test_remove_role_404(self):
+        remove_role = self.actor.iam_conn.remove_role_from_instance_profile
+        remove_role.side_effect = BotoServerError(404, 'Not there man!')
+        yield self.actor._remove_role('test', 'testrole')
+        self.assertFalse(
+            self.actor.iam_conn.remove_role_to_instance_profile.called)
+
+    @testing.gen_test
+    def test_remove_role_500(self):
+        remove_role = self.actor.iam_conn.remove_role_from_instance_profile
+        remove_role.side_effect = BotoServerError(500, 'Yikes')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._remove_role('test', 'testrole')
+
+    @testing.gen_test
+    def test_remove_role_dry(self):
+        self.actor._dry = True
+        yield self.actor._remove_role('test', 'testrole')
+        self.assertFalse(
+            self.actor.iam_conn.remove_role_from_instance_profile.called)
+
+    @testing.gen_test
+    def test_ensure_role_matching(self):
+        fake_profile = {
+            'get_instance_profile_response': {
+                'get_instance_profile_result': {
+                    'instance_profile': {
+                        'roles': {
+                            'member': {
+                                'role_name': 'test-role'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        self.actor.iam_conn.get_instance_profile.return_value = fake_profile
+        yield self.actor._ensure_role('test', 'test-role')
+        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
+
+    @testing.gen_test
+    def test_ensure_role_not_matching(self):
+        fake_profile = {
+            'get_instance_profile_response': {
+                'get_instance_profile_result': {
+                    'instance_profile': {
+                        'roles': {
+                            'member': {
+                                'role_name': 'test-role'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        self.actor.iam_conn.get_instance_profile.return_value = fake_profile
+        self.actor._add_role = mock.MagicMock()
+        self.actor._add_role.side_effect = [tornado_value(None)]
+        self.actor._remove_role = mock.MagicMock()
+        self.actor._remove_role.side_effect = [tornado_value(None)]
+
+        yield self.actor._ensure_role('test', 'new-test-role')
+        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
+        self.actor._remove_role.assert_called_with('test', 'test-role')
+        self.actor._add_role.assert_called_with('test', 'new-test-role')
+
+        yield self.actor._ensure_role('test', None)
+        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
+        self.actor._remove_role.assert_called_with('test', 'test-role')
+
+    @testing.gen_test
+    def test_ensure_role_matching_404(self):
+        self.actor.iam_conn.get_instance_profile.side_effect = BotoServerError(
+            404, 'No profile')
+        self.actor._add_role = mock.MagicMock()
+        self.actor._add_role.side_effect = [tornado_value(None)]
+
+        yield self.actor._ensure_role('test', 'test-role')
+        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
+        self.actor._add_role.assert_called_with('test', 'test-role')
+
+    @testing.gen_test
+    def test_ensure_role_matching_500(self):
+        self.actor.iam_conn.get_instance_profile.side_effect = BotoServerError(
+            500, 'Error')
+        self.actor._add_role = mock.MagicMock()
+        self.actor._add_role.side_effect = [tornado_value(None)]
+
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._ensure_role('test', 'test-role')
+        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
+
+    @testing.gen_test
+    def test_ensure_role_matching_key_error(self):
+        self.actor.iam_conn.get_instance_profile.side_effect = KeyError('')
+        self.actor._add_role = mock.MagicMock()
+        self.actor._add_role.side_effect = [tornado_value(None)]
+
+        yield self.actor._ensure_role('test', 'test-role')
+        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
+        self.actor._add_role.assert_called_with('test', 'test-role')
+
+    @testing.gen_test
+    def test_ensure_role_matching_key_error_and_no_role(self):
+        self.actor.iam_conn.get_instance_profile.side_effect = KeyError('')
+        self.actor._add_role = mock.MagicMock()
+        self.actor._add_role.side_effect = [tornado_value(None)]
+
+        yield self.actor._ensure_role('test', None)
+        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
+
+    @testing.gen_test
+    def test_execute_absent(self):
+        self.actor._options['state'] = 'absent'
+        self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
-        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
         yield self.actor._execute()
-        ensure_entity.assert_called_once()
-        ensure_inline_policies.assert_called_once()
+        self.actor._ensure_entity.assert_called_once()
+
+    @testing.gen_test
+    def test_execute(self):
+        self.actor._ensure_entity = mock.MagicMock()
+        self.actor._ensure_role = mock.MagicMock()
+        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._ensure_role.side_effect = [tornado_value(None)]
+        yield self.actor._execute()
+        self.actor._ensure_entity.assert_called_once()
+        self.actor._ensure_role.assert_called_once()
