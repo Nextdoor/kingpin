@@ -22,7 +22,7 @@ class TestUtils(unittest.TestCase):
         returned_class = utils.str_to_class(class_string_name)
         self.assertEquals(testing.AsyncTestCase, returned_class)
 
-        class_string_name = 'misc.Sleep'
+        class_string_name = 'kingpin.actors.misc.Sleep'
         returned_class = utils.str_to_class(class_string_name)
         self.assertEquals(misc.Sleep, returned_class)
 

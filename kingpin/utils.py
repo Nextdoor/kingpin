@@ -23,6 +23,7 @@ from logging import handlers
 import datetime
 import demjson
 import functools
+import importlib
 import logging
 import os
 import re
@@ -77,24 +78,7 @@ def str_to_class(string):
     class_name = string_elements.pop()
     module_name = '.'.join(string_elements)
 
-    for prefix in ['kingpin.actors', 'actors']:
-        try:
-            prefixed_module_name = "%s.%s" % (prefix, module_name)
-
-            # load the module, will raise ImportError if module cannot be
-            # loaded or if that module has a failed import inside of it.
-            m = __import__(prefixed_module_name, globals(), locals(),
-                           class_name)
-
-            # get the class, will raise AttributeError if class cannot be found
-            return getattr(m, class_name)
-
-        except ImportError:
-            # pass right now -- will try one more time at the end of this class
-            # to import the raw string without any kingpin prefixes.
-            pass
-
-    m = __import__(module_name, globals(), locals(), class_name)
+    m = importlib.import_module(module_name)
     return getattr(m, class_name)
 
 
