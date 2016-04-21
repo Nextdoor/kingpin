@@ -76,9 +76,6 @@ class EntityBaseActor(base.IAMBaseActor):
         self.get_entity_policy = None
         self.put_entity_policy = None
 
-        # Parse the supplied inline policies
-        self._parse_inline_policies(self.option('inline_policies'))
-
     def _generate_policy_name(self, policy):
         """Generates an Amazon-friendly Policy name from a filename.
 
@@ -154,9 +151,13 @@ class EntityBaseActor(base.IAMBaseActor):
         """
         policies = {}
 
-        # Get the list of inline policies attached to an entity.
-        self.log.debug('Searching for any inline policies for %s' % name)
+        # Get the list of inline policies attached to an entity. Note, not
+        # all entities have a concept of inline policies. If
+        # self.get_all_entity_policies is None, it returns a TypeError. We'll
+        # catch that and silently move on.
+        policy_names = []
         try:
+            self.log.debug('Searching for any inline policies for %s' % name)
             ret = yield self.thread(self.get_all_entity_policies, name)
             response = ret['list_%s_policies_response' % self.entity_name]
             result = response['list_%s_policies_result' % self.entity_name]
@@ -169,6 +170,8 @@ class EntityBaseActor(base.IAMBaseActor):
             else:
                 raise exceptions.RecoverableActorFailure(
                     'An unexpected API error occurred: %s' % e)
+        except TypeError:
+            pass
 
         # Iterate through all of the named policies and fire off
         # get-requests, but don't yield on them yet.
@@ -528,6 +531,9 @@ class User(EntityBaseActor):
         self.get_entity_policy = self.iam_conn.get_user_policy
         self.put_entity_policy = self.iam_conn.put_user_policy
 
+        # Parse the supplied inline policies
+        self._parse_inline_policies(self.option('inline_policies'))
+
 
 class Group(EntityBaseActor):
 
@@ -606,6 +612,9 @@ class Group(EntityBaseActor):
         self.get_entity_policy = self.iam_conn.get_group_policy
         self.put_entity_policy = self.iam_conn.put_group_policy
 
+        # Parse the supplied inline policies
+        self._parse_inline_policies(self.option('inline_policies'))
+
 
 class Role(EntityBaseActor):
 
@@ -683,3 +692,67 @@ class Role(EntityBaseActor):
         self.get_all_entity_policies = self.iam_conn.list_role_policies
         self.get_entity_policy = self.iam_conn.get_role_policy
         self.put_entity_policy = self.iam_conn.put_role_policy
+
+        # Parse the supplied inline policies
+        self._parse_inline_policies(self.option('inline_policies'))
+
+
+class InstanceProfile(EntityBaseActor):
+
+    """Manages an IAM Instance Profile.
+
+    This actor manages the state of an Amazon IAM Instance Profile. It ensures
+    that the profile either exists or does not. It also updates any settings
+    for the profile that are different from the passed in options.
+
+    Currently we can:
+
+      * Ensure is present or absent
+
+    **Options**
+
+    :name:
+      (str) Name of the Role to manage
+
+    :state:
+      (str) Present or Absent. Default: "present"
+
+    **Example**
+
+    .. code-block:: json
+
+       { "actor": "aws.iam.InstanceProfile",
+         "desc": "Ensure that my-ecs-servers exists",
+         "options": {
+           "name": "my-ecs-servers",
+           "state": "present",
+         }
+       }
+
+    **Dry run**
+
+    Will let you know if the profile exists or not, and what changes it would
+    make to the profile.
+    """
+
+    all_options = {
+        'name': (str, REQUIRED, 'The name of the group.'),
+        'state': (STATE, 'present',
+                  'Desired state of the group: present/absent'),
+    }
+
+    def __init__(self, *args, **kwargs):
+        super(InstanceProfile, self).__init__(*args, **kwargs)
+
+        self.entity_name = 'instance_profile'
+        self.create_entity = self.iam_conn.create_instance_profile
+        self.delete_entity = self.iam_conn.delete_instance_profile
+        self.get_all_entities = self.iam_conn.list_instance_profiles
+
+    @gen.coroutine
+    def _execute(self):
+        name = self.option('name')
+        state = self.option('state')
+
+        yield self._ensure_entity(name, state)
+        raise gen.Return()

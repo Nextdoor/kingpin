@@ -49,6 +49,12 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         self.actor.get_entity_policy = iam_mock.get_base_policy
         self.actor.put_entity_policy = iam_mock.put_base_policy
 
+        # Pretend like we're a more full featured actor (User/Group/Role) that
+        # has inline policies. This could be abstracted differently by making
+        # another BaseActor for Users/Groups/Roles thats separate from
+        # InstanceProfiles -- but for now this will do.
+        self.actor._parse_inline_policies(self.actor.option('inline_policies'))
+
     @testing.gen_test
     def test_generate_policy_name(self):
         name = '/some-?funky*-directory/with.my.policy.json'
@@ -110,6 +116,13 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         # Next, what if the entity doesn't exist at all?
         a.iam_conn.get_all_base_policies.side_effect = BotoServerError(
             404, 'User does not exist!')
+        ret = yield self.actor._get_entity_policies('test')
+        self.assertEquals(ret, {})
+
+        # What if self.get_all_entity_policies raises a TypeError because its
+        # set to None (or not set at all)?
+        a.iam_conn.get_all_base_policies.side_effect = TypeError(
+            'NoneType is not callable')
         ret = yield self.actor._get_entity_policies('test')
         self.assertEquals(ret, {})
 
@@ -544,6 +557,42 @@ class TestRole(testing.AsyncTestCase):
         self.actor.get_all_entity_policies = iam_mock.list_role_policies
         self.actor.get_entity_policy = iam_mock.get_role_policy
         self.actor.put_entity_policy = iam_mock.put_role_policy
+
+    @testing.gen_test
+    def test_execute(self):
+        ensure_entity = mock.MagicMock()
+        ensure_inline_policies = mock.MagicMock()
+        self.actor._ensure_entity = ensure_entity
+        self.actor._ensure_inline_policies = ensure_inline_policies
+        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
+        yield self.actor._execute()
+        ensure_entity.assert_called_once()
+        ensure_inline_policies.assert_called_once()
+
+
+class TestInstanceProfile(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestInstanceProfile, self).setUp()
+        settings.AWS_ACCESS_KEY_ID = 'unit-test'
+        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        reload(entities)
+
+        # Create our actor object with some basics... then mock out the IAM
+        # connections..
+        self.actor = entities.InstanceProfile(
+            'Unit Test',
+            {'name': 'test',
+             'state': 'present'})
+
+        iam_mock = mock.Mock()
+        self.actor.iam_conn = iam_mock
+
+        self.actor.create_entity = iam_mock.create_instance_profile
+        self.actor.delete_entity = iam_mock.delete_instance_profile
+        self.actor.get_all_entities = iam_mock.list_instance_profiles
 
     @testing.gen_test
     def test_execute(self):
