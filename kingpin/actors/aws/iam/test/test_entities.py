@@ -62,27 +62,6 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         self.assertEquals(parsed, 'some-funky-directory-with.my.policy')
 
     @testing.gen_test
-    def test_execute(self):
-        ensure_entity = mock.MagicMock()
-        ensure_inline_policies = mock.MagicMock()
-        self.actor._ensure_entity = ensure_entity
-        self.actor._ensure_inline_policies = ensure_inline_policies
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
-        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
-        yield self.actor._execute()
-        ensure_entity.assert_called_once()
-        ensure_inline_policies.assert_called_once()
-
-    @testing.gen_test
-    def test_execute_absent(self):
-        ensure_entity = mock.MagicMock()
-        self.actor._options['state'] = 'absent'
-        self.actor._ensure_entity = ensure_entity
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
-        yield self.actor._execute()
-        ensure_entity.assert_called_once()
-
-    @testing.gen_test
     def test_get_entity_policies(self):
         policy_str = ''.join([
             '%7B%22Version%22%3A%20%222012-10-17%22%2C%20',
@@ -477,16 +456,139 @@ class TestUser(testing.AsyncTestCase):
         self.actor.put_entity_policy = iam_mock.put_user_policy
 
     @testing.gen_test
-    def test_execute(self):
-        ensure_entity = mock.MagicMock()
-        ensure_inline_policies = mock.MagicMock()
-        self.actor._ensure_entity = ensure_entity
-        self.actor._ensure_inline_policies = ensure_inline_policies
+    def test_ensure_groups(self):
+        # Mock out a fake list of groups that the user is already attached to
+        fake_groups = {
+            'list_groups_for_user_response': {
+                'list_groups_for_user_result': {
+                    'groups': [
+                        {'path': '/', 'group_name': 'test-group-1'},
+                        {'path': '/', 'group_name': 'test-group-2'}
+                    ]
+                }
+            }
+        }
+        self.actor.iam_conn.get_groups_for_user.return_value = fake_groups
+
+        # Create mocks for the add/remove user group methods
+        self.actor._add_user_to_group = mock.MagicMock()
+        self.actor._remove_user_from_group = mock.MagicMock()
+
+        # No purging ... just pretend like we're adding group membership
+        self.actor._add_user_to_group.side_effect = [
+            tornado_value(None), tornado_value(None)]
+        yield self.actor._ensure_groups('test', ['ng1', 'ng2'], False)
+        self.actor._add_user_to_group.ensure_has_calls([
+            mock.call('test', 'ng1'),
+            mock.call('test', 'ng2')
+        ])
+        self.assertFalse(self.actor._remove_user_from_group.called)
+        self.actor._add_user_to_group.reset_mock()
+        self.actor._remove_user_from_group.reset_mock()
+
+        # Same as above, but now purge the unmanaged groups
+        self.actor._add_user_to_group.side_effect = [
+            tornado_value(None), tornado_value(None)]
+        self.actor._remove_user_from_group.side_effect = [
+            tornado_value(None), tornado_value(None)
+        ]
+        yield self.actor._ensure_groups('test', 'ng1', True)
+        self.actor._add_user_to_group.assert_has_calls([
+            mock.call('test', 'ng1')])
+        self.actor._remove_user_from_group.assert_has_calls([
+            mock.call('test', 'test-group-1'),
+            mock.call('test', 'test-group-2')])
+        self.actor._add_user_to_group.reset_mock()
+        self.actor._remove_user_from_group.reset_mock()
+
+    @testing.gen_test
+    def test_ensure_groups_with_exceptions(self):
+        # Create mocks for the add/remove user group methods
+        self.actor._add_user_to_group = mock.MagicMock()
+        self.actor._add_user_to_group.side_effect = [tornado_value(None)]
+        self.actor._remove_user_from_group = mock.MagicMock()
+        self.actor._remove_user_from_group.side_effect = [tornado_value(None)]
+
+        # The user doesn't exist? No problem.. we'll move forward anyways and
+        # assume we're in a dry run and the user hasn't been created, and thus
+        # there are no groups.
+        self.actor.iam_conn.get_groups_for_user.side_effect = BotoServerError(
+            404, '')
+        yield self.actor._ensure_groups('test', ['ng1', 'ng2'], False)
+        self.actor._add_user_to_group.assert_has_calls([
+            mock.call('test', 'ng1'),
+            mock.call('test', 'ng2')
+        ])
+        self.assertFalse(self.actor._remove_user_from_group.called)
+
+        # Some other error happens? raise it!
+        self.actor.iam_conn.get_groups_for_user.side_effect = BotoServerError(
+            500, '')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._ensure_groups('test', ['ng1', 'ng2'], False)
+
+    @testing.gen_test
+    def test_add_user_to_group(self):
+        self.actor.iam_conn.add_user_to_group.return_value = None
+        yield self.actor._add_user_to_group('test', 'group')
+        self.actor.iam_conn.add_user_to_group.assert_called_with(
+            'test', 'group')
+
+    @testing.gen_test
+    def test_add_user_to_group_dry(self):
+        self.actor.iam_conn.add_user_to_group.return_value = None
+        self.actor._dry = True
+        yield self.actor._add_user_to_group('test', 'group')
+        self.assertFalse(self.actor.iam_conn.add_user_to_group.called)
+
+    @testing.gen_test
+    def test_add_user_to_group_exception(self):
+        self.actor.iam_conn.add_user_to_group.side_effect = BotoServerError(
+            500, 'Yikes')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._add_user_to_group('test', 'group')
+
+    @testing.gen_test
+    def test_remove_user_from_group(self):
+        self.actor.iam_conn.remove_user_from_group.return_value = None
+        yield self.actor._remove_user_from_group('test', 'group')
+        self.actor.iam_conn.remove_user_from_group.assert_called_with(
+            'test', 'group')
+
+    @testing.gen_test
+    def test_remove_user_from_group_dry(self):
+        self.actor.iam_conn.remove_user_from_group.return_value = None
+        self.actor._dry = True
+        yield self.actor._remove_user_from_group('test', 'group')
+        self.assertFalse(self.actor.iam_conn.remove_user_from_group.called)
+
+    @testing.gen_test
+    def test_remove_user_from_group_exception(self):
+        self.actor.iam_conn.remove_user_from_group.side_effect = BotoServerError(
+            500, 'Yikes')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._remove_user_from_group('test', 'group')
+
+    @testing.gen_test
+    def test_execute_absent(self):
+        self.actor._options['state'] = 'absent'
+        self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
-        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
         yield self.actor._execute()
-        ensure_entity.assert_called_once()
-        ensure_inline_policies.assert_called_once()
+        self.actor._ensure_entity.assert_called_once()
+
+    @testing.gen_test
+    def test_execute_present(self):
+        self.actor._ensure_entity = mock.MagicMock()
+        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._ensure_inline_policies = mock.MagicMock()
+        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
+        self.actor._ensure_groups = mock.MagicMock()
+        self.actor._ensure_groups.side_effect = [tornado_value(None)]
+        yield self.actor._execute()
+        self.actor._ensure_entity.assert_called_once()
+        self.actor._ensure_inline_policies.assert_called_once()
+        self.actor._ensure_groups.assert_called_once()
 
 
 class TestGroup(testing.AsyncTestCase):
@@ -518,7 +620,16 @@ class TestGroup(testing.AsyncTestCase):
         self.actor.put_entity_policy = iam_mock.put_user_policy
 
     @testing.gen_test
-    def test_execute(self):
+    def test_execute_absent(self):
+        self.actor._options['state'] = 'absent'
+        ensure_entity = mock.MagicMock()
+        self.actor._ensure_entity = ensure_entity
+        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        yield self.actor._execute()
+        ensure_entity.assert_called_once()
+
+    @testing.gen_test
+    def test_execute_present(self):
         ensure_entity = mock.MagicMock()
         ensure_inline_policies = mock.MagicMock()
         self.actor._ensure_entity = ensure_entity
@@ -557,6 +668,15 @@ class TestRole(testing.AsyncTestCase):
         self.actor.get_all_entity_policies = iam_mock.list_role_policies
         self.actor.get_entity_policy = iam_mock.get_role_policy
         self.actor.put_entity_policy = iam_mock.put_role_policy
+
+    @testing.gen_test
+    def test_execute_absent(self):
+        self.actor._options['state'] = 'absent'
+        ensure_entity = mock.MagicMock()
+        self.actor._ensure_entity = ensure_entity
+        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        yield self.actor._execute()
+        ensure_entity.assert_called_once()
 
     @testing.gen_test
     def test_execute(self):

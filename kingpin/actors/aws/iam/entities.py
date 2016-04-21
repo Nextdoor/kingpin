@@ -66,8 +66,21 @@ class EntityBaseActor(base.IAMBaseActor):
         super(EntityBaseActor, self).__init__(*args, **kwargs)
 
         # These IAM Connection methods must be overridden in a subclass of this
-        # actor!
+        # actor. Each of these is a "generalized" name for the method in Boto
+        # found at http://boto.cloudhackers.com/en/latest/ref/iam.html.
+        #
+        # This is a little confusing, but the idea is that these methods all
+        # basically behave the same (are called the same way, return the same
+        # type of data), so we should be able to generalize them into
+        # variables.
+        #
+        # Once these are mapped to real IAM calls, then the methods in this
+        # base class will work.
+
+        # The "text name" of the entity type. This is either:
+        #  user, group, role, instance_profile
         self.entity_name = 'base'
+
         self.create_entity = None
         self.delete_entity = None
         self.delete_entity_policy = None
@@ -440,19 +453,6 @@ class EntityBaseActor(base.IAMBaseActor):
                     'An unexpected API error occurred: %s' % e)
             self.log.warning('%s %s doesn\'t exist' % (self.entity_name, name))
 
-    @gen.coroutine
-    def _execute(self):
-        name = self.option('name')
-        state = self.option('state')
-        inline_policies_purge = self.option('inline_policies_purge')
-
-        yield self._ensure_entity(name, state)
-        if state == 'absent':
-            raise gen.Return()
-
-        yield self._ensure_inline_policies(name, inline_policies_purge)
-        raise gen.Return()
-
 
 class User(EntityBaseActor):
 
@@ -467,6 +467,8 @@ class User(EntityBaseActor):
       * Ensure is present or absent
       * Purge (or not) any unmanaged Inline Policies
       * Push and Update Inline Policies
+      * Add the user to any groups desired
+      * Purge (or not) the user from any unmanaged groups
 
     **Options**
 
@@ -475,6 +477,14 @@ class User(EntityBaseActor):
 
     :state:
       (str) Present or Absent. Default: "present"
+
+    :groups:
+      (str,array) A list of groups to add the user to.
+      Default: []
+
+    :groups_purge:
+      (bool) Whether or not to purge un-managed groups from the user.
+      Default: false
 
     :inline_policies:
       (str,array) A list of strings that point to JSON files to use as inline
@@ -513,6 +523,8 @@ class User(EntityBaseActor):
         'name': (str, REQUIRED, 'The name of the user.'),
         'state': (STATE, 'present',
                   'Desired state of the User: present/absent'),
+        'groups': ((str, list), [], 'List of groups to add the user to.'),
+        'groups_purge': (bool, False, 'Purge unmanaged group memberships?'),
         'inline_policies': ((str, list), [],
                             'List of inline policy JSON files to apply.'),
         'inline_policies_purge': (bool, False,
@@ -533,6 +545,95 @@ class User(EntityBaseActor):
 
         # Parse the supplied inline policies
         self._parse_inline_policies(self.option('inline_policies'))
+
+    @gen.coroutine
+    def _ensure_groups(self, name, groups, purge):
+        """Ensure that this user is a member of specific groups.
+
+        args:
+            name: The user we're managing
+            groups: The list (or single) of groups to join be members of
+            purge: Whether or not to purge unmanaged targets.
+        """
+        if isinstance(groups, basestring):
+            groups = [groups]
+
+        current_groups = []
+        try:
+            raw = yield self.thread(self.iam_conn.get_groups_for_user, name)
+            resp_key = 'list_groups_for_user_response'
+            result_key = 'list_groups_for_user_result'
+            existing_groups = raw[resp_key][result_key]['groups']
+
+            # Quickly just pull out the friendly names
+            current_groups = [group['group_name'] for group in existing_groups]
+        except BotoServerError as e:
+            # If the error is a 404, then the user doesn't exist and we can
+            # assume that the mappings don't exist at all. We leave the
+            # existin_mappings list alone. For any other error, raise.
+            if e.status != 404:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
+
+        # Find any groups that we're not already a member of, and add us
+        tasks = []
+        for new_group in [group for group in groups
+                          if group not in current_groups]:
+            tasks.append(self._add_user_to_group(name, new_group))
+        yield tasks
+
+        # If we're not purging unmanaged groups, then return.
+        if not purge:
+            raise gen.Return()
+
+        # Find any group memberships we didn't know about, and purge them
+        tasks = []
+        for bad_group in [group for group in current_groups
+                          if group not in groups]:
+            tasks.append(self._remove_user_from_group(name, bad_group))
+        yield tasks
+
+    @gen.coroutine
+    def _add_user_to_group(self, name, group):
+        if self._dry:
+            self.log.warning('Would have added %s to %s' % (name, group))
+            raise gen.Return()
+
+        try:
+            self.log.info('Adding %s to %s' % (name, group))
+            yield self.thread(self.iam_conn.add_user_to_group, name, group)
+        except BotoServerError as e:
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected API error occurred: %s' % e)
+
+    @gen.coroutine
+    def _remove_user_from_group(self, name, group):
+        if self._dry:
+            self.log.warning('Would have removed %s to %s' % (name, group))
+            raise gen.Return()
+
+        try:
+            self.log.info('Removing %s to %s' % (name, group))
+            yield self.thread(self.iam_conn.remove_user_from_group, name, group)
+        except BotoServerError as e:
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected API error occurred: %s' % e)
+
+    @gen.coroutine
+    def _execute(self):
+        name = self.option('name')
+        state = self.option('state')
+        groups = self.option('groups')
+        groups_purge = self.option('groups_purge')
+        inline_policies_purge = self.option('inline_policies_purge')
+
+        yield self._ensure_entity(name, state)
+        if state == 'absent':
+            raise gen.Return()
+
+        yield self._ensure_inline_policies(name, inline_policies_purge)
+        yield self._ensure_groups(name, groups, groups_purge)
+        raise gen.Return()
 
 
 class Group(EntityBaseActor):
@@ -615,6 +716,19 @@ class Group(EntityBaseActor):
         # Parse the supplied inline policies
         self._parse_inline_policies(self.option('inline_policies'))
 
+    @gen.coroutine
+    def _execute(self):
+        name = self.option('name')
+        state = self.option('state')
+        inline_policies_purge = self.option('inline_policies_purge')
+
+        yield self._ensure_entity(name, state)
+        if state == 'absent':
+            raise gen.Return()
+
+        yield self._ensure_inline_policies(name, inline_policies_purge)
+        raise gen.Return()
+
 
 class Role(EntityBaseActor):
 
@@ -638,6 +752,14 @@ class Role(EntityBaseActor):
     :state:
       (str) Present or Absent. Default: "present"
 
+    :instance_profiles:
+      (str,array) List of Instance Profiles to add this Role to.
+      Default: []
+
+    :instance_profiles_purge:
+      (bool) Whether or not to purge this profile from un-listed Instance
+      Profiles.  Default: false
+
     :inline_policies:
       (str,array) A list of strings that point to JSON files to use as inline
       policies. You can also pass in a single inline policy as a string.
@@ -655,6 +777,7 @@ class Role(EntityBaseActor):
          "options": {
            "name": "myapp",
            "state": "present",
+           "instance_profiles": "my-ecs-profile",
            "inline_policies": [
              "read-all-s3.json",
              "create-other-stuff.json"
@@ -675,6 +798,11 @@ class Role(EntityBaseActor):
         'name': (str, REQUIRED, 'The name of the group.'),
         'state': (STATE, 'present',
                   'Desired state of the group: present/absent'),
+        'instance_profiles': ((str, list), [],
+                              'List of Instance Profiles to add this Role to.'),
+        'instance_profiles_purge': (bool, False,
+                                    ('Whether or not to purge this profile'
+                                     'from un-listed Instance')),
         'inline_policies': ((str, list), [],
                             'List of inline policy JSON files to apply.'),
         'inline_policies_purge': (bool, False,
@@ -695,6 +823,19 @@ class Role(EntityBaseActor):
 
         # Parse the supplied inline policies
         self._parse_inline_policies(self.option('inline_policies'))
+
+    @gen.coroutine
+    def _execute(self):
+        name = self.option('name')
+        state = self.option('state')
+        inline_policies_purge = self.option('inline_policies_purge')
+
+        yield self._ensure_entity(name, state)
+        if state == 'absent':
+            raise gen.Return()
+
+        yield self._ensure_inline_policies(name, inline_policies_purge)
+        raise gen.Return()
 
 
 class InstanceProfile(EntityBaseActor):
