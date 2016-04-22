@@ -74,18 +74,14 @@ def get_actor_class(actor):
     """
     expected_exceptions = (AttributeError, ImportError, TypeError)
 
-    try:
-        # Try to load our local actors up first. Assume that the
-        # 'kingpin.actors.' prefix was not included in the name.
-        full_actor = 'kingpin.actors.%s' % actor
-        ref = utils.str_to_class(full_actor)
-    except expected_exceptions as e:
-        log.warning('Could not import %s: %s' % (full_actor, e))
+    # Try to load our local actors up first. Assume that the
+    # 'kingpin.actors.' prefix was not included in the name.
+    for prefix in ['', 'kingpin.actors.', 'actors.']:
+        full_actor = prefix + actor
         try:
-            ref = utils.str_to_class(actor)
-        except expected_exceptions:
-            log.critical('Could not import %s: %s' % (actor, e))
-            msg = 'Unable to import "%s" as a valid Actor.' % actor
-            raise exceptions.InvalidActor(msg)
+            return utils.str_to_class(full_actor)
+        except expected_exceptions as e:
+            log.debug('Tried importing "%s" but failed: %s' % (full_actor, e))
 
-    return ref
+    msg = 'Unable to import "%s" as a valid Actor.' % actor
+    raise exceptions.InvalidActor(msg)
