@@ -479,8 +479,8 @@ class TestUser(testing.AsyncTestCase):
             tornado_value(None), tornado_value(None)]
         yield self.actor._ensure_groups('test', ['ng1', 'ng2'], False)
         self.actor._add_user_to_group.ensure_has_calls([
-            mock.call('ng1', 'test'),
-            mock.call('ng2', 'test')
+            mock.call('test', 'ng1'),
+            mock.call('test', 'ng2')
         ])
         self.assertFalse(self.actor._remove_user_from_group.called)
         self.actor._add_user_to_group.reset_mock()
@@ -494,7 +494,7 @@ class TestUser(testing.AsyncTestCase):
         ]
         yield self.actor._ensure_groups('test', 'ng1', True)
         self.actor._add_user_to_group.assert_has_calls([
-            mock.call('ng1', 'test')])
+            mock.call('test', 'ng1')])
         self.actor._remove_user_from_group.assert_has_calls([
             mock.call('test', 'test-group-1'),
             mock.call('test', 'test-group-2')])
@@ -532,7 +532,7 @@ class TestUser(testing.AsyncTestCase):
         self.actor.iam_conn.add_user_to_group.return_value = None
         yield self.actor._add_user_to_group('test', 'group')
         self.actor.iam_conn.add_user_to_group.assert_called_with(
-            'test', 'group')
+            'group', 'test')
 
     @testing.gen_test
     def test_add_user_to_group_dry(self):
@@ -553,7 +553,7 @@ class TestUser(testing.AsyncTestCase):
         self.actor.iam_conn.remove_user_from_group.return_value = None
         yield self.actor._remove_user_from_group('test', 'group')
         self.actor.iam_conn.remove_user_from_group.assert_called_with(
-            'test', 'group')
+            'group', 'test')
 
     @testing.gen_test
     def test_remove_user_from_group_dry(self):
@@ -621,13 +621,73 @@ class TestGroup(testing.AsyncTestCase):
         self.actor.put_entity_policy = iam_mock.put_user_policy
 
     @testing.gen_test
+    def test_get_group_users(self):
+        fake_group = {
+            'get_group_response': {
+                'get_group_result': {
+                    'users': [
+                        {'user_name': 'group1'},
+                        {'user_name': 'group2'},
+                    ]
+                }
+            }
+        }
+        self.actor.iam_conn.get_group.return_value = fake_group
+        ret = yield self.actor._get_group_users('test')
+        self.assertEquals(ret, ['group1', 'group2'])
+
+    @testing.gen_test
+    def test_get_group_users_exception(self):
+        self.actor.iam_conn.get_group.side_effect = BotoServerError(
+            500, 'Yikes')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._get_group_users('test')
+
+    @testing.gen_test
+    def test_get_group_users_no_users(self):
+        self.actor.iam_conn.get_group.return_value = {}
+        ret = yield self.actor._get_group_users('test')
+        self.assertEquals(ret, [])
+
+    @testing.gen_test
+    def test_purge_group_users_false(self):
+        users = ['user1', 'user2']
+        self.actor._get_group_users = mock.MagicMock()
+        self.actor._get_group_users.side_effect = [tornado_value(users)]
+
+        self.actor._remove_user_from_group = mock.MagicMock()
+        self.actor._remove_user_from_group.side_effect = [
+            tornado_value(None), tornado_value(None)]
+
+        yield self.actor._purge_group_users('test', False)
+
+        self.assertFalse(self.actor._remove_user_from_group.called)
+
+    @testing.gen_test
+    def test_purge_group_users_true(self):
+        users = ['user1', 'user2']
+        self.actor._get_group_users = mock.MagicMock()
+        self.actor._get_group_users.side_effect = [tornado_value(users)]
+
+        self.actor._remove_user_from_group = mock.MagicMock()
+        self.actor._remove_user_from_group.side_effect = [
+            tornado_value(None), tornado_value(None)]
+
+        yield self.actor._purge_group_users('test', True)
+
+        self.actor._remove_user_from_group.assert_has_calls([
+            mock.call('user1', 'test'), mock.call('user2', 'test')])
+
+    @testing.gen_test
     def test_execute_absent(self):
         self.actor._options['state'] = 'absent'
-        ensure_entity = mock.MagicMock()
-        self.actor._ensure_entity = ensure_entity
+        self.actor._purge_group_users = mock.MagicMock()
+        self.actor._purge_group_users.side_effect = [tornado_value(None)]
+        self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
         yield self.actor._execute()
-        ensure_entity.assert_called_once()
+        self.actor._ensure_entity.assert_called_once()
+        self.actor._purge_group_users.assert_called_once()
 
     @testing.gen_test
     def test_execute_present(self):

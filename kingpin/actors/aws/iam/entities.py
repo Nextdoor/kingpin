@@ -453,6 +453,45 @@ class EntityBaseActor(base.IAMBaseActor):
                     'An unexpected API error occurred: %s' % e)
             self.log.warning('%s %s doesn\'t exist' % (self.entity_name, name))
 
+    @gen.coroutine
+    def _add_user_to_group(self, name, group):
+        """Quick helper method to add a user to a group.
+
+        args:
+            name: user name
+            group: group name
+        """
+        if self._dry:
+            self.log.warning('Would have added %s to %s' % (name, group))
+            raise gen.Return()
+
+        try:
+            self.log.info('Adding %s to %s' % (name, group))
+            yield self.thread(self.iam_conn.add_user_to_group, group, name)
+        except BotoServerError as e:
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected API error occurred: %s' % e)
+
+    @gen.coroutine
+    def _remove_user_from_group(self, name, group):
+        """Quick helper method to remove a user from a group.
+
+        args:
+            name: user name
+            group: group name
+        """
+        if self._dry:
+            self.log.warning('Would have removed %s from %s' % (name, group))
+            raise gen.Return()
+
+        try:
+            self.log.info('Removing %s from %s' % (name, group))
+            yield self.thread(self.iam_conn.remove_user_from_group,
+                              group, name)
+        except BotoServerError as e:
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected API error occurred: %s' % e)
+
 
 class User(EntityBaseActor):
 
@@ -594,33 +633,6 @@ class User(EntityBaseActor):
         yield tasks
 
     @gen.coroutine
-    def _add_user_to_group(self, name, group):
-        if self._dry:
-            self.log.warning('Would have added %s to %s' % (name, group))
-            raise gen.Return()
-
-        try:
-            self.log.info('Adding %s to %s' % (name, group))
-            yield self.thread(self.iam_conn.add_user_to_group, group, name)
-        except BotoServerError as e:
-            raise exceptions.RecoverableActorFailure(
-                'An unexpected API error occurred: %s' % e)
-
-    @gen.coroutine
-    def _remove_user_from_group(self, name, group):
-        if self._dry:
-            self.log.warning('Would have removed %s to %s' % (name, group))
-            raise gen.Return()
-
-        try:
-            self.log.info('Removing %s to %s' % (name, group))
-            yield self.thread(self.iam_conn.remove_user_from_group,
-                              name, group)
-        except BotoServerError as e:
-            raise exceptions.RecoverableActorFailure(
-                'An unexpected API error occurred: %s' % e)
-
-    @gen.coroutine
     def _execute(self):
         name = self.option('name')
         state = self.option('state')
@@ -655,6 +667,11 @@ class Group(EntityBaseActor):
 
     :name:
       (str) Name of the Group profile to manage
+
+    :force:
+      (bool) Forcefully delete the group (explicitly purging all group
+      memberships).
+      Default: false
 
     :state:
       (str) Present or Absent. Default: "present"
@@ -694,6 +711,7 @@ class Group(EntityBaseActor):
 
     all_options = {
         'name': (str, REQUIRED, 'The name of the group.'),
+        'force': (bool, False, 'Forcefully delete the group.'),
         'state': (STATE, 'present',
                   'Desired state of the group: present/absent'),
         'inline_policies': ((str, list), [],
@@ -718,10 +736,67 @@ class Group(EntityBaseActor):
         self._parse_inline_policies(self.option('inline_policies'))
 
     @gen.coroutine
+    def _get_group_users(self, name):
+        """Returns a list of users assigned to the group.
+
+        args:
+            name: the name of the group
+
+        returns:
+            a list of user name strings
+        """
+        users = []
+        try:
+            raw = yield self.thread(self.iam_conn.get_group, name)
+            resp_key = 'get_group_response'
+            result_key = 'get_group_result'
+            users = raw[resp_key][result_key]['users']
+            users = [user['user_name'] for user in users]
+        except BotoServerError as e:
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected API error occurred: %s' % e)
+        except KeyError:
+            # No users!
+            users = []
+
+        raise gen.Return(users)
+
+    @gen.coroutine
+    def _purge_group_users(self, name, force):
+        """Forcefully purge all users from the group.
+
+        This is used only if the group has users, is being deleted, and the
+        'purge' option was set.
+
+        args:
+          name: the group name
+          force: boolean whether or not to actually force the removal
+        """
+        users = yield self._get_group_users(name)
+
+        if not force and users:
+            self.log.warning(('Will not be able to delete this group ' +
+                              'without first removing all of its members. ' +
+                              'Use the `force` option to purge all members:'))
+            self.log.warning('Group members: %s' % ', '.join(users))
+
+        if not force:
+            raise gen.Return()
+
+        tasks = []
+        for user in users:
+            tasks.append(self._remove_user_from_group(user, name))
+        yield tasks
+
+    @gen.coroutine
     def _execute(self):
         name = self.option('name')
         state = self.option('state')
+        force = self.option('force')
         inline_policies_purge = self.option('inline_policies_purge')
+
+        if state == 'absent':
+            yield self._purge_group_users(name, force)
 
         yield self._ensure_entity(name, state)
         if state == 'absent':
