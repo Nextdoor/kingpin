@@ -23,8 +23,6 @@ class IntegrationIAMUsers(testing.AsyncTestCase):
     ]
     region = 'us-east-1'
 
-    # Not really a test - this is just a state cleaner. Ensure that we start
-    # without the testig user in place before we begin.
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01_ensure_user_absent(self):
@@ -76,8 +74,6 @@ class IntegrationIAMGroups(testing.AsyncTestCase):
     ]
     region = 'us-east-1'
 
-    # Not really a test - this is just a state cleaner. Ensure that we start
-    # without the testig group in place before we begin.
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01_ensure_group_absent(self):
@@ -129,8 +125,6 @@ class IntegrationIAMRoles(testing.AsyncTestCase):
     ]
     region = 'us-east-1'
 
-    # Not really a test - this is just a state cleaner. Ensure that we start
-    # without the testig role in place before we begin.
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01_ensure_role_absent(self):
@@ -182,8 +176,6 @@ class IntegrationIAMInstanceProfiles(testing.AsyncTestCase):
     ]
     region = 'us-east-1'
 
-    # Not really a test - this is just a state cleaner. Ensure that we start
-    # without the testig profile in place before we begin.
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01_ensure_profile_absent(self):

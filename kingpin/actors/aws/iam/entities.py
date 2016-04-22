@@ -497,9 +497,7 @@ class User(EntityBaseActor):
 
     """Manages an IAM User.
 
-    This actor manages the state of an Amazon IAM User. It ensures that the
-    user either exists or does not. It also updates any settings for the user
-    that are different from the passed in options.
+    This actor manages the state of an Amazon IAM User.
 
     Currently we can:
 
@@ -653,15 +651,14 @@ class Group(EntityBaseActor):
 
     """Manages an IAM Group.
 
-    This actor manages the state of an Amazon IAM Group. It ensures that the
-    group either exists or does not. It also updates any settings for the group
-    that are different from the passed in options.
+    This actor manages the state of an Amazon IAM Group.
 
     Currently we can:
 
       * Ensure is present or absent
       * Purge (or not) any unmanaged Inline Policies
       * Push and Update Inline Policies
+      * Purge (or not) all group members and delete the group
 
     **Options**
 
@@ -810,9 +807,7 @@ class Role(EntityBaseActor):
 
     """Manages an IAM Role.
 
-    This actor manages the state of an Amazon IAM Role. It ensures that the
-    role either exists or does not. It also updates any settings for the role
-    that are different from the passed in options.
+    This actor manages the state of an Amazon IAM Role.
 
     Currently we can:
 
@@ -904,13 +899,12 @@ class InstanceProfile(EntityBaseActor):
 
     """Manages an IAM Instance Profile.
 
-    This actor manages the state of an Amazon IAM Instance Profile. It ensures
-    that the profile either exists or does not. It also updates any settings
-    for the profile that are different from the passed in options.
+    This actor manages the state of an Amazon IAM Instance Profile.
 
     Currently we can:
 
       * Ensure is present or absent
+      * Assign an IAM Role to the Instance Profile
 
     **Options**
 
