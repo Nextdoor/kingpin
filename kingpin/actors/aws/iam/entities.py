@@ -172,9 +172,9 @@ class EntityBaseActor(base.IAMBaseActor):
         try:
             self.log.debug('Searching for any inline policies for %s' % name)
             ret = yield self.thread(self.get_all_entity_policies, name)
-            response = ret['list_%s_policies_response' % self.entity_name]
-            result = response['list_%s_policies_result' % self.entity_name]
-            policy_names = result['policy_names']
+            policy_names = (ret['list_%s_policies_response' % self.entity_name]
+                               ['list_%s_policies_result' % self.entity_name]
+                               ['policy_names'])
         except BotoServerError as e:
             if e.status == 404:
                 # The user doesn't exist.. likely in a dry run. Return no
@@ -190,9 +190,8 @@ class EntityBaseActor(base.IAMBaseActor):
         # get-requests, but don't yield on them yet.
         tasks = []
         for p_name in policy_names:
-            tasks.append(
-                (p_name,
-                 self.thread(self.get_entity_policy, name, p_name)))
+            tasks.append((p_name,
+                         self.thread(self.get_entity_policy, name, p_name)))
 
         # Now that we've fired off all the calls, we walk through each yielded
         # result, parse the returned policy, and append it to our policies
@@ -207,10 +206,10 @@ class EntityBaseActor(base.IAMBaseActor):
                     'policy %s: %s' % (p_name, e))
 
             # Convert the uuencoded doc string into a dict
-            resp_key = 'get_%s_policy_response' % self.entity_name
-            result_key = 'get_%s_policy_result' % self.entity_name
-            p_doc = self._policy_doc_to_dict(
-                raw[resp_key][result_key]['policy_document'])
+            p_doc = self._policy_doc_to_dict((
+                raw['get_%s_policy_response' % self.entity_name]
+                   ['get_%s_policy_result' % self.entity_name]
+                   ['policy_document']))
 
             # Store the converted document under the policy name key
             policies[p_name] = p_doc
@@ -344,11 +343,10 @@ class EntityBaseActor(base.IAMBaseActor):
                 'An unexpected API error occurred: %s' % e)
 
         # Now search for the entity
-        resp_key = 'list_%ss_response' % self.entity_name
-        result_key = 'list_%ss_result' % self.entity_name
-        entity_key = '%ss' % self.entity_name
         entity = [entity for entity in
-                  entities[resp_key][result_key][entity_key] if
+                  entities['list_%ss_response' % self.entity_name]
+                          ['list_%ss_result' % self.entity_name]
+                          ['%ss' % self.entity_name] if
                   entity['%s_name' % self.entity_name] == name]
 
         # If there aren't any entities, return None.
@@ -417,9 +415,9 @@ class EntityBaseActor(base.IAMBaseActor):
                 (self.entity_name, name))
             raise gen.Return()
 
-        resp_key = 'create_%s_response' % self.entity_name
-        result_key = 'create_%s_result' % self.entity_name
-        arn = ret[resp_key][result_key][self.entity_name]['arn']
+        arn = (ret['create_%s_response' % self.entity_name]
+                  ['create_%s_result' % self.entity_name]
+                  [self.entity_name]['arn'])
         self.log.info('%s %s created' % (self.entity_name, arn))
 
     @gen.coroutine
@@ -598,9 +596,9 @@ class User(EntityBaseActor):
         current_groups = []
         try:
             raw = yield self.thread(self.iam_conn.get_groups_for_user, name)
-            resp_key = 'list_groups_for_user_response'
-            result_key = 'list_groups_for_user_result'
-            existing_groups = raw[resp_key][result_key]['groups']
+            existing_groups = (raw['list_groups_for_user_response']
+                                  ['list_groups_for_user_result']
+                                  ['groups'])
 
             # Quickly just pull out the friendly names
             current_groups = [group['group_name'] for group in existing_groups]
@@ -745,10 +743,8 @@ class Group(EntityBaseActor):
         users = []
         try:
             raw = yield self.thread(self.iam_conn.get_group, name)
-            resp_key = 'get_group_response'
-            result_key = 'get_group_result'
-            users = raw[resp_key][result_key]['users']
-            users = [user['user_name'] for user in users]
+            users = [user['user_name'] for user in
+                     raw['get_group_response']['get_group_result']['users']]
         except BotoServerError as e:
             raise exceptions.RecoverableActorFailure(
                 'An unexpected API error occurred: %s' % e)
@@ -1005,11 +1001,13 @@ class InstanceProfile(EntityBaseActor):
         """
         existing = None
         try:
-            raw = yield self.thread(
-                self.iam_conn.get_instance_profile, name)
-            resp = raw['get_instance_profile_response']
-            res = resp['get_instance_profile_result']
-            existing = res['instance_profile']['roles']['member']['role_name']
+            raw = yield self.thread(self.iam_conn.get_instance_profile, name)
+            existing = (raw['get_instance_profile_response']
+                           ['get_instance_profile_result']
+                           ['instance_profile']
+                           ['roles']
+                           ['member']
+                           ['role_name'])
         except BotoServerError as e:
             if e.status != 404:
                 raise exceptions.RecoverableActorFailure(
