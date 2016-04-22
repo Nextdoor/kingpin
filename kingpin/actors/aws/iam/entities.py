@@ -237,8 +237,8 @@ class EntityBaseActor(base.IAMBaseActor):
         # First, push any policies that we have listed, but aren't in the
         # entity
         tasks = []
-        for policy in [policy for policy in self.inline_policies.keys()
-                       if policy not in existing_policies.keys()]:
+        for policy in (set(self.inline_policies.keys()) -
+                       set(existing_policies.keys())):
             policy_doc = self.inline_policies[policy]
             tasks.append(self._put_entity_policy(name, policy, policy_doc))
         yield tasks
@@ -247,8 +247,8 @@ class EntityBaseActor(base.IAMBaseActor):
         # already attached to the entity profile? Lets make sure each one of
         # those matches the policy we have here, and update it if necessary.
         tasks = []
-        for policy in [policy for policy in self.inline_policies.keys()
-                       if policy in existing_policies.keys()]:
+        for policy in (set(self.inline_policies.keys()) &
+                       set(existing_policies.keys())):
             new = self.inline_policies[policy]
             exist = existing_policies[policy]
             diff = self._diff_policy_json(new, exist)
@@ -267,8 +267,8 @@ class EntityBaseActor(base.IAMBaseActor):
         # Finally, are we purging? If so, find any policies (by name) that we
         # don't have in our own inline policies doc, and purge them.
         tasks = []
-        for policy in [policy for policy in existing_policies.keys()
-                       if policy not in self.inline_policies.keys()]:
+        for policy in (set(existing_policies.keys()) -
+                       set(self.inline_policies.keys())):
             tasks.append(self._delete_entity_policy(name, policy))
         yield tasks
 
@@ -593,15 +593,13 @@ class User(EntityBaseActor):
         if isinstance(groups, basestring):
             groups = [groups]
 
-        current_groups = []
+        current_groups = set()
         try:
-            raw = yield self.thread(self.iam_conn.get_groups_for_user, name)
-            existing_groups = (raw['list_groups_for_user_response']
-                                  ['list_groups_for_user_result']
-                                  ['groups'])
-
-            # Quickly just pull out the friendly names
-            current_groups = [group['group_name'] for group in existing_groups]
+            res = yield self.thread(self.iam_conn.get_groups_for_user, name)
+            current_groups = {g['group_name'] for g in
+                              res['list_groups_for_user_response']
+                                 ['list_groups_for_user_result']
+                                 ['groups']}
         except BotoServerError as e:
             # If the error is a 404, then the user doesn't exist and we can
             # assume that the mappings don't exist at all. We leave the
@@ -612,8 +610,7 @@ class User(EntityBaseActor):
 
         # Find any groups that we're not already a member of, and add us
         tasks = []
-        for new_group in [group for group in groups
-                          if group not in current_groups]:
+        for new_group in set(groups) - current_groups:
             tasks.append(self._add_user_to_group(name, new_group))
         yield tasks
 
@@ -623,8 +620,7 @@ class User(EntityBaseActor):
 
         # Find any group memberships we didn't know about, and purge them
         tasks = []
-        for bad_group in [group for group in current_groups
-                          if group not in groups]:
+        for bad_group in current_groups - set(groups):
             tasks.append(self._remove_user_from_group(name, bad_group))
         yield tasks
 
@@ -768,9 +764,9 @@ class Group(EntityBaseActor):
         users = yield self._get_group_users(name)
 
         if not force and users:
-            self.log.warning(('Will not be able to delete this group ' +
-                              'without first removing all of its members. ' +
-                              'Use the `force` option to purge all members:'))
+            self.log.warning(('Will not be able to delete this group '
+                              'without first removing all of its members. '
+                              'Use the `force` option to purge all members.'))
             self.log.warning('Group members: %s' % ', '.join(users))
 
         if not force:
