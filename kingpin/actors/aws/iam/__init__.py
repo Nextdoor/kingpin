@@ -25,6 +25,9 @@
 .. autoclass:: Role
    :noindex:
 
+.. autoclass:: InstanceProfile
+   :noindex:
+
 .. autoclass:: UploadCert
    :noindex:
 
