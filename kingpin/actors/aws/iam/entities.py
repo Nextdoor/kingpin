@@ -66,8 +66,21 @@ class EntityBaseActor(base.IAMBaseActor):
         super(EntityBaseActor, self).__init__(*args, **kwargs)
 
         # These IAM Connection methods must be overridden in a subclass of this
-        # actor!
+        # actor. Each of these is a "generalized" name for the method in Boto
+        # found at http://boto.cloudhackers.com/en/latest/ref/iam.html.
+        #
+        # This is a little confusing, but the idea is that these methods all
+        # basically behave the same (are called the same way, return the same
+        # type of data), so we should be able to generalize them into
+        # variables.
+        #
+        # Once these are mapped to real IAM calls, then the methods in this
+        # base class will work.
+
+        # The "text name" of the entity type. This is either:
+        #  user, group, role, instance_profile
         self.entity_name = 'base'
+
         self.create_entity = None
         self.delete_entity = None
         self.delete_entity_policy = None
@@ -75,9 +88,6 @@ class EntityBaseActor(base.IAMBaseActor):
         self.get_all_entity_policies = None
         self.get_entity_policy = None
         self.put_entity_policy = None
-
-        # Parse the supplied inline policies
-        self._parse_inline_policies(self.option('inline_policies'))
 
     def _generate_policy_name(self, policy):
         """Generates an Amazon-friendly Policy name from a filename.
@@ -154,13 +164,17 @@ class EntityBaseActor(base.IAMBaseActor):
         """
         policies = {}
 
-        # Get the list of inline policies attached to an entity.
-        self.log.debug('Searching for any inline policies for %s' % name)
+        # Get the list of inline policies attached to an entity. Note, not
+        # all entities have a concept of inline policies. If
+        # self.get_all_entity_policies is None, it returns a TypeError. We'll
+        # catch that and silently move on.
+        policy_names = []
         try:
+            self.log.debug('Searching for any inline policies for %s' % name)
             ret = yield self.thread(self.get_all_entity_policies, name)
-            response = ret['list_%s_policies_response' % self.entity_name]
-            result = response['list_%s_policies_result' % self.entity_name]
-            policy_names = result['policy_names']
+            policy_names = (ret['list_%s_policies_response' % self.entity_name]
+                               ['list_%s_policies_result' % self.entity_name]
+                               ['policy_names'])
         except BotoServerError as e:
             if e.status == 404:
                 # The user doesn't exist.. likely in a dry run. Return no
@@ -169,14 +183,15 @@ class EntityBaseActor(base.IAMBaseActor):
             else:
                 raise exceptions.RecoverableActorFailure(
                     'An unexpected API error occurred: %s' % e)
+        except TypeError:
+            pass
 
         # Iterate through all of the named policies and fire off
         # get-requests, but don't yield on them yet.
         tasks = []
         for p_name in policy_names:
-            tasks.append(
-                (p_name,
-                 self.thread(self.get_entity_policy, name, p_name)))
+            tasks.append((p_name,
+                         self.thread(self.get_entity_policy, name, p_name)))
 
         # Now that we've fired off all the calls, we walk through each yielded
         # result, parse the returned policy, and append it to our policies
@@ -191,10 +206,10 @@ class EntityBaseActor(base.IAMBaseActor):
                     'policy %s: %s' % (p_name, e))
 
             # Convert the uuencoded doc string into a dict
-            resp_key = 'get_%s_policy_response' % self.entity_name
-            result_key = 'get_%s_policy_result' % self.entity_name
-            p_doc = self._policy_doc_to_dict(
-                raw[resp_key][result_key]['policy_document'])
+            p_doc = self._policy_doc_to_dict((
+                raw['get_%s_policy_response' % self.entity_name]
+                   ['get_%s_policy_result' % self.entity_name]
+                   ['policy_document']))
 
             # Store the converted document under the policy name key
             policies[p_name] = p_doc
@@ -222,8 +237,8 @@ class EntityBaseActor(base.IAMBaseActor):
         # First, push any policies that we have listed, but aren't in the
         # entity
         tasks = []
-        for policy in [policy for policy in self.inline_policies.keys()
-                       if policy not in existing_policies.keys()]:
+        for policy in (set(self.inline_policies.keys()) -
+                       set(existing_policies.keys())):
             policy_doc = self.inline_policies[policy]
             tasks.append(self._put_entity_policy(name, policy, policy_doc))
         yield tasks
@@ -232,8 +247,8 @@ class EntityBaseActor(base.IAMBaseActor):
         # already attached to the entity profile? Lets make sure each one of
         # those matches the policy we have here, and update it if necessary.
         tasks = []
-        for policy in [policy for policy in self.inline_policies.keys()
-                       if policy in existing_policies.keys()]:
+        for policy in (set(self.inline_policies.keys()) &
+                       set(existing_policies.keys())):
             new = self.inline_policies[policy]
             exist = existing_policies[policy]
             diff = self._diff_policy_json(new, exist)
@@ -252,8 +267,8 @@ class EntityBaseActor(base.IAMBaseActor):
         # Finally, are we purging? If so, find any policies (by name) that we
         # don't have in our own inline policies doc, and purge them.
         tasks = []
-        for policy in [policy for policy in existing_policies.keys()
-                       if policy not in self.inline_policies.keys()]:
+        for policy in (set(existing_policies.keys()) -
+                       set(self.inline_policies.keys())):
             tasks.append(self._delete_entity_policy(name, policy))
         yield tasks
 
@@ -328,11 +343,10 @@ class EntityBaseActor(base.IAMBaseActor):
                 'An unexpected API error occurred: %s' % e)
 
         # Now search for the entity
-        resp_key = 'list_%ss_response' % self.entity_name
-        result_key = 'list_%ss_result' % self.entity_name
-        entity_key = '%ss' % self.entity_name
         entity = [entity for entity in
-                  entities[resp_key][result_key][entity_key] if
+                  entities['list_%ss_response' % self.entity_name]
+                          ['list_%ss_result' % self.entity_name]
+                          ['%ss' % self.entity_name] if
                   entity['%s_name' % self.entity_name] == name]
 
         # If there aren't any entities, return None.
@@ -401,9 +415,9 @@ class EntityBaseActor(base.IAMBaseActor):
                 (self.entity_name, name))
             raise gen.Return()
 
-        resp_key = 'create_%s_response' % self.entity_name
-        result_key = 'create_%s_result' % self.entity_name
-        arn = ret[resp_key][result_key][self.entity_name]['arn']
+        arn = (ret['create_%s_response' % self.entity_name]
+                  ['create_%s_result' % self.entity_name]
+                  [self.entity_name]['arn'])
         self.log.info('%s %s created' % (self.entity_name, arn))
 
     @gen.coroutine
@@ -438,29 +452,58 @@ class EntityBaseActor(base.IAMBaseActor):
             self.log.warning('%s %s doesn\'t exist' % (self.entity_name, name))
 
     @gen.coroutine
-    def _execute(self):
-        name = self.option('name')
-        state = self.option('state')
-        inline_policies_purge = self.option('inline_policies_purge')
+    def _add_user_to_group(self, name, group):
+        """Quick helper method to add a user to a group.
 
-        yield self._ensure_entity(name, state)
-        if state == 'absent':
+        args:
+            name: user name
+            group: group name
+        """
+        if self._dry:
+            self.log.warning('Would have added %s to %s' % (name, group))
             raise gen.Return()
 
-        yield self._ensure_inline_policies(name, inline_policies_purge)
-        raise gen.Return()
+        try:
+            self.log.info('Adding %s to %s' % (name, group))
+            yield self.thread(self.iam_conn.add_user_to_group, group, name)
+        except BotoServerError as e:
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected API error occurred: %s' % e)
+
+    @gen.coroutine
+    def _remove_user_from_group(self, name, group):
+        """Quick helper method to remove a user from a group.
+
+        args:
+            name: user name
+            group: group name
+        """
+        if self._dry:
+            self.log.warning('Would have removed %s from %s' % (name, group))
+            raise gen.Return()
+
+        try:
+            self.log.info('Removing %s from %s' % (name, group))
+            yield self.thread(self.iam_conn.remove_user_from_group,
+                              group, name)
+        except BotoServerError as e:
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected API error occurred: %s' % e)
 
 
 class User(EntityBaseActor):
 
     """Manages an IAM User.
 
-    This actor manages the state of an Amazon IAM User. It ensures that the
-    user either exists or does not. It also updates any settings for the user
-    that are different from the passed in options.
+    This actor manages the state of an Amazon IAM User.
 
-    At the moment you can mange the users state, its inline policies, and you
-    can purge unmanaged inline policies.
+    Currently we can:
+
+      * Ensure is present or absent
+      * Purge (or not) any unmanaged Inline Policies
+      * Push and Update Inline Policies
+      * Add the user to any groups desired
+      * Purge (or not) the user from any unmanaged groups
 
     **Options**
 
@@ -469,6 +512,14 @@ class User(EntityBaseActor):
 
     :state:
       (str) Present or Absent. Default: "present"
+
+    :groups:
+      (str,array) A list of groups to add the user to.
+      Default: []
+
+    :groups_purge:
+      (bool) Whether or not to purge un-managed groups from the user.
+      Default: false
 
     :inline_policies:
       (str,array) A list of strings that point to JSON files to use as inline
@@ -507,6 +558,8 @@ class User(EntityBaseActor):
         'name': (str, REQUIRED, 'The name of the user.'),
         'state': (STATE, 'present',
                   'Desired state of the User: present/absent'),
+        'groups': ((str, list), [], 'List of groups to add the user to.'),
+        'groups_purge': (bool, False, 'Purge unmanaged group memberships?'),
         'inline_policies': ((str, list), [],
                             'List of inline policy JSON files to apply.'),
         'inline_policies_purge': (bool, False,
@@ -525,22 +578,91 @@ class User(EntityBaseActor):
         self.get_entity_policy = self.iam_conn.get_user_policy
         self.put_entity_policy = self.iam_conn.put_user_policy
 
+        # Parse the supplied inline policies
+        self._parse_inline_policies(self.option('inline_policies'))
+
+    @gen.coroutine
+    def _ensure_groups(self, name, groups, purge):
+        """Ensure that this user is a member of specific groups.
+
+        args:
+            name: The user we're managing
+            groups: The list (or single) of groups to join be members of
+            purge: Whether or not to purge unmanaged targets.
+        """
+        if isinstance(groups, basestring):
+            groups = [groups]
+
+        current_groups = set()
+        try:
+            res = yield self.thread(self.iam_conn.get_groups_for_user, name)
+            current_groups = {g['group_name'] for g in
+                              res['list_groups_for_user_response']
+                                 ['list_groups_for_user_result']
+                                 ['groups']}
+        except BotoServerError as e:
+            # If the error is a 404, then the user doesn't exist and we can
+            # assume that the mappings don't exist at all. We leave the
+            # existin_mappings list alone. For any other error, raise.
+            if e.status != 404:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
+
+        # Find any groups that we're not already a member of, and add us
+        tasks = []
+        for new_group in set(groups) - current_groups:
+            tasks.append(self._add_user_to_group(name, new_group))
+        yield tasks
+
+        # If we're not purging unmanaged groups, then return.
+        if not purge:
+            raise gen.Return()
+
+        # Find any group memberships we didn't know about, and purge them
+        tasks = []
+        for bad_group in current_groups - set(groups):
+            tasks.append(self._remove_user_from_group(name, bad_group))
+        yield tasks
+
+    @gen.coroutine
+    def _execute(self):
+        name = self.option('name')
+        state = self.option('state')
+        groups = self.option('groups')
+        groups_purge = self.option('groups_purge')
+        inline_policies_purge = self.option('inline_policies_purge')
+
+        yield self._ensure_entity(name, state)
+        if state == 'absent':
+            raise gen.Return()
+
+        yield self._ensure_inline_policies(name, inline_policies_purge)
+        yield self._ensure_groups(name, groups, groups_purge)
+        raise gen.Return()
+
 
 class Group(EntityBaseActor):
 
     """Manages an IAM Group.
 
-    This actor manages the state of an Amazon IAM Group. It ensures that the
-    group either exists or does not. It also updates any settings for the group
-    that are different from the passed in options.
+    This actor manages the state of an Amazon IAM Group.
 
-    At the moment you can mange the group state, its inline policies, and you
-    can purge unmanaged inline policies.
+    Currently we can:
+
+      * Ensure is present or absent
+      * Purge (or not) any unmanaged Inline Policies
+      * Push and Update Inline Policies
+      * Purge (or not) all group members and delete the group
 
     **Options**
 
     :name:
       (str) Name of the Group profile to manage
+
+    :force:
+      (bool) Forcefully delete the group (explicitly purging all group
+      memberships).
+      Default: false
 
     :state:
       (str) Present or Absent. Default: "present"
@@ -580,6 +702,7 @@ class Group(EntityBaseActor):
 
     all_options = {
         'name': (str, REQUIRED, 'The name of the group.'),
+        'force': (bool, False, 'Forcefully delete the group.'),
         'state': (STATE, 'present',
                   'Desired state of the group: present/absent'),
         'inline_policies': ((str, list), [],
@@ -599,3 +722,314 @@ class Group(EntityBaseActor):
         self.get_all_entity_policies = self.iam_conn.get_all_group_policies
         self.get_entity_policy = self.iam_conn.get_group_policy
         self.put_entity_policy = self.iam_conn.put_group_policy
+
+        # Parse the supplied inline policies
+        self._parse_inline_policies(self.option('inline_policies'))
+
+    @gen.coroutine
+    def _get_group_users(self, name):
+        """Returns a list of users assigned to the group.
+
+        args:
+            name: the name of the group
+
+        returns:
+            a list of user name strings
+        """
+        users = []
+        try:
+            raw = yield self.thread(self.iam_conn.get_group, name)
+            users = [user['user_name'] for user in
+                     raw['get_group_response']['get_group_result']['users']]
+        except BotoServerError as e:
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected API error occurred: %s' % e)
+        except KeyError:
+            # No users!
+            users = []
+
+        raise gen.Return(users)
+
+    @gen.coroutine
+    def _purge_group_users(self, name, force):
+        """Forcefully purge all users from the group.
+
+        This is used only if the group has users, is being deleted, and the
+        'purge' option was set.
+
+        args:
+          name: the group name
+          force: boolean whether or not to actually force the removal
+        """
+        users = yield self._get_group_users(name)
+
+        if not force and users:
+            self.log.warning(('Will not be able to delete this group '
+                              'without first removing all of its members. '
+                              'Use the `force` option to purge all members.'))
+            self.log.warning('Group members: %s' % ', '.join(users))
+
+        if not force:
+            raise gen.Return()
+
+        tasks = []
+        for user in users:
+            tasks.append(self._remove_user_from_group(user, name))
+        yield tasks
+
+    @gen.coroutine
+    def _execute(self):
+        name = self.option('name')
+        state = self.option('state')
+        force = self.option('force')
+        inline_policies_purge = self.option('inline_policies_purge')
+
+        if state == 'absent':
+            yield self._purge_group_users(name, force)
+
+        yield self._ensure_entity(name, state)
+        if state == 'absent':
+            raise gen.Return()
+
+        yield self._ensure_inline_policies(name, inline_policies_purge)
+        raise gen.Return()
+
+
+class Role(EntityBaseActor):
+
+    """Manages an IAM Role.
+
+    This actor manages the state of an Amazon IAM Role.
+
+    Currently we can:
+
+      * Ensure is present or absent
+      * Purge (or not) any unmanaged Inline Policies
+      * Push and Update Inline Policies
+
+    **Options**
+
+    :name:
+      (str) Name of the Role to manage
+
+    :state:
+      (str) Present or Absent. Default: "present"
+
+    :inline_policies:
+      (str,array) A list of strings that point to JSON files to use as inline
+      policies. You can also pass in a single inline policy as a string.
+      Default: []
+
+    :inline_policies_purge:
+      (bool) Whether or not to purge un-managed policies. Default: false
+
+    **Example**
+
+    .. code-block:: json
+
+       { "actor": "aws.iam.Role",
+         "desc": "Ensure that myapp exists",
+         "options": {
+           "name": "myapp",
+           "state": "present",
+           "inline_policies": [
+             "read-all-s3.json",
+             "create-other-stuff.json"
+           ],
+           "inline_policies_purge": false,
+         }
+       }
+
+    **Dry run**
+
+    Will let you know if the group exists or not, and what changes it would
+    make to the groups policy and settings. Will also parse the inline policies
+    supplied, make sure any tokens in the files are replaced, and that the
+    files are valid JSON.
+    """
+
+    all_options = {
+        'name': (str, REQUIRED, 'The name of the group.'),
+        'state': (STATE, 'present',
+                  'Desired state of the group: present/absent'),
+        'inline_policies': ((str, list), [],
+                            'List of inline policy JSON files to apply.'),
+        'inline_policies_purge': (bool, False,
+                                  'Purge unmanaged inline policies?')
+    }
+
+    def __init__(self, *args, **kwargs):
+        super(Role, self).__init__(*args, **kwargs)
+
+        self.entity_name = 'role'
+        self.create_entity = self.iam_conn.create_role
+        self.delete_entity = self.iam_conn.delete_role
+        self.delete_entity_policy = self.iam_conn.delete_role_policy
+        self.get_all_entities = self.iam_conn.list_roles
+        self.get_all_entity_policies = self.iam_conn.list_role_policies
+        self.get_entity_policy = self.iam_conn.get_role_policy
+        self.put_entity_policy = self.iam_conn.put_role_policy
+
+        # Parse the supplied inline policies
+        self._parse_inline_policies(self.option('inline_policies'))
+
+    @gen.coroutine
+    def _execute(self):
+        name = self.option('name')
+        state = self.option('state')
+        inline_policies_purge = self.option('inline_policies_purge')
+
+        yield self._ensure_entity(name, state)
+        if state == 'absent':
+            raise gen.Return()
+
+        yield self._ensure_inline_policies(name, inline_policies_purge)
+        raise gen.Return()
+
+
+class InstanceProfile(EntityBaseActor):
+
+    """Manages an IAM Instance Profile.
+
+    This actor manages the state of an Amazon IAM Instance Profile.
+
+    Currently we can:
+
+      * Ensure is present or absent
+      * Assign an IAM Role to the Instance Profile
+
+    **Options**
+
+    :name:
+      (str) Name of the Role to manage
+
+    :state:
+      (str) Present or Absent. Default: "present"
+
+    :role:
+      (str) Name of an IAM Role to assign to the Instance Profile.
+      Default: None
+
+    **Example**
+
+    .. code-block:: json
+
+       { "actor": "aws.iam.InstanceProfile",
+         "desc": "Ensure that my-ecs-servers exists",
+         "options": {
+           "name": "my-ecs-servers",
+           "state": "present",
+         }
+       }
+
+    **Dry run**
+
+    Will let you know if the profile exists or not, and what changes it would
+    make to the profile.
+    """
+
+    all_options = {
+        'name': (str, REQUIRED, 'The name of the group.'),
+        'state': (STATE, 'present',
+                  'Desired state of the group: present/absent'),
+        'role': (str, None, 'Name of an IAM Role to assign')
+    }
+
+    def __init__(self, *args, **kwargs):
+        super(InstanceProfile, self).__init__(*args, **kwargs)
+
+        self.entity_name = 'instance_profile'
+        self.create_entity = self.iam_conn.create_instance_profile
+        self.delete_entity = self.iam_conn.delete_instance_profile
+        self.get_all_entities = self.iam_conn.list_instance_profiles
+
+    @gen.coroutine
+    def _add_role(self, name, role):
+        """Adds a role to an Instance Profile.
+
+        args:
+            name: The name of the Instance Profile we're managing
+            role: The name of the role to assign to the profile
+        """
+        if self._dry:
+            self.log.warning('Would add role %s from %s' % (role, name))
+            raise gen.Return()
+
+        try:
+            self.log.info('Adding role %s to %s' % (role, name))
+            yield self.thread(self.iam_conn.add_role_to_instance_profile,
+                              name, role)
+        except BotoServerError as e:
+            if e.status != 409:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
+
+    @gen.coroutine
+    def _remove_role(self, name, role):
+        """Removes a role assigned to an Instance Profile.
+
+        args:
+            name: The name of the InstanceProfile we're managing
+            role: The name of the role to remove
+        """
+        if self._dry:
+            self.log.warning('Would remove role %s from %s' % (role, name))
+            raise gen.Return()
+
+        try:
+            self.log.info('Removing role %s from %s' % (role, name))
+            yield self.thread(self.iam_conn.remove_role_from_instance_profile,
+                              name, role)
+        except BotoServerError as e:
+            if e.status != 404:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
+
+    @gen.coroutine
+    def _ensure_role(self, name, role):
+        """Ensures that an Instance Profile role is set correctly.
+
+        Adds, Deletes or Changes the Role assigned to an Instance Profile.
+
+        args:
+            name: The IAM Instance Profile we're managing
+            role: The desired role (or None)
+        """
+        existing = None
+        try:
+            raw = yield self.thread(self.iam_conn.get_instance_profile, name)
+            existing = (raw['get_instance_profile_response']
+                           ['get_instance_profile_result']
+                           ['instance_profile']
+                           ['roles']
+                           ['member']
+                           ['role_name'])
+        except BotoServerError as e:
+            if e.status != 404:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
+        except KeyError:
+            # Profile is not a member of any roles
+            pass
+
+        if not existing and not role:
+            raise gen.Return()
+        elif existing and not role:
+            yield self._remove_role(name, existing)
+        elif not existing and role:
+            yield self._add_role(name, role)
+        elif existing != role:
+            yield self._remove_role(name, existing)
+            yield self._add_role(name, role)
+
+    @gen.coroutine
+    def _execute(self):
+        name = self.option('name')
+        state = self.option('state')
+        role = self.option('role')
+
+        yield self._ensure_entity(name, state)
+        if state == 'absent':
+            raise gen.Return()
+
+        yield self._ensure_role(name, role)
