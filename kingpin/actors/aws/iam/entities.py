@@ -742,8 +742,9 @@ class Group(EntityBaseActor):
             users = [user['user_name'] for user in
                      raw['get_group_response']['get_group_result']['users']]
         except BotoServerError as e:
-            raise exceptions.RecoverableActorFailure(
-                'An unexpected API error occurred: %s' % e)
+            if e.status != 404:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
         except KeyError:
             # No users!
             users = []
