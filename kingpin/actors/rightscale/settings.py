@@ -20,9 +20,12 @@ Common settings used by many of the `kingpin.actors.rightscale` modules.
 """
 
 
+import logging
 import requests
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
+
+log = logging.getLogger(__name__)
 
 
 # Common Settings for the retrying.retry() decorator
@@ -30,21 +33,19 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 # Use like this: @retrying.retry(**settings.RETRYING_SETTINGS)
 #
 def is_retriable_exception(exception):
-    """Return true if this AWS exception is transient and should be retried.
+    """Return true if this RightScale exception is transient.
 
     Example:
         >>> @retry(retry_on_exception=is_retriable_exception)
     """
-    not_retry_codes = (
-        '422 Client Error: Unprocessable Entity',
-    )
+    not_retry_codes = ('422',)
 
     # Only handle requests.exceptions.HTTPError exceptions
     if not isinstance(exception, requests.exceptions.HTTPError):
         return False
 
-    # Boto exceptions should have a code attribute
-    return str(exception) not in not_retry_codes
+    log.debug('Comparing "%s" to "%s".' % (str(exception), not_retry_codes))
+    return not any(code in str(exception) for code in not_retry_codes)
 
 
 RETRYING_SETTINGS = {
