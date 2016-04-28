@@ -946,7 +946,12 @@ class Launch(ServerArrayBaseActor):
             "Number of server to launch. Default: up to array's min count"),
         'enable': (bool, False, 'Enable autoscaling?'),
         'exact': (bool, True, (
-            'Whether to search for multiple ServerArrays and act on them.')),
+            'Whether to search for multiple ServerArrays and act on them.'),),
+        'fail_on_stranded': (bool, True, 'Fail if any instances are stranded'),
+        'replace_stranded_max': (
+            (int, str), 0,
+            "Maximum number of replacements allowed for stranded servers."
+            "Default is 0 (don't try to replace any stranded servers).")
     }
 
     def __init__(self, *args, **kwargs):
@@ -981,20 +986,41 @@ class Launch(ServerArrayBaseActor):
         # Get the current min_count setting from the ServerArray object, or get
         # the min_count from the count number supplied to the actor (if it
         # was).
-        min_count = int(self._options.get('count', False))
+        min_count = int(self.option('count'))
         if not min_count:
             min_count = int(array.soul['elasticity_params']
                             ['bounds']['min_count'])
 
+        replace_stranded_max = int(self.option('replace_stranded_max'))
+
         while True:
             instances = yield self._client.get_server_array_current_instances(
-                array, filters=['state==operational'])
-            count = len(instances)
+                array)
+            num_operational_instances = len(
+                [i for i in instances if i.soul['state'] == 'operational'])
             self.log.info('%s instances found, waiting for %s' %
-                          (count, min_count))
+                          (num_operational_instances, min_count))
 
-            if min_count <= count:
+            if min_count <= num_operational_instances:
                 raise gen.Return()
+
+            num_stranded_instances = len([i for i in instances
+                                          if i.soul['state'] == 'stranded'])
+            if num_stranded_instances > 0:
+                # Determine if we will be short of min_count
+                best_case_count = len(instances) - num_stranded_instances
+                if best_case_count < min_count:
+                    if num_stranded_instances <= replace_stranded_max:
+                        self.log.warning(
+                            'Found %d stranded instances. '
+                            'Launching a new instance to replace a stranded '
+                            'instance' % num_stranded_instances)
+                        yield self._launch_instances(array, 1)
+                    elif self.option('fail_on_stranded'):
+                        self.log.error(
+                            '%s instances were stranded, giving up.' %
+                            num_stranded_instances)
+                        raise TaskExecutionFailed()
 
             # At this point, sleep
             self.log.debug('Sleeping..')
