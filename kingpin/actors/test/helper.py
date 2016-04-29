@@ -17,6 +17,14 @@ def mock_tornado(value=None, exc=None):
     return call
 
 
+def mock_tornado_sequence(values):
+    def generator():
+        for value in values:
+            yield mock_tornado(value=value)
+    response_generator = generator()
+    return lambda *args, **kwargs: response_generator.next()()
+
+
 @gen.coroutine
 def tornado_value(value=None):
     """Convers whatever is passed in to a tornado value."""
