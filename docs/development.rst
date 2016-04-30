@@ -503,8 +503,8 @@ parsed at runtime:
 
 .. _self.log:
 
-self.log
-''''''''
+self.log()
+''''''''''
 For consistency in logging, a custom Logger object is instantiated for every
 Actor. This logging object ensures that prefixes such as the ``desc`` of an Actor
 are included in the log messages. Usage examples:
@@ -518,14 +518,20 @@ are included in the log messages. Usage examples:
 
 .. _self.option():
 
-self.option
-'''''''''''
+self.option()
+'''''''''''''
 
 Accessing options passed to the actor from the JSON file should be done via
 ``self.option()`` method. Accessing ``self._options`` parameter is not recommended,
 and the edge cases should be handled via the ``all_options`` class variable.
 
 .. _option_validation:
+
+kingpin.actors.utils.dry()
+''''''''''''''''''''''''''
+The :py:mod:`kingpin.actors.utils.dry()` wrapper quickly allows you to make a
+call dry -- so it only warns about execution during a dry run rather than
+actually executing.
 
 User Option Validation
 ''''''''''''''''''''''

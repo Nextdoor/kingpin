@@ -43,6 +43,7 @@ from tornado import httputil
 
 from kingpin import utils
 from kingpin.actors import exceptions
+from kingpin.actors.utils import timer
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -282,35 +283,6 @@ class BaseActor(object):
             raise exceptions.InvalidOptions(e)
 
         return contents
-
-    def timer(f):
-        """Coroutine-compatible function timer.
-
-        Records statistics about how long a given function took, and logs them
-        out in debug statements. Used primarily for tracking Actor execute()
-        methods, but can be used elsewhere as well.
-
-        Example usage:
-            >>> @gen.coroutine
-            ... @timer()
-            ... def execute(self):
-            ...     raise gen.Return()
-        """
-
-        def _wrap_in_timer(self, *args, **kwargs):
-            # Log the start time
-            start_time = time.time()
-
-            # Begin the execution
-            ret = yield gen.coroutine(f)(self, *args, **kwargs)
-
-            # Log the finished execution time
-            exec_time = "%.2f" % (time.time() - start_time)
-            self.log.debug('%s.%s() execution time: %ss' %
-                           (self._type, f.__name__, exec_time))
-
-            raise gen.Return(ret)
-        return _wrap_in_timer
 
     @gen.coroutine
     def timeout(self, f, *args, **kwargs):

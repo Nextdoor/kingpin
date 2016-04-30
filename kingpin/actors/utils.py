@@ -20,6 +20,9 @@ Misc methods for dealing with Actors.
 """
 
 import logging
+import time
+
+from tornado import gen
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -28,6 +31,76 @@ log = logging.getLogger(__name__)
 
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
+
+
+def dry(dry_message):
+    """Coroutine-compatible decorator to dry-run a method.
+
+    Note: this must act on a :py:mod:`~kingpin.actors.base.BaseActor` object.
+
+    Example usage:
+
+        >>> @gen.coroutine
+        ... @dry('Would have done that {thing}')
+        ... def do_thing(self, thing):
+        ...     yield api.do_thing(thing)
+        ...
+        >>> yield do_thing(thing="yeah man, that thing")
+
+    Args:
+        dry_message: The message to print out instead of doing the actual
+        function call. This string is passed through format(kwargs), so any
+        variables you'd like can be substituted as long as they're passed to
+        the method being wrapped.
+    """
+    log.info('Creating _skip_on_dry decorator with "%s"' % dry_message)
+
+    def _skip_on_dry(f):
+        log.info('Decorating function "%s" with _skip_on_dry' % f)
+
+        def wrapper(self, *args, **kwargs):
+            msg = dry_message.format(*args, **kwargs)
+
+            if self._dry:
+                self.log.warning(msg)
+                raise gen.Return()
+
+            ret = yield gen.coroutine(f)(self, *args, **kwargs)
+            raise gen.Return(ret)
+        return wrapper
+    return _skip_on_dry
+
+
+def timer(f):
+    """Coroutine-compatible function timer.
+
+    Records statistics about how long a given function took, and logs them
+    out in debug statements. Used primarily for tracking Actor execute()
+    methods, but can be used elsewhere as well.
+
+    Note: this must act on a :py:mod:`~kingpin.actors.base.BaseActor` object.
+
+    Example usage:
+        >>> @gen.coroutine
+        ... @timer()
+        ... def execute(self):
+        ...     raise gen.Return()
+    """
+
+    def _wrap_in_timer(self, *args, **kwargs):
+        # Log the start time
+        start_time = time.time()
+
+        # Begin the execution
+        ret = yield gen.coroutine(f)(self, *args, **kwargs)
+
+        # Log the finished execution time
+        exec_time = "%.2f" % (time.time() - start_time)
+        self.log.debug('%s.%s() execution time: %ss' %
+                       (self._type, f.__name__, exec_time))
+
+        raise gen.Return(ret)
+    return _wrap_in_timer
 
 
 def get_actor(config, dry):

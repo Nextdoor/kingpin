@@ -27,6 +27,7 @@ from tornado import gen
 from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
+from kingpin.actors.utils import dry
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -313,6 +314,7 @@ class SetCert(ELBBaseActor):
         raise gen.Return(arn)
 
     @gen.coroutine
+    @dry('Would instruct {elb} to use cert: {arn}')
     def _use_cert(self, elb, arn):
         """Assign an ssl cert to a given ELB.
 
@@ -361,10 +363,8 @@ class SetCert(ELBBaseActor):
 
         if self._dry:
             yield self._check_access(elb)
-            self.log.info('Would instruct %s to use %s' % (
-                self.option('name'), self.option('cert_name')))
-        else:
-            yield self._use_cert(elb, cert_arn)
+
+        yield self._use_cert(elb=elb, arn=cert_arn)
 
 
 class RegisterInstance(base.AWSBaseActor):
@@ -413,6 +413,7 @@ class RegisterInstance(base.AWSBaseActor):
     }
 
     @gen.coroutine
+    @dry('Would add {instances} to {elb}')
     def _add(self, elb, instances):
         """Invoke elb.register_instances
 
@@ -423,6 +424,7 @@ class RegisterInstance(base.AWSBaseActor):
         yield self.thread(elb.register_instances, instances)
 
     @gen.coroutine
+    @dry('Would ensure {elb} is a member of all AZs')
     def _check_elb_zones(self, elb):
         """Ensure that `elb` has all available zones."""
         zones = yield self.thread(self.ec2_conn.get_all_zones)
@@ -451,12 +453,10 @@ class RegisterInstance(base.AWSBaseActor):
 
         self.log.info(('Adding the following instances to elb: '
                        '%s' % ', '.join(instances)))
-        if not self._dry:
-            yield self._add(elb, instances)
-            self.log.info('Done.')
+        yield self._add(elb=elb, instances=instances)
 
-            if self.str2bool(self.option('enable_zones')):
-                yield self._check_elb_zones(elb)
+        if self.str2bool(self.option('enable_zones')):
+            yield self._check_elb_zones(elb=elb)
 
 
 class DeregisterInstance(base.AWSBaseActor):
@@ -520,6 +520,7 @@ class DeregisterInstance(base.AWSBaseActor):
     }
 
     @gen.coroutine
+    @dry('Would remove instances from {elb}: {instances}')
     def _remove(self, elb, instances):
         """Invoke elb.deregister_instances
 
@@ -530,10 +531,8 @@ class DeregisterInstance(base.AWSBaseActor):
         self.log.info(('Removing instances from %s: %s'
                       % (elb, ', '.join(instances))))
 
-        if not self._dry:
-            yield self.thread(elb.deregister_instances, instances)
-            yield self._wait_on_draining(elb)
-            self.log.info('Done.')
+        yield self.thread(elb.deregister_instances, instances)
+        yield self._wait_on_draining(elb)
 
     @gen.coroutine
     def _wait_on_draining(self, elb):
@@ -605,6 +604,6 @@ class DeregisterInstance(base.AWSBaseActor):
 
         tasks = []
         for elb in elbs:
-            tasks.append(self._remove(elb, instances))
+            tasks.append(self._remove(elb=elb, instances=instances))
 
         yield tasks
