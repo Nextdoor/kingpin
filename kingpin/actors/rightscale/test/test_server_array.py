@@ -277,9 +277,8 @@ class TestUpdateNextInstanceActor(testing.AsyncTestCase):
 
         # Create the actor
         self.actor = server_array.UpdateNextInstance(
-            'Patch',
-            {'array': 'unittestarray',
-                'params': {'image_href': 'default'}})
+            options={'array': 'unittestarray',
+                     'params': {'image_href': 'default'}})
 
         # Patch the actor so that we use the client mock. Save the real
         # "client" object because its actually used during a unit test.
@@ -311,6 +310,26 @@ class TestUpdateNextInstanceActor(testing.AsyncTestCase):
         self.client_mock.update.assert_has_calls([
             mock.call(mocked_instance, [('instance[image_href]', 'fake_href')])
         ])
+
+    @testing.gen_test
+    def test_update_params_dry(self):
+        self.actor._dry = True
+
+        # Mock out our array object, and the next_instance. Then mock out the
+        # api.show() method to return the mocked instance. Verify that the
+        # right calls were made to the API though.
+        mocked_array = mock.MagicMock(name='unittestarray')
+        mocked_instance = mock.MagicMock(name='nextinstance')
+        self.actor._find_def_image_href = mock_tornado('fake_href')
+        self.actor._client.show.side_effect = mock_tornado(mocked_instance)
+        self.actor._client.update.side_effect = mock_tornado(True)
+
+        yield self.actor._update_params(mocked_array)
+
+        self.client_mock.show.assert_has_calls([
+            mock.call(mocked_array.next_instance),
+        ])
+        self.assertFalse(self.client_mock.update.called)
 
     @testing.gen_test
     def test_update_params_400_error(self):
@@ -427,28 +446,15 @@ class TestUpdateNextInstanceActor(testing.AsyncTestCase):
         self.assertEquals(None, ret)
 
     @testing.gen_test
-    def test_execute_dry(self):
-        self.actor._dry = True
-        mocked_array = mock.MagicMock(name='fake array')
-        mocked_array.soul = {'name': 'mocked-array'}
-        mocked_array.self.path = '/a/b/1234'
-
-        self.actor._check_array_inputs = mock_tornado(True)
-        self.actor._find_server_arrays = mock_tornado(mocked_array)
-
-        ret = yield self.actor.execute()
-        self.assertEquals(None, ret)
-
-    @testing.gen_test
-    def test_execute_dry_with_missing_array(self):
-        self.actor._dry = True
+    def test_execute_with_missing_array(self):
         mocked_array = mock.MagicMock(name='unittestarray')
         mocked_array.soul = {'name': 'unittestarray'}
 
-        self.actor._check_array_inputs = mock_tornado(True)
+        self.actor._update_params = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
         ret = yield self.actor.execute()
+
         self.assertEquals(None, ret)
 
 

@@ -546,8 +546,15 @@ class UpdateNextInstance(ServerArrayBaseActor):
         rs_params = self._generate_rightscale_params(
             'instance', self.option('params'))
 
+        if self._dry:
+            self.log.info('Would have updated array\'s next_instance "%s" '
+                          'with params: %s' %
+                          (instance.soul['name'], rs_params))
+            raise gen.Return()
+
         self.log.info('Updating array\'s next_instance "%s" with params: %s' %
                       (instance.soul['name'], rs_params))
+
         try:
             yield self._client.update(instance, rs_params)
         except requests.exceptions.HTTPError as e:
@@ -583,9 +590,6 @@ class UpdateNextInstance(ServerArrayBaseActor):
             raise InvalidInputs(
                 'Unable to locate default image_href for %s.' % instance.soul)
 
-        self.log.info('%s default AMI HREF found: %s' %
-                      (instance.soul['name'], image_href))
-
         raise gen.Return(image_href)
 
     @gen.coroutine
@@ -594,13 +598,6 @@ class UpdateNextInstance(ServerArrayBaseActor):
         arrays = yield self._find_server_arrays(
             self.option('array'), exact=self.option('exact'))
 
-        # In dry run, just comment that we would have made the change.
-        if self._dry:
-            self.log.debug('Not making any changes.')
-            self.log.info('Params would be: %s' % self.option('params'))
-            raise gen.Return()
-
-        # Do the real work
         yield self._apply(self._update_params, arrays)
 
 
