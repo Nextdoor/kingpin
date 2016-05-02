@@ -394,6 +394,48 @@ Actors can:
 Helper Methods/Objects
 ^^^^^^^^^^^^^^^^^^^^^^
 
+self.__class__.desc
+'''''''''''''''''''
+
+The "description" of a particular actor is a parameter that the user can supply
+through the JSON if they wish. If no description is supplied, a default
+description is supplied by the actor's `self.__class__.desc` attribute. If your
+actor wants to supply its own default description, it can be done like this:
+
+.. code-block:: python
+
+    class Sleep(object):
+      desc = "Sleeping for {sleep}s"
+      all_options = {
+        'sleep': (int), REQUIRED, 'Number of seconds to do nothing.')
+      }
+
+.. code-block:: bash
+
+    (.venv)Matts-MacBook-2:kingpin diranged$ python kingpin/bin/deploy.py --color --debug -a misc.Sleep -o sleep=10 --dry
+    09:55:08   DEBUG    33688 [kingpin.actors.utils                    ] [get_actor_class     ] Tried importing "misc.Sleep" but failed: No module named misc
+    09:55:08   DEBUG    33688 [kingpin.actors.misc.Sleep               ] [_validate_options   ] [DRY: Sleeping for 10s] Checking for required options: ['sleep']
+    09:55:08   DEBUG    33688 [kingpin.actors.misc.Sleep               ] [__init__            ] [DRY: Sleeping for 10s] Initialized (warn_on_failure=False, strict_init_context=True)
+    09:55:08   INFO     33688 [__main__                                ] [main                ]
+    09:55:08   WARNING  33688 [__main__                                ] [main                ] Lights, camera ... action!
+    09:55:08   INFO     33688 [__main__                                ] [main                ]
+    09:55:08   DEBUG    33688 [kingpin.actors.misc.Sleep               ] [execute             ] [DRY: Sleeping for 10s] Beginning
+    09:55:08   DEBUG    33688 [kingpin.actors.misc.Sleep               ] [_check_condition    ] [DRY: Sleeping for 10s] Condition True evaluates to True
+    09:55:08   DEBUG    33688 [kingpin.actors.misc.Sleep               ] [timeout             ] [DRY: Sleeping for 10s] kingpin.actors.misc.Sleep._execute() deadline: 3600(s)
+    09:55:08   DEBUG    33688 [kingpin.actors.misc.Sleep               ] [_execute            ] [DRY: Sleeping for 10s] Sleeping for 10 seconds
+    09:55:08   DEBUG    33688 [kingpin.actors.misc.Sleep               ] [execute             ] [DRY: Sleeping for 10s] Finished successfully, return value: None
+    09:55:08   DEBUG    33688 [kingpin.actors.misc.Sleep               ] [_wrap_in_timer      ] [DRY: Sleeping for 10s] kingpin.actors.misc.Sleep.execute() execution time: 0.00s
+
+The `format() <https://docs.python.org/2/library/stdtypes.html#str.format>`__
+is called with the following key/values as possible variables that can be
+parsed at runtime:
+
+  * `actor`: The Actor Package and Class -- ie, `kingpin.actors.misc.Sleep` in
+    the example above.
+  * `**self._options`: The entire set of options passed into the actor, broken
+    out by key/value.
+
+
 self.log
 ''''''''
 

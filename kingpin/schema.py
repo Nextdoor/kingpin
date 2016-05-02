@@ -21,7 +21,7 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 SCHEMA_1_0 = {
     'type': 'object',
-    'required': ['actor', 'desc', 'options'],
+    'required': ['actor'],
     'additionalProperties': False,
     'properties': {
         'desc': {'type': 'string'},

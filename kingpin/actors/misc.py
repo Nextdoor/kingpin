@@ -265,6 +265,8 @@ class Sleep(base.BaseActor):
                   'Number of seconds to do nothing.')
     }
 
+    desc = "Sleeping for {sleep}s"
+
     @gen.coroutine
     def _execute(self):
         """Executes an actor and yields the results when its finished."""

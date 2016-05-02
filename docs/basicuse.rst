@@ -101,7 +101,8 @@ fields:
 -  ``condition`` - A bool or string that indicates whether or not to
    execute this actor.
 -  ``desc`` - A text-string describing the name of the stage or action.
-   Meant to ensure that the logs are very human readable.
+   Meant to ensure that the logs are very human readable. Optional, a
+   default description is chosen if you do not supply one.
 -  ``warn_on_failure`` - True/False whether or not to ignore an Actors
    failure and return True anyways. Defaults to ``False``, but if ``True``
    a ``warning`` message is logged.
@@ -115,8 +116,7 @@ The simples JSON file could look like this:
 
 .. code-block:: json
 
-    { "desc": "Hipchat: Notify Oncall Room",
-      "actor": "hipchat.Message",
+    { "actor": "hipchat.Message",
       "condition": "true",
       "warn_on_failure": true,
       "timeout": 30,
@@ -149,8 +149,7 @@ Example usage:
 
 .. code-block:: json
 
-    { "desc": "Hipchat: Notify Oncall Room",
-      "actor": "hipchat.Message",
+    { "actor": "hipchat.Message",
       "condition": "%SEND_MESSAGE%",
       "warn_on_failure": true,
       "options": {
@@ -324,7 +323,7 @@ ability to define usable tokens, but any actor can then reference these tokens.
 
 .. code-block:: json
 
-    { "desc": "Send ending notifications...", "actor": "group.Async",
+    { "actor": "group.Async",
       "options": {
         "contexts": [
           { "ROOM": "Engineering", "WISDOM": "Get back to work" },
@@ -344,7 +343,7 @@ ability to define usable tokens, but any actor can then reference these tokens.
 
 .. code-block:: bash
 
-    2015-01-14 15:02:22,165 INFO      [DRY: Send ending notifications...] Beginning 2 actions
+    2015-01-14 15:02:22,165 INFO      [DRY: kingpin.actor.group.Async] Beginning 2 actions
     2015-01-14 15:02:22,165 INFO      [DRY: Notify Engineering] Sending message "Hey room .. I'm done with the release. Get back to work" to Hipchat room "Engineering"
     2015-01-14 15:02:22,239 INFO      [DRY: Notify Cust Service] Sending message "Hey room .. I'm done with the release. Have a nice day" to Hipchat room "Cust Service"
 

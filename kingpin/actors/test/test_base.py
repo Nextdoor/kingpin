@@ -58,6 +58,15 @@ class TestBaseActor(testing.AsyncTestCase):
         self.actor._execute = self.true
 
     @testing.gen_test
+    def test_user_defined_desc(self):
+        self.assertEquals('Unit Test Action', str(self.actor))
+
+    @testing.gen_test
+    def test_default_desc(self):
+        self.actor._desc = None
+        self.assertEquals('kingpin.actors.base.BaseActor', str(self.actor))
+
+    @testing.gen_test
     def test_timer(self):
         # Create a function and wrap it in our timer
         self.actor._execute = self.true
