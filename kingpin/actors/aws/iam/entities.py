@@ -56,10 +56,8 @@ class EntityBaseActor(base.IAMBaseActor):
         'name': (str, REQUIRED, 'The name of the user.'),
         'state': (STATE, 'present',
                   'Desired state of the User: present/absent'),
-        'inline_policies': ((str, list), [],
-                            'List of inline policy JSON files to apply.'),
-        'inline_policies_purge': (bool, False,
-                                  'Purge unmanaged inline policies?')
+        'inline_policies': ((str, list), None,
+                            'List of inline policy JSON files to apply.')
     }
 
     def __init__(self, *args, **kwargs):
@@ -218,18 +216,17 @@ class EntityBaseActor(base.IAMBaseActor):
         raise gen.Return(policies)
 
     @gen.coroutine
-    def _ensure_inline_policies(self, name, purge):
+    def _ensure_inline_policies(self, name):
         """Ensures that all of the inline IAM policies for a entity are managed
 
         This method has three stages.. first it ensures that any missing
         policies (as determined by the policy name) are applied to a entity.
         Second, it determines if any existing policies have changed locally and
-        need to be updated in IAM. Finally (optionally) it purges unmanaged
-        policies that were applied to a entity out of band.
+        need to be updated in IAM. Finally it purges unmanaged policies that
+        were applied to a entity out of band.
 
         args:
             name: The entity to manage
-            purge: Whether or not to purge unmanaged policies.
         """
         # Get the list of current entity policies first
         existing_policies = yield self._get_entity_policies(name)
@@ -260,12 +257,7 @@ class EntityBaseActor(base.IAMBaseActor):
                 tasks.append(self._put_entity_policy(name, policy, policy_doc))
         yield tasks
 
-        # We're done now -- are we purging unmanaged records? If not, bail!
-        if not purge:
-            raise gen.Return()
-
-        # Finally, are we purging? If so, find any policies (by name) that we
-        # don't have in our own inline policies doc, and purge them.
+        # Purge any policies we found in AWS that were not listed in our actor
         tasks = []
         for policy in (set(existing_policies.keys()) -
                        set(self.inline_policies.keys())):
@@ -500,10 +492,8 @@ class User(EntityBaseActor):
     Currently we can:
 
       * Ensure is present or absent
-      * Purge (or not) any unmanaged Inline Policies
-      * Push and Update Inline Policies
-      * Add the user to any groups desired
-      * Purge (or not) the user from any unmanaged groups
+      * Manage the inline policies for the user
+      * Manage the groups the user is in
 
     **Options**
 
@@ -514,20 +504,13 @@ class User(EntityBaseActor):
       (str) Present or Absent. Default: "present"
 
     :groups:
-      (str,array) A list of groups to add the user to.
-      Default: []
-
-    :groups_purge:
-      (bool) Whether or not to purge un-managed groups from the user.
-      Default: false
+      (str,array) A list of groups for the user to be a member of.
+      Default: None
 
     :inline_policies:
       (str,array) A list of strings that point to JSON files to use as inline
-      policies. You can also pass in a single inline policy as a string.
-      Default: []
-
-    :inline_policies_purge:
-      (bool) Whether or not to purge un-managed policies. Default: false
+      policies.
+      Default: None
 
     **Example**
 
@@ -538,11 +521,11 @@ class User(EntityBaseActor):
          "options": {
            "name": "bob",
            "state": "present",
+           "groups": "my-test-group",
            "inline_policies": [
              "read-all-s3.json",
              "create-other-stuff.json"
-           ],
-           "inline_policies_purge": false,
+           ]
          }
        }
 
@@ -558,12 +541,9 @@ class User(EntityBaseActor):
         'name': (str, REQUIRED, 'The name of the user.'),
         'state': (STATE, 'present',
                   'Desired state of the User: present/absent'),
-        'groups': ((str, list), [], 'List of groups to add the user to.'),
-        'groups_purge': (bool, False, 'Purge unmanaged group memberships?'),
-        'inline_policies': ((str, list), [],
-                            'List of inline policy JSON files to apply.'),
-        'inline_policies_purge': (bool, False,
-                                  'Purge unmanaged inline policies?')
+        'groups': ((str, list), None, 'List of groups to add the user to.'),
+        'inline_policies': ((str, list), None,
+                            'List of inline policy JSON files to apply.')
     }
 
     def __init__(self, *args, **kwargs):
@@ -582,13 +562,12 @@ class User(EntityBaseActor):
         self._parse_inline_policies(self.option('inline_policies'))
 
     @gen.coroutine
-    def _ensure_groups(self, name, groups, purge):
+    def _ensure_groups(self, name, groups):
         """Ensure that this user is a member of specific groups.
 
         args:
             name: The user we're managing
             groups: The list (or single) of groups to join be members of
-            purge: Whether or not to purge unmanaged targets.
         """
         if isinstance(groups, basestring):
             groups = [groups]
@@ -614,10 +593,6 @@ class User(EntityBaseActor):
             tasks.append(self._add_user_to_group(name, new_group))
         yield tasks
 
-        # If we're not purging unmanaged groups, then return.
-        if not purge:
-            raise gen.Return()
-
         # Find any group memberships we didn't know about, and purge them
         tasks = []
         for bad_group in current_groups - set(groups):
@@ -629,15 +604,17 @@ class User(EntityBaseActor):
         name = self.option('name')
         state = self.option('state')
         groups = self.option('groups')
-        groups_purge = self.option('groups_purge')
-        inline_policies_purge = self.option('inline_policies_purge')
 
         yield self._ensure_entity(name, state)
         if state == 'absent':
             raise gen.Return()
 
-        yield self._ensure_inline_policies(name, inline_policies_purge)
-        yield self._ensure_groups(name, groups, groups_purge)
+        if self.option('inline_policies') is not None:
+            yield self._ensure_inline_policies(name)
+
+        if groups is not None:
+            yield self._ensure_groups(name, groups)
+
         raise gen.Return()
 
 
@@ -650,8 +627,7 @@ class Group(EntityBaseActor):
     Currently we can:
 
       * Ensure is present or absent
-      * Purge (or not) any unmanaged Inline Policies
-      * Push and Update Inline Policies
+      * Manage the inline policies for the group
       * Purge (or not) all group members and delete the group
 
     **Options**
@@ -670,10 +646,7 @@ class Group(EntityBaseActor):
     :inline_policies:
       (str,array) A list of strings that point to JSON files to use as inline
       policies. You can also pass in a single inline policy as a string.
-      Default: []
-
-    :inline_policies_purge:
-      (bool) Whether or not to purge un-managed policies. Default: false
+      Default: None
 
     **Example**
 
@@ -687,8 +660,7 @@ class Group(EntityBaseActor):
            "inline_policies": [
              "read-all-s3.json",
              "create-other-stuff.json"
-           ],
-           "inline_policies_purge": false,
+           ]
          }
        }
 
@@ -705,10 +677,8 @@ class Group(EntityBaseActor):
         'force': (bool, False, 'Forcefully delete the group.'),
         'state': (STATE, 'present',
                   'Desired state of the group: present/absent'),
-        'inline_policies': ((str, list), [],
-                            'List of inline policy JSON files to apply.'),
-        'inline_policies_purge': (bool, False,
-                                  'Purge unmanaged inline policies?')
+        'inline_policies': ((str, list), None,
+                            'List of inline policy JSON files to apply.')
     }
 
     def __init__(self, *args, **kwargs):
@@ -783,7 +753,6 @@ class Group(EntityBaseActor):
         name = self.option('name')
         state = self.option('state')
         force = self.option('force')
-        inline_policies_purge = self.option('inline_policies_purge')
 
         if state == 'absent':
             yield self._purge_group_users(name, force)
@@ -792,7 +761,9 @@ class Group(EntityBaseActor):
         if state == 'absent':
             raise gen.Return()
 
-        yield self._ensure_inline_policies(name, inline_policies_purge)
+        if self.option('inline_policies') is not None:
+            yield self._ensure_inline_policies(name)
+
         raise gen.Return()
 
 
@@ -805,8 +776,7 @@ class Role(EntityBaseActor):
     Currently we can:
 
       * Ensure is present or absent
-      * Purge (or not) any unmanaged Inline Policies
-      * Push and Update Inline Policies
+      * Manage the inline policies for the role
 
     **Options**
 
@@ -819,10 +789,7 @@ class Role(EntityBaseActor):
     :inline_policies:
       (str,array) A list of strings that point to JSON files to use as inline
       policies. You can also pass in a single inline policy as a string.
-      Default: []
-
-    :inline_policies_purge:
-      (bool) Whether or not to purge un-managed policies. Default: false
+      Default: None
 
     **Example**
 
@@ -836,8 +803,7 @@ class Role(EntityBaseActor):
            "inline_policies": [
              "read-all-s3.json",
              "create-other-stuff.json"
-           ],
-           "inline_policies_purge": false,
+           ]
          }
        }
 
@@ -853,10 +819,8 @@ class Role(EntityBaseActor):
         'name': (str, REQUIRED, 'The name of the group.'),
         'state': (STATE, 'present',
                   'Desired state of the group: present/absent'),
-        'inline_policies': ((str, list), [],
-                            'List of inline policy JSON files to apply.'),
-        'inline_policies_purge': (bool, False,
-                                  'Purge unmanaged inline policies?')
+        'inline_policies': ((str, list), None,
+                            'List of inline policy JSON files to apply.')
     }
 
     def __init__(self, *args, **kwargs):
@@ -878,13 +842,14 @@ class Role(EntityBaseActor):
     def _execute(self):
         name = self.option('name')
         state = self.option('state')
-        inline_policies_purge = self.option('inline_policies_purge')
 
         yield self._ensure_entity(name, state)
         if state == 'absent':
             raise gen.Return()
 
-        yield self._ensure_inline_policies(name, inline_policies_purge)
+        if self.option('inline_policies') is not None:
+            yield self._ensure_inline_policies(name)
+
         raise gen.Return()
 
 
@@ -920,6 +885,7 @@ class InstanceProfile(EntityBaseActor):
          "options": {
            "name": "my-ecs-servers",
            "state": "present",
+           "role": "some-iam-role",
          }
        }
 
@@ -1033,4 +999,5 @@ class InstanceProfile(EntityBaseActor):
         if state == 'absent':
             raise gen.Return()
 
-        yield self._ensure_role(name, role)
+        if role is not None:
+            yield self._ensure_role(name, role)
