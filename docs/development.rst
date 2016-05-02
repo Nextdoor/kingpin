@@ -391,6 +391,64 @@ Actors can:
         res = yield self._post_web_call(URL)
         raise gen.Return(res)
 
+Recommended Design Patterns
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+State Management Actors
+'''''''''''''''''''''''
+
+While many of our actors are designed as code that "does something once" -- ie,
+"Create User Foo" -- we are increasingly seeing actors that "ensure a resource
+exists." This new pattern is a bit more Puppet-like, and more well suited for
+ensuring the state of cloud resources rather than simply creating or destrying
+things.
+
+To that end, we have a few recommended guidelines for patterns to follow when
+creating actors like this. These guidelines will help breed consistency between
+our various actors so that users are never surprised by their behavior.
+
+**Resource attributes should be managed explicitly**
+
+(*See this http://github.com/Nextdoor/issues/342 for more discussion*)
+
+Generally speaking, if an actor manages a resource (call it a `User`), any
+parameters, sub resources like group memberships or other attributes should
+only be managed by the Actor if they are explicitly defined by the user.
+
+For example, the following code should create a user, and do absolutely nothing
+else to the user. Any additional attirbutes (group memberships, or inline IAM
+policies) should not be managed:
+
+.. code-block:: json
+
+    { "actor": "aws.iam.User",
+      "options": {
+        "name": "myuser",
+        "state": "present"
+      }
+    }
+
+On the other hand, if the user does supply groups or inline_policies, the actor
+should explicitly manage those and ensure that they exactly match what was
+supplied:
+
+.. code-block:: json
+
+    { "actor": "aws.iam.User",
+      "options": {
+        "name": "myuser",
+        "state": "present"
+        "inline_policies": "my-policy.json",
+        "groups": [
+          "admin", "engineers"
+        ]
+      }
+    }
+
+In this case, the `myuser` account should have its groups and inline policies
+exactly set to the above settings, and anything that was found to be mismatched
+in Amazon should be wiped out.
+
 Helper Methods/Objects
 ^^^^^^^^^^^^^^^^^^^^^^
 

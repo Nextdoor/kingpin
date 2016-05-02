@@ -150,39 +150,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         self.assertEquals(parsed_policy['Version'], '2012-10-17')
 
     @testing.gen_test
-    def test_ensure_inline_policies_purge_false(self):
-        # First, pretend like there are a few policies in place and we're not
-        # passing any in, however we are purging policies we don't manage.
-        fake_pol = {
-            'Policy1': {'junk': 'policy'},
-            'Policy2': {'more': 'junk'},
-        }
-        self.actor._get_entity_policies = mock.MagicMock()
-        self.actor._get_entity_policies.side_effect = [tornado_value(fake_pol)]
-        self.actor._put_entity_policy = mock.MagicMock()
-        self.actor._put_entity_policy.side_effect = [tornado_value(None)]
-
-        yield self.actor._ensure_inline_policies('test', False)
-        self.assertEquals(1, self.actor._put_entity_policy.call_count)
-
-    @testing.gen_test
-    def test_ensure_inline_policies_(self):
-        # First, pretend like there are a few policies in place and we're not
-        # passing any in, however we are purging policies we don't manage.
-        fake_pol = {
-            'Policy1': {'junk': 'policy'},
-            'examples-aws.iam.user-s3_example': {'more': 'junk'},
-        }
-        self.actor._get_entity_policies = mock.MagicMock()
-        self.actor._get_entity_policies.side_effect = [tornado_value(fake_pol)]
-        self.actor._put_entity_policy = mock.MagicMock()
-        self.actor._put_entity_policy.side_effect = [tornado_value(None)]
-
-        yield self.actor._ensure_inline_policies('test', False)
-        self.assertEquals(1, self.actor._put_entity_policy.call_count)
-
-    @testing.gen_test
-    def test_ensure_inline_policies_purge_true(self):
+    def test_ensure_inline_policies(self):
         # First, pretend like there are a few policies in place and we're not
         # passing any in, however we are purging policies we don't manage.
         fake_pol = {
@@ -200,13 +168,30 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         self.actor._put_entity_policy = mock.MagicMock()
         self.actor._put_entity_policy.side_effect = [tornado_value(None)]
 
-        # Same as above, but now we're purging the existing policies
-        yield self.actor._ensure_inline_policies('test', True)
+        # Ensure that the new policy was pushed, and the old policies were
+        # deleted
+        yield self.actor._ensure_inline_policies('test')
         self.assertEquals(1, self.actor._put_entity_policy.call_count)
         self.actor._delete_entity_policy.assert_has_calls([
             mock.call('test', 'Policy1'),
             mock.call('test', 'Policy2'),
         ])
+
+    @testing.gen_test
+    def test_ensure_inline_policies_updated(self):
+        # First, pretend like there are a few policies in place and we're not
+        # passing any in, however we are purging policies we don't manage.
+        fake_pol = {
+            'Policy1': {'junk': 'policy'},
+            'examples-aws.iam.user-s3_example': {'more': 'junk'},
+        }
+        self.actor._get_entity_policies = mock.MagicMock()
+        self.actor._get_entity_policies.side_effect = [tornado_value(fake_pol)]
+        self.actor._put_entity_policy = mock.MagicMock()
+        self.actor._put_entity_policy.side_effect = [tornado_value(None)]
+
+        yield self.actor._ensure_inline_policies('test')
+        self.assertEquals(1, self.actor._put_entity_policy.call_count)
 
     @testing.gen_test
     def test_delete_entity_policy_dry(self):
@@ -217,7 +202,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_delete_entity_policy(self):
         yield self.actor._delete_entity_policy('test', 'test-policy')
-        self.actor.iam_conn.delete_base_policy.assert_called_once()
+        self.assertTrue(self.actor.iam_conn.delete_base_policy.called)
 
     @testing.gen_test
     def test_delete_entity_policy_exception(self):
@@ -235,7 +220,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_put_entity_policy(self):
         yield self.actor._put_entity_policy('test', 'test-policy', {})
-        self.actor.iam_conn.put_base_policy.assert_called_once()
+        self.assertTrue(self.actor.iam_conn.put_base_policy.called)
 
     @testing.gen_test
     def test_put_entity_policy_exception(self):
@@ -251,7 +236,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
             500, 'Yikes!')
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._get_entity('test')
-        self.actor.iam_conn.get_all_bases.assert_called_once()
+        self.assertTrue(self.actor.iam_conn.get_all_bases.called)
         self.actor.iam_conn.get_all_bases.reset_mock()
 
         # Reset the side effect to None, now we're going to use return_values
@@ -276,7 +261,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
                 'list_bases_result': {
                     'bases': [not_matching_entity, not_matching_entity]}}}
         ret = yield self.actor._get_entity('test')
-        self.actor.iam_conn.get_all_bases.assert_called_once()
+        self.assertTrue(self.actor.iam_conn.get_all_bases.called)
         self.actor.iam_conn.get_all_bases.reset_mock()
         self.assertEquals(ret, None)
 
@@ -287,7 +272,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
                     'bases': [matching_entity, matching_entity]}}}
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._get_entity('test')
-        self.actor.iam_conn.get_all_bases.assert_called_once()
+        self.assertTrue(self.actor.iam_conn.get_all_bases.called)
         self.actor.iam_conn.get_all_bases.reset_mock()
 
         # Finally, lets return one matching and a non matching entity
@@ -296,7 +281,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
                 'list_bases_result': {
                     'bases': [not_matching_entity, matching_entity]}}}
         ret = yield self.actor._get_entity('test')
-        self.actor.iam_conn.get_all_bases.assert_called_once()
+        self.assertTrue(self.actor.iam_conn.get_all_bases.called)
         self.actor.iam_conn.get_all_bases.reset_mock()
         self.assertEquals(ret, matching_entity)
 
@@ -442,7 +427,8 @@ class TestUser(testing.AsyncTestCase):
             'Unit Test',
             {'name': 'test',
              'state': 'present',
-             'inline_policies': 'examples/aws.iam.user/s3_example.json'})
+             'inline_policies': 'examples/aws.iam.user/s3_example.json',
+             'groups': 'foo'})
 
         iam_mock = mock.Mock()
         self.actor.iam_conn = iam_mock
@@ -474,25 +460,13 @@ class TestUser(testing.AsyncTestCase):
         self.actor._add_user_to_group = mock.MagicMock()
         self.actor._remove_user_from_group = mock.MagicMock()
 
-        # No purging ... just pretend like we're adding group membership
-        self.actor._add_user_to_group.side_effect = [
-            tornado_value(None), tornado_value(None)]
-        yield self.actor._ensure_groups('test', ['ng1', 'ng2'], False)
-        self.actor._add_user_to_group.ensure_has_calls([
-            mock.call('test', 'ng1'),
-            mock.call('test', 'ng2')
-        ])
-        self.assertFalse(self.actor._remove_user_from_group.called)
-        self.actor._add_user_to_group.reset_mock()
-        self.actor._remove_user_from_group.reset_mock()
-
         # Same as above, but now purge the unmanaged groups
         self.actor._add_user_to_group.side_effect = [
             tornado_value(None), tornado_value(None)]
         self.actor._remove_user_from_group.side_effect = [
             tornado_value(None), tornado_value(None)
         ]
-        yield self.actor._ensure_groups('test', 'ng1', True)
+        yield self.actor._ensure_groups('test', 'ng1')
         self.actor._add_user_to_group.assert_has_calls([
             mock.call('test', 'ng1')])
         self.actor._remove_user_from_group.assert_has_calls([
@@ -514,7 +488,7 @@ class TestUser(testing.AsyncTestCase):
         # there are no groups.
         self.actor.iam_conn.get_groups_for_user.side_effect = BotoServerError(
             404, '')
-        yield self.actor._ensure_groups('test', ['ng1', 'ng2'], False)
+        yield self.actor._ensure_groups('test', ['ng1', 'ng2'])
         self.actor._add_user_to_group.assert_has_calls([
             mock.call('test', 'ng1'),
             mock.call('test', 'ng2')
@@ -525,7 +499,7 @@ class TestUser(testing.AsyncTestCase):
         self.actor.iam_conn.get_groups_for_user.side_effect = BotoServerError(
             500, '')
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._ensure_groups('test', ['ng1', 'ng2'], False)
+            yield self.actor._ensure_groups('test', ['ng1', 'ng2'])
 
     @testing.gen_test
     def test_add_user_to_group(self):
@@ -576,7 +550,7 @@ class TestUser(testing.AsyncTestCase):
         self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
         yield self.actor._execute()
-        self.actor._ensure_entity.assert_called_once()
+        self.assertTrue(self.actor._ensure_entity.called)
 
     @testing.gen_test
     def test_execute_present(self):
@@ -587,9 +561,26 @@ class TestUser(testing.AsyncTestCase):
         self.actor._ensure_groups = mock.MagicMock()
         self.actor._ensure_groups.side_effect = [tornado_value(None)]
         yield self.actor._execute()
-        self.actor._ensure_entity.assert_called_once()
-        self.actor._ensure_inline_policies.assert_called_once()
-        self.actor._ensure_groups.assert_called_once()
+        self.assertTrue(self.actor._ensure_entity.called)
+        self.assertTrue(self.actor._ensure_inline_policies.called)
+        self.assertTrue(self.actor._ensure_groups.called)
+
+    @testing.gen_test
+    def test_execute_present_no_policies_or_groups(self):
+        self.actor._options['inline_policies'] = None
+        self.actor._options['groups'] = None
+
+        self.actor._ensure_entity = mock.MagicMock()
+        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+
+        self.actor._ensure_inline_policies = mock.MagicMock()
+        self.actor._ensure_groups = mock.MagicMock()
+
+        yield self.actor._execute()
+
+        self.assertTrue(self.actor._ensure_entity.called)
+        self.assertFalse(self.actor._ensure_inline_policies.called)
+        self.assertFalse(self.actor._ensure_groups.called)
 
 
 class TestGroup(testing.AsyncTestCase):
@@ -686,20 +677,30 @@ class TestGroup(testing.AsyncTestCase):
         self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
         yield self.actor._execute()
-        self.actor._ensure_entity.assert_called_once()
-        self.actor._purge_group_users.assert_called_once()
+        self.assertTrue(self.actor._ensure_entity.called)
+        self.assertTrue(self.actor._purge_group_users.called)
 
     @testing.gen_test
     def test_execute_present(self):
-        ensure_entity = mock.MagicMock()
-        ensure_inline_policies = mock.MagicMock()
-        self.actor._ensure_entity = ensure_entity
-        self.actor._ensure_inline_policies = ensure_inline_policies
+        self.actor._ensure_entity = mock.MagicMock()
+        self.actor._ensure_inline_policies = mock.MagicMock()
+        self.actor._purge_group_users = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
         self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
         yield self.actor._execute()
-        ensure_entity.assert_called_once()
-        ensure_inline_policies.assert_called_once()
+        self.assertTrue(self.actor._ensure_entity.called)
+        self.assertFalse(self.actor._purge_group_users.called)
+
+    @testing.gen_test
+    def test_execute_present_no_policies_or_groups(self):
+        self.actor._options['inline_policies'] = None
+        self.actor._ensure_entity = mock.MagicMock()
+        self.actor._ensure_inline_policies = mock.MagicMock()
+        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
+        yield self.actor._execute()
+        self.assertTrue(self.actor._ensure_entity.called)
+        self.assertFalse(self.actor._ensure_inline_policies.called)
 
 
 class TestRole(testing.AsyncTestCase):
@@ -717,6 +718,7 @@ class TestRole(testing.AsyncTestCase):
             'Unit Test',
             {'name': 'test',
              'state': 'present',
+             'role': 'test-role',
              'inline_policies': 'examples/aws.iam.user/s3_example.json'})
 
         iam_mock = mock.Mock()
@@ -733,23 +735,17 @@ class TestRole(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute_absent(self):
         self.actor._options['state'] = 'absent'
-        ensure_entity = mock.MagicMock()
-        self.actor._ensure_entity = ensure_entity
+        self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
         yield self.actor._execute()
-        ensure_entity.assert_called_once()
+        self.assertTrue(self.actor._ensure_entity.called)
 
     @testing.gen_test
     def test_execute(self):
-        ensure_entity = mock.MagicMock()
-        ensure_inline_policies = mock.MagicMock()
-        self.actor._ensure_entity = ensure_entity
-        self.actor._ensure_inline_policies = ensure_inline_policies
+        self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
-        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
         yield self.actor._execute()
-        ensure_entity.assert_called_once()
-        ensure_inline_policies.assert_called_once()
+        self.assertTrue(self.actor._ensure_entity.called)
 
 
 class TestInstanceProfile(testing.AsyncTestCase):
@@ -766,7 +762,8 @@ class TestInstanceProfile(testing.AsyncTestCase):
         self.actor = entities.InstanceProfile(
             'Unit Test',
             {'name': 'test',
-             'state': 'present'})
+             'state': 'present',
+             'role': 'test'})
 
         iam_mock = mock.Mock()
         self.actor.iam_conn = iam_mock
@@ -927,7 +924,7 @@ class TestInstanceProfile(testing.AsyncTestCase):
         self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
         yield self.actor._execute()
-        self.actor._ensure_entity.assert_called_once()
+        self.assertTrue(self.actor._ensure_entity.called)
 
     @testing.gen_test
     def test_execute(self):
@@ -936,5 +933,16 @@ class TestInstanceProfile(testing.AsyncTestCase):
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
         self.actor._ensure_role.side_effect = [tornado_value(None)]
         yield self.actor._execute()
-        self.actor._ensure_entity.assert_called_once()
-        self.actor._ensure_role.assert_called_once()
+        self.assertTrue(self.actor._ensure_entity.called)
+        self.assertTrue(self.actor._ensure_role.called)
+
+    @testing.gen_test
+    def test_execute_no_role(self):
+        self.actor._options['role'] = None
+        self.actor._ensure_entity = mock.MagicMock()
+        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._ensure_role = mock.MagicMock()
+        self.actor._ensure_role.side_effect = [tornado_value(None)]
+        yield self.actor._execute()
+        self.assertTrue(self.actor._ensure_entity.called)
+        self.assertFalse(self.actor._ensure_role.called)
