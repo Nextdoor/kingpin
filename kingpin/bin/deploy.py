@@ -90,8 +90,7 @@ def get_main_actor(dry):
         parameters = dict([i.split('=') for i in args.params])
         options = dict([i.split('=') for i in args.options])
 
-        return ActorClass(desc='Command Line',
-                          options=options,
+        return ActorClass(options=options,
                           dry=dry,
                           **parameters)
 

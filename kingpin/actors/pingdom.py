@@ -147,6 +147,8 @@ class Pause(PingdomBase):
     Will assert that the check name exists, but not take any action on it.
     """
 
+    desc = "Pausing check {name}"
+
     @gen.coroutine
     def _execute(self):
         check = yield self._get_check()
@@ -187,6 +189,8 @@ class Unpause(PingdomBase):
 
     Will assert that the check name exists, but not take any action on it.
     """
+
+    desc = "Unpausing check {name}"
 
     @gen.coroutine
     def _execute(self):

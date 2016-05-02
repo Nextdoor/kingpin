@@ -192,6 +192,8 @@ class Deploy(RollbarBase):
         'comment': (str, '', 'Deploy comment')
     }
 
+    desc = "Sending Deploy {environment}/{revision}"
+
     @gen.coroutine
     def _deploy(self):
         """Posts a Deploy to rollbar.

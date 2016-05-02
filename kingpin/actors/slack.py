@@ -158,6 +158,8 @@ class Message(SlackBase):
         'message': (str, REQUIRED, 'Message to send')
     }
 
+    desc = "Sending Message to {channel}"
+
     @gen.coroutine
     def _execute(self):
         self.log.info('Sending message "%s" to Slack channel "%s"' %

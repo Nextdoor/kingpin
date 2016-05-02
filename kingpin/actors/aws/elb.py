@@ -124,6 +124,8 @@ class WaitUntilHealthy(ELBBaseActor):
     success.
     """
 
+    desc = "Waiting until {name} is healthy ({count} in-service)"
+
     def _get_expected_count(self, count, total_count):
         """Calculate the expected count for a given percentage.
 

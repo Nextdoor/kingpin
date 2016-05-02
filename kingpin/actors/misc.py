@@ -128,6 +128,8 @@ class Macro(base.BaseActor):
         'tokens': (dict, {}, "Tokens passed into the JSON file.")
     }
 
+    desc = "Macro: {macro}"
+
     def __init__(self, *args, **kwargs):
         """Pre-parse the json file and compile actors."""
 
@@ -264,6 +266,8 @@ class Sleep(base.BaseActor):
         'sleep': ((int, float, str), REQUIRED,
                   'Number of seconds to do nothing.')
     }
+
+    desc = "Sleep {sleep}s"
 
     @gen.coroutine
     def _execute(self):

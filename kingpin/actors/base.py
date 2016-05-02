@@ -86,6 +86,9 @@ class BaseActor(object):
     # }
     all_options = {}
 
+    # Default description format
+    desc = "{actor}"
+
     # Set the default timeout for the gen.with_timeout() wrapper that we use to
     # monitor and control the length of execution of a single Actor.
     default_timeout = DEFAULT_TIMEOUT
@@ -102,7 +105,7 @@ class BaseActor(object):
     # second 'global runtime context object'.
     strict_init_context = True
 
-    def __init__(self, desc, options, dry=False, warn_on_failure=False,
+    def __init__(self, desc=None, options={}, dry=False, warn_on_failure=False,
                  condition=True, init_context={}, timeout=None):
         """Initializes the Actor.
 
@@ -120,8 +123,8 @@ class BaseActor(object):
             timeout: (Str/Int/Float) Timeout in seconds for the actor.
         """
         self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
-        self._desc = desc
         self._options = options
+        self._desc = desc
         self._dry = dry
         self._warn_on_failure = warn_on_failure
         self._condition = condition
@@ -145,13 +148,30 @@ class BaseActor(object):
                        'strict_init_context=%s)' %
                        (warn_on_failure, self.strict_init_context))
 
+    def __repr__(self):
+        """Returns a nice name/description of the actor.
+
+        Either the user has supplied a custom desc parameter to the actor,
+        giving it a useful description for them. On the other hand, if an actor
+        defines a custom ActorClass.desc field, that field is interpreted by
+        this method an any variables that can be swapped in dynamically are.
+
+        For example, if misc.Sleep.desc is 'Sleeping {sleep}s', this method
+        will fill in the value of the option 'sleep' into the string, and then
+        use that for the representation of the object.
+        """
+        if self._desc:
+            return self._desc
+
+        return self.__class__.desc.format(actor=self._type, **self._options)
+
     def _setup_log(self):
         """Create a customized logging object based on the LogAdapter."""
         name = '%s.%s' % (self.__module__, self.__class__.__name__)
         logger = logging.getLogger(name)
         dry_str = 'DRY: ' if self._dry else ''
 
-        self.log = LogAdapter(logger, {'desc': self._desc, 'dry': dry_str})
+        self.log = LogAdapter(logger, {'desc': self, 'dry': dry_str})
 
     def _setup_defaults(self):
         """Populate options with defaults if they aren't set."""
@@ -388,7 +408,7 @@ class BaseActor(object):
         # Inject contexts into Description
         try:
             self._desc = utils.populate_with_tokens(
-                self._desc,
+                str(self),
                 context,
                 self.left_context_separator,
                 self.right_context_separator,
