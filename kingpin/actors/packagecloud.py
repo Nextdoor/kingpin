@@ -299,6 +299,8 @@ class Delete(PackagecloudBase):
             'Which packagecloud repo to delete from'),
     }
 
+    desc = "Deleting {repo}/{packages_to_delete} (keeping {number_to_keep})"
+
     def __init__(self, *args, **kwargs):
         """Check required environment variables."""
         super(Delete, self).__init__(*args, **kwargs)
@@ -370,6 +372,8 @@ class DeleteByDate(PackagecloudBase):
                  'Which packagecloud repo to delete from')
     }
 
+    desc = "Deleting {repo}/{packages_to_delete} older than {older_than}"
+
     @gen.coroutine
     def _execute(self):
         yield self._delete(
@@ -424,6 +428,8 @@ class WaitForPackage(PackagecloudBase):
         'sleep': (
             int, 10, 'Number of seconds to sleep for between each search')
     }
+
+    desc = "Waiting for {repo}/{name}@{version} (up to {sleep}s)"
 
     def __init__(self, *args, **kwargs):
         """Check required environment variables."""

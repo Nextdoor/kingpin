@@ -168,6 +168,8 @@ class Message(HipchatBase):
         'message': (str, REQUIRED, 'Message to send')
     }
 
+    desc = "Sending Message to {room}"
+
     @gen.coroutine
     def _post_message(self, room_id, message,
                       message_format='html', notify=0,
@@ -260,6 +262,8 @@ class Topic(HipchatBase):
         'room': (str, REQUIRED, 'Hipchat room name'),
         'topic': (str, REQUIRED, 'Topic to set')
     }
+
+    desc = "Setting Room {room} topic"
 
     @gen.coroutine
     def _set_topic(self, room_id, topic):

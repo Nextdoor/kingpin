@@ -96,6 +96,8 @@ class Annotation(base.HTTPBaseActor):
         'name': (str, REQUIRED, "Name of the metric to annotate")
     }
 
+    desc = "Sending Annotation to {name}"
+
     def __init__(self, *args, **kwargs):
         """Check for the needed environment variables."""
         super(Annotation, self).__init__(*args, **kwargs)

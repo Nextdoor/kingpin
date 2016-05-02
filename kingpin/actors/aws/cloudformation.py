@@ -254,6 +254,8 @@ class Create(CloudFormationBaseActor):
                                'stack status becomes CREATE_FAILED'),
     }
 
+    desc = "Creating CloudFormation Stack {name}"
+
     def __init__(self, *args, **kwargs):
         """Initialize our object variables."""
         super(Create, self).__init__(*args, **kwargs)
@@ -389,7 +391,7 @@ class Delete(CloudFormationBaseActor):
 
     .. code-block:: json
 
-       { "desc": "Create production backend stack",
+       { "desc": "Delete production backend stack",
          "actor": "aws.cloudformation.Create",
          "options" {
            "region": "us-west-1",
@@ -406,6 +408,8 @@ class Delete(CloudFormationBaseActor):
         'name': (str, REQUIRED, 'Name of the stack'),
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2')
     }
+
+    desc = "Deleting CloudFormation Stack {name}"
 
     @gen.coroutine
     def _delete_stack(self):
