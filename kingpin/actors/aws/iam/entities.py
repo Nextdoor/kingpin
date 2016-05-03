@@ -131,6 +131,12 @@ class EntityBaseActor(base.IAMBaseActor):
             policies: A string or list of strings that point to JSON files with
             IAM policies in them.
         """
+        # If the inline_policies is None, then we bail and set
+        # self.inline_policies to none.
+        if policies is None:
+            self.inline_policies = None
+            return
+
         # Prepare to store our parsed inline policies in a hash of key/values
         # -- the key is the policy name (with no file ending) and the value is
         # the dict of the policy itself.
