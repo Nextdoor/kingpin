@@ -150,6 +150,11 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         self.assertEquals(parsed_policy['Version'], '2012-10-17')
 
     @testing.gen_test
+    def test_parse_inline_policies_none(self):
+        self.actor._parse_inline_policies(None)
+        self.assertEquals(self.actor.inline_policies, None)
+
+    @testing.gen_test
     def test_ensure_inline_policies(self):
         # First, pretend like there are a few policies in place and we're not
         # passing any in, however we are purging policies we don't manage.
