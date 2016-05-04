@@ -4,23 +4,23 @@ Basic Use
 .. code-block:: guess
 
     $ kingpin --help
-    usage: kingpin [-h] [-j JSON] [-a ACTOR] [-E] [-p PARAMS] [-o OPTIONS] [-d]
+    usage: kingpin [-h] [-s JSON/YAML] [-a ACTOR] [-E] [-p PARAMS] [-o OPTIONS] [-d]
                    [--build-only] [-l LEVEL] [-D] [-c]
 
     Kingpin v0.3.1a
 
     optional arguments:
       -h, --help            show this help message and exit
-      -j JSON, --json JSON  Path to JSON Deployment File
+      -s SCRIPT, --script SCRIPT  Path to JSON/YAML Deployment Script
       -a ACTOR, --actor ACTOR
-                            Name of an Actor to execute (overrides --json)
+                            Name of an Actor to execute (overrides --script)
       -E, --explain         Explain how an actor works. Requires --actor.
       -p PARAMS, --param PARAMS
                             Actor Parameter to set (ie, warn_on_failure=true)
       -o OPTIONS, --option OPTIONS
                             Actor Options to set (ie, elb_name=foobar)
       -d, --dry             Executes a dry run only.
-      --build-only          Compile the input JSON without executing any runs
+      --build-only          Compile the input script without executing any runs
       -l LEVEL, --level LEVEL
                             Set logging level (INFO|WARN|DEBUG|ERROR)
       -D, --debug           Equivalent to --level=DEBUG
@@ -34,7 +34,7 @@ simple as this:
 
     $ export RIGHTSCALE_TOKEN=xyz
     $ export RIGHTSCALE_ENDPOINT=https://us-3.rightscale.com
-    $ (.venv)$ kingpin -j examples/simple.json -d
+    $ (.venv)$ kingpin -s examples/simple.json -d
     2014-09-01 21:18:09,022 INFO      [main stage (DRY Mode)] Beginning
     2014-09-01 21:18:09,022 INFO      [stage 1 (DRY Mode)] Beginning
     2014-09-01 21:18:09,022 INFO      [copy serverA (DRY Mode)] Beginning
@@ -60,16 +60,17 @@ of the configuration settings used at runtime are actually set as environment
 variables. Individual Kingpin Actors have their credential requirements
 documented in their specific documentation (*see below*).
 
-JSON-based DSL
-~~~~~~~~~~~~~~
+JSON/YAML DSL
+~~~~~~~~~~~~~
 
-The entire model for the configuration is based on the concept of a JSON
-dictionary that contains at least one *actor* configuration. This JSON format
-is highly structured and must rigidly conform to the :py:mod:`kingpin.schema`.
+The entire model for the configuration is based on the concept of a JSON or
+YAML dictionary that contains at least one *actor* configuration. This
+format is highly structured and must rigidly conform to the
+:py:mod:`kingpin.schema`.
 
 Validation
 ^^^^^^^^^^
-The JSON file will be validated for schema-conformity as one of the first
+The script will be validated for schema-conformity as one of the first
 things that happens at load-time when the app starts up. If it fails, you will
 be notified immediately. This is performed in ``misc.Macro`` actor.
 
@@ -92,7 +93,7 @@ execute them in a predictable order.
 Schema Description
 ''''''''''''''''''
 
-The JSON schema is simple. We take a single JSON object that has a few
+The schema is simple. We take a single JSON or YAML object that has a few
 fields:
 
 -  ``actor`` - A text-string describing the name of the Actor package
@@ -112,7 +113,7 @@ fields:
    the specific ``actor`` that you're instantiating. See individual Actor
    documentation below for these options.
 
-The simples JSON file could look like this:
+The simplest JSON file could look like this:
 
 .. code-block:: json
 
@@ -124,6 +125,18 @@ The simples JSON file could look like this:
         "message": "Beginning release %RELEASE%", "room": "Oncall"
       }
     }
+
+Alternatively, a YAML file would look like this:
+
+.. code-block:: yaml
+
+    actor: hipchat.Message
+    condition: true
+    warn_on_failure: true
+    timeout: 30
+    options:
+      message: Beginning release %RELEASE%
+      room" Oncall
 
 However, much more complex configurations can be created by using the
 ``group.Sync`` and ``group.Async`` actors to describe massively more
@@ -165,6 +178,9 @@ Because these JSON scripts can get quite large, Kingpin leverages the
 when handling syntax issues (extra commas, for example), and allows for
 JavaScript style commenting inside of the script.
 
+Alternatively, if you're using YAML then you automatically get slightly easier
+syntax parsing, code commenting, etc.
+
 Take this example::
 
     { "actor": "misc.Sleep",
@@ -176,7 +192,17 @@ Take this example::
       "options": { "time": 30 }, }
 
 The above example would fail to parse in most JSON parsers, but in ``demjson``
-it works just fine.
+it works just fine. You could also write this in YAML:
+
+.. code-block:: yaml
+
+    actor: misc.Sleep
+    # Some description here...
+    desc: This is funny
+
+    # Comments are good!
+    options:
+      time: 30
 
 Timeouts
 ''''''''
@@ -197,7 +223,7 @@ Here is an example log output when the timer is exceeded:
 
 .. code-block:: bash
 
-    $ DEFAULT_TIMEOUT=1 SLEEP=10 kingpin -j examples/sleep.json
+    $ DEFAULT_TIMEOUT=1 SLEEP=10 kingpin -s examples/sleep.json
     11:55:16   INFO      Rehearsing... Break a leg!
     11:55:16   INFO      [DRY: Kingpin] Preparing actors from examples/sleep.json
     11:55:16   INFO      Rehearsal OK! Performing!
@@ -271,15 +297,15 @@ For an example, take a look at the :download:`complex.json
 .. code-block:: bash
 
     # Here we forget to set any environment variables
-    $ kingpin -j examples/complex.json -d
+    $ kingpin -s examples/complex.json -d
     2014-09-01 21:29:47,373 ERROR     Invalid Configuration Detected: Found un-matched tokens in JSON string: ['%RELEASE%', '%OLD_RELEASE%']
 
     # Here we set one variable, but miss the other one
-    $ RELEASE=0001a kingpin -j examples/complex.json -d
+    $ RELEASE=0001a kingpin -s examples/complex.json -d
     2014-09-01 21:29:56,027 ERROR     Invalid Configuration Detected: Found un-matched tokens in JSON string: ['%OLD_RELEASE%']
 
     # Finally we set both variables and the code begins...
-    $ OLD_RELEASE=0000a RELEASE=0001a kingpin -j examples/complex.json -d
+    $ OLD_RELEASE=0000a RELEASE=0001a kingpin -s examples/complex.json -d
     2014-09-01 21:30:03,886 INFO      [Main (DRY Mode)] Beginning
     2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Beginning
     2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Sending message "Beginning release 0001a" to Hipchat room "Oncall"

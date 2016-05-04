@@ -262,9 +262,9 @@ class AWSBaseActor(base.BaseActor):
         self.log.debug('Parsing and validating %s' % policy)
 
         try:
-            p_doc = utils.convert_json_to_dict(json_file=policy,
-                                               tokens=os.environ)
-        except kingpin_exceptions.InvalidJSON as e:
+            p_doc = utils.convert_script_to_dict(script_file=policy,
+                                                 tokens=os.environ)
+        except kingpin_exceptions.InvalidScript as e:
             raise exceptions.UnrecoverableActorFailure('Error parsing %s: %s' %
                                                        (policy, e))
 

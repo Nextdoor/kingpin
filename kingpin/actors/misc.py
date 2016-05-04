@@ -131,7 +131,7 @@ class Macro(base.BaseActor):
     desc = "Macro: {macro}"
 
     def __init__(self, *args, **kwargs):
-        """Pre-parse the json file and compile actors."""
+        """Pre-parse the script file and compile actors."""
 
         super(Macro, self).__init__(*args, **kwargs)
 
@@ -143,8 +143,8 @@ class Macro(base.BaseActor):
         # Copy the tmp file / download a remote macro
         macro_file = self._get_macro()
 
-        # Parse json, and insert tokens.
-        config = self._get_config_from_json(macro_file)
+        # Parse script, and insert tokens.
+        config = self._get_config_from_script(macro_file)
 
         # Check schema for compatibility
         self._check_schema(config)
@@ -193,41 +193,39 @@ class Macro(base.BaseActor):
             raise exceptions.UnrecoverableActorFailure(e)
         return instance
 
-    def _get_config_from_json(self, json_file):
-        """Convert a json file into a dict() with inserted ENV vars.
+    def _get_config_from_script(self, script_file):
+        """Convert a script into a dict() with inserted ENV vars.
 
         Run the JSON dictionary through our environment parser and return
         back a dictionary with all of the %XX% keys swapped out with
         environment variables.
 
         Args:
-            json_file: A path string to a file, or an open() file stream.
+            script_file: A path string to a file, or an open() file stream.
 
         Returns:
             Dictionary adhering to our schema.
 
         Raises:
             UnrecoverableActorFailure -
-                if parsing json or inserting env vars fails.
+                if parsing script or inserting env vars fails.
         """
 
-        self.log.debug('Parsing %s' % json_file)
+        self.log.debug('Parsing %s' % script_file)
         try:
-            config = utils.convert_json_to_dict(
-                json_file=json_file,
+            return utils.convert_script_to_dict(
+                script_file=script_file,
                 tokens=self.option('tokens'))
-        except Exception as e:
+        except kingpin_exceptions.InvalidScript as e:
             raise exceptions.UnrecoverableActorFailure(e)
-
-        return config
 
     def _check_schema(self, config):
         # Run the dict through our schema validator quickly
         self.log.debug('Validating schema for %s' % self.option('macro'))
         try:
             schema.validate(config)
-        except kingpin_exceptions.InvalidJSON as e:
-            self.log.critical('Invalid JSON Schema.')
+        except kingpin_exceptions.InvalidScript as e:
+            self.log.critical('Invalid Schema.')
             raise exceptions.UnrecoverableActorFailure(e)
 
     @gen.coroutine

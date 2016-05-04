@@ -25,6 +25,10 @@ clean:
 
 test: build docs
 	python setup.py test pep8 pyflakes
+	# A few simple dry-tests of yaml and json scripts to make sure that the
+	# full commandline actually works.
+	PYTHONPATH=$(HERE) python kingpin/bin/deploy.py --dry --script examples/test/sleep.json
+	PYTHONPATH=$(HERE) python kingpin/bin/deploy.py --dry --script examples/test/sleep.yaml
 
 integration: build
 	INTEGRATION_TESTS=$(INTEGRATION_TESTS) PYFLAKES_NODOCTEST=True \

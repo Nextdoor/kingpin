@@ -27,5 +27,5 @@ class TestSchema(unittest.TestCase):
 
     def test_validate_with_invalid_json(self):
         json = {'this': 'is', 'invalid': 'ok'}
-        with self.assertRaises(exceptions.InvalidJSON):
+        with self.assertRaises(exceptions.InvalidScript):
             schema.validate(json)
