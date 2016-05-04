@@ -88,7 +88,7 @@ class Macro(base.BaseActor):
 
     **Options**
 
-    :file:
+    :macro:
       String of local path to a JSON file.
 
     :tokens:
@@ -101,7 +101,7 @@ class Macro(base.BaseActor):
        { "desc": "Stage 1",
          "actor": "misc.Macro",
          "options": {
-           "file": "deployment/stage-1.json",
+           "macro": "deployment/stage-1.json",
            "tokens": {
              "TIMEOUT": 360,
              "RELEASE": "%RELEASE%"
