@@ -153,7 +153,8 @@ class EntityBaseActor(base.IAMBaseActor):
             p_name = self._generate_policy_name(policy)
             self.inline_policies[p_name] = self._parse_policy_json(policy)
 
-        self.log.info(self.inline_policies)
+            self.log.debug('Parsed policy %s: %s' %
+                           (p_name, self.inline_policies[p_name]))
 
     @gen.coroutine
     def _get_entity_policies(self, name):
