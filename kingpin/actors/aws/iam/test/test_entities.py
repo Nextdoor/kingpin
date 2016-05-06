@@ -1,4 +1,6 @@
 import logging
+import urllib
+import json
 
 from boto.exception import BotoServerError
 from tornado import testing
@@ -723,7 +725,8 @@ class TestRole(testing.AsyncTestCase):
             'Unit Test',
             {'name': 'test',
              'state': 'present',
-             'role': 'test-role',
+             'assume_role_policy_document':
+                 'examples/aws.iam.role/lambda.json',
              'inline_policies': 'examples/aws.iam.user/s3_example.json'})
 
         iam_mock = mock.Mock()
@@ -738,19 +741,99 @@ class TestRole(testing.AsyncTestCase):
         self.actor.put_entity_policy = iam_mock.put_role_policy
 
     @testing.gen_test
+    def test_ensure_assume_role_doc_no_entity(self):
+        fake_entity = None
+        self.actor._get_entity = mock.MagicMock()
+        self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
+
+        yield self.actor._ensure_assume_role_doc('test')
+
+    @testing.gen_test
+    def test_ensure_assume_role_doc_matches(self):
+        request = {
+            "Version": "2012-10-17",
+            "Statement": [{"Effect": "Allow",
+                           "Principal": {"Service": "lambda.amazonaws.com"},
+                           "Action": "sts:AssumeRole"}]}
+
+        lambda_string = urllib.pathname2url(json.dumps(request))
+        fake_entity = {'assume_role_policy_document': lambda_string}
+        self.actor._get_entity = mock.MagicMock()
+        self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
+        self.actor.iam_conn.update_assume_role_policy = mock.MagicMock()
+
+        yield self.actor._ensure_assume_role_doc('test')
+        self.assertFalse(self.actor.iam_conn.update_assume_role_policy.called)
+
+    @testing.gen_test
+    def test_ensure_assume_role_doc_mismatch(self):
+        request = {
+            "Version": "2012-10-17",
+            "Statement": [{"Effect": "Allow",
+                           "Principal": {"Service": "ec2.amazonaws.com"},
+                           "Action": "sts:AssumeRole"}]}
+        ec2_string = urllib.pathname2url(json.dumps(request))
+        fake_entity = {'assume_role_policy_document': ec2_string}
+        self.actor._get_entity = mock.MagicMock()
+        self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
+        self.actor.iam_conn.update_assume_role_policy = mock.MagicMock()
+        self.actor.iam_conn.update_assume_role_policy.side_effect = [
+            tornado_value(None)]
+
+        yield self.actor._ensure_assume_role_doc('test')
+        self.assertTrue(self.actor.iam_conn.update_assume_role_policy.called)
+
+    @testing.gen_test
+    def test_ensure_assume_role_doc_mismatch_dry(self):
+        self.actor._dry = True
+        request = {
+            "Version": "2012-10-17",
+            "Statement": [{"Effect": "Allow",
+                           "Principal": {"Service": "ec2.amazonaws.com"},
+                           "Action": "sts:AssumeRole"}]}
+        ec2_string = urllib.pathname2url(json.dumps(request))
+        fake_entity = {'assume_role_policy_document': ec2_string}
+        self.actor._get_entity = mock.MagicMock()
+        self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
+        self.actor.iam_conn.update_assume_role_policy = mock.MagicMock()
+        self.actor.iam_conn.update_assume_role_policy.side_effect = [
+            tornado_value(None)]
+
+        yield self.actor._ensure_assume_role_doc('test')
+        self.assertFalse(self.actor.iam_conn.update_assume_role_policy.called)
+
+    @testing.gen_test
     def test_execute_absent(self):
         self.actor._options['state'] = 'absent'
         self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._ensure_assume_role_doc = mock.MagicMock()
+        self.actor._ensure_assume_role_doc.side_effect = [tornado_value(None)]
         yield self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
+        self.assertFalse(self.actor._ensure_assume_role_doc.called)
+
+    @testing.gen_test
+    def test_execute_no_policy(self):
+        self.actor._options['assume_role_policy_document'] = None
+
+        self.actor._ensure_entity = mock.MagicMock()
+        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._ensure_assume_role_doc = mock.MagicMock()
+        self.actor._ensure_assume_role_doc.side_effect = [tornado_value(None)]
+        yield self.actor._execute()
+        self.assertTrue(self.actor._ensure_entity.called)
+        self.assertFalse(self.actor._ensure_assume_role_doc.called)
 
     @testing.gen_test
     def test_execute(self):
         self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._ensure_assume_role_doc = mock.MagicMock()
+        self.actor._ensure_assume_role_doc.side_effect = [tornado_value(None)]
         yield self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
+        self.assertTrue(self.actor._ensure_assume_role_doc.called)
 
 
 class TestInstanceProfile(testing.AsyncTestCase):
