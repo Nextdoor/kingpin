@@ -30,7 +30,6 @@ import re
 import sys
 import yaml
 import time
-import traceback
 
 from tornado import gen
 from tornado import ioloop
