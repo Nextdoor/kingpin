@@ -255,7 +255,7 @@ class EntityBaseActor(base.IAMBaseActor):
                        set(existing_policies.keys())):
             new = self.inline_policies[policy]
             exist = existing_policies[policy]
-            diff = self._diff_policy_json(new, exist)
+            diff = self._diff_policy_json(exist, new)
             if diff:
                 self.log.info('Policy %s differs from Amazons:' % policy)
                 for line in diff.split('\n'):
@@ -784,6 +784,7 @@ class Role(EntityBaseActor):
 
       * Ensure is present or absent
       * Manage the inline policies for the role
+      * Manage the Assume Role Policy Document
 
     **Options**
 
@@ -796,6 +797,13 @@ class Role(EntityBaseActor):
     :inline_policies:
       (str,array) A list of strings that point to JSON files to use as inline
       policies. You can also pass in a single inline policy as a string.
+      Default: None
+
+    :assume_role_policy_document:
+      (str) A string with an Amazon IAM Assume Role policy. Not providing this
+      causes Kingpin to ignore the value, and Amazon defaults the role to an
+      'EC2' style rule. Supplying the document will cause Kingpin to ensure the
+      assume role policy is correct.
       Default: None
 
     **Example**
@@ -827,7 +835,10 @@ class Role(EntityBaseActor):
         'state': (STATE, 'present',
                   'Desired state of the group: present/absent'),
         'inline_policies': ((str, list), None,
-                            'List of inline policy JSON files to apply.')
+                            'List of inline policy JSON files to apply.'),
+        'assume_role_policy_document': (str, None,
+                                        ('The policy that grants an entity'
+                                         'permission to assume the role'))
     }
 
     def __init__(self, *args, **kwargs):
@@ -842,8 +853,55 @@ class Role(EntityBaseActor):
         self.get_entity_policy = self.iam_conn.get_role_policy
         self.put_entity_policy = self.iam_conn.put_role_policy
 
-        # Parse the supplied inline policies
+        # Pre-parse the supplied inline policies
         self._parse_inline_policies(self.option('inline_policies'))
+
+        # Pre-parse the Assume Role Policy Document if it was supplied
+        if self.option('assume_role_policy_document') is not None:
+            self.assume_role_policy_doc = self._parse_policy_json(
+                self.option('assume_role_policy_document'))
+
+    @gen.coroutine
+    def _ensure_assume_role_doc(self, name):
+        """Ensures that the Assume Role Policy for a Role is up to date.
+
+        Downloads the existing Assume Role Policy for a given Role, then
+        compares it against our configured policy and optionally updates it if
+        they differ.
+
+        Args:
+            name: The role we're workin with
+        """
+        # Get our existing role policy from the entity
+        entity = yield self._get_entity(name)
+
+        # If the entity doesn't exist, then we must be in a Dry run and the
+        # role hasn't been created yet. Just bail silently.
+        if not entity:
+            raise gen.Return()
+
+        # Parse the raw data into a dict we can compare
+        exist = self._policy_doc_to_dict(entity['assume_role_policy_document'])
+        new = self.assume_role_policy_doc
+
+        # Now diff it against our desired policy. If no diff, then quietly
+        # return.
+        diff = self._diff_policy_json(exist, new)
+        if not diff:
+            self.log.debug('Assume Role Policy documents match')
+            raise gen.Return()
+
+        self.log.info('Assume Role Policy differs from Amazons:')
+        for line in diff.split('\n'):
+            self.log.info('Diff: %s' % line)
+
+        if self._dry:
+            self.log.warning('Would have updated the Assume Role Policy Doc')
+            raise gen.Return()
+
+        self.log.info('Updating the Assume Role Policy Document')
+        yield self.thread(
+            self.iam_conn.update_assume_role_policy, name, json.dumps(new))
 
     @gen.coroutine
     def _execute(self):
@@ -856,6 +914,9 @@ class Role(EntityBaseActor):
 
         if self.option('inline_policies') is not None:
             yield self._ensure_inline_policies(name)
+
+        if self.option('assume_role_policy_document') is not None:
+            yield self._ensure_assume_role_doc(name)
 
         raise gen.Return()
 
