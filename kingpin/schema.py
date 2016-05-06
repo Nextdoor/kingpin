@@ -79,4 +79,4 @@ def validate(config):
     try:
         return jsonschema.validate(config, SCHEMA_1_0)
     except jsonschema.exceptions.ValidationError as e:
-        raise exceptions.InvalidJSON(e)
+        raise exceptions.InvalidScript(e)

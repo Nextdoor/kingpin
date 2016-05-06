@@ -76,12 +76,12 @@ class TestUtils(unittest.TestCase):
             strict=False)
         self.assertEquals(result, expect)
 
-    def test_convert_json_to_dict(self):
+    def test_convert_script_to_dict(self):
         # Should work with string path to a file
         dirname, filename = os.path.split(os.path.abspath(__file__))
         examples = '%s/../../examples' % dirname
         simple = '%s/simple.json' % examples
-        ret = utils.convert_json_to_dict(simple, {})
+        ret = utils.convert_script_to_dict(simple, {})
         self.assertEquals(type(ret), dict)
 
         # Should work with file instance also
@@ -89,17 +89,40 @@ class TestUtils(unittest.TestCase):
         examples = '%s/../../examples' % dirname
         simple = '%s/simple.json' % examples
         instance = open(simple)
-        ret = utils.convert_json_to_dict(instance, {})
+        ret = utils.convert_script_to_dict(instance, {})
         self.assertEquals(type(ret), dict)
 
-    def test_convert_json_to_dict_error(self):
+        # Should definitly support YAML as well
+        dirname, filename = os.path.split(os.path.abspath(__file__))
+        examples = '%s/../../examples' % dirname
+        simple = '%s/simple.yaml' % examples
+        instance = open(simple)
+        ret = utils.convert_script_to_dict(instance, {})
+        self.assertEquals(type(ret), dict)
+
+    def test_convert_script_to_dict_bad_name(self):
         instance = StringIO.StringIO()  # Empty buffer will fail demjson.
+        instance.__repr__ = lambda: 'Somefile.HAHA'
 
-        with self.assertRaises(exceptions.InvalidJSON):
-            utils.convert_json_to_dict(instance, {})
+        with self.assertRaises(exceptions.InvalidScriptName):
+            utils.convert_script_to_dict(instance, {})
 
-        with self.assertRaises(exceptions.InvalidJSON):
-            utils.convert_json_to_dict('junk data', {})
+    def test_convert_script_to_dict_junk(self):
+        instance = StringIO.StringIO()
+        instance.__repr__ = lambda: 'Somefile.json'
+
+        with self.assertRaises(exceptions.InvalidScript):
+            utils.convert_script_to_dict(instance, {})
+
+        with self.assertRaises(exceptions.InvalidScript):
+            utils.convert_script_to_dict('junk data', {})
+
+        instance = StringIO.StringIO()
+        instance.__repr__ = lambda: 'Somefile.yaml'
+        instance.write('---bad-yaml')
+
+        with self.assertRaises(exceptions.InvalidScript):
+            utils.convert_script_to_dict(instance, {})
 
     def test_exception_logger(self):
         @utils.exception_logger

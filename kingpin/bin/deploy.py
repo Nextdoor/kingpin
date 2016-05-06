@@ -43,10 +43,10 @@ parser = argparse.ArgumentParser(description='Kingpin v%s' % __version__)
 parser.set_defaults(verbose=True)
 
 # Job Configuration
-parser.add_argument('-j', '--json', dest='json',
-                    help='Path to JSON Deployment File')
+parser.add_argument('-j', '--json', '-s', '--script', dest='script',
+                    help='Path to JSON/YAML Deployment Script')
 parser.add_argument('-a', '--actor', dest='actor',
-                    help='Name of an Actor to execute (overrides --json)')
+                    help='Name of an Actor to execute (overrides --script)')
 parser.add_argument('-E', '--explain', dest='explain', action='store_true',
                     help='Explain how an actor works. Requires --actor.',
                     default=False)
@@ -81,9 +81,9 @@ def kingpin_fail(message):
 def get_main_actor(dry):
     env_tokens = dict(os.environ)
 
-    # Cannot specify a json file an an actor at the same time.
-    if args.json and args.actor:
-        kingpin_fail('You may only specify --actor or --json, not both!')
+    # Cannot specify a script file an an actor at the same time.
+    if args.script and args.actor:
+        kingpin_fail('You may only specify --actor or --script, not both!')
 
     if args.actor:
         ActorClass = actor_utils.get_actor_class(args.actor)
@@ -96,15 +96,14 @@ def get_main_actor(dry):
 
     # Actor not specified. Process JSON file.
     try:
-        json_file = args.json or sys.argv[1] if sys.argv else None
+        script = args.script or sys.argv[1] if sys.argv else None
     except Exception as e:
         kingpin_fail(
-            '%s You must specify --json or provide it as first argument.'
+            '%s You must specify --script or provide it as first argument.'
             % e)
 
     return Macro(desc='Kingpin',
-                 options={'macro': json_file,
-                          'tokens': env_tokens},
+                 options={'macro': script, 'tokens': env_tokens},
                  dry=dry)
 
 
@@ -113,7 +112,7 @@ def main():
 
     if args.actor and args.explain:
         ActorClass = actor_utils.get_actor_class(args.actor)
-        print ActorClass.__doc__
+        print(ActorClass.__doc__)
         sys.exit(0)
 
     if args.build_only:

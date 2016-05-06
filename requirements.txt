@@ -15,6 +15,7 @@ simplejson
 jsonschema
 demjson
 datadiff
+PyYAML
 
 # Colorize the log output!
 rainbow_logging_handler

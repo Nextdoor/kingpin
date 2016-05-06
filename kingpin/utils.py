@@ -28,8 +28,8 @@ import logging
 import os
 import re
 import sys
+import yaml
 import time
-import traceback
 
 from tornado import gen
 from tornado import ioloop
@@ -184,8 +184,7 @@ def exception_logger(func):
             return func(*args, **kwargs)
         except Exception as e:
             log.debug('Exception caught in %s(%s, %s): %s' %
-                      (func, args, kwargs, e))
-            log.debug(traceback.format_exc())
+                      (func, args, kwargs, e), exc_info=1)
             raise
     return wrapper
 
@@ -297,47 +296,59 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
     return string
 
 
-def convert_json_to_dict(json_file, tokens):
+def convert_script_to_dict(script_file, tokens):
     """Converts a JSON file to a config dict.
 
     Reads in a JSON file, swaps out any environment variables that
     have been used inside the JSON, and then returns a dictionary.
 
     Args:
-        json_file: Path to the JSON file to import, or file instance.
+        script_file: Path to the JSON/YAML file to import, or file instance.
         tokens: dictionary to pass to populate_with_tokens.
 
     Returns:
         <Dictonary of Config Data>
 
     Raises:
-        kingpin.exceptions.InvalidJSON
+        kingpin.exceptions.InvalidScript
     """
 
     filename = ''
     try:
-        if type(json_file) in (str, unicode):
-            filename = json_file
-            instance = open(json_file)
-        elif type(json_file) is file:
-            filename = json_file.name
-            instance = json_file
+        if type(script_file) in (str, unicode):
+            filename = script_file
+            instance = open(script_file)
+        elif type(script_file) is file:
+            filename = script_file.name
+            instance = script_file
         else:
-            filename = str(json_file)
-            instance = json_file
+            filename = str(script_file)
+            instance = script_file
     except IOError as e:
-        raise exceptions.InvalidJSON('Error reading json_file %s: %s' %
-                                     (json_file, e))
+        raise exceptions.InvalidScript('Error reading script %s: %s' %
+                                       (script_file, e))
 
     raw = instance.read()
     parsed = populate_with_tokens(raw, tokens)
 
+    # If the file ends with .json, use demjson to read it. If it ends with
+    # .yml/.yaml, use PyYAML. If neither, error.
+    suffix = filename.split('.')[-1].strip().lower()
     try:
-        decoded = demjson.decode(parsed)
+        if suffix == 'json':
+            decoded = demjson.decode(parsed)
+        elif suffix in ('yml', 'yaml'):
+            decoded = yaml.safe_load(parsed)
+            if decoded is None:
+                raise exceptions.InvalidScript(
+                    'Invalid YAML in `%s`' % filename)
+        else:
+            raise exceptions.InvalidScriptName(
+                'Invalid file extension: %s' % suffix)
     except demjson.JSONError as e:
         # demjson exceptions have `pretty_description()` method with
         # much more useful info.
-        raise exceptions.InvalidJSON('JSON in `%s` has an error: %s' % (
+        raise exceptions.InvalidScript('JSON in `%s` has an error: %s' % (
             filename, e.pretty_description()))
     return decoded
 
