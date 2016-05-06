@@ -281,11 +281,11 @@ class EntityBaseActor(base.IAMBaseActor):
         """
         if self._dry:
             self.log.warning('Would delete policy %s from %s %s' %
-                             (self.entity_name, policy_name, name))
+                             (policy_name, self.entity_name, name))
             raise gen.Return()
 
         self.log.info('Deleting policy %s from %s %s' %
-                      (self.entity_name, policy_name, name))
+                      (policy_name, self.entity_name, name))
         try:
             ret = yield self.thread(
                 self.delete_entity_policy, name, policy_name)
@@ -306,11 +306,11 @@ class EntityBaseActor(base.IAMBaseActor):
         """
         if self._dry:
             self.log.warning('Would push policy %s to %s %s' %
-                             (self.entity_name, policy_name, name))
+                             (policy_name, self.entity_name, name))
             raise gen.Return()
 
         self.log.info('Pushing policy %s to %s %s' %
-                      (self.entity_name, policy_name, name))
+                      (policy_name, self.entity_name, name))
         try:
             ret = yield self.thread(
                 self.put_entity_policy,
@@ -553,6 +553,8 @@ class User(EntityBaseActor):
                             'List of inline policy JSON files to apply.')
     }
 
+    desc = "IAM User {name}"
+
     def __init__(self, *args, **kwargs):
         super(User, self).__init__(*args, **kwargs)
 
@@ -687,6 +689,8 @@ class Group(EntityBaseActor):
         'inline_policies': ((str, list), None,
                             'List of inline policy JSON files to apply.')
     }
+
+    desc = "IAM Group {name}"
 
     def __init__(self, *args, **kwargs):
         super(Group, self).__init__(*args, **kwargs)
@@ -831,7 +835,7 @@ class Role(EntityBaseActor):
     """
 
     all_options = {
-        'name': (str, REQUIRED, 'The name of the group.'),
+        'name': (str, REQUIRED, 'The name of the role.'),
         'state': (STATE, 'present',
                   'Desired state of the group: present/absent'),
         'inline_policies': ((str, list), None,
@@ -840,6 +844,8 @@ class Role(EntityBaseActor):
                                         ('The policy that grants an entity'
                                          'permission to assume the role'))
     }
+
+    desc = "IAM Role {name}"
 
     def __init__(self, *args, **kwargs):
         super(Role, self).__init__(*args, **kwargs)
@@ -964,11 +970,13 @@ class InstanceProfile(EntityBaseActor):
     """
 
     all_options = {
-        'name': (str, REQUIRED, 'The name of the group.'),
+        'name': (str, REQUIRED, 'The name of the instance profile.'),
         'state': (STATE, 'present',
                   'Desired state of the group: present/absent'),
         'role': (str, None, 'Name of an IAM Role to assign')
     }
+
+    desc = "InstanceProfile {name}"
 
     def __init__(self, *args, **kwargs):
         super(InstanceProfile, self).__init__(*args, **kwargs)
