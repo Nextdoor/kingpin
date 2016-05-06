@@ -100,13 +100,29 @@ class TestUtils(unittest.TestCase):
         ret = utils.convert_script_to_dict(instance, {})
         self.assertEquals(type(ret), dict)
 
-    def test_convert_script_to_dict_junk_json(self):
+    def test_convert_script_to_dict_bad_name(self):
         instance = StringIO.StringIO()  # Empty buffer will fail demjson.
+        instance.__repr__ = lambda: 'Somefile.HAHA'
+
+        with self.assertRaises(exceptions.InvalidScriptName):
+            utils.convert_script_to_dict(instance, {})
+
+    def test_convert_script_to_dict_junk(self):
+        instance = StringIO.StringIO()
+        instance.__repr__ = lambda: 'Somefile.json'
+
         with self.assertRaises(exceptions.InvalidScript):
             utils.convert_script_to_dict(instance, {})
 
         with self.assertRaises(exceptions.InvalidScript):
             utils.convert_script_to_dict('junk data', {})
+
+        instance = StringIO.StringIO()
+        instance.__repr__ = lambda: 'Somefile.yaml'
+        instance.write('---bad-yaml')
+
+        with self.assertRaises(exceptions.InvalidScript):
+            utils.convert_script_to_dict(instance, {})
 
     def test_exception_logger(self):
         @utils.exception_logger

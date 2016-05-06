@@ -185,8 +185,7 @@ def exception_logger(func):
             return func(*args, **kwargs)
         except Exception as e:
             log.debug('Exception caught in %s(%s, %s): %s' %
-                      (func, args, kwargs, e))
-            log.debug(traceback.format_exc())
+                      (func, args, kwargs, e), exc_info=1)
             raise
     return wrapper
 
@@ -341,19 +340,17 @@ def convert_script_to_dict(script_file, tokens):
             decoded = demjson.decode(parsed)
         elif suffix in ('yml', 'yaml'):
             decoded = yaml.safe_load(parsed)
+            if decoded is None:
+                raise exceptions.InvalidScript(
+                    'Invalid YAML in `%s`' % filename)
         else:
-            raise exceptions.InvalidScript('Invalid file extension: %s' %
-                                           suffix)
+            raise exceptions.InvalidScriptName(
+                'Invalid file extension: %s' % suffix)
     except demjson.JSONError as e:
         # demjson exceptions have `pretty_description()` method with
         # much more useful info.
         raise exceptions.InvalidScript('JSON in `%s` has an error: %s' % (
             filename, e.pretty_description()))
-    except yaml.scanner.ScannerError as e:
-        # demjson exceptions have `pretty_description()` method with
-        # much more useful info.
-        raise exceptions.InvalidScript('YAML in `%s` has an error: %s' % (
-            filename, e))
     return decoded
 
 
