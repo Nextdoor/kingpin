@@ -181,7 +181,7 @@ class Macro(base.BaseActor):
             buf = StringIO.StringIO()
             # Set buffer representation for debug printing.
             buf.__repr__ = lambda: (
-                '<In-memory file from "%s">' % self.option('macro'))
+                'In-memory file from: %s' % self.option('macro'))
             buf.write(R.body)
             buf.seek(0)
             client.close()
@@ -216,7 +216,7 @@ class Macro(base.BaseActor):
             return utils.convert_script_to_dict(
                 script_file=script_file,
                 tokens=self.option('tokens'))
-        except kingpin_exceptions.InvalidScript as e:
+        except (kingpin_exceptions.InvalidScript, LookupError) as e:
             raise exceptions.UnrecoverableActorFailure(e)
 
     def _check_schema(self, config):
