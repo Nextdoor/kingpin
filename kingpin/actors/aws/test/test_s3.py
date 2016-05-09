@@ -66,7 +66,8 @@ class TestBucket(testing.AsyncTestCase):
         self.actor._delete_bucket = mock.MagicMock()
         self.actor._delete_bucket.side_effect = [tornado_value(None)]
 
-        yield self.actor._ensure_bucket()
+        ret = yield self.actor._ensure_bucket()
+        self.assertEquals(True, ret)
         self.assertFalse(self.actor._create_bucket.called)
         self.assertFalse(self.actor._delete_bucket.called)
 
@@ -80,7 +81,8 @@ class TestBucket(testing.AsyncTestCase):
         self.actor._delete_bucket = mock.MagicMock()
         self.actor._delete_bucket.side_effect = [tornado_value(None)]
 
-        yield self.actor._ensure_bucket()
+        ret = yield self.actor._ensure_bucket()
+        self.assertEquals(None, ret)
         self.assertFalse(self.actor._create_bucket.called)
         self.actor._delete_bucket.assert_called_with(True)
 
@@ -90,11 +92,12 @@ class TestBucket(testing.AsyncTestCase):
         self.actor._get_bucket = mock.MagicMock()
         self.actor._get_bucket.side_effect = [tornado_value(None)]
         self.actor._create_bucket = mock.MagicMock()
-        self.actor._create_bucket.side_effect = [tornado_value(None)]
+        self.actor._create_bucket.side_effect = [tornado_value(True)]
         self.actor._delete_bucket = mock.MagicMock()
         self.actor._delete_bucket.side_effect = [tornado_value(None)]
 
-        yield self.actor._ensure_bucket()
+        ret = yield self.actor._ensure_bucket()
+        self.assertEquals(True, ret)
         self.assertTrue(self.actor._create_bucket.called)
         self.assertFalse(self.actor._delete_bucket.called)
 
@@ -108,7 +111,8 @@ class TestBucket(testing.AsyncTestCase):
         self.actor._delete_bucket = mock.MagicMock()
         self.actor._delete_bucket.side_effect = [tornado_value(None)]
 
-        yield self.actor._ensure_bucket()
+        ret = yield self.actor._ensure_bucket()
+        self.assertEquals(None, ret)
         self.assertFalse(self.actor._create_bucket.called)
         self.assertFalse(self.actor._delete_bucket.called)
 
@@ -116,15 +120,17 @@ class TestBucket(testing.AsyncTestCase):
     def test_create_bucket_dry(self):
         self.actor._dry = True
         self.actor.s3_conn.create_bucket = mock.MagicMock()
-        self.actor.s3_conn.create_bucket.side_effect = [tornado_value(None)]
-        yield self.actor._create_bucket()
+        self.actor.s3_conn.create_bucket.return_value = True
+        ret = yield self.actor._create_bucket()
+        self.assertEquals(None, ret)
         self.assertFalse(self.actor.s3_conn.create_bucket.called)
 
     @testing.gen_test
     def test_create_bucket(self):
         self.actor.s3_conn.create_bucket = mock.MagicMock()
-        self.actor.s3_conn.create_bucket.side_effect = [tornado_value(None)]
-        yield self.actor._create_bucket()
+        self.actor.s3_conn.create_bucket.return_value = True
+        ret = yield self.actor._create_bucket()
+        self.assertEquals(True, ret)
         self.actor.s3_conn.create_bucket.assert_called_with('test')
 
     @testing.gen_test

@@ -145,13 +145,15 @@ class Bucket(S3BaseActor):
 
         if state == 'absent' and bucket is None:
             self.log.debug('Bucket does not exist')
-            raise gen.Return()
         elif state == 'absent' and bucket:
             yield self._delete_bucket(bucket)
+            bucket = None
         elif state == 'present' and bucket is None:
-            yield self._create_bucket()
+            bucket = yield self._create_bucket()
         elif state == 'present' and bucket:
             self.log.debug('Bucket exists')
+
+        raise gen.Return(bucket)
 
     @gen.coroutine
     def _create_bucket(self):
