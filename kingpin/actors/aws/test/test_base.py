@@ -38,7 +38,18 @@ class TestBase(testing.AsyncTestCase):
         self.assertEquals(actor.ec2_conn.region.name, 'us-west-1')
 
     @testing.gen_test
-    def test_thread_exception(self):
+    def test_thread_400(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        actor.elb_conn = mock.Mock()
+        actor.elb_conn.get_all_load_balancers = mock.MagicMock()
+        exc = BotoServerError(400, 'Bad Request')
+        actor.elb_conn.get_all_load_balancers.side_effect = exc
+
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield actor._find_elb('')
+
+    @testing.gen_test
+    def test_thread_403(self):
         actor = base.AWSBaseActor('Unit Test Action', {})
         actor.elb_conn = mock.Mock()
         actor.elb_conn.get_all_load_balancers = mock.MagicMock()

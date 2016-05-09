@@ -180,8 +180,22 @@ class AWSBaseActor(base.BaseActor):
         try:
             return function(*args, **kwargs)
         except boto_exception.BotoServerError as e:
-            msg = '%s: %s' % (e.error_code, e.message)
+            # If we're using temporary IAM credentials, when those expire we
+            # can get back a blank 400 from Amazon. This is confusing, but it
+            # happens because of https://github.com/boto/boto/issues/898. In
+            # most cases, these temporary IAM creds can be re-loaded by
+            # reaching out to the AWS API (for example, if we're using an IAM
+            # Instance Profile role), so thats what Boto tries to do. However,
+            # if you're using short-term creds (say from SAML auth'd logins),
+            # then this fails and Boto returns a blank 400.
+            if (e.status == 400 and
+                e.reason == 'Bad Request' and
+                    e.error_code is None):
+                self.log.error(e.__dict__)
+                msg = 'Access credentials have expired'
+                raise exceptions.InvalidCredentials(msg)
 
+            msg = '%s: %s' % (e.error_code, e.message)
             if e.status == 403:
                 raise exceptions.InvalidCredentials(msg)
 
