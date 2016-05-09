@@ -45,11 +45,13 @@ from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
 from retrying import retry
+from boto.s3.connection import OrdinaryCallingFormat
 import boto.cloudformation
 import boto.ec2
 import boto.ec2.elb
 import boto.iam
 import boto.sqs
+import boto.s3
 
 from kingpin import utils
 from kingpin import exceptions as kingpin_exceptions
@@ -157,6 +159,11 @@ class AWSBaseActor(base.BaseActor):
             region,
             aws_access_key_id=key,
             aws_secret_access_key=secret)
+        self.s3_conn = boto.s3.connect_to_region(
+            region,
+            aws_access_key_id=key,
+            aws_secret_access_key=secret,
+            calling_format=OrdinaryCallingFormat())
 
     @concurrent.run_on_executor
     @retry(**aws_settings.RETRYING_SETTINGS)

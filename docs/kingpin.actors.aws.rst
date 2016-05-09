@@ -29,6 +29,13 @@ Identity and Access Management (IAM)
    :members:
    :exclude-members: IAMBaseActor
 
+Simple Storage Service (S3)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. automodule:: kingpin.actors.aws.s3
+   :noindex:
+   :members:
+   :exclude-members: S3BaseActor
+
 Simple Queue Service (SQS)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. automodule:: kingpin.actors.aws.sqs
