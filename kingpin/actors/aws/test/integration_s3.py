@@ -58,6 +58,34 @@ class IntegrationS3(testing.AsyncTestCase):
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
+    def integration_01b_set_bucket_policy(self):
+        actor = s3.Bucket(
+            options={
+                'name': self.bucket_name,
+                'region': self.region,
+                'state': 'present',
+                'policy': 'examples/aws.s3/amazon_put.json',
+            }
+        )
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=60)
+    def integration_01c_delete_bucket_policy(self):
+        actor = s3.Bucket(
+            options={
+                'name': self.bucket_name,
+                'region': self.region,
+                'state': 'present',
+                'policy': '',
+            }
+        )
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=60)
     def integration_09_delete_bucket(self):
         actor = s3.Bucket(
             options={

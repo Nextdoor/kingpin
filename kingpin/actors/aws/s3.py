@@ -17,7 +17,9 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 """
 
+import json
 import logging
+import mock
 
 from boto.exception import S3ResponseError
 from boto.exception import BotoServerError
@@ -48,7 +50,9 @@ class S3BaseActor(base.AWSBaseActor):
     all_options = {
         'name': (str, REQUIRED, 'Name of the S3 Bucket'),
         'state': (STATE, 'present',
-                         'Desired state of the bucket: present/absent'),
+                  'Desired state of the bucket: present/absent'),
+        'policy': ((str, None), None,
+                   'Path to the JSON policy file to apply to the bucket.'),
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2')
     }
 
@@ -60,6 +64,7 @@ class Bucket(S3BaseActor):
     The actor has the following functionality:
 
       * Ensure that an S3 bucket is present or absent.
+      * Manage the bucket policy.
 
     **Note about Buckets with Files**
 
@@ -77,6 +82,12 @@ class Bucket(S3BaseActor):
     :state:
       (str) Present or Absent. Default: "present"
 
+    :policy:
+      (str, None) A JSON file with the bucket policy. Passing in a blank string
+      will cause any policy to be deleted. Passing in None (or not passing it
+      in at all) will cause Kingpin to ignore the policy for the bucket
+      entirely. Default: None
+
     :region:
       AWS region (or zone) name, such as us-east-1 or us-west-2
 
@@ -86,8 +97,9 @@ class Bucket(S3BaseActor):
 
        { "actor": "aws.s3.Bucket",
          "options": {
-           "name": "production-logs",
-           "region": "us-west-2"
+           "name": "kingpin-integration-testing",
+           "region": "us-west-2",
+           "policy": "./examples/aws.s3/amazon_put.json",
          }
        }
 
@@ -104,6 +116,15 @@ class Bucket(S3BaseActor):
     """
 
     desc = "S3 Bucket {name}"
+
+    def __init__(self, *args, **kwargs):
+        super(Bucket, self).__init__(*args, **kwargs)
+
+        # If the policy is None, or '', we simply set it to self.policy. If its
+        # anything else, we parse it.
+        self.policy = self.option('policy')
+        if self.option('policy'):
+            self.policy = self._parse_policy_json(self.option('policy'))
 
     @gen.coroutine
     def _get_bucket(self):
@@ -162,10 +183,23 @@ class Bucket(S3BaseActor):
         returns:
             <A boto.s3.Bucket object>
         """
+        # If we're running in DRY mode, then we create a fake bucket object
+        # that will be passed back. This mock object lets us simplify the rest
+        # of our code because we can mock out the results of creating a fresh
+        # empty bucket with no policies, versions, etc.
         if self._dry:
             self.log.warning('Would have created s3://%s' %
                              self.option('name'))
-            raise gen.Return()
+
+            # Generate a fake bucket and return it
+            mock_bucket = mock.MagicMock(name=self.option('name'))
+
+            # Mock out the get_policy function to raise a 404 because there is
+            # no policy attached to buckets by default. This is used to trick
+            # the self._ensure_policy() function.
+            mock_bucket.get_policy.side_effect = S3ResponseError(404, 'Empty')
+
+            raise gen.Return(mock_bucket)
 
         # This throws no exceptions, even if the bucket exists, that we know
         # about or can expect.
@@ -201,16 +235,94 @@ class Bucket(S3BaseActor):
                     'Cannot delete bucket: %s' % e.message)
 
     @gen.coroutine
+    def _ensure_policy(self, bucket):
+        """Ensure the policy attached to the bucket is correct.
+
+        (Note, this method is longer than we'd like .. but in this Bucket actor
+        is going to do _a lot_ of things, so encapsulating the logic all in a
+        single method makes the rest of the code easier to read and
+        understand.)
+
+        args:
+            bucket: The S3 bucket object as returned by Boto
+        """
+        new = self.policy
+        exist = {}
+
+        # Get our existing policy and convert it into a dict we can deal with
+        try:
+            raw = yield self.thread(bucket.get_policy)
+            exist = json.loads(raw)
+        except S3ResponseError as e:
+            if e.status != 404:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected error occurred: %s' % e)
+
+        # Now, if we're deleting the policy (policy=''), then optionally do
+        # that and bail.
+        if new == '':
+            # If no existing policy was found, just get us out of this function
+            if not exist:
+                raise gen.Return()
+
+            if self._dry:
+                self.log.warning('Would have deleted bucket policy')
+                raise gen.Return()
+
+            self.log.info('Deleting bucket policy')
+            try:
+                yield self.thread(bucket.delete_policy)
+            except S3ResponseError as e:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected error occurred: %s' % e)
+            raise gen.Return()
+
+        # Now, diff our new policy from the existing policy. If there is no
+        # difference, then we bail out of the method.
+        diff = self._diff_policy_json(exist, new)
+        if not diff:
+            self.log.debug('Bucket policy matches')
+            raise gen.Return()
+
+        # Now, print out the diff..
+        self.log.info('Bucket policy differs from Amazons:')
+        for line in diff.split('\n'):
+            self.log.info('Diff: %s' % line)
+
+        # Final DRY check ... if dry, get out of here.
+        if self._dry:
+            self.log.warning('Would have pushed bucket policy %s'
+                             % self.option('policy'))
+            raise gen.Return()
+
+        # Push the new policy!
+        self.log.info('Pushing bucket policy %s' % self.option('policy'))
+        self.log.debug('Policy doc: %s' % new)
+        try:
+            yield self.thread(bucket.set_policy, json.dumps(new))
+        except S3ResponseError as e:
+            if e.error_code == 'MalformedPolicy':
+                raise base.InvalidPolicy(e.message)
+
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected error occurred: %s' % e)
+        raise gen.Return()
+
+    @gen.coroutine
     def _execute(self):
         """Executes an actor and yields the results when its finished.
 
         raises: gen.Return(True)
         """
-        yield self._ensure_bucket()
+        bucket = yield self._ensure_bucket()
 
-        # We don't go any further -- if we're deleting the bucket, we're done
-        # here. Just return.
+        # If we're deleting the bucket, then there is no need to continue after
+        # we've done that.
         if self.option('state') == 'absent':
             raise gen.Return()
+
+        # Only manage the policy if self.policy was actually set.
+        if self.policy is not None:
+            yield self._ensure_policy(bucket)
 
         raise gen.Return()

@@ -5,6 +5,7 @@ from tornado import testing
 import mock
 
 from kingpin.actors import exceptions
+from kingpin.actors.aws import base as aws_base
 from kingpin.actors.aws import s3 as s3_actor
 from kingpin.actors.aws import settings
 from kingpin.actors.test.helper import tornado_value
@@ -25,6 +26,7 @@ class TestBucket(testing.AsyncTestCase):
             options={
                 'name': 'test',
                 'region': 'us-east-1',
+                'policy': 'examples/aws.s3/amazon_put.json',
             })
         self.actor.s3_conn = mock.MagicMock()
 
@@ -122,7 +124,7 @@ class TestBucket(testing.AsyncTestCase):
         self.actor.s3_conn.create_bucket = mock.MagicMock()
         self.actor.s3_conn.create_bucket.return_value = True
         ret = yield self.actor._create_bucket()
-        self.assertEquals(None, ret)
+        self.assertTrue(isinstance(ret, mock.MagicMock))
         self.assertFalse(self.actor.s3_conn.create_bucket.called)
 
     @testing.gen_test
@@ -171,6 +173,86 @@ class TestBucket(testing.AsyncTestCase):
             yield self.actor._delete_bucket(fake_bucket)
 
     @testing.gen_test
+    def test_ensure_policy_is_500(self):
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_policy.side_effect = S3ResponseError(500, 'None')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._ensure_policy(fake_bucket)
+
+    @testing.gen_test
+    def test_ensure_policy_is_404_and_wants_absent(self):
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_policy.side_effect = S3ResponseError(404, 'None')
+        self.actor.policy = ''
+        yield self.actor._ensure_policy(fake_bucket)
+
+    @testing.gen_test
+    def test_ensure_policy_is_present_and_wants_absent(self):
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_policy.return_value = '{"fake_pol": 1}'
+        self.actor.policy = ''
+        yield self.actor._ensure_policy(fake_bucket)
+        self.assertTrue(fake_bucket.delete_policy.called)
+
+    @testing.gen_test
+    def test_ensure_policy_is_present_and_wants_absent_500(self):
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_policy.return_value = '{"fake_pol": 1}'
+        fake_bucket.delete_policy.side_effect = S3ResponseError(500, 'None')
+        self.actor.policy = ''
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._ensure_policy(fake_bucket)
+
+    @testing.gen_test
+    def test_ensure_policy_is_present_and_wants_absent_dry(self):
+        self.actor._dry = True
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_policy.return_value = '{"fake_pol": 1}'
+        self.actor.policy = ''
+        yield self.actor._ensure_policy(fake_bucket)
+
+    @testing.gen_test
+    def test_ensure_policy_is_present_and_wants_different_dry(self):
+        self.actor._dry = True
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_policy.return_value = '{"fake_pol": 1}'
+        yield self.actor._ensure_policy(fake_bucket)
+        self.assertFalse(fake_bucket.set_policy.called)
+
+    @testing.gen_test
+    def test_ensure_policy_is_present_and_wants_same(self):
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_policy.return_value = '{"fake_pol": 1}'
+        self.actor.policy = {"fake_pol": 1}
+        yield self.actor._ensure_policy(fake_bucket)
+        self.assertFalse(fake_bucket.set_policy.called)
+
+    @testing.gen_test
+    def test_ensure_policy_is_present_and_wants_different(self):
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_policy.return_value = '{"fake_pol": 1}'
+        yield self.actor._ensure_policy(fake_bucket)
+        self.assertTrue(fake_bucket.set_policy.called)
+
+    @testing.gen_test
+    def test_ensure_policy_is_present_and_wants_different_malformed(self):
+        malformed_exc = S3ResponseError(400, 'Bad')
+        malformed_exc.error_code = 'MalformedPolicy'
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_policy.return_value = '{"fake_pol": 1}'
+        fake_bucket.set_policy.side_effect = malformed_exc
+        with self.assertRaises(aws_base.InvalidPolicy):
+            yield self.actor._ensure_policy(fake_bucket)
+
+    @testing.gen_test
+    def test_ensure_policy_is_present_and_wants_different_500(self):
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_policy.return_value = '{"fake_pol": 1}'
+        fake_bucket.set_policy.side_effect = S3ResponseError(500, 'Fail')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._ensure_policy(fake_bucket)
+
+    @testing.gen_test
     def test_execute_absent(self):
         self.actor._options['state'] = 'absent'
         self.actor._ensure_bucket = mock.MagicMock()
@@ -182,5 +264,8 @@ class TestBucket(testing.AsyncTestCase):
     def test_execute_present(self):
         self.actor._ensure_bucket = mock.MagicMock()
         self.actor._ensure_bucket.side_effect = [tornado_value(None)]
+        self.actor._ensure_policy = mock.MagicMock()
+        self.actor._ensure_policy.side_effect = [tornado_value(None)]
         yield self.actor._execute()
         self.assertTrue(self.actor._ensure_bucket.called)
+        self.assertTrue(self.actor._ensure_policy.called)
