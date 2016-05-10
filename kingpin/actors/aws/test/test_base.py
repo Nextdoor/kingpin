@@ -166,6 +166,13 @@ class TestBase(testing.AsyncTestCase):
             actor._parse_policy_json('junk')
 
     @testing.gen_test
+    def test_parse_policy_json_none(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        ret = actor._parse_policy_json(None)
+        self.assertEquals(ret, None)
+
+
+    @testing.gen_test
     def test_diff_policy_json(self):
         actor = base.AWSBaseActor('Unit Test Action', {})
 

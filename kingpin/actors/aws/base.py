@@ -272,12 +272,17 @@ class AWSBaseActor(base.BaseActor):
         comments, and fills in any environmental tokens. Returns a dictionary
         of the contents.
 
+        Returns None if the input is None.
+
         args:
             policy: The Policy JSON file to read.
 
         returns:
             A dictionary of the parsed policy.
         """
+        if policy is None:
+            return None
+
         # Run through any supplied Inline IAM Policies and verify that they're
         # not corrupt very early on.
         self.log.debug('Parsing and validating %s' % policy)
