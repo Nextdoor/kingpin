@@ -45,11 +45,13 @@ from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
 from retrying import retry
+from boto.s3.connection import OrdinaryCallingFormat
 import boto.cloudformation
 import boto.ec2
 import boto.ec2.elb
 import boto.iam
 import boto.sqs
+import boto.s3
 
 from kingpin import utils
 from kingpin import exceptions as kingpin_exceptions
@@ -157,6 +159,11 @@ class AWSBaseActor(base.BaseActor):
             region,
             aws_access_key_id=key,
             aws_secret_access_key=secret)
+        self.s3_conn = boto.s3.connect_to_region(
+            region,
+            aws_access_key_id=key,
+            aws_secret_access_key=secret,
+            calling_format=OrdinaryCallingFormat())
 
     @concurrent.run_on_executor
     @retry(**aws_settings.RETRYING_SETTINGS)
@@ -173,8 +180,22 @@ class AWSBaseActor(base.BaseActor):
         try:
             return function(*args, **kwargs)
         except boto_exception.BotoServerError as e:
-            msg = '%s: %s' % (e.error_code, e.message)
+            # If we're using temporary IAM credentials, when those expire we
+            # can get back a blank 400 from Amazon. This is confusing, but it
+            # happens because of https://github.com/boto/boto/issues/898. In
+            # most cases, these temporary IAM creds can be re-loaded by
+            # reaching out to the AWS API (for example, if we're using an IAM
+            # Instance Profile role), so thats what Boto tries to do. However,
+            # if you're using short-term creds (say from SAML auth'd logins),
+            # then this fails and Boto returns a blank 400.
+            if (e.status == 400 and
+                e.reason == 'Bad Request' and
+                    e.error_code is None):
+                self.log.error(e.__dict__)
+                msg = 'Access credentials have expired'
+                raise exceptions.InvalidCredentials(msg)
 
+            msg = '%s: %s' % (e.error_code, e.message)
             if e.status == 403:
                 raise exceptions.InvalidCredentials(msg)
 
