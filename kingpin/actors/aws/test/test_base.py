@@ -171,7 +171,6 @@ class TestBase(testing.AsyncTestCase):
         ret = actor._parse_policy_json(None)
         self.assertEquals(ret, None)
 
-
     @testing.gen_test
     def test_diff_policy_json(self):
         actor = base.AWSBaseActor('Unit Test Action', {})

@@ -1,0 +1,29 @@
+/***
+ * Simple example policy that gives a particular Amazon region access
+ * to put log files into a bucket.
+ */
+{
+    "Statement": [
+        {
+            "Action": [
+                /***
+                 * These are deliberately out of alphabetical order to ensure that
+                 * in our tests, we re-order when we do the comparison before just
+                 * re-pushing the policy.
+                 */
+                "s3:Put*",
+                "s3:Get*"
+            ],
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::027434742980:root"
+            },
+            "Resource": [
+                "arn:aws:s3:::kingpin-integration-test",
+                "arn:aws:s3:::kingpin-integration-test/*"
+            ],
+            "Sid": "AddCannedAcl"
+        }
+    ],
+    "Version": "2012-10-17"
+}

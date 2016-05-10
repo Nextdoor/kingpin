@@ -76,6 +76,11 @@ class InvalidMetaData(exceptions.UnrecoverableActorFailure):
     """Raised when fetching AWS metadata."""
 
 
+class InvalidPolicy(exceptions.RecoverableActorFailure):
+
+    """Raised when Amazon indicates that policy JSON is invalid."""
+
+
 class AWSBaseActor(base.BaseActor):
 
     # Get references to existing objects that are used by the
@@ -191,7 +196,6 @@ class AWSBaseActor(base.BaseActor):
             if (e.status == 400 and
                 e.reason == 'Bad Request' and
                     e.error_code is None):
-                self.log.error(e.__dict__)
                 msg = 'Access credentials have expired'
                 raise exceptions.InvalidCredentials(msg)
 
