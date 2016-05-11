@@ -34,7 +34,6 @@ _Note, these can be skipped only if you have a .aws/credentials file in place._
 
 import json
 import logging
-import os
 import urllib
 import re
 
@@ -293,7 +292,7 @@ class AWSBaseActor(base.BaseActor):
 
         try:
             p_doc = utils.convert_script_to_dict(script_file=policy,
-                                                 tokens=os.environ)
+                                                 tokens=self._init_tokens)
         except kingpin_exceptions.InvalidScript as e:
             raise exceptions.UnrecoverableActorFailure('Error parsing %s: %s' %
                                                        (policy, e))
