@@ -286,10 +286,10 @@ Token-replacement
 *Environmental Tokens*
 
 In an effort to allow for more re-usable JSON files, *tokens* can be inserted
-into the raw JSON file like this ``%TOKEN_NAME%``. These will then be dynamically
-swapped with environment variables found at execution time. Any missing
-environment variables will cause the JSON parsing to fail and will notify you
-immediately.
+into the JSON/YAML file like this ``%TOKEN_NAME%``. These will then be
+dynamically swapped with environment variables found at execution time. Any
+missing environment variables will cause the JSON parsing to fail and will
+notify you immediately.
 
 For an example, take a look at the :download:`complex.json
 <../examples/complex.json>` file, and these examples of execution.
@@ -311,6 +311,113 @@ For an example, take a look at the :download:`complex.json
     2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Sending message "Beginning release 0001a" to Hipchat room "Oncall"
     ...
 
+*Deep Nested Tokens and Macros (new in 0.4.0)*
+
+In order to allow for more complex Kingpin script definitions with
+:py:mod:`misc.Macro`, :py:mod:`group.Sync` and :py:mod:`group.Async` actors,
+Kingpin allows for environmental and manually defined tokens to be passed down
+from actor to actor. Here's a fairly trivial example. Take this simple
+``sleeper.json`` example that relies on a ``%SLEEP%`` and ``%DESC%`` token.
+
+
+*sleeper.json*
+
+.. code-block:: json
+
+    { "actor": "misc.Sleep",
+      "desc": "Sleeping because %DESC%",
+      "options": {
+        "sleep": "%SLEEP%"
+      }
+    }
+
+One way to run this would be via the command line with the `$SLEEP`
+and `$DESC` environment variable set (*output stripped a bit for
+readability*):
+
+.. code-block:: bash
+
+    $ SKIP_DRY=1 DESC=pigs SLEEP=0.1 kingpin --debug --script sleeper.json
+    [Kingpin] Checking for required options: ['macro']
+    [Kingpin] Initialized (warn_on_failure=False, strict_init_context=True)
+    [Kingpin] Preparing actors from sleeper.json
+    [Kingpin] Parsing <open file u'sleeper.json', mode 'r' at 0x10c8ad150>
+    [Kingpin] Validating schema for sleeper.json
+    Building Actor "misc.Sleep" with args: {'init_tokens': '<hidden>', u'options': {u'sleep': u'0.1'}, u'desc': u'Sleeping because pigs'}
+    [Sleeping because pigs] Checking for required options: ['sleep']
+    [Sleeping because pigs] Initialized (warn_on_failure=False, strict_init_context=True)
+    
+    Lights, camera ... action!
+    
+    [Kingpin] Beginning
+    [Kingpin] Condition True evaluates to True
+    [Kingpin] kingpin.actors.misc.Macro._execute() deadline: None(s)
+    [Sleeping because pigs] Beginning
+    [Sleeping because pigs] Condition True evaluates to True
+    [Sleeping because pigs] kingpin.actors.misc.Sleep._execute() deadline: 3600(s)
+    [Sleeping because pigs] Sleeping for 0.1 seconds
+    [Sleeping because pigs] Finished successfully, return value: None
+    [Sleeping because pigs] kingpin.actors.misc.Sleep.execute() execution time: 0.11s
+    [Kingpin] Finished successfully, return value: None
+    [Kingpin] kingpin.actors.misc.Macro.execute() execution time: 0.11s
+
+
+Another way to run this would be with a wrapper script that sets the ``%DESC%``
+for you, but still leaves the ``%SLEEP%`` token up to you:
+
+*wrapper.json*
+
+.. code-block:: json
+
+  { "actor": "misc.Macro",
+    "options": {
+      "macro": "sleeper.json",
+      "tokens": {
+        "DESC": "flying-pigs"
+      }
+    }
+  }
+
+Now, watch us instantiate this wrapper - with `$DESC` and `$SLEEP` set.
+Notice how ``%DESC%`` is overridden by the token from the JSON wrapper?
+
+.. code-block:: bash
+
+  $ SKIP_DRY=1 DESC=pigs SLEEP=0.1 kingpin --debug --script wrapper.json
+
+  [Kingpin] Checking for required options: ['macro']
+  [Kingpin] Initialized (warn_on_failure=False, strict_init_context=True)
+  [Kingpin] Preparing actors from wrapper.json
+  [Kingpin] Parsing <open file u'wrapper.json', mode 'r' at 0x10f52f150>
+  [Kingpin] Validating schema for wrapper.json
+  Building Actor "misc.Macro" with args: {'init_tokens': '<hidden>', u'options': {u'tokens': {u'DESC': u'flying-pigs'}, u'macro': u'sleeper.json'}}
+  [Macro: sleeper.json] Checking for required options: ['macro']
+  [Macro: sleeper.json] Initialized (warn_on_failure=False, strict_init_context=True)
+  [Macro: sleeper.json] Preparing actors from sleeper.json
+  [Macro: sleeper.json] Parsing <open file u'sleeper.json', mode 'r' at 0x10f52f1e0>
+  [Macro: sleeper.json] Validating schema for sleeper.json
+  Building Actor "misc.Sleep" with args: {'init_tokens': '<hidden>', u'options': {u'sleep': u'0.1'}, u'desc': u'Sleeping because flying-pigs'}
+  [Sleeping because flying-pigs] Checking for required options: ['sleep']
+  [Sleeping because flying-pigs] Initialized (warn_on_failure=False, strict_init_context=True)
+  
+  Lights, camera ... action!
+  
+  [Kingpin] Beginning
+  [Kingpin] Condition True evaluates to True
+  [Kingpin] kingpin.actors.misc.Macro._execute() deadline: None(s)
+  [Macro: sleeper.json] Beginning
+  [Macro: sleeper.json] Condition True evaluates to True
+  [Macro: sleeper.json] kingpin.actors.misc.Macro._execute() deadline: None(s)
+  [Sleeping because flying-pigs] Beginning
+  [Sleeping because flying-pigs] Condition True evaluates to True
+  [Sleeping because flying-pigs] kingpin.actors.misc.Sleep._execute() deadline: 3600(s)
+  [Sleeping because flying-pigs] Sleeping for 0.1 seconds
+  [Sleeping because flying-pigs] Finished successfully, return value: None
+  [Sleeping because flying-pigs] kingpin.actors.misc.Sleep.execute() execution time: 0.10s
+  [Macro: sleeper.json] Finished successfully, return value: None
+  [Macro: sleeper.json] kingpin.actors.misc.Macro.execute() execution time: 0.10s
+  [Kingpin] Finished successfully, return value: None
+  [Kingpin] kingpin.actors.misc.Macro.execute() execution time: 0.11s
 
 *Contextual Tokens*
 
@@ -388,12 +495,7 @@ then reference that file. Context files support `token-replacement`_ just like
     { "desc": "Send ending notifications...",
       "actor": "group.Async",
       "options": {
-        "contexts": {
-          "file": "data/notification-rooms.json",
-          "tokens": {
-            "USER": "%USER%",
-          }
-        },
+        "contexts": "data/notification-rooms.json",
         "acts": [
           { "desc": "Notify {ROOM}",
             "actor": "hipchat.Message",

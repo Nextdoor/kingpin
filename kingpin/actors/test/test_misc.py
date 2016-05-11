@@ -33,14 +33,52 @@ class TestMacro(testing.AsyncTestCase):
             }
 
             actor = misc.Macro('Unit Test', {'macro': 'test.json',
-                                             'tokens': {}})
+                                             'tokens': {}},
+                               init_tokens={})
 
             j2d.assert_called_with(script_file='unit-test-macro', tokens={})
             self.assertEquals(schema_validate.call_count, 1)
             self.assertEquals(actor.initial_actor, get_actor())
 
+    def test_init_nested_tokens(self):
+        # Quick test to ensure that a series of nested groups and macro actors
+        # will pass supplied tokens all the way down to their sub actors.
+
+        # Generate a single outer actor. This actor will create many internal
+        # actors.
+        init_tokens = {'SLEEP': 0}
+        actor = misc.Macro(
+            options={'macro': 'examples/misc.macro/outer_group.yaml'},
+            init_tokens=init_tokens)
+
+        # Ensure that the initial misc.Macro actor, and the initial actor it
+        # created (from outer_group.yaml) both have the appropriate init
+        # tokens. This helps ensure that we used .copy() properly a well as the
+        # fact that the tokens were passed down appropriately.
+        self.assertEquals(actor._init_tokens, init_tokens)
+        self.assertEquals(actor.initial_actor._init_tokens, init_tokens)
+
+        # Ensure that the nested misc.Macro actor from outer_macro.yaml got
+        # init_tokens, AND the 'FOO' token from outer_group.yaml's own
+        # definition.
+        self.assertEquals(actor.initial_actor._actions[0]._init_tokens,
+                          {'SLEEP': 0, 'FOO': 'weee'})
+
+        # Next ensure that the mostly nested examples/misc.macro/inner.yaml
+        # actor got the SLEEP, FOO, and DESC tokens.
+        self.assertEquals(
+            actor.initial_actor._actions[0].initial_actor._init_tokens,
+            {'SLEEP': 0, 'FOO': 'weee', 'DESC': 'Sleeping for a while'})
+
+        # Finally, ensure the super nested
+        s = actor.initial_actor._actions[0].initial_actor.initial_actor
+        self.assertEquals(
+            s._init_tokens,
+            {'SLEEP': 0, 'FOO': 'weee', 'DESC': 'Sleeping for a while'})
+
     def test_init_remote(self):
         misc.Macro._get_config_from_script = mock.Mock()
+        misc.Macro._get_config_from_script.return_value = {}
         misc.Macro._check_schema = mock.Mock()
         with mock.patch('kingpin.actors.utils.get_actor'):
             with mock.patch.object(httpclient.HTTPClient, 'fetch'):
@@ -50,6 +88,7 @@ class TestMacro(testing.AsyncTestCase):
     def test_init_dry(self):
         misc.Macro._check_macro = mock.Mock()
         misc.Macro._get_config_from_script = mock.Mock()
+        misc.Macro._get_config_from_script.return_value = {}
         misc.Macro._check_schema = mock.Mock()
 
         with mock.patch('kingpin.utils.convert_script_to_dict') as j2d, \
@@ -114,6 +153,7 @@ class TestMacro(testing.AsyncTestCase):
         misc.Macro._check_macro = mock.Mock()
         misc.Macro._get_macro = mock.Mock()
         misc.Macro._get_config_from_script = mock.Mock()
+        misc.Macro._get_config_from_script.return_value = {}
         misc.Macro._check_schema = mock.Mock()
 
         with mock.patch('kingpin.actors.utils.get_actor') as get_actor:

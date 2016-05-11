@@ -106,8 +106,17 @@ class BaseActor(object):
     strict_init_context = True
 
     def __init__(self, desc=None, options={}, dry=False, warn_on_failure=False,
-                 condition=True, init_context={}, timeout=None):
+                 condition=True, init_context={}, timeout=None, *args,
+                 **kwargs):
         """Initializes the Actor.
+
+        Note about *args/**kwargs:
+          In rare cases, it may be that an Actor that subclasses BaseActor will
+          need to be able to privately pass or accept internal options that the
+          user never sees. An example of this is the group.Sync/Async and
+          misc.Macro actors which pass an 'init_tokens' dictionary around to
+          help with %TOKEN% parsing. In these cases, we want to silently accept
+          the passed in values, but we don't do anything with them ourselves.
 
         Args:
             desc: (Str) description of the action being executed.

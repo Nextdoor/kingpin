@@ -1,0 +1,6 @@
+---
+
+actor: misc.Sleep
+desc: %DESC%
+options:
+  sleep: %SLEEP%
