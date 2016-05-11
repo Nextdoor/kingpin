@@ -27,7 +27,6 @@ dedicated packages. Things like sleep timers, loggers, etc.
   headers/cookies/etc. are exposed*
 """
 
-import os
 import StringIO
 import json
 import logging
@@ -134,13 +133,9 @@ class Macro(base.BaseActor):
     def __init__(self, *args, **kwargs):
         """Pre-parse the script file and compile actors.
 
-        *Note about init_tokens:*
-          See group.BaseActor for more information.
-
-        args:
-            init_tokens: <privately used, see note above>
+        Note, we override the default init_tokens={} from the base class and
+        default it to a _copy_ of the os.environ dict.
         """
-
         super(Macro, self).__init__(*args, **kwargs)
 
         # Temporary check that macro is a local file.
@@ -152,7 +147,6 @@ class Macro(base.BaseActor):
         # and merge them with the explicitly defined tokens in the actor
         # definition itself. Give priority to the explicitly defined tokens on
         # any conflicts.
-        self._init_tokens = kwargs.get('init_tokens', os.environ.copy())
         self._init_tokens.update(self.option('tokens'))
 
         # Copy the tmp file / download a remote macro

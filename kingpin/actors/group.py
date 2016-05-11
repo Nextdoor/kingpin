@@ -80,17 +80,8 @@ class BaseGroupActor(base.BaseActor):
 
           See `Token-replacement <basicuse.html#token-replacement>` for more
           info.
-
-        args:
-          init_tokens: <privately used, see note above>
         """
         super(BaseGroupActor, self).__init__(*args, **kwargs)
-
-        # Store the init_tokens tokens that were passed into us at
-        # instantiation time -- these would only come from a misc.Macro or
-        # group.Sync/Async actor. These will be passed to all sub-actors in the
-        # _build_actions() method.
-        self._init_tokens = kwargs.get('init_tokens', {})
 
         # DEPRECATE IN v0.5.0
         if type(self.option('contexts')) == dict:

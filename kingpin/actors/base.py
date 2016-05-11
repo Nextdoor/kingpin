@@ -106,17 +106,9 @@ class BaseActor(object):
     strict_init_context = True
 
     def __init__(self, desc=None, options={}, dry=False, warn_on_failure=False,
-                 condition=True, init_context={}, timeout=None, *args,
-                 **kwargs):
+                 condition=True, init_context={}, init_tokens={},
+                 timeout=None):
         """Initializes the Actor.
-
-        Note about *args/**kwargs:
-          In rare cases, it may be that an Actor that subclasses BaseActor will
-          need to be able to privately pass or accept internal options that the
-          user never sees. An example of this is the group.Sync/Async and
-          misc.Macro actors which pass an 'init_tokens' dictionary around to
-          help with %TOKEN% parsing. In these cases, we want to silently accept
-          the passed in values, but we don't do anything with them ourselves.
 
         Args:
             desc: (Str) description of the action being executed.
@@ -129,6 +121,9 @@ class BaseActor(object):
             init_context: (Dict) Key/Value pairs used at instantiation
                 time to replace {KEY} strings in the actor definition.
                 This is usually driven by the group.Sync/Async actors.
+            init_tokens: (Dict) Key/Value pairs passed into the actor that can
+            be used for token replacement. Typically this is os.environ() plus
+            some custom tokens. Set generally by the misc.Macro actor.
             timeout: (Str/Int/Float) Timeout in seconds for the actor.
         """
         self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
@@ -138,6 +133,7 @@ class BaseActor(object):
         self._warn_on_failure = warn_on_failure
         self._condition = condition
         self._init_context = init_context
+        self._init_tokens = init_tokens
 
         self._timeout = timeout
         if timeout is None:
