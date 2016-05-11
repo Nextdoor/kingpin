@@ -19,8 +19,8 @@ from kingpin import exceptions
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
-SCHEMA_1_0 = {
-    'type': 'object',
+ACTOR_SCHEMA = {
+    'type': ['object'],
     'required': ['actor'],
     'additionalProperties': False,
     'properties': {
@@ -59,6 +59,17 @@ SCHEMA_1_0 = {
         # Optional conditional to indicate to skip this actor.
         'condition': {'type': ['boolean', 'string'], 'default': True},
     }
+}
+
+SCHEMA_1_0 = {
+    'definitions': {
+        'actor': ACTOR_SCHEMA
+    },
+
+    'anyOf': [
+        {'$ref': '#/definitions/actor'},
+        {'type': 'array', 'items': {'$ref': '#/definitions/actor'}}
+    ]
 }
 
 

@@ -1,0 +1,8 @@
+[
+  { "actor": "misc.Sleep",
+    "options": { "sleep": 1 }
+  },
+  { "actor": "misc.Sleep",
+    "options": { "sleep": 1 }
+  }
+]
