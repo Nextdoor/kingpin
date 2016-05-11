@@ -1,0 +1,6 @@
+---
+
+actor: misc.Macro
+desc: Calling sleeper ... going to be %DESC%
+options:
+  macro: examples/misc.macro/sleeper.yaml

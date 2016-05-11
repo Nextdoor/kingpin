@@ -39,6 +39,13 @@ class TestMacro(testing.AsyncTestCase):
             self.assertEquals(schema_validate.call_count, 1)
             self.assertEquals(actor.initial_actor, get_actor())
 
+    def test_init_nested_tokens(self):
+        actor = misc.Macro(
+            options={'macro': 'examples/misc.macro/outer.yaml'})
+        self.assertEquals(actor, True)
+
+        self.assertTrue(False)
+
     def test_init_remote(self):
         misc.Macro._get_config_from_script = mock.Mock()
         misc.Macro._check_schema = mock.Mock()

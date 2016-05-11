@@ -76,7 +76,7 @@ def get_actor_class(actor):
 
     # Try to load our local actors up first. Assume that the
     # 'kingpin.actors.' prefix was not included in the name.
-    for prefix in ['', 'kingpin.actors.', 'actors.']:
+    for prefix in ['kingpin.actors.', '', 'actors.']:
         full_actor = prefix + actor
         try:
             return utils.str_to_class(full_actor)

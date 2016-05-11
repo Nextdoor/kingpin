@@ -1,0 +1,8 @@
+---
+
+actor: misc.Macro
+options:
+  macro: examples/misc.macro/inner.yaml
+  tokens:
+    SLEEP: 0.1
+    DESC: Sleeping for a while
