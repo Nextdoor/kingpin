@@ -79,8 +79,6 @@ def kingpin_fail(message):
 
 
 def get_main_actor(dry):
-    env_tokens = dict(os.environ)
-
     # Cannot specify a script file an an actor at the same time.
     if args.script and args.actor:
         kingpin_fail('You may only specify --actor or --script, not both!')
@@ -102,9 +100,7 @@ def get_main_actor(dry):
             '%s You must specify --script or provide it as first argument.'
             % e)
 
-    return Macro(desc='Kingpin',
-                 options={'macro': script, 'tokens': env_tokens},
-                 dry=dry)
+    return Macro(desc='Kingpin', options={'macro': script}, dry=dry)
 
 
 @gen.coroutine

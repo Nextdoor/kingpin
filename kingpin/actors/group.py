@@ -51,7 +51,7 @@ class BaseGroupActor(base.BaseActor):
     default_timeout = None
 
     all_options = {
-        'contexts': ((dict, list), [], "List of contextual hashes."),
+        'contexts': ((dict, str, list), [], "List of contextual hashes."),
         'acts': (list, REQUIRED, "Array of actor definitions.")
     }
 
@@ -70,9 +70,29 @@ class BaseGroupActor(base.BaseActor):
         execute any code. This greatly increases our chances of catching JSON
         errors because every single object is pre-initialized before we ever
         begin executing any of our steps.
+
+        *Note about init_tokens:*
+          The group.BaseActor and misc.Macro actors support the concept of
+          externally supplied data (usually os.environ) being used as available
+          tokens for %TOKEN% parsing when reading JSON/YAML scripts. By passing
+          this data between these three actors, we are able to allow nested
+          token passing.
+
+          See `Token-replacement <basicuse.html#token-replacement>` for more
+          info.
+
+        args:
+          init_tokens: <privately used, see note above>
         """
         super(BaseGroupActor, self).__init__(*args, **kwargs)
 
+        # Store the init_tokens tokens that were passed into us at
+        # instantiation time -- these would only come from a misc.Macro or
+        # group.Sync/Async actor. These will be passed to all sub-actors in the
+        # _build_actions() method.
+        self._init_tokens = kwargs.get('init_tokens', {})
+
+        # DEPRECATE IN v0.5.0
         if type(self.option('contexts')) == dict:
             try:
                 filename = self.option('contexts').get('file', '')
@@ -81,6 +101,7 @@ class BaseGroupActor(base.BaseActor):
                 self.log.error('Option `contexts` must have valid `file`. '
                                'Received: %s' % filename)
                 raise exceptions.InvalidOptions(e)
+        # END DEPRECATION
 
         # Pre-initialize all of our actions!
         self._actions = self._build_actions()
@@ -104,8 +125,11 @@ class BaseGroupActor(base.BaseActor):
         if not contexts:
             return self._build_action_group(self._init_context)
 
+        # If the data passed into the 'contexts' is a list of dicts, we take it
+        # as is and do nothing to it.
         if type(contexts) == list:
             context_data = self.option('contexts')
+        # DEPRECATE IN v0.5.0
         elif type(contexts) == dict:
             context_string = open(contexts['file']).read()
             context_string = kp_utils.populate_with_tokens(
@@ -113,6 +137,15 @@ class BaseGroupActor(base.BaseActor):
                 tokens=contexts.get('tokens', {}),
                 strict=True)
             context_data = demjson.decode(context_string)
+        # END DEPRECATION
+
+        # If the data passed in is a string, it must be a pointer to a file
+        # with contexts in it. We read that file, and we parse it for any
+        # missing tokens. We use the "init tokens" that made it into this actor
+        # as available token substitutions.
+        elif isinstance(contexts, basestring):
+            context_data = kp_utils.convert_script_to_dict(
+                contexts, self._init_tokens)
 
         actions = []
         for context in context_data:
@@ -138,11 +171,13 @@ class BaseGroupActor(base.BaseActor):
             A list of references to <actor objects>.
         """
         actions = []
+        self.log.debug('Building %s actors' % len(self.option('acts')))
         for act in self.option('acts'):
-            act['init_context'] = context
-            self.log.debug('Building actor: %s' % act)
+            act['init_context'] = context.copy()
+            act['init_tokens'] = self._init_tokens.copy()
             actor = utils.get_actor(act, dry=self._dry)
             actions.append(actor)
+            self.log.debug('Actor %s built' % actor)
         return actions
 
     def _get_exc_type(self, exc_list):
@@ -199,10 +234,13 @@ class Sync(BaseGroupActor):
         at instantiation time. If the list has more than one element, then
         every actor defined in ``acts`` will be instantiated once for each item
         in the ``contexts`` list.
-      * A dictionary of ``file`` and ``tokens``. The file should be a relative
-        path with data formatted same as stated above. The tokens need to be
-        the same format as a Macro actor: a dictionary passing token data to be
-        used.
+      * A string that points to a file with a list of contexts, just like the
+        above dictionary.
+      * (_Deprecation warning, this is going away in v0.4.0. Use the 'str'
+        method above!_) A dictionary of ``file`` and ``tokens``. The file
+        should be a relative path with data formatted same as stated above. The
+        tokens need to be the same format as a Macro actor: a dictionary
+        passing token data to be used.
 
 
     **Timeouts**

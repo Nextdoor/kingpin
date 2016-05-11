@@ -27,6 +27,7 @@ dedicated packages. Things like sleep timers, loggers, etc.
   headers/cookies/etc. are exposed*
 """
 
+import os
 import StringIO
 import json
 import logging
@@ -51,23 +52,23 @@ __author__ = ('Matt Wise <matt@nextdoor.com>, '
 
 class Macro(base.BaseActor):
 
-    """Parses a kingpin JSON file, instantiates and executes it.
+    """Parses a kingpin script, instantiates and executes it.
 
-    **Parse JSON**
+    **Parse JSON/YAML**
 
-    Kingpin JSON has 2 passes at its validity. JSON syntax must be valid, with
-    the exception of a few useful deviations allowed by `demjson
+    Kingpin JSON/YAML has 2 passes at its validity. Script syntax must be
+    valid, with the exception of a few useful deviations allowed by `demjson
     <http://deron.meranda.us/python/demjson/>`_ parser. Main
     one being the permission of inline comments via ``/* this */`` syntax.
 
-    The second pass is validating the Schema. The JSON file will be validated
+    The second pass is validating the Schema. The script will be validated
     for schema-conformity as one of the first things that happens at load-time
     when the app starts up. If it fails, you will be notified immediately.
 
-    Lastly after JSON is established to be valid, all the tokens are replaced
-    with their specified value. Any key/value pair passed in the ``tokens``
-    option will be available inside of the JSON file as ``%KEY%`` and replaced
-    with the value at this time.
+    Lastly after the JSON/YAML is established to be valid, all the tokens are
+    replaced with their specified value. Any key/value pair passed in the
+    ``tokens`` option will be available inside of the JSON file as ``%KEY%``
+    and replaced with the value at this time.
 
     In a situation where nested Macro executions are invoked the tokens *do
     not* propagate from outter macro into the inner. This allows to reuse token
@@ -79,7 +80,7 @@ class Macro(base.BaseActor):
 
     In an effort to prevent mid-run errors, we pre-instantiate all Actor
     objects all at once before we ever begin executing code. This ensures that
-    major typos or misconfigurations in the JSON will be caught early on.
+    major typos or misconfigurations in the JSON/YAML will be caught early on.
 
     **Execution**
 
@@ -89,7 +90,7 @@ class Macro(base.BaseActor):
     **Options**
 
     :macro:
-      String of local path to a JSON file.
+      String of local path to a JSON/YAML script.
 
     :tokens:
       Dictionary to search/replace within the file.
@@ -123,7 +124,7 @@ class Macro(base.BaseActor):
 
     all_options = {
         'macro': (str, REQUIRED,
-                  "Path to a Kingpin JSON file. http(s)://, file:///, "
+                  "Path to a Kingpin script. http(s)://, file:///, "
                   "absolute or relative file paths."),
         'tokens': (dict, {}, "Tokens passed into the JSON file.")
     }
@@ -131,7 +132,14 @@ class Macro(base.BaseActor):
     desc = "Macro: {macro}"
 
     def __init__(self, *args, **kwargs):
-        """Pre-parse the script file and compile actors."""
+        """Pre-parse the script file and compile actors.
+
+        *Note about init_tokens:*
+          See group.BaseActor for more information.
+
+        args:
+            init_tokens: <privately used, see note above>
+        """
 
         super(Macro, self).__init__(*args, **kwargs)
 
@@ -139,6 +147,13 @@ class Macro(base.BaseActor):
         self._check_macro()
 
         self.log.info('Preparing actors from %s' % self.option('macro'))
+
+        # Take the "init tokens" that were supplied to this actor by its parent
+        # and merge them with the explicitly defined tokens in the actor
+        # definition itself. Give priority to the explicitly defined tokens on
+        # any conflicts.
+        self._init_tokens = kwargs.get('init_tokens', os.environ.copy())
+        self._init_tokens.update(self.option('tokens'))
 
         # Copy the tmp file / download a remote macro
         macro_file = self._get_macro()
@@ -148,6 +163,10 @@ class Macro(base.BaseActor):
 
         # Check schema for compatibility
         self._check_schema(config)
+
+        # After the schema has been checked, pass in whatever tokens _we_ got,
+        # off to the soon-to-be-created actor.
+        config['init_tokens'] = self._init_tokens.copy()
 
         # Instantiate the first actor, but don't execute it.
         # Any errors raised by this actor should be attributed to it, and not
@@ -210,12 +229,11 @@ class Macro(base.BaseActor):
             UnrecoverableActorFailure -
                 if parsing script or inserting env vars fails.
         """
-
         self.log.debug('Parsing %s' % script_file)
         try:
             return utils.convert_script_to_dict(
                 script_file=script_file,
-                tokens=self.option('tokens'))
+                tokens=self._init_tokens)
         except (kingpin_exceptions.InvalidScript, LookupError) as e:
             raise exceptions.UnrecoverableActorFailure(e)
 

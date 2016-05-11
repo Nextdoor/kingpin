@@ -139,6 +139,25 @@ class TestBaseGroupActor(TestGroupActorBaseClass):
             mock.call(context={'init': 'stuff', 'key': 'tadaa'})
         ])
 
+    def test_build_actions_with_context_file_str(self):
+        acts = [dict(self.actor_returns)]
+
+        with mock.patch.object(group.BaseGroupActor,
+                               '_build_action_group') as action_builder:
+            action_builder.return_value = acts
+            group.BaseGroupActor(
+                'ContextFile Actor',
+                {'acts': acts,
+                 'contexts': 'examples/test/context.json'},
+                init_tokens={'TOKEN_VALUE': 'tadaa'},
+                init_context={'init': 'stuff'})
+
+        self.assertEquals(2, len(action_builder.mock_calls))
+        action_builder.assert_has_calls([
+            mock.call(context={'init': 'stuff', 'key': 'value1'}),
+            mock.call(context={'init': 'stuff', 'key': 'tadaa'})
+        ])
+
     def test_build_actions_with_contexts(self):
         acts = [dict(self.actor_returns),
                 dict(self.actor_returns),

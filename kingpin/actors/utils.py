@@ -58,7 +58,15 @@ def get_actor(config, dry):
     # not a valid kwarg for an Actor object.
     actor_string = config.pop('actor')
 
-    log.debug('Building Actor "%s" with args: %s' % (actor_string, config))
+    # Create a copy of the config dict, but strip out the tokens. They likely
+    # contain credentials! This is used purely for this debug message below.
+    #
+    # Known actors that do this are misc.Macro, group.Sync, group.Async
+    clean_config = config.copy()
+    clean_config['init_tokens'] = '<hidden>'
+
+    log.debug('Building Actor "%s" with args: %s' %
+              (actor_string, clean_config))
     ActorClass = get_actor_class(actor_string)
     return ActorClass(dry=dry, **config)
 

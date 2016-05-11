@@ -1,0 +1,10 @@
+---
+
+actor: group.Sync
+options:
+  acts:
+    - actor: misc.Macro
+      options:
+        macro:  examples/misc.macro/outer_macro.yaml
+        tokens:
+          FOO: weee
