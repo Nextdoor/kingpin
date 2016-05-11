@@ -235,11 +235,19 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
         logger = mock.Mock()  # used for tracking
 
         # Repeat this message 10 times per second
-        logid = utils.create_repeating_log(logger.info, 'test', seconds=0.1)
-        yield utils.tornado_sleep(0.45)  # Some process takes .4 <> .5 seconds
+        logid = utils.create_repeating_log(logger.info, 'test', seconds=0)
+        yield gen.moment
+        yield gen.moment
+        yield gen.moment
+        yield gen.moment
+        yield gen.moment
         utils.clear_repeating_log(logid)
         self.assertEquals(logger.info.call_count, 4)
 
         # Let's make sure that we don't keep looping our log message.
-        yield utils.tornado_sleep(0.2)
+        yield gen.moment
+        yield gen.moment
+        yield gen.moment
+        yield gen.moment
+        yield gen.moment
         self.assertEquals(logger.info.call_count, 4)
