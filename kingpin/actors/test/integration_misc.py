@@ -78,7 +78,8 @@ class IntegrationMacro(testing.AsyncTestCase):
     def integration_fail_without_env(self):
         # Actor should fail if tokens aren't passed for env. variables.
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
-            misc.Macro('Test', {'macro': 'examples/test/sleep.json'})
+            misc.Macro('Test', {'macro': 'examples/test/sleep.json'},
+                       init_tokens={})
 
     @attr('http', 'integration')
     @testing.gen_test
