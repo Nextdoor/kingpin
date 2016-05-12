@@ -12,6 +12,8 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 
+import jsonschema
+
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
 
@@ -46,3 +48,18 @@ class STATE(StringCompareBase):
     """
 
     valid = ('present', 'absent')
+
+
+class SchemaCompareBase(object):
+
+    """Meta class that compares the schema of a dict against rules."""
+
+    SCHEMA = None
+
+    @classmethod
+    def validate(self, option):
+        try:
+            jsonschema.validate(option, self.SCHEMA)
+            return True
+        except jsonschema.exceptions.ValidationError:
+            return False

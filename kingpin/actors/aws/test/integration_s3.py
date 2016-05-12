@@ -51,6 +51,7 @@ class IntegrationS3(testing.AsyncTestCase):
                 'name': self.bucket_name,
                 'region': self.region,
                 'state': 'present',
+                'logging': {'target': ''}
             }
         )
         done = yield actor.execute()

@@ -28,6 +28,7 @@ from tornado import gen
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
+from kingpin.constants import SchemaCompareBase
 from kingpin.constants import REQUIRED
 from kingpin.constants import STATE
 
@@ -43,6 +44,44 @@ __author__ = 'Matt Wise <matt@nextdoor.com'
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
+class InvalidBucketConfig(exceptions.RecoverableActorFailure):
+
+    """Raised whenever an invalid option is passed to a Bucket"""
+
+
+class LoggingConfig(SchemaCompareBase):
+
+    """Provides JSON-Schema based validation of the supplied logging config.
+
+    The S3 LoggingConfig format should look like this:
+
+    .. code-block:: json
+
+        { "target": "s3_bucket_name_here",
+          "prefix": "an_optional_prefix_here" }
+
+    If you supply an empty `target`, then we will explicitly remove the logging
+    configuration from the bucket. Example:
+
+    .. code-block:: json
+
+        { "target": "" }
+
+    """
+
+    SCHEMA = {
+        'type': 'object',
+        'required': ['target'],
+        'additionalProperties': False,
+        'properties': {
+            'target': {'type': 'string'},
+            'prefix': {'type': 'string'}
+        }
+    }
+
+    valid = '{ "target": "<bucket name>", [ "prefix": "<logging prefix>" ]}'
+
+
 class S3BaseActor(base.AWSBaseActor):
 
     """Base class for S3 actors."""
@@ -51,6 +90,8 @@ class S3BaseActor(base.AWSBaseActor):
         'name': (str, REQUIRED, 'Name of the S3 Bucket'),
         'state': (STATE, 'present',
                   'Desired state of the bucket: present/absent'),
+        'logging': (LoggingConfig, None,
+                    'Dict with the logging configuration information.'),
         'policy': ((str, None), None,
                    'Path to the JSON policy file to apply to the bucket.'),
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2')
@@ -82,6 +123,17 @@ class Bucket(S3BaseActor):
     :state:
       (str) Present or Absent. Default: "present"
 
+    :logging:
+      (LoggingConfig, None)
+
+      If a dictionary is supplied (`{'target': 'logging_bucket', 'prefix':
+      '/mylogs'}`), then we will configure bucket logging to the supplied
+      bucket and prefix. If `prefix` is missing then no prefix will be used.
+
+      If `target` is supplied as an empty string (`''`), then we will disable
+      logging on the bucket. If `None` is supplied, we will not manage logging
+      either way.
+
     :policy:
       (str, None) A JSON file with the bucket policy. Passing in a blank string
       will cause any policy to be deleted. Passing in None (or not passing it
@@ -100,6 +152,10 @@ class Bucket(S3BaseActor):
            "name": "kingpin-integration-testing",
            "region": "us-west-2",
            "policy": "./examples/aws.s3/amazon_put.json",
+           "logging": {
+             "target": "logs.myco.com",
+             "prefix": "/kingpin-integratin-testing"
+           },
          }
        }
 
@@ -162,6 +218,8 @@ class Bucket(S3BaseActor):
         """Ensures a bucket exists or does not."""
         # Determine if the bucket already exists or not
         state = self.option('state')
+        name = self.option('name')
+        self.log.info('Ensuring that s3://%s is %s' % (name, state))
         bucket = yield self._get_bucket()
 
         if state == 'absent' and bucket is None:
@@ -309,6 +367,59 @@ class Bucket(S3BaseActor):
         raise gen.Return()
 
     @gen.coroutine
+    def _ensure_logging(self, bucket):
+        """Ensure that the bucket logging configuration is setup.
+
+        args:
+            bucket: The S3 bucket object as returned by Boto
+        """
+        # Get the buckets current logging configuration
+        existing = yield self.thread(bucket.get_logging_status)
+
+        # Shortcuts for our desired logging state
+        desired = self.option('logging')
+
+        # If desired is False, check the state, potentially disable it, and
+        # then bail out.
+        if desired['target'] == '':
+            if existing.target is None:
+                self.log.debug('Logging is already disabled on this bucket')
+                raise gen.Return()
+
+            if self._dry:
+                self.log.warning('Bucket logging target is %s, would disable.'
+                                 % existing.target)
+                raise gen.Return()
+
+            self.log.info('Deleting Bucket logging configuration')
+            yield self.thread(bucket.disable_logging)
+            raise gen.Return()
+
+        # Simple shortcut name for some logging
+        target_str = 's3://%s/%s' % (desired['target'],
+                                     desired['prefix'].lstrip('/'))
+
+        # If desired has a logging or prefix config, check each one and
+        # validate that they are correct.
+        if (desired['target'] != existing.target or
+                desired['prefix'] != existing.prefix):
+            if self._dry:
+                self.log.warning('Bucket logging config would be updated to '
+                                 '%s' % target_str)
+                raise gen.Return()
+
+            self.log.info('Updating Bucket logging config to %s' % target_str)
+            try:
+                yield self.thread(bucket.enable_logging,
+                                  desired['target'],
+                                  desired['prefix'])
+            except S3ResponseError as e:
+                if e.error_code == 'InvalidTargetBucketForLogging':
+                    raise InvalidBucketConfig(e.message)
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected error occurred. %s' % e)
+
+    @gen.coroutine
     def _execute(self):
         """Executes an actor and yields the results when its finished.
 
@@ -324,5 +435,9 @@ class Bucket(S3BaseActor):
         # Only manage the policy if self.policy was actually set.
         if self.policy is not None:
             yield self._ensure_policy(bucket)
+
+        # Only manage the logging config if the logging config was supplied
+        if self.option('logging') is not None:
+            yield self._ensure_logging(bucket)
 
         raise gen.Return()

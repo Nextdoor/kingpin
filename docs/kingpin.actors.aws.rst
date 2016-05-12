@@ -34,7 +34,7 @@ Simple Storage Service (S3)
 .. automodule:: kingpin.actors.aws.s3
    :noindex:
    :members:
-   :exclude-members: S3BaseActor
+   :exclude-members: InvalidBucketConfig, S3BaseActor
 
 Simple Queue Service (SQS)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
