@@ -171,22 +171,6 @@ Class/Object Architecture
             |
             +-- Annotation
 
-Setup
-~~~~~
-
-.. code-block:: bash
-
-    # Create a dedicated Python virtual environment and source it
-    virtualenv --no-site-packages .venv
-    unset PYTHONPATH
-    source .venv/bin/activate
-
-    # Install the dependencies
-    make build
-
-    # Run the tests
-    make test
-
 Actor Design
 ~~~~~~~~~~~~
 
@@ -194,8 +178,8 @@ Kingpin Actors are self-contained python classes that execute operations
 asynchronously. Actors should follow a consistent structure (described below)
 and be written to be as fault tolerant as possible.
 
-Hello World Actor Example
-^^^^^^^^^^^^^^^^^^^^^^^^^
+Example - Hello World
+^^^^^^^^^^^^^^^^^^^^^
 
 This is the basic structure for an actor class.
 
@@ -298,20 +282,22 @@ This is the basic structure for an actor class.
             # Indicate to Tornado that we're done with our execution.
             raise gen.Return()
 
-Required Options
+Actor Parameters
 ^^^^^^^^^^^^^^^^
 
-The following options are baked into our *BaseActor* model and must be
-supported by any actor that subclasses it. They are fundamentally critical to
-the behavior of Kingpin, and should not be bypassed or ignored.
+The following parameters are baked into our
+:py:mod:`~kingpin.actors.base.BaseActor` model and must be supported by any
+actor that subclasses it. They are fundamentally critical to the behavior of
+Kingpin, and should not be bypassed or ignored.
 
 ``desc``
 ''''''''
 
 A string describing the stage or action thats occuring. Meant to be human
 readable and useful for logging. You do not need to do anything intentinally to
-support this option (it's handled in
-:py:mod:`kingpin.actors.base.BaseActor`).
+support this option (it's handled in :py:mod:`~kingpin.actors.base.BaseActor`).
+All logging (when using :ref:`self.log`) are passed through a custom
+:py:mod:`~kingpin.actors.base.LogAdapter`.
 
 ``dry``
 '''''''
@@ -319,17 +305,38 @@ support this option (it's handled in
 All Actors *must* support a ``dry`` run flag. The codepath thats executed when
 ``_execute()`` is yielded should be as wet as possible without actually making
 any changes. For example, if you have an actor that checks the state of an
-Amazon ELB (*hint see aws.elb.WaitUntilHealthy*), you would want the actor to
-actually search Amazons API for the ELB, actually check the number of instances
-that are healthy in the ELB, and then fake a return value so that the rest of
-the script can be tested.
+Amazon ELB (*hint see* :py:mod:`kingpin.actors.aws.elb.WaitUntilHealthy`), you
+would want the actor to actually search Amazons API for the ELB, actually check
+the number of instances that are healthy in the ELB, and then fake a return
+value so that the rest of the script can be tested.
+
+.. _all_options:
 
 ``options``
 '''''''''''
 
 Your actor can take in custom options (ELB name, Route53 DNS entry name, etc)
-through a dictionary named ``options`` thats passed in to every actor and stored
-as ``self._options``. The contents of this dictionary are entirely up to you.
+through a dictionary named ``options`` thats passed in to every actor and
+accessible through the :py:mod:`~kingpin.actors.base.BaseActor.option()`
+method. The contents of this dictionary are entirely up to you.
+
+These options are defined in your class's `all_options` dict. A simple example:
+
+.. code-block:: python
+
+    from kingpin.constants import REQUIRED
+
+    class SayHi(object):
+        all_options = {
+            'name': (str, REQUIRED, 'What is your name?')
+        }
+
+        @gen.coroutine
+        def _execute(self):
+            self.log.info('Hi %s' % self.option('name'))
+
+
+For more complex user input validation, see :ref:`option_validation`.
 
 ``warn_on_failure`` (*optional*)
 ''''''''''''''''''''''''''''''''
@@ -365,8 +372,7 @@ Actors must:
 -  Include ``__author__`` attribute thats a single *string* with the
    owners listed in it.
 -  Implement a \*\_execute()\* method
--  Handle as many possible exceptions of third-party libraries as
-   possible
+-  Handle as many possible exceptions of third-party libraries as possible
 -  Return None when the actor has succeeded.
 
 Actors can:
@@ -381,7 +387,7 @@ Actors can:
    ``warn_on_failure=True``, where they can then continue on in the script
    even if an actor fails.
 
-\*\*Super simple example Actor \_execute() method\*\*
+**Super simple example Actor \_execute() method**
 
 .. code-block:: python
 
@@ -452,6 +458,8 @@ in Amazon should be wiped out.
 Helper Methods/Objects
 ^^^^^^^^^^^^^^^^^^^^^^
 
+.. _self.__class__.desc:
+
 self.__class__.desc
 '''''''''''''''''''
 
@@ -493,10 +501,10 @@ parsed at runtime:
   * `**self._options`: The entire set of options passed into the actor, broken
     out by key/value.
 
+.. _self.log:
 
 self.log
 ''''''''
-
 For consistency in logging, a custom Logger object is instantiated for every
 Actor. This logging object ensures that prefixes such as the ``desc`` of an Actor
 are included in the log messages. Usage examples:
@@ -507,12 +515,57 @@ are included in the log messages. Usage examples:
     self.log.info('I am doing work')
     self.log.warning('I do not think that should have happened')
 
+
+.. _self.option():
+
 self.option
-^^^^^^^^^^^
+'''''''''''
 
 Accessing options passed to the actor from the JSON file should be done via
 ``self.option()`` method. Accessing ``self._options`` parameter is not recommended,
 and the edge cases should be handled via the ``all_options`` class variable.
+
+.. _option_validation:
+
+User Option Validation
+''''''''''''''''''''''
+
+While you can rely on :ref:`all_options` for simple validation of strings,
+bools, etc -- you may find yourself needing to validate more complex user
+inputs. Regular expressions, lists of valid strings, or even full JSON schema
+validations.
+
+The Self-Validating Class
+.........................
+
+If you create a class with a `validate()` method, Kingpin will automatically
+validate a users input against that method. Here's a super simple example that
+only accepts words that start with the letter `X`.
+
+.. code-block:: python
+
+    from kingpin.actors.exceptions import InvalidOptions
+
+    class OnlyStartsWithX(object):
+        @classmethod
+        def validate(self, option):
+            if not option.startswith('X'):
+                raise InvalidOptions('Must start with X: %s' % option)
+
+
+    class MyActor(object):
+        all_options = {
+            (OnlyStartsWithX, REQUIRED, 'Any string that starts with an X')
+        }
+
+Pre-Built Option Validators
+...........................
+
+We have created a few useful option validators that you can easily leverage in
+your own code:
+
+  * :py:mod:`kingpin.constants.StringCompareBase`
+  * :py:mod:`kingpin.constants.SchemaCompareBase`
 
 Exception Handling
 ^^^^^^^^^^^^^^^^^^

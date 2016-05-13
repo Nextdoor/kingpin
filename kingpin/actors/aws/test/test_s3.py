@@ -27,8 +27,21 @@ class TestBucket(testing.AsyncTestCase):
                 'name': 'test',
                 'region': 'us-east-1',
                 'policy': 'examples/aws.s3/amazon_put.json',
+                'logging': {
+                  'target': 'test_target',
+                  'prefix': '/prefix'
+                }
             })
         self.actor.s3_conn = mock.MagicMock()
+
+    def test_init_with_bogus_logging_config(self):
+        with self.assertRaises(exceptions.InvalidOptions):
+            s3_actor.Bucket(
+                options={
+                    'name': 'test',
+                    'logging': {
+                        'invalid_data': 'bad_field'
+                    }})
 
     @testing.gen_test
     def test_get_bucket_exists(self):
@@ -253,6 +266,108 @@ class TestBucket(testing.AsyncTestCase):
             yield self.actor._ensure_policy(fake_bucket)
 
     @testing.gen_test
+    def test_ensure_logging_is_present_and_wants_absent_dry(self):
+        self.actor._dry = True
+        self.actor._options['logging'] = {'target': ''}
+        fake_logging_status = mock.MagicMock()
+        fake_logging_status.target = 'some_bucket'
+        fake_logging_status.prefix = None
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_logging_status.return_value = fake_logging_status
+        yield self.actor._ensure_logging(fake_bucket)
+        self.assertTrue(fake_bucket.get_logging_status.called)
+        self.assertFalse(fake_bucket.disable_logging.called)
+        self.assertFalse(fake_bucket.enable_logging.called)
+
+    @testing.gen_test
+    def test_ensure_logging_is_present_and_wants_absent(self):
+        self.actor._options['logging'] = {'target': ''}
+        fake_logging_status = mock.MagicMock()
+        fake_logging_status.target = 'some_bucket'
+        fake_logging_status.prefix = None
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_logging_status.return_value = fake_logging_status
+        yield self.actor._ensure_logging(fake_bucket)
+        self.assertTrue(fake_bucket.get_logging_status.called)
+        self.assertTrue(fake_bucket.disable_logging.called)
+        self.assertFalse(fake_bucket.enable_logging.called)
+
+    @testing.gen_test
+    def test_ensure_logging_is_absent_and_wants_absent(self):
+        self.actor._options['logging'] = {'target': ''}
+        fake_logging_status = mock.MagicMock()
+        fake_logging_status.target = None
+        fake_logging_status.prefix = None
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_logging_status.return_value = fake_logging_status
+        yield self.actor._ensure_logging(fake_bucket)
+        self.assertTrue(fake_bucket.get_logging_status.called)
+        self.assertFalse(fake_bucket.disable_logging.called)
+        self.assertFalse(fake_bucket.enable_logging.called)
+
+    @testing.gen_test
+    def test_ensure_logging_is_absent_and_wants_present_dry(self):
+        self.actor._dry = True
+        fake_logging_status = mock.MagicMock()
+        fake_logging_status.target = None
+        fake_logging_status.prefix = None
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_logging_status.return_value = fake_logging_status
+        yield self.actor._ensure_logging(fake_bucket)
+        self.assertTrue(fake_bucket.get_logging_status.called)
+        self.assertFalse(fake_bucket.disable_logging.called)
+        self.assertFalse(fake_bucket.enable_logging.called)
+
+    @testing.gen_test
+    def test_ensure_logging_is_absent_and_wants_present(self):
+        fake_logging_status = mock.MagicMock()
+        fake_logging_status.target = None
+        fake_logging_status.prefix = None
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_logging_status.return_value = fake_logging_status
+        yield self.actor._ensure_logging(fake_bucket)
+        self.assertTrue(fake_bucket.get_logging_status.called)
+        self.assertFalse(fake_bucket.disable_logging.called)
+        fake_bucket.enable_logging.assert_has_calls(
+            [mock.call('test_target', '/prefix')])
+
+    @testing.gen_test
+    def test_ensure_logging_is_present_and_matches(self):
+        fake_logging_status = mock.MagicMock()
+        fake_logging_status.target = 'test_target'
+        fake_logging_status.prefix = '/prefix'
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_logging_status.return_value = fake_logging_status
+        yield self.actor._ensure_logging(fake_bucket)
+        self.assertTrue(fake_bucket.get_logging_status.called)
+        self.assertFalse(fake_bucket.disable_logging.called)
+        self.assertFalse(fake_bucket.enable_logging.called)
+
+    @testing.gen_test
+    def test_ensure_logging_is_absent_and_wants_present_400(self):
+        fake_logging_status = mock.MagicMock()
+        fake_logging_status.target = 'some_new_target'
+        fake_logging_status.prefix = '/prefix'
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_logging_status.return_value = fake_logging_status
+        invalid_target_exc = S3ResponseError(500, 'Damn')
+        invalid_target_exc.error_code = 'InvalidTargetBucketForLogging'
+        fake_bucket.enable_logging.side_effect = invalid_target_exc
+        with self.assertRaises(s3_actor.InvalidBucketConfig):
+            yield self.actor._ensure_logging(fake_bucket)
+
+    @testing.gen_test
+    def test_ensure_logging_is_absent_and_wants_present_500(self):
+        fake_logging_status = mock.MagicMock()
+        fake_logging_status.target = 'some_new_target'
+        fake_logging_status.prefix = '/prefix'
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_logging_status.return_value = fake_logging_status
+        fake_bucket.enable_logging.side_effect = S3ResponseError(500, 'Damn')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._ensure_logging(fake_bucket)
+
+    @testing.gen_test
     def test_execute_absent(self):
         self.actor._options['state'] = 'absent'
         self.actor._ensure_bucket = mock.MagicMock()
@@ -266,6 +381,9 @@ class TestBucket(testing.AsyncTestCase):
         self.actor._ensure_bucket.side_effect = [tornado_value(None)]
         self.actor._ensure_policy = mock.MagicMock()
         self.actor._ensure_policy.side_effect = [tornado_value(None)]
+        self.actor._ensure_logging = mock.MagicMock()
+        self.actor._ensure_logging.side_effect = [tornado_value(None)]
         yield self.actor._execute()
         self.assertTrue(self.actor._ensure_bucket.called)
         self.assertTrue(self.actor._ensure_policy.called)
+        self.assertTrue(self.actor._ensure_logging.called)
