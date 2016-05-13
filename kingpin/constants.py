@@ -14,6 +14,9 @@
 
 import jsonschema
 
+from kingpin.actors import exceptions
+
+
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
 
@@ -35,8 +38,9 @@ class StringCompareBase(object):
 
     @classmethod
     def validate(self, option):
-        if option in self.valid:
-            return True
+        if option not in self.valid:
+            raise exceptions.InvalidOptions(
+                '%s not valid, use: %s' % (option, self.valid))
 
 
 class STATE(StringCompareBase):
@@ -60,6 +64,6 @@ class SchemaCompareBase(object):
     def validate(self, option):
         try:
             jsonschema.validate(option, self.SCHEMA)
-            return True
-        except jsonschema.exceptions.ValidationError:
-            return False
+        except jsonschema.exceptions.ValidationError as e:
+            raise exceptions.InvalidOptions(
+                'Supplied parameter does not match schema: %s' % e)

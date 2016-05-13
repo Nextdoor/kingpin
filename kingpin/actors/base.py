@@ -64,6 +64,12 @@ DEFAULT_TIMEOUT = os.getenv('DEFAULT_TIMEOUT', 3600)
 
 class LogAdapter(logging.LoggerAdapter):
 
+    """Simple Actor Logging Adapter.
+
+    Provides a common logging format for actors that uses the actors
+    description and dry parameter as a prefix to the supplied log message.
+    """
+
     def process(self, msg, kwargs):
         return ('[%s%s] %s' % (self.extra['dry'], self.extra['desc'], msg),
                 kwargs)
@@ -227,12 +233,11 @@ class BaseActor(object):
             # If the expected_type has an attribute 'valid', then verify that
             # the option passed in is one of those valid options.
             if hasattr(expected_type, 'validate'):
-                if expected_type.validate(value):
+                try:
+                    expected_type.validate(value)
                     continue
-
-                option_errors.append(
-                    'Option "%s" has to be %s, and is %s.' %
-                    (opt, expected_type.valid, value))
+                except exceptions.InvalidOptions as e:
+                    option_errors.append(e)
 
             # If the option type is Bool, try to convert the strings True/False
             # into booleans. If this doesn't work, siletly move on and let the
