@@ -70,7 +70,7 @@ class LoggingConfig(SchemaCompareBase):
     """
 
     SCHEMA = {
-        'type': 'object',
+        'type': ['object', 'null'],
         'required': ['target'],
         'additionalProperties': False,
         'properties': {
