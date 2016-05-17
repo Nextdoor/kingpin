@@ -275,6 +275,24 @@ class Sync(BaseGroupActor):
          }
        }
 
+    Alternatively if no `contexts` are needed you can use the `array` syntax.
+
+    .. code-block:: json
+
+       [
+         {
+           "actor": "server_array.Clone",
+           "options": {
+             "source": "template",
+             "dest": "%ARRAY%"
+           }
+         },
+         {
+           "actor": "misc.Sleep",
+           "options": { "sleep": 30 }
+         }
+       ]
+
     **Dry Mode**
 
     Passes on the Dry mode setting to the acts that are called. Does **not**

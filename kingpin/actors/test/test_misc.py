@@ -76,6 +76,26 @@ class TestMacro(testing.AsyncTestCase):
             s._init_tokens,
             {'SLEEP': 0, 'FOO': 'weee', 'DESC': 'Sleeping for a while'})
 
+    def test_init_group(self):
+        misc.Macro._check_macro = mock.Mock()
+        misc.Macro._get_macro = mock.Mock(return_value='unit-test-macro')
+
+        with mock.patch('kingpin.utils.convert_script_to_dict') as j2d, \
+                mock.patch('kingpin.schema.validate') as schema_validate, \
+                mock.patch('kingpin.actors.group.Sync') as sync_actor:
+
+            j2d.return_value = [{
+                'desc': 'unit test',
+                'actor': 'unit test',
+                'options': {}
+            }]
+
+            actor = misc.Macro('Unit Test', {'macro': 'test.json'})
+
+            j2d.assert_called_with(script_file='unit-test-macro', tokens={})
+            self.assertEquals(schema_validate.call_count, 1)
+            self.assertEquals(actor.initial_actor, sync_actor())
+
     def test_init_remote(self):
         misc.Macro._get_config_from_script = mock.Mock()
         misc.Macro._get_config_from_script.return_value = {}

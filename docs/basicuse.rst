@@ -81,9 +81,9 @@ Definition: *The blueprint or roadmap that outlines a movie story through
 visual descriptions, actions of characters and their dialogue. The term
 "script" also applies to stageplays as well.*
 
-Every Kingpin *script* is a chunk of JSON-encoded data that contains *actors*.
-Each *actor* configuration includes the same three parameters: *actor*, *desc*
-and *options*.
+Every Kingpin *script* is a chunk of JSON or YAML-encoded data that contains
+*actors*.  Each *actor* configuration includes the same three parameters:
+*actor*, and optional *desc*, and *options*.
 
 The simplest script will have a single configuration that executes a single
 *actor*. More complex scripts can be created with our ``group.Sync`` and
@@ -97,18 +97,17 @@ The schema is simple. We take a single JSON or YAML object that has a few
 fields:
 
 -  ``actor`` - A text-string describing the name of the Actor package
-   and class. For example, ``kingpin.actors.rightscale.server_array.Clone``,
-   or ``misc.Sleep``.
+   and class. For example, ``rightscale.server_array.Clone``, or ``misc.Sleep``.
 -  ``condition`` - A bool or string that indicates whether or not to
-   execute this actor.
+   execute this actor. Most commonly used with a token variable for its value.
 -  ``desc`` - A text-string describing the name of the stage or action.
-   Meant to ensure that the logs are very human readable. Optional, a
+   Meant to ensure that the logs are very human readable. Optional; a
    default description is chosen if you do not supply one.
 -  ``warn_on_failure`` - True/False whether or not to ignore an Actors
    failure and return True anyways. Defaults to ``False``, but if ``True``
    a ``warning`` message is logged.
 -  ``timeout`` - Maximum time (in *seconds*) for the actor to execute
-   before raising an ``ActorTimedOut`` exception is raised.
+   before raising an ``ActorTimedOut`` exception.
 -  ``options`` - A dictionary of key/value pairs that are required for
    the specific ``actor`` that you're instantiating. See individual Actor
    documentation below for these options.
@@ -136,11 +135,23 @@ Alternatively, a YAML file would look like this:
     timeout: 30
     options:
       message: Beginning release %RELEASE%
-      room" Oncall
+      room: Oncall
 
-However, much more complex configurations can be created by using the
-``group.Sync`` and ``group.Async`` actors to describe massively more
-complex deployents.
+To execute multiple actors in one script you should leverage one of grouping
+actors such as ``group.Sync`` or ``group.Async``. These actors have their own
+options documented below.
+
+There is an ``array`` short hand for ``group.Sync`` for trivial set of actors.
+
+.. code-block:: yaml
+
+    - actor: hipchat.Message
+      options:
+        message: Beginning release %RELEASE%
+        room: Oncall
+    - actor: next.Actor
+      options:
+        release_version: version-%RELEASE%
 
 Conditional Execution
 '''''''''''''''''''''

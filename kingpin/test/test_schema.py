@@ -29,3 +29,12 @@ class TestSchema(unittest.TestCase):
         json = {'this': 'is', 'invalid': 'ok'}
         with self.assertRaises(exceptions.InvalidScript):
             schema.validate(json)
+
+    def test_validate_with_array_syntax(self):
+        json = [{'actor': 'some actor'}]
+        schema.validate(json)
+
+    def test_validate_with_invalid_array(self):
+        json = [{'garbage': 'json'}]
+        with self.assertRaises(exceptions.InvalidScript):
+            schema.validate(json)

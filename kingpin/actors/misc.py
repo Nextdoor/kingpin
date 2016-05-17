@@ -35,6 +35,7 @@ import urllib
 from tornado import gen
 from tornado import httpclient
 from kingpin.actors import utils as actor_utils
+from kingpin.actors import group
 from kingpin import exceptions as kingpin_exceptions
 
 from kingpin import schema
@@ -158,14 +159,19 @@ class Macro(base.BaseActor):
         # Check schema for compatibility
         self._check_schema(config)
 
-        # After the schema has been checked, pass in whatever tokens _we_ got,
-        # off to the soon-to-be-created actor.
-        config['init_tokens'] = self._init_tokens.copy()
-
         # Instantiate the first actor, but don't execute it.
         # Any errors raised by this actor should be attributed to it, and not
         # this Macro actor. No try/catch here
-        self.initial_actor = actor_utils.get_actor(config, dry=self._dry)
+        if type(config) == list:
+            # List is a Sync group actor
+            self.initial_actor = group.Sync(options={'acts': config},
+                                            dry=self._dry)
+        else:
+            # After the schema has been checked, pass in whatever tokens _we_
+            # got, off to the soon-to-be-created actor.
+            config['init_tokens'] = self._init_tokens.copy()
+
+            self.initial_actor = actor_utils.get_actor(config, dry=self._dry)
 
     def _check_macro(self):
         """For now we are limiting the functionality."""
