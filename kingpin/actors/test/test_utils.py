@@ -22,6 +22,7 @@ class FakeActor(base.BaseActor):
         super(FakeActor, self).__init__(*args, **kwargs)
         self.conn = mock.MagicMock()
         self.conn.call.return_value = helper.tornado_value(None)
+        self.conn.call.__name__ = 'test_call'
 
     @gen.coroutine
     @utils.dry('Would have done {0}')

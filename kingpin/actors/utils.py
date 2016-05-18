@@ -38,7 +38,7 @@ def dry(dry_message):
 
     Note: this must act on a :py:mod:`~kingpin.actors.base.BaseActor` object.
 
-    Example usage:
+    Example usage as decorator:
 
         >>> @gen.coroutine
         ... @dry('Would have done that {thing}')
@@ -53,20 +53,18 @@ def dry(dry_message):
         variables you'd like can be substituted as long as they're passed to
         the method being wrapped.
     """
-    log.info('Creating _skip_on_dry decorator with "%s"' % dry_message)
+    log.debug('Creating _skip_on_dry decorator with "%s"' % dry_message)
 
     def _skip_on_dry(f):
-        log.info('Decorating function "%s" with _skip_on_dry' % f)
+        log.debug('Decorating function "%s" with _skip_on_dry' % f)
 
         def wrapper(self, *args, **kwargs):
-            msg = dry_message.format(*args, **kwargs)
-
             if self._dry:
-                self.log.warning(msg)
+                self.log.warning(dry_message.format(*args, **kwargs))
                 raise gen.Return()
-
             ret = yield gen.coroutine(f)(self, *args, **kwargs)
             raise gen.Return(ret)
+
         return wrapper
     return _skip_on_dry
 
