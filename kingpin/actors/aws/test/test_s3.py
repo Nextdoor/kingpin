@@ -30,7 +30,8 @@ class TestBucket(testing.AsyncTestCase):
                 'logging': {
                   'target': 'test_target',
                   'prefix': '/prefix'
-                }
+                },
+                'versioning': False,
             })
         self.actor.s3_conn = mock.MagicMock()
 
@@ -368,6 +369,71 @@ class TestBucket(testing.AsyncTestCase):
             yield self.actor._ensure_logging(fake_bucket)
 
     @testing.gen_test
+    def test_ensure_versioning_is_absent_and_wants_disabled(self):
+        self.actor._options['versioning'] = False
+        versioning = {}
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_versioning_status.return_value = versioning
+        yield self.actor._ensure_versioning(fake_bucket)
+        self.assertFalse(fake_bucket.configure_versioning.called)
+
+    @testing.gen_test
+    def test_ensure_versioning_is_suspended_and_wants_enabled(self):
+        self.actor._options['versioning'] = False
+        versioning = {'MfaDelete': 'Disabled', 'Versioning': 'Suspended'}
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_versioning_status.return_value = versioning
+        yield self.actor._ensure_versioning(fake_bucket)
+        self.assertFalse(fake_bucket.configure_versioning.called)
+
+    @testing.gen_test
+    def test_ensure_versioning_is_enabled_and_wants_suspended_dry(self):
+        self.actor._options['versioning'] = False
+        self.actor._dry = True
+        versioning = {'MfaDelete': 'Disabled', 'Versioning': 'Enabled'}
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_versioning_status.return_value = versioning
+        yield self.actor._ensure_versioning(fake_bucket)
+        self.assertFalse(fake_bucket.configure_versioning.called)
+
+    @testing.gen_test
+    def test_ensure_versioning_is_enabled_and_wants_suspended(self):
+        self.actor._options['versioning'] = False
+        versioning = {'MfaDelete': 'Disabled', 'Versioning': 'Enabled'}
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_versioning_status.return_value = versioning
+        yield self.actor._ensure_versioning(fake_bucket)
+        self.assertTrue(fake_bucket.configure_versioning.called)
+
+    @testing.gen_test
+    def test_ensure_versioning_is_enabled_and_wants_enabled(self):
+        self.actor._options['versioning'] = True
+        versioning = {'MfaDelete': 'Disabled', 'Versioning': 'Enabled'}
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_versioning_status.return_value = versioning
+        yield self.actor._ensure_versioning(fake_bucket)
+        self.assertFalse(fake_bucket.configure_versioning.called)
+
+    @testing.gen_test
+    def test_ensure_versioning_is_absent_and_wants_enabled_dry(self):
+        self.actor._dry = True
+        self.actor._options['versioning'] = True
+        versioning = {}
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_versioning_status.return_value = versioning
+        yield self.actor._ensure_versioning(fake_bucket)
+        self.assertFalse(fake_bucket.configure_versioning.called)
+
+    @testing.gen_test
+    def test_ensure_versioning_is_absent_and_wants_enabled(self):
+        self.actor._options['versioning'] = True
+        versioning = {}
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_versioning_status.return_value = versioning
+        yield self.actor._ensure_versioning(fake_bucket)
+        self.assertTrue(fake_bucket.configure_versioning.called)
+
+    @testing.gen_test
     def test_execute_absent(self):
         self.actor._options['state'] = 'absent'
         self.actor._ensure_bucket = mock.MagicMock()
@@ -383,7 +449,10 @@ class TestBucket(testing.AsyncTestCase):
         self.actor._ensure_policy.side_effect = [tornado_value(None)]
         self.actor._ensure_logging = mock.MagicMock()
         self.actor._ensure_logging.side_effect = [tornado_value(None)]
+        self.actor._ensure_versioning = mock.MagicMock()
+        self.actor._ensure_versioning.side_effect = [tornado_value(None)]
         yield self.actor._execute()
         self.assertTrue(self.actor._ensure_bucket.called)
         self.assertTrue(self.actor._ensure_policy.called)
         self.assertTrue(self.actor._ensure_logging.called)
+        self.assertTrue(self.actor._ensure_versioning.called)
