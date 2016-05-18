@@ -29,6 +29,7 @@ from tornado import gen
 import jsonpickle
 
 from kingpin.actors import exceptions
+from kingpin.actors.utils import dry
 from kingpin.actors.aws import base
 from kingpin.constants import SchemaCompareBase
 from kingpin.constants import REQUIRED
@@ -425,7 +426,8 @@ class Bucket(S3BaseActor):
         if state == 'absent' and bucket is None:
             self.log.debug('Bucket does not exist')
         elif state == 'absent' and bucket:
-            yield self._delete_bucket(bucket)
+            yield self._verify_can_delete_bucket(bucket=bucket)
+            yield self._delete_bucket(bucket=bucket)
             bucket = None
         elif state == 'present' and bucket is None:
             bucket = yield self._create_bucket()
@@ -476,12 +478,7 @@ class Bucket(S3BaseActor):
         raise gen.Return(bucket)
 
     @gen.coroutine
-    def _delete_bucket(self, bucket):
-        """Tries to delete an S3 bucket.
-
-        args:
-            bucket: The S3 bucket object as returned by Boto
-        """
+    def _verify_can_delete_bucket(self, bucket):
         # Find out if there are any files in the bucket before we go to delete
         # it. We cannot delete a bucket with files in it -- nor do we want to.
         keys = yield self.thread(bucket.get_all_keys)
@@ -489,10 +486,14 @@ class Bucket(S3BaseActor):
             raise exceptions.RecoverableActorFailure(
                 'Cannot delete bucket with keys: %s files found' % len(keys))
 
-        if self._dry:
-            self.log.warning('Would have deleted bucket %s' % bucket)
-            raise gen.Return()
+    @gen.coroutine
+    @dry('Would have deleted bucket {bucket}')
+    def _delete_bucket(self, bucket):
+        """Tries to delete an S3 bucket.
 
+        args:
+            bucket: The S3 bucket object as returned by Boto
+        """
         try:
             self.log.info('Deleting bucket %s' % bucket)
             yield self.thread(bucket.delete)

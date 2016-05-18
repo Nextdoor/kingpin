@@ -133,13 +133,16 @@ class TestBucket(testing.AsyncTestCase):
         self.actor._get_bucket.side_effect = [tornado_value(True)]
         self.actor._create_bucket = mock.MagicMock()
         self.actor._create_bucket.side_effect = [tornado_value(None)]
+        self.actor._verify_can_delete_bucket = mock.MagicMock()
+        self.actor._verify_can_delete_bucket.side_effect = [tornado_value(None)]
         self.actor._delete_bucket = mock.MagicMock()
         self.actor._delete_bucket.side_effect = [tornado_value(None)]
 
         ret = yield self.actor._ensure_bucket()
         self.assertEquals(None, ret)
         self.assertFalse(self.actor._create_bucket.called)
-        self.actor._delete_bucket.assert_called_with(True)
+        self.actor._verify_can_delete_bucket.assert_called_with(bucket=True)
+        self.actor._delete_bucket.assert_called_with(bucket=True)
 
     @testing.gen_test
     def test_ensure_bucket_is_absent_and_wants_present(self):
@@ -189,31 +192,17 @@ class TestBucket(testing.AsyncTestCase):
         self.actor.s3_conn.create_bucket.assert_called_with('test')
 
     @testing.gen_test
-    def test_delete_bucket_dry(self):
-        self.actor._dry = True
+    def test_verify_can_delete_bucket(self):
         fake_bucket = mock.MagicMock()
-        fake_bucket.side_effect = [tornado_value(None)]
-        fake_bucket.get_all_keys.return_value = []
-        yield self.actor._delete_bucket(fake_bucket)
-        self.assertTrue(fake_bucket.get_all_keys.called)
-        self.assertFalse(fake_bucket.delete.called)
-
-    @testing.gen_test
-    def test_delete_bucket_dry_files_exist(self):
-        self.actor._dry = True
-        fake_bucket = mock.MagicMock()
-        fake_bucket.side_effect = [tornado_value(None)]
         fake_bucket.get_all_keys.return_value = [1, 2, 3]
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._delete_bucket(fake_bucket)
+            yield self.actor._verify_can_delete_bucket(fake_bucket)
 
     @testing.gen_test
     def test_delete_bucket(self):
         fake_bucket = mock.MagicMock()
         fake_bucket.side_effect = [tornado_value(None)]
-        fake_bucket.get_all_keys.return_value = []
-        yield self.actor._delete_bucket(fake_bucket)
-        self.assertTrue(fake_bucket.get_all_keys.called)
+        yield self.actor._delete_bucket(bucket=fake_bucket)
         self.assertTrue(fake_bucket.delete.called)
 
     @testing.gen_test
@@ -223,7 +212,7 @@ class TestBucket(testing.AsyncTestCase):
         fake_bucket.get_all_keys.return_value = []
         fake_bucket.delete.side_effect = S3ResponseError(409, 'Files in it!')
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._delete_bucket(fake_bucket)
+            yield self.actor._delete_bucket(bucket=fake_bucket)
 
     @testing.gen_test
     def test_ensure_policy_is_500(self):
