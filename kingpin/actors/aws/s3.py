@@ -94,7 +94,10 @@ class S3BaseActor(base.AWSBaseActor):
                     'Dict with the logging configuration information.'),
         'policy': ((str, None), None,
                    'Path to the JSON policy file to apply to the bucket.'),
-        'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2')
+        'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
+        'versioning': ((bool, None), None,
+                       ('Desired state of versioning on the bucket: '
+                        'true/false')),
     }
 
 
@@ -106,6 +109,9 @@ class Bucket(S3BaseActor):
 
       * Ensure that an S3 bucket is present or absent.
       * Manage the bucket policy.
+      * Enable or Suspend Bucket Versioning.
+        Note: It is impossible to actually _disable_ bucket versioning -- once
+        it is enabled, you can only suspend it, or re-enable it.
 
     **Note about Buckets with Files**
 
@@ -143,6 +149,10 @@ class Bucket(S3BaseActor):
     :region:
       AWS region (or zone) name, such as us-east-1 or us-west-2
 
+    :versioning:
+      (bool, None): Whether or not to enable Versioning on the bucket. If
+      "None", then we don't manage versioning either way. Default: None
+
     **Examples**
 
     .. code-block:: json
@@ -156,6 +166,7 @@ class Bucket(S3BaseActor):
              "target": "logs.myco.com",
              "prefix": "/kingpin-integratin-testing"
            },
+           "versioning": true,
          }
        }
 
@@ -256,6 +267,10 @@ class Bucket(S3BaseActor):
             # no policy attached to buckets by default. This is used to trick
             # the self._ensure_policy() function.
             mock_bucket.get_policy.side_effect = S3ResponseError(404, 'Empty')
+
+            # Mock out the versioning config -- return an empty dict to
+            # indicate there is no configuration.
+            mock_bucket.get_versioning_config.return_value = {}
 
             raise gen.Return(mock_bucket)
 
@@ -420,6 +435,50 @@ class Bucket(S3BaseActor):
                     'An unexpected error occurred. %s' % e)
 
     @gen.coroutine
+    def _ensure_versioning(self, bucket):
+        """Enables or suspends object versioning on the bucket.
+
+        args:
+            bucket: The S3 bucket object as returned by Boto
+        """
+        # Get the buckets current versioning status
+        existing = yield self.thread(bucket.get_versioning_status)
+
+        # Shortcuts for our desired state
+        desired = self.option('versioning')
+
+        # If desired is False, check the state, potentially disable it, and
+        # then bail out.
+        if not desired:
+            if ('Versioning' not in existing or
+                    existing['Versioning'] == 'Suspended'):
+                self.log.debug('Versioning is already disabled.')
+                raise gen.Return()
+
+            if self._dry:
+                self.log.warning('Bucket versioning would be suspended.')
+                raise gen.Return()
+
+            self.log.info('Suspending bucket versioning.')
+            yield self.thread(bucket.configure_versioning, False)
+            raise gen.Return()
+
+        # If desired is True, check the state, potentially enable it, and bail.
+        if desired:
+            if ('Versioning' in existing and
+                    existing['Versioning'] == 'Enabled'):
+                self.log.debug('Versioning is already enabled.')
+                raise gen.Return()
+
+            if self._dry:
+                self.log.warning('Bucket versioning would be enabled.')
+                raise gen.Return()
+
+            self.log.info('Enabling bucket versioning.')
+            yield self.thread(bucket.configure_versioning, True)
+            raise gen.Return()
+
+    @gen.coroutine
     def _execute(self):
         """Executes an actor and yields the results when its finished.
 
@@ -439,5 +498,9 @@ class Bucket(S3BaseActor):
         # Only manage the logging config if the logging config was supplied
         if self.option('logging') is not None:
             yield self._ensure_logging(bucket)
+
+        # Only manage versioning if a config was supplied
+        if self.option('versioning') is not None:
+            yield self._ensure_versioning(bucket)
 
         raise gen.Return()

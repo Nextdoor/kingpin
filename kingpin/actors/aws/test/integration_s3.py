@@ -51,7 +51,8 @@ class IntegrationS3(testing.AsyncTestCase):
                 'name': self.bucket_name,
                 'region': self.region,
                 'state': 'present',
-                'logging': {'target': ''}
+                'logging': {'target': ''},
+                'versioning': False
             }
         )
         done = yield actor.execute()
@@ -80,6 +81,34 @@ class IntegrationS3(testing.AsyncTestCase):
                 'region': self.region,
                 'state': 'present',
                 'policy': '',
+            }
+        )
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=60)
+    def integration_01d_enable_versioning(self):
+        actor = s3.Bucket(
+            options={
+                'name': self.bucket_name,
+                'region': self.region,
+                'state': 'present',
+                'versioning': True,
+            }
+        )
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=60)
+    def integration_01d_disable_versioning(self):
+        actor = s3.Bucket(
+            options={
+                'name': self.bucket_name,
+                'region': self.region,
+                'state': 'present',
+                'versioning': False,
             }
         )
         done = yield actor.execute()
