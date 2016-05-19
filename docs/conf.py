@@ -289,7 +289,10 @@ texinfo_documents = [
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/2.7', None),
+    'boto': ('http://boto.cloudhackers.com/en/latest/', None)
+}
 
 # Force the RTD theme for all builds
 import sphinx_rtd_theme

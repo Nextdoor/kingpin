@@ -21,10 +21,12 @@ import json
 import logging
 import mock
 
+from boto.s3 import lifecycle
 from boto.exception import S3ResponseError
 from boto.exception import BotoServerError
 from tornado import concurrent
 from tornado import gen
+import jsonpickle
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
@@ -82,6 +84,85 @@ class LoggingConfig(SchemaCompareBase):
     valid = '{ "target": "<bucket name>", [ "prefix": "<logging prefix>" ]}'
 
 
+class LifecycleConfig(SchemaCompareBase):
+
+    """Provides JSON-Schema based validation of the supplied Lifecycle config.
+
+    The S3 Lifecycle system allows for many unique configurations. Each
+    configuration object defined in this schema will be turned into a
+    :py:class:`boto.s3.lifecycle.Rule` object. All of the rules together will
+    be turned into a :py:class:`boto.s3.lifecycle.Lifecycle` object.
+
+    .. code-block:: json
+
+        [
+          { "id": "unique_rule_identifier",
+            "prefix": "/some_path",
+            "status": "Enabled",
+            "expiration": 365,
+            "transition": {
+              "days": 90,
+              "date": "2016-05-19T20:04:17+00:00",
+              "storage_class": "GLACIER",
+            }
+          }
+        ]
+    """
+
+    SCHEMA = {
+        # The outer wrapper must be a list of properly formatted objects,
+        # or Null if we are not going to manage this configuration at all.
+        'type': ['array', 'null'],
+        'uniqueItems': True,
+        'items': {
+            'type': 'object',
+            'required': ['id', 'prefix', 'status'],
+            'additionalProperties': False,
+            'properties': {
+                # The ID and Prefix must be strings. We do not allow for them
+                # to be empty -- they must be defined.
+                'id': {
+                    'type': 'string',
+                    'minLength': 1,
+                    'maxLength': 255,
+                },
+                'prefix': {'type': 'string'},
+
+                # The Status field must be 'Enabled' or 'Disabled'
+                'status': {
+                    'type': 'string',
+                    'enum': ['Enabled', 'Disabled'],
+                },
+
+                # Expiration and Transition can be empty, or have
+                # configurations associated with them.
+                'expiration': {
+                    'type': ['string', 'integer'],
+                    'pattern': '^[0-9]+$',
+                },
+                'transition': {
+                    'type': ['object', 'null'],
+                    'required': ['storage_class'],
+                    'properties': {
+                        'days': {
+                            'type': ['string', 'integer'],
+                            'pattern': '^[0-9]+$',
+                        },
+                        'date': {
+                            'type': 'string',
+                            'format': 'date-time'
+                        },
+                        'storage_class': {
+                            'type': 'string',
+                            'enum': ['GLACIER', 'STANDARD_IA']
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
 class S3BaseActor(base.AWSBaseActor):
 
     """Base class for S3 actors."""
@@ -90,6 +171,8 @@ class S3BaseActor(base.AWSBaseActor):
         'name': (str, REQUIRED, 'Name of the S3 Bucket'),
         'state': (STATE, 'present',
                   'Desired state of the bucket: present/absent'),
+        'lifecycle': (LifecycleConfig, None,
+                      'List of Lifecycle configurations.'),
         'logging': (LoggingConfig, None,
                     'Dict with the logging configuration information.'),
         'policy': ((str, None), None,
@@ -109,6 +192,7 @@ class Bucket(S3BaseActor):
 
       * Ensure that an S3 bucket is present or absent.
       * Manage the bucket policy.
+      * Manage the bucket Lifecycle configurations.
       * Enable or Suspend Bucket Versioning.
         Note: It is impossible to actually _disable_ bucket versioning -- once
         it is enabled, you can only suspend it, or re-enable it.
@@ -129,8 +213,18 @@ class Bucket(S3BaseActor):
     :state:
       (str) Present or Absent. Default: "present"
 
+    :lifecycle:
+      (:py:class:`LifecycleConfig`, None)
+
+      A list of individual Lifecycle configurations. Each dictionary includes
+      keys for the `id`, `prefix` and `status` as required parameters.
+      Optionally you can supply an `expiration` and/or `transition` dictionary.
+
+      If an empty list is supplied, or the list in any way does not match what
+      is currently configured in Amazon, the appropriate changes will be made.
+
     :logging:
-      (LoggingConfig, None)
+      (:py:class:`LoggingConfig`, None)
 
       If a dictionary is supplied (`{'target': 'logging_bucket', 'prefix':
       '/mylogs'}`), then we will configure bucket logging to the supplied
@@ -162,6 +256,12 @@ class Bucket(S3BaseActor):
            "name": "kingpin-integration-testing",
            "region": "us-west-2",
            "policy": "./examples/aws.s3/amazon_put.json",
+           "lifecycle": {
+              "id": "main",
+              "prefix": "/",
+              "status": "Enabled",
+              "expiration": 30,
+           },
            "logging": {
              "target": "logs.myco.com",
              "prefix": "/kingpin-integratin-testing"
@@ -192,6 +292,95 @@ class Bucket(S3BaseActor):
         self.policy = self.option('policy')
         if self.option('policy'):
             self.policy = self._parse_policy_json(self.option('policy'))
+
+        # If the Lifecycle config is anything but None, we parse it and
+        # pre-build all of our Lifecycle/Rule/Expiration/Transition objects.
+        if self.option('lifecycle') is not None:
+            self.lifecycle = self._generate_lifecycle(self.option('lifecycle'))
+
+    def _generate_lifecycle(self, config):
+        """Generates a Lifecycle Configuration object.
+
+        Takes the supplied configuration (a list of dicts) and turns them into
+        proper Boto Lifecycle Rules, then returns a Lifecycle configuration
+        object with these rules.
+
+        args:
+            config: A dict that matches the :py:class:`LifecycleConfig` schema.
+
+        returns:
+            :py:class:`boto.s3.lifecycle.Lifecycle`
+            None: If the supplied configuration is empty
+        """
+        self.log.debug('Generating boto.s3.lifecycle.Lifecycle config..')
+
+        # If the config list is empty, return None -- later in the code this
+        # None will be used to determine whether or not to "delete" the
+        # existing bucket lifecycle configs.
+        if len(config) < 1:
+            return None
+
+        # Generate a fresh Lifecycle configuration object
+        lc = lifecycle.Lifecycle()
+        for c in config:
+            self.log.debug('Generating lifecycle rule from: %s' % config)
+
+            # You must supply at least 'expiration' or 'transition' in your
+            # lifecycle config. This is tricky to check in the jsonschema, so
+            # we do it here.
+            if not any(k in c for k in ('expiration', 'transition')):
+                raise InvalidBucketConfig(
+                    'You must supply at least an expiration or transition '
+                    'configuration in your config: %s' % c)
+
+            # If the expiration 'days' were in string form turn them into an
+            # integer.
+            if 'expiration' in c:
+                c['expiration'] = int(c['expiration'])
+
+            # If 'transition' is supplied, turn it into a lifecycle.Transition
+            # object using the generate_transition() method.
+            if 'transition' in c:
+                transition_dict = c['transition']
+                transition_obj = self._generate_transition(transition_dict)
+                c['transition'] = transition_obj
+
+            # Finally add our rule to the lifecycle object
+            lc.add_rule(**c)
+
+        # Interesting hack -- Although Amazon does not document this, or
+        # provide it as a parameter to the boto.s3.lifecycle.Rule/Lifecycle
+        # objects, it seems that when you "get" the config from Amazon, each
+        # Rule has a blank "Rule" attribute added. The Lifecycle object is the
+        # same it get a blank "Lifecycle" attribute added. These show up when
+        # we do the comparison between our config and the Amazon one, so we are
+        # adding them here to help the comparison later on in
+        # self._ensure_lifecycle().
+        for r in lc:
+            r.Rule = ''
+        lc.LifecycleConfiguration = ''
+
+        return lc
+
+    def _generate_transition(self, config):
+        """Generates a Lifecycle Transition object.
+
+        See :py:class:`~boto.s3.lifecycle.Transition` for details about the
+        contents of the dictionary.
+
+        (*Note, we don't do much input validation here - we rely on the
+        :py:class:`LifecycleConfig` schema to do that for us*)
+
+        args:
+            config: A dictionary with `days` or `date`, and `storage_class`.
+
+        returns:
+            :py:class:`boto.s3.lifecycle.Transition`
+        """
+        self.log.debug('Generating transition config from: %s' % config)
+        if 'days' in config:
+            config['days'] = int(config['days'])
+        return lifecycle.Transition(**config)
 
     @gen.coroutine
     def _get_bucket(self):
@@ -271,6 +460,11 @@ class Bucket(S3BaseActor):
             # Mock out the versioning config -- return an empty dict to
             # indicate there is no configuration.
             mock_bucket.get_versioning_config.return_value = {}
+
+            # Raise a 404 (empty) because new buckets do not have lifecycle
+            # policies attached.
+            mock_bucket.get_lifecycle_config.side_effect = S3ResponseError(
+                404, 'Empty')
 
             raise gen.Return(mock_bucket)
 
@@ -479,6 +673,74 @@ class Bucket(S3BaseActor):
             raise gen.Return()
 
     @gen.coroutine
+    def _ensure_lifecycle(self, bucket):
+        """Ensures that the Bucket Lifecycle configuration is in place.
+
+        args:
+            bucket: A :py:class:`boto.s3.Bucket` object
+        """
+        try:
+            existing = yield self.thread(bucket.get_lifecycle_config)
+        except S3ResponseError as e:
+            if e.status != 404:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected error occurred. %s' % e)
+            existing = None
+
+        # Simple check -- are we deleting the lifecycle? Do it.
+        if self.lifecycle is None:
+            if existing is None:
+                self.log.debug('No existing lifecycle configuration found.')
+                raise gen.Return()
+            yield self._delete_lifecycle(bucket)
+            raise gen.Return()
+
+        # Next simple check -- if we're pushing a new config, and the old
+        # config is empty (there was none), then just go and push it.
+        if existing is None:
+            yield self._configure_lifecycle(bucket)
+            raise gen.Return()
+
+        # Now sort through the existing Lifecycle configuration and the one
+        # that we've built locally. If there are any differences, we're going
+        # to push an all new config.
+        diff = self._diff_policy_json(
+            json.loads(jsonpickle.encode(existing)),
+            json.loads(jsonpickle.encode(self.lifecycle)))
+        if diff:
+            self.log.info('Lifecycle configurations do not match. Updating.')
+            for line in diff.split('\n'):
+                self.log.info('Diff: %s' % line)
+            yield self._configure_lifecycle(bucket)
+
+    @gen.coroutine
+    def _delete_lifecycle(self, bucket):
+        if self._dry:
+            self.log.warning('Would have deleted the existing lifecycle '
+                             'configuration.')
+            raise gen.Return()
+
+        self.log.info('Deleting the existing lifecycle configuration.')
+        yield self.thread(bucket.delete_lifecycle_configuration)
+
+    @gen.coroutine
+    def _configure_lifecycle(self, bucket):
+        self.log.debug('Lifecycle config: %s' %
+                       jsonpickle.encode(self.lifecycle))
+
+        if self._dry:
+            self.log.warning('Would have pushed the following lifecycle '
+                             'configuration: %s' % self.lifecycle)
+            raise gen.Return()
+
+        self.log.info('Updating the Bucket Lifecycle config')
+        try:
+            yield self.thread(bucket.configure_lifecycle, self.lifecycle)
+        except S3ResponseError as e:
+            raise InvalidBucketConfig('Invalid Lifecycle Configuration: %s'
+                                      % e.message)
+
+    @gen.coroutine
     def _execute(self):
         """Executes an actor and yields the results when its finished.
 
@@ -502,5 +764,9 @@ class Bucket(S3BaseActor):
         # Only manage versioning if a config was supplied
         if self.option('versioning') is not None:
             yield self._ensure_versioning(bucket)
+
+        # Only manage the lifecycle configuration if one was supplied
+        if self.option('lifecycle') is not None:
+            yield self._ensure_lifecycle(bucket)
 
         raise gen.Return()
