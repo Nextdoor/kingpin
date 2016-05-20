@@ -31,6 +31,7 @@ from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
 from kingpin.actors.aws import settings as aws_settings
+from kingpin.actors.utils import dry
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -220,6 +221,7 @@ class Delete(SQSBaseActor):
     }
 
     @gen.coroutine
+    @dry('Would delete the queue: {queue}')
     def _delete_queue(self, queue):
         """Delete the provided queue.
 
@@ -231,12 +233,8 @@ class Delete(SQSBaseActor):
         Raises:
           QueueDeletionFailed if queue deletion failed.
         """
-        if not self._dry:
-            self.log.info('Deleting Queue: %s...' % queue.url)
-            ok = yield self.thread(self.sqs_conn.delete_queue, queue)
-        else:
-            self.log.info('Would delete the queue: %s' % queue.url)
-            ok = True
+        self.log.info('Deleting Queue: %s...' % queue.url)
+        ok = yield self.thread(self.sqs_conn.delete_queue, queue)
 
         # Raise an exception if the tasks failed
         if not ok:
@@ -267,7 +265,7 @@ class Delete(SQSBaseActor):
 
         tasks = []
         for q in matched_queues:
-            tasks.append(self._delete_queue(q))
+            tasks.append(self._delete_queue(queue=q))
         yield tasks
 
         raise gen.Return()
