@@ -31,7 +31,7 @@ class TestRegisterInstance(testing.AsyncTestCase):
 
         elb = mock.Mock()
         instance = 'i-un173s7'
-        yield act._add(elb, [instance])
+        yield act._add(elb=elb, instances=[instance])
 
         elb.register_instances.assert_called_with([instance])
 
@@ -49,7 +49,7 @@ class TestRegisterInstance(testing.AsyncTestCase):
         elb = mock.Mock()
         elb.availability_zones = []
 
-        yield act._check_elb_zones(elb)
+        yield act._check_elb_zones(elb=elb)
 
         elb.enable_zones.assert_called_with(set(['unit-test-zone']))
 
@@ -67,7 +67,7 @@ class TestRegisterInstance(testing.AsyncTestCase):
         elb = mock.Mock()
         elb.availability_zones = ['unit-test-zone']
 
-        yield act._check_elb_zones(elb)
+        yield act._check_elb_zones(elb=elb)
 
         self.assertEquals(elb.enable_zones.call_count, 0)
 
@@ -88,7 +88,7 @@ class TestRegisterInstance(testing.AsyncTestCase):
 
         act._find_elb.assert_called_with('elb-test')
         lb = yield act._find_elb()
-        act._add.assert_called_with(lb, ['i-test'])
+        act._add.assert_called_with(elb=lb, instances=['i-test'])
 
     @testing.gen_test
     def test_execute_self(self):
@@ -108,27 +108,7 @@ class TestRegisterInstance(testing.AsyncTestCase):
 
         act._find_elb.assert_called_with('elb-test')
         lb = yield act._find_elb()
-        act._add.assert_called_with(lb, ['i-test'])
-
-    @testing.gen_test
-    def test_execute_dry(self):
-        act = elb_actor.RegisterInstance('UTA', {
-            'elb': 'elb-test',
-            'region': 'us-east-1',
-            'instances': 'i-test'},
-            dry=True)
-
-        act._find_elb = mock.Mock()
-        act._find_elb.return_value = helper.tornado_value(mock.Mock())
-        act._check_elb_zones = mock.Mock()
-        act._check_elb_zones.return_value = helper.tornado_value(mock.Mock())
-        act._add = mock.Mock()
-        act._add.return_value = helper.tornado_value(mock.Mock())
-        yield act._execute()
-
-        act._find_elb.assert_called_with('elb-test')
-        yield act._find_elb()
-        self.assertEquals(0, act._add.call_count)
+        act._add.assert_called_with(elb=lb, instances=['i-test'])
 
 
 class TestDeregisterInstance(testing.AsyncTestCase):
@@ -152,7 +132,7 @@ class TestDeregisterInstance(testing.AsyncTestCase):
 
         act._wait_on_draining = mock.Mock()
         act._wait_on_draining.return_value = helper.tornado_value(mock.Mock())
-        yield act._remove(elb, [instance])
+        yield act._remove(elb=elb, instances=[instance])
 
         elb.deregister_instances.assert_called_with([instance])
 
@@ -200,7 +180,7 @@ class TestDeregisterInstance(testing.AsyncTestCase):
 
         act._find_elb.assert_called_with('elb-test')
         lb = yield act._find_elb()
-        act._remove.assert_called_with(lb, ['i-test'])
+        act._remove.assert_called_with(elb=lb, instances=['i-test'])
 
     @testing.gen_test
     def test_execute_wildcard(self):
@@ -260,7 +240,7 @@ class TestDeregisterInstance(testing.AsyncTestCase):
 
         act._find_elb.assert_called_with('elb-test')
         lb = yield act._find_elb()
-        act._remove.assert_called_with(lb, ['i-test'])
+        act._remove.assert_called_with(elb=lb, instances=['i-test'])
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -405,7 +385,7 @@ class TestSetCert(testing.AsyncTestCase):
             'Unit Test', {'name': 'unit-test',
                           'region': 'us-east-1',
                           'cert_name': 'unit-cert'}
-            )
+        )
 
         # AccessDenied means check has failed.
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
@@ -428,7 +408,7 @@ class TestSetCert(testing.AsyncTestCase):
             'Unit Test', {'name': 'unit-test',
                           'region': 'us-east-1',
                           'cert_name': 'unit-cert'}
-            )
+        )
         actor.iam_conn = mock.Mock()
         actor.iam_conn.get_server_certificate = mock.Mock(return_value=cert)
 
@@ -447,7 +427,7 @@ class TestSetCert(testing.AsyncTestCase):
             'Unit Test', {'name': 'unit-test',
                           'region': 'us-east-1',
                           'cert_name': 'unit-cert'}
-            )
+        )
 
         actor.iam_conn = mock.Mock()
         error = BotoServerError(400, 'test')
@@ -462,16 +442,16 @@ class TestSetCert(testing.AsyncTestCase):
             'Unit Test', {'name': 'unit-test',
                           'region': 'us-east-1',
                           'cert_name': 'unit-cert'}
-            )
+        )
         elb = mock.Mock()
 
-        yield actor._use_cert(elb, 'test')
+        yield actor._use_cert(elb=elb, arn='test')
         self.assertEquals(elb.set_listener_SSL_certificate.call_count, 1)
 
         error = BotoServerError(400, 'test')
         elb.set_listener_SSL_certificate.side_effect = error
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield actor._use_cert(elb, 'test')
+            yield actor._use_cert(elb=elb, arn='test')
 
     @testing.gen_test
     def test_execute(self):
@@ -479,7 +459,7 @@ class TestSetCert(testing.AsyncTestCase):
             'Unit Test', {'name': 'unit-test',
                           'region': 'us-east-1',
                           'cert_name': 'unit-cert'}
-            )
+        )
         elb = mock.Mock()
         elb.listeners = [
             (443, 443, 'HTTPS', 'HTTPS',
@@ -518,9 +498,7 @@ class TestSetCert(testing.AsyncTestCase):
         actor._find_elb = helper.mock_tornado(elb)
         actor._get_cert_arn = helper.mock_tornado('arn')
         actor._check_access = helper.mock_tornado()
-        actor._use_cert = helper.mock_tornado()
 
         yield actor._execute()
 
         self.assertEquals(actor._check_access._call_count, 1)
-        self.assertEquals(actor._use_cert._call_count, 0)

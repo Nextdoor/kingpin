@@ -29,6 +29,7 @@ from tornado import gen
 import jsonpickle
 
 from kingpin.actors import exceptions
+from kingpin.actors.utils import dry
 from kingpin.actors.aws import base
 from kingpin.constants import SchemaCompareBase
 from kingpin.constants import REQUIRED
@@ -425,7 +426,8 @@ class Bucket(S3BaseActor):
         if state == 'absent' and bucket is None:
             self.log.debug('Bucket does not exist')
         elif state == 'absent' and bucket:
-            yield self._delete_bucket(bucket)
+            yield self._verify_can_delete_bucket(bucket=bucket)
+            yield self._delete_bucket(bucket=bucket)
             bucket = None
         elif state == 'present' and bucket is None:
             bucket = yield self._create_bucket()
@@ -476,12 +478,7 @@ class Bucket(S3BaseActor):
         raise gen.Return(bucket)
 
     @gen.coroutine
-    def _delete_bucket(self, bucket):
-        """Tries to delete an S3 bucket.
-
-        args:
-            bucket: The S3 bucket object as returned by Boto
-        """
+    def _verify_can_delete_bucket(self, bucket):
         # Find out if there are any files in the bucket before we go to delete
         # it. We cannot delete a bucket with files in it -- nor do we want to.
         keys = yield self.thread(bucket.get_all_keys)
@@ -489,10 +486,14 @@ class Bucket(S3BaseActor):
             raise exceptions.RecoverableActorFailure(
                 'Cannot delete bucket with keys: %s files found' % len(keys))
 
-        if self._dry:
-            self.log.warning('Would have deleted bucket %s' % bucket)
-            raise gen.Return()
+    @gen.coroutine
+    @dry('Would have deleted bucket {bucket}')
+    def _delete_bucket(self, bucket):
+        """Tries to delete an S3 bucket.
 
+        args:
+            bucket: The S3 bucket object as returned by Boto
+        """
         try:
             self.log.info('Deleting bucket %s' % bucket)
             yield self.thread(bucket.delete)
@@ -528,20 +529,8 @@ class Bucket(S3BaseActor):
         # Now, if we're deleting the policy (policy=''), then optionally do
         # that and bail.
         if new == '':
-            # If no existing policy was found, just get us out of this function
-            if not exist:
-                raise gen.Return()
-
-            if self._dry:
-                self.log.warning('Would have deleted bucket policy')
-                raise gen.Return()
-
-            self.log.info('Deleting bucket policy')
-            try:
-                yield self.thread(bucket.delete_policy)
-            except S3ResponseError as e:
-                raise exceptions.RecoverableActorFailure(
-                    'An unexpected error occurred: %s' % e)
+            if exist:
+                yield self._delete_policy(bucket)
             raise gen.Return()
 
         # Now, diff our new policy from the existing policy. If there is no
@@ -556,24 +545,42 @@ class Bucket(S3BaseActor):
         for line in diff.split('\n'):
             self.log.info('Diff: %s' % line)
 
-        # Final DRY check ... if dry, get out of here.
-        if self._dry:
-            self.log.warning('Would have pushed bucket policy %s'
-                             % self.option('policy'))
-            raise gen.Return()
-
         # Push the new policy!
-        self.log.info('Pushing bucket policy %s' % self.option('policy'))
-        self.log.debug('Policy doc: %s' % new)
+        yield self._set_policy(bucket)
+
+    @gen.coroutine
+    @dry('Would delete bucket policy')
+    def _delete_policy(self, bucket):
+        """Deletes a Bucket Policy.
+
+        args:
+            bucket: :py:class:`~boto.s3.bucket.Bucket`
+        """
+        self.log.info('Deleting bucket policy')
         try:
-            yield self.thread(bucket.set_policy, json.dumps(new))
+            yield self.thread(bucket.delete_policy)
+        except S3ResponseError as e:
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected error occurred: %s' % e)
+
+    @gen.coroutine
+    @dry('Would have pushed bucket policy')
+    def _set_policy(self, bucket):
+        """Sets a Bucket policy.
+
+        args:
+            bucket: :py:class:`~boto.s3.bucket.Bucket`
+        """
+        self.log.info('Pushing bucket policy %s' % self.option('policy'))
+        self.log.debug('Policy doc: %s' % self.policy)
+        try:
+            yield self.thread(bucket.set_policy, json.dumps(self.policy))
         except S3ResponseError as e:
             if e.error_code == 'MalformedPolicy':
                 raise base.InvalidPolicy(e.message)
 
             raise exceptions.RecoverableActorFailure(
                 'An unexpected error occurred: %s' % e)
-        raise gen.Return()
 
     @gen.coroutine
     def _ensure_logging(self, bucket):
@@ -592,41 +599,47 @@ class Bucket(S3BaseActor):
         # then bail out.
         if desired['target'] == '':
             if existing.target is None:
-                self.log.debug('Logging is already disabled on this bucket')
                 raise gen.Return()
-
-            if self._dry:
-                self.log.warning('Bucket logging target is %s, would disable.'
-                                 % existing.target)
-                raise gen.Return()
-
-            self.log.info('Deleting Bucket logging configuration')
-            yield self.thread(bucket.disable_logging)
+            yield self._disable_logging(bucket)
             raise gen.Return()
-
-        # Simple shortcut name for some logging
-        target_str = 's3://%s/%s' % (desired['target'],
-                                     desired['prefix'].lstrip('/'))
 
         # If desired has a logging or prefix config, check each one and
         # validate that they are correct.
         if (desired['target'] != existing.target or
                 desired['prefix'] != existing.prefix):
-            if self._dry:
-                self.log.warning('Bucket logging config would be updated to '
-                                 '%s' % target_str)
-                raise gen.Return()
+            yield self._enable_logging(bucket, **desired)
 
-            self.log.info('Updating Bucket logging config to %s' % target_str)
-            try:
-                yield self.thread(bucket.enable_logging,
-                                  desired['target'],
-                                  desired['prefix'])
-            except S3ResponseError as e:
-                if e.error_code == 'InvalidTargetBucketForLogging':
-                    raise InvalidBucketConfig(e.message)
-                raise exceptions.RecoverableActorFailure(
-                    'An unexpected error occurred. %s' % e)
+    @gen.coroutine
+    @dry('Bucket logging would have been disabled')
+    def _disable_logging(self, bucket):
+        """Disables logging on a bucket.
+
+        args:
+            bucket: :py:class`~boto.s3.bucket.Bucket`
+        """
+        self.log.info('Deleting Bucket logging configuration')
+        yield self.thread(bucket.disable_logging)
+
+    @gen.coroutine
+    @dry('Bucket logging config would be updated to {target}/{prefix}')
+    def _enable_logging(self, bucket, target, prefix):
+        """Enables logging on a bucket.
+
+        args:
+            bucket: :py:class:`~boto.s3.bucket.Bucket`
+            target: Target S3 bucket
+            prefix: Target S3 bucket prefix
+        """
+        target_str = 's3://%s/%s' % (target, prefix.lstrip('/'))
+        self.log.info('Updating Bucket logging config to %s' % target_str)
+
+        try:
+            yield self.thread(bucket.enable_logging, target, prefix)
+        except S3ResponseError as e:
+            if e.error_code == 'InvalidTargetBucketForLogging':
+                raise InvalidBucketConfig(e.message)
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected error occurred. %s' % e)
 
     @gen.coroutine
     def _ensure_versioning(self, bucket):
@@ -641,36 +654,45 @@ class Bucket(S3BaseActor):
         # Shortcuts for our desired state
         desired = self.option('versioning')
 
-        # If desired is False, check the state, potentially disable it, and
-        # then bail out.
         if not desired:
+            # If desired is False, check the state, potentially disable it, and
+            # then bail out.
             if ('Versioning' not in existing or
                     existing['Versioning'] == 'Suspended'):
                 self.log.debug('Versioning is already disabled.')
                 raise gen.Return()
-
-            if self._dry:
-                self.log.warning('Bucket versioning would be suspended.')
-                raise gen.Return()
-
-            self.log.info('Suspending bucket versioning.')
-            yield self.thread(bucket.configure_versioning, False)
-            raise gen.Return()
-
-        # If desired is True, check the state, potentially enable it, and bail.
-        if desired:
+            yield self._disable_versioning(bucket)
+        else:
+            # If desired is True, check the state, potentially enable it, and
+            # bail.
             if ('Versioning' in existing and
                     existing['Versioning'] == 'Enabled'):
                 self.log.debug('Versioning is already enabled.')
                 raise gen.Return()
 
-            if self._dry:
-                self.log.warning('Bucket versioning would be enabled.')
-                raise gen.Return()
+            yield self._enable_versioning(bucket)
 
-            self.log.info('Enabling bucket versioning.')
-            yield self.thread(bucket.configure_versioning, True)
-            raise gen.Return()
+    @gen.coroutine
+    @dry('Bucket versioning would be suspended')
+    def _disable_versioning(self, bucket):
+        """Disables Bucket Versioning.
+
+        args:
+            bucket: :py:class:`~boto.s3.bucket.Bucket`
+        """
+        self.log.info('Suspending bucket versioning.')
+        yield self.thread(bucket.configure_versioning, False)
+
+    @gen.coroutine
+    @dry('Would enable bucket versioning')
+    def _enable_versioning(self, bucket):
+        """Enables Bucket Versioning.
+
+        args:
+            bucket: :py:class:`~boto.s3.bucket.Bucket`
+        """
+        self.log.info('Enabling bucket versioning.')
+        yield self.thread(bucket.configure_versioning, True)
 
     @gen.coroutine
     def _ensure_lifecycle(self, bucket):
@@ -711,31 +733,23 @@ class Bucket(S3BaseActor):
             self.log.info('Lifecycle configurations do not match. Updating.')
             for line in diff.split('\n'):
                 self.log.info('Diff: %s' % line)
-            yield self._configure_lifecycle(bucket)
+            yield self._configure_lifecycle(bucket, self.lifecycle)
 
     @gen.coroutine
+    @dry('Would have deleted the existing lifecycle configuration')
     def _delete_lifecycle(self, bucket):
-        if self._dry:
-            self.log.warning('Would have deleted the existing lifecycle '
-                             'configuration.')
-            raise gen.Return()
-
         self.log.info('Deleting the existing lifecycle configuration.')
         yield self.thread(bucket.delete_lifecycle_configuration)
 
     @gen.coroutine
-    def _configure_lifecycle(self, bucket):
+    @dry('Would have pushed this lifecycle configuration: {lifecycle}')
+    def _configure_lifecycle(self, bucket, lifecycle):
         self.log.debug('Lifecycle config: %s' %
-                       jsonpickle.encode(self.lifecycle))
-
-        if self._dry:
-            self.log.warning('Would have pushed the following lifecycle '
-                             'configuration: %s' % self.lifecycle)
-            raise gen.Return()
+                       jsonpickle.encode(lifecycle))
 
         self.log.info('Updating the Bucket Lifecycle config')
         try:
-            yield self.thread(bucket.configure_lifecycle, self.lifecycle)
+            yield self.thread(bucket.configure_lifecycle, lifecycle)
         except S3ResponseError as e:
             raise InvalidBucketConfig('Invalid Lifecycle Configuration: %s'
                                       % e.message)
