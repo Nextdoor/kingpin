@@ -13,6 +13,7 @@ futures
 # Used to parse out the JSON and validate its format.
 simplejson
 jsonschema
+jsonpickle
 demjson
 datadiff
 PyYAML

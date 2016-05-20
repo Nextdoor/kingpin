@@ -45,7 +45,7 @@ class IntegrationS3(testing.AsyncTestCase):
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
-    def integration_01a_create_bucket(self):
+    def integration_01_create_bucket(self):
         actor = s3.Bucket(
             options={
                 'name': self.bucket_name,
@@ -60,7 +60,7 @@ class IntegrationS3(testing.AsyncTestCase):
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
-    def integration_01b_set_bucket_policy(self):
+    def integration_02a_set_bucket_policy(self):
         actor = s3.Bucket(
             options={
                 'name': self.bucket_name,
@@ -74,7 +74,7 @@ class IntegrationS3(testing.AsyncTestCase):
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
-    def integration_01c_delete_bucket_policy(self):
+    def integration_02b_delete_bucket_policy(self):
         actor = s3.Bucket(
             options={
                 'name': self.bucket_name,
@@ -88,7 +88,7 @@ class IntegrationS3(testing.AsyncTestCase):
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
-    def integration_01d_enable_versioning(self):
+    def integration_03a_enable_versioning(self):
         actor = s3.Bucket(
             options={
                 'name': self.bucket_name,
@@ -102,13 +102,73 @@ class IntegrationS3(testing.AsyncTestCase):
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
-    def integration_01d_disable_versioning(self):
+    def integration_03b_disable_versioning(self):
         actor = s3.Bucket(
             options={
                 'name': self.bucket_name,
                 'region': self.region,
                 'state': 'present',
                 'versioning': False,
+            }
+        )
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=60)
+    def integration_04a_enable_lifecycle_management(self):
+        actor = s3.Bucket(
+            options={
+                'name': self.bucket_name,
+                'region': self.region,
+                'state': 'present',
+                'lifecycle': [{
+                    'id': 'test',
+                    'prefix': '/',
+                    'status': 'Enabled',
+                    'expiration': 30,
+                    'transition': {
+                        'days': 10,
+                        'storage_class': 'GLACIER'
+                    }
+                }]
+            }
+        )
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=60)
+    def integration_04b_update_lifecycle_management(self):
+        actor = s3.Bucket(
+            options={
+                'name': self.bucket_name,
+                'region': self.region,
+                'state': 'present',
+                'lifecycle': [{
+                    'id': 'test',
+                    'prefix': '/',
+                    'status': 'Enabled',
+                    'expiration': 180,
+                    'transition': {
+                        'days': 90,
+                        'storage_class': 'STANDARD_IA'
+                    }
+                }]
+            }
+        )
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=60)
+    def integration_04c_disable_lifecycle_management(self):
+        actor = s3.Bucket(
+            options={
+                'name': self.bucket_name,
+                'region': self.region,
+                'state': 'present',
+                'lifecycle': []
             }
         )
         done = yield actor.execute()

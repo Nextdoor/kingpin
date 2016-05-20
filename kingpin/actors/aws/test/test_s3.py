@@ -1,6 +1,7 @@
 import logging
 
 from boto.exception import S3ResponseError
+from boto.s3 import lifecycle
 from tornado import testing
 import mock
 
@@ -27,9 +28,19 @@ class TestBucket(testing.AsyncTestCase):
                 'name': 'test',
                 'region': 'us-east-1',
                 'policy': 'examples/aws.s3/amazon_put.json',
+                'lifecycle': [{
+                    'id': 'test',
+                    'prefix': '/test',
+                    'status': 'Enabled',
+                    'expiration': "30",
+                    'transition': {
+                        'days': "45",
+                        'storage_class': 'GLACIER',
+                    }
+                }],
                 'logging': {
-                  'target': 'test_target',
-                  'prefix': '/prefix'
+                    'target': 'test_target',
+                    'prefix': '/prefix'
                 },
                 'versioning': False,
             })
@@ -43,6 +54,34 @@ class TestBucket(testing.AsyncTestCase):
                     'logging': {
                         'invalid_data': 'bad_field'
                     }})
+
+    def test_generate_lifecycle_empty_returns_none(self):
+        ret = self.actor._generate_lifecycle([])
+        self.assertEquals(ret, None)
+
+    def test_generate_lifecycle_missing_expiration(self):
+        bad_config = [
+            {'id': 'test', 'prefix': '/', 'state': 'Enabled'}
+        ]
+        with self.assertRaises(s3_actor.InvalidBucketConfig):
+            self.actor._generate_lifecycle(bad_config)
+
+    def test_generate_lifecycle_valid_config(self):
+        # Validates that the generated config called by the __init__ class is
+        # correct based on the actor configuration in the setUp() method above
+        self.assertEquals(len(self.actor.lifecycle), 1)
+
+        # Verify that the rule was created with the basic options
+        r = self.actor.lifecycle[0]
+        self.assertEquals(r.id, 'test')
+        self.assertEquals(r.prefix, '/test')
+        self.assertEquals(r.status, 'Enabled')
+
+        # Validate that the string "30" was turned into an Expiration object
+        self.assertEquals(r.expiration.days, 30)
+
+        # Validate that the transition config was built properly too
+        self.assertEquals(r.transition.days, 45)
 
     @testing.gen_test
     def test_get_bucket_exists(self):
@@ -434,6 +473,100 @@ class TestBucket(testing.AsyncTestCase):
         self.assertTrue(fake_bucket.configure_versioning.called)
 
     @testing.gen_test
+    def test_ensure_lifecycle_raises_exc(self):
+        self.actor.lifecycle = None
+        fake_bucket = mock.MagicMock()
+        exc = S3ResponseError(500, 'Empty')
+        fake_bucket.get_lifecycle_config.side_effect = exc
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._ensure_lifecycle(fake_bucket)
+
+    @testing.gen_test
+    def test_ensure_lifecycle_is_absent_and_wants_absent(self):
+        self.actor._configure_lifecycle = mock.MagicMock()
+        self.actor._delete_lifecycle = mock.MagicMock()
+        self.actor.lifecycle = None
+        fake_bucket = mock.MagicMock()
+        exc = S3ResponseError(404, 'Empty')
+        fake_bucket.get_lifecycle_config.side_effect = exc
+        yield self.actor._ensure_lifecycle(fake_bucket)
+        self.assertFalse(self.actor._configure_lifecycle.called)
+        self.assertFalse(self.actor._delete_lifecycle.called)
+
+    @testing.gen_test
+    def test_ensure_lifecycle_is_present_and_wants_absent(self):
+        self.actor._configure_lifecycle = mock.MagicMock()
+        self.actor._configure_lifecycle.side_effect = [tornado_value(None)]
+        self.actor._delete_lifecycle = mock.MagicMock()
+        self.actor._delete_lifecycle.side_effect = [tornado_value(None)]
+        self.actor.lifecycle = None
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_lifecycle_config.return_value = lifecycle.Lifecycle()
+        yield self.actor._ensure_lifecycle(fake_bucket)
+        self.assertFalse(self.actor._configure_lifecycle.called)
+        self.assertTrue(self.actor._delete_lifecycle.called)
+
+    @testing.gen_test
+    def test_ensure_lifecycle_is_absent_and_wants_present(self):
+        self.actor._configure_lifecycle = mock.MagicMock()
+        self.actor._configure_lifecycle.side_effect = [tornado_value(None)]
+        self.actor._delete_lifecycle = mock.MagicMock()
+        self.actor._delete_lifecycle.side_effect = [tornado_value(None)]
+        fake_bucket = mock.MagicMock()
+        exc = S3ResponseError(404, 'Empty')
+        fake_bucket.get_lifecycle_config.side_effect = exc
+        yield self.actor._ensure_lifecycle(fake_bucket)
+        self.assertTrue(self.actor._configure_lifecycle.called)
+        self.assertFalse(self.actor._delete_lifecycle.called)
+
+    @testing.gen_test
+    def test_ensure_lifecycle_is_present_and_wants_different(self):
+        self.actor._configure_lifecycle = mock.MagicMock()
+        self.actor._configure_lifecycle.side_effect = [tornado_value(None)]
+        self.actor._delete_lifecycle = mock.MagicMock()
+        self.actor._delete_lifecycle.side_effect = [tornado_value(None)]
+        fake_bucket = mock.MagicMock()
+        fake_bucket.get_lifecycle_config.return_value = lifecycle.Lifecycle()
+        yield self.actor._ensure_lifecycle(fake_bucket)
+        self.assertTrue(self.actor._configure_lifecycle.called)
+        self.assertFalse(self.actor._delete_lifecycle.called)
+
+    @testing.gen_test
+    def test_delete_lifecycle_dry(self):
+        self.actor._dry = True
+        fake_bucket = mock.MagicMock()
+        fake_bucket.delete_lifecycle_configuration.return_value = True
+        yield self.actor._delete_lifecycle(fake_bucket)
+        self.assertFalse(fake_bucket.delete_lifecycle_configuration.called)
+
+    @testing.gen_test
+    def test_delete_lifecycle(self):
+        fake_bucket = mock.MagicMock()
+        yield self.actor._delete_lifecycle(fake_bucket)
+        self.assertTrue(fake_bucket.delete_lifecycle_configuration.called)
+
+    @testing.gen_test
+    def test_configure_lifecycle_dry(self):
+        self.actor._dry = True
+        fake_bucket = mock.MagicMock()
+        yield self.actor._configure_lifecycle(fake_bucket)
+        self.assertFalse(fake_bucket.configure_lifecycle.called)
+
+    @testing.gen_test
+    def test_configure_lifecycle(self):
+        fake_bucket = mock.MagicMock()
+        yield self.actor._configure_lifecycle(fake_bucket)
+        self.assertTrue(fake_bucket.configure_lifecycle.called)
+
+    @testing.gen_test
+    def test_configure_lifecycle_raises_exc(self):
+        fake_bucket = mock.MagicMock()
+        fake_bucket.configure_lifecycle.side_effect = S3ResponseError(
+            400, 'bad config')
+        with self.assertRaises(s3_actor.InvalidBucketConfig):
+            yield self.actor._configure_lifecycle(fake_bucket)
+
+    @testing.gen_test
     def test_execute_absent(self):
         self.actor._options['state'] = 'absent'
         self.actor._ensure_bucket = mock.MagicMock()
@@ -451,6 +584,8 @@ class TestBucket(testing.AsyncTestCase):
         self.actor._ensure_logging.side_effect = [tornado_value(None)]
         self.actor._ensure_versioning = mock.MagicMock()
         self.actor._ensure_versioning.side_effect = [tornado_value(None)]
+        self.actor._ensure_lifecycle = mock.MagicMock()
+        self.actor._ensure_lifecycle.side_effect = [tornado_value(None)]
         yield self.actor._execute()
         self.assertTrue(self.actor._ensure_bucket.called)
         self.assertTrue(self.actor._ensure_policy.called)
