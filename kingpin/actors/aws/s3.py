@@ -720,7 +720,7 @@ class Bucket(S3BaseActor):
         # Next simple check -- if we're pushing a new config, and the old
         # config is empty (there was none), then just go and push it.
         if existing is None:
-            yield self._configure_lifecycle(bucket)
+            yield self._configure_lifecycle(bucket, self.lifecycle)
             raise gen.Return()
 
         # Now sort through the existing Lifecycle configuration and the one
