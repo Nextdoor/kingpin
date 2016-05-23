@@ -720,7 +720,8 @@ class Bucket(S3BaseActor):
         # Next simple check -- if we're pushing a new config, and the old
         # config is empty (there was none), then just go and push it.
         if existing is None:
-            yield self._configure_lifecycle(bucket, self.lifecycle)
+            yield self._configure_lifecycle(bucket=bucket,
+                                            lifecycle=self.lifecycle)
             raise gen.Return()
 
         # Now sort through the existing Lifecycle configuration and the one
@@ -733,7 +734,8 @@ class Bucket(S3BaseActor):
             self.log.info('Lifecycle configurations do not match. Updating.')
             for line in diff.split('\n'):
                 self.log.info('Diff: %s' % line)
-            yield self._configure_lifecycle(bucket, self.lifecycle)
+            yield self._configure_lifecycle(bucket=bucket,
+                                            lifecycle=self.lifecycle)
 
     @gen.coroutine
     @dry('Would have deleted the existing lifecycle configuration')

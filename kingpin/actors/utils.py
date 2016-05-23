@@ -53,14 +53,21 @@ def dry(dry_message):
         variables you'd like can be substituted as long as they're passed to
         the method being wrapped.
     """
-    log.debug('Creating _skip_on_dry decorator with "%s"' % dry_message)
+    # TODO: Bring these back when we have log.trace
+    # log.debug('Creating _skip_on_dry decorator with "%s"' % dry_message)
 
     def _skip_on_dry(f):
-        log.debug('Decorating function "%s" with _skip_on_dry' % f)
+        # TODO: Bring these back when we have log.trace
+        # log.debug('Decorating function "%s" with _skip_on_dry' % f)
 
         def wrapper(self, *args, **kwargs):
+            # _Always_ compile the message we'd use in the event of a Dry run.
+            # This ensures that our test cases catch any time invalid **kwargs
+            # are passed in.
+            msg = dry_message.format(*args, **kwargs)
+
             if self._dry:
-                self.log.warning(dry_message.format(*args, **kwargs))
+                self.log.warning(msg)
                 raise gen.Return()
             ret = yield gen.coroutine(f)(self, *args, **kwargs)
             raise gen.Return(ret)
