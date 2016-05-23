@@ -95,10 +95,10 @@ class TestDeleteSQSQueueActor(SQSTestCase):
                            {'name': 'unit-test-queue',
                             'region': 'us-west-2'})
         q = mock.Mock()
-        q.name = 'unit-test-queue'
+        q .name = 'unit-test-queue'
         self.sqs_conn().delete_queue.return_value = False
         with self.assertRaises(sqs.QueueDeletionFailed):
-            yield actor._delete_queue(q)
+            yield actor._delete_queue(queue=q)
 
     @testing.gen_test
     def test_execute(self):
