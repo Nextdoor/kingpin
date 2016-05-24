@@ -15,6 +15,12 @@ from kingpin.actors.test.helper import mock_tornado, tornado_value
 log = logging.getLogger(__name__)
 
 
+def create_instance_mock(state='operational', name='my-instance'):
+    instance = mock.MagicMock(name='mock_instance')
+    instance.soul = {'state': state, 'name': name}
+    return instance
+
+
 class TestServerArrayBaseActor(testing.AsyncTestCase):
 
     def setUp(self, *args, **kwargs):
@@ -684,7 +690,7 @@ class TestLaunchActor(testing.AsyncTestCase):
 
         @gen.coroutine
         def get(self, *args, **kwargs):
-            server_list.append('x')
+            server_list.append(create_instance_mock())
             raise gen.Return(server_list)
         self.client_mock.get_server_array_current_instances = get
 
@@ -714,7 +720,7 @@ class TestLaunchActor(testing.AsyncTestCase):
 
         @gen.coroutine
         def get(self, *args, **kwargs):
-            server_list.append('x')
+            server_list.append(create_instance_mock())
             raise gen.Return(server_list)
         self.client_mock.get_server_array_current_instances = get
 
@@ -728,6 +734,64 @@ class TestLaunchActor(testing.AsyncTestCase):
         ret = yield self.actor._wait_until_healthy(array_mock, sleep=0.01)
         self.assertEquals(len(server_list), 0)
         self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_wait_until_healthy_fails_with_stranded_instances(self):
+        # Now proceed with creating a fake array, etc.
+        array_mock = mock.MagicMock(name='unittest')
+        array_mock.soul = {
+            'name': 'unittest',
+            'elasticity_params': {'bounds': {'min_count': '1'}}}
+
+        mock_stranded_instance = create_instance_mock('stranded')
+
+        @gen.coroutine
+        def get(self, *args, **kwargs):
+            raise gen.Return([mock_stranded_instance])
+        self.client_mock.get_server_array_current_instances = get
+
+        with self.assertRaises(server_array.TaskExecutionFailed):
+            yield self.actor._wait_until_healthy(array_mock, sleep=0.01)
+
+    @testing.gen_test
+    def test_launch_replacement_instances_while_waiting_for_healthy(self):
+        # Set the 'count' option to 1 in the Actor
+        self.actor._options['count'] = 1
+        self.actor._options['replace_stranded_max'] = 1
+
+        mock_stranded_instance = create_instance_mock('stranded')
+
+        # Now proceed with creating a fake array, etc.
+        array_mock = mock.MagicMock(name='unittest')
+        array_mock.soul = {
+            'name': 'unittest',
+            'elasticity_params': {'bounds': {'min_count': '1'}}}
+
+        with mock.patch.object(self.actor, '_launch_instances') as \
+                launch_instances:
+            mock_stranded_instance = create_instance_mock('stranded')
+
+            results = [gen.Return([mock_stranded_instance])]
+
+            @gen.coroutine
+            def get(self, *args, **kwargs):
+                raise results.pop(0)
+            self.client_mock.get_server_array_current_instances = get
+
+            @gen.coroutine
+            def mock_launch_instances(self, *args, **kwargs):
+                results.extend([
+                    gen.Return([create_instance_mock('booting'),
+                                mock_stranded_instance]),
+                    gen.Return([create_instance_mock('operational'),
+                                mock_stranded_instance])])
+                raise gen.Return()
+            launch_instances.side_effect = mock_launch_instances
+
+            ret = yield self.actor._wait_until_healthy(array_mock, sleep=0.01)
+            self.assertEquals(ret, None)
+            self.assertEquals(launch_instances.call_args_list,
+                              [mock.call(array_mock, 1)])
 
     @testing.gen_test
     def test_launch_instances(self):
@@ -876,10 +940,8 @@ class TestExecuteActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_get_operational_instances_warn(self):
         mock_array = mock.MagicMock(name='array')
-        mock_op_instance = mock.MagicMock(name='mock_instance')
-        mock_op_instance.soul = {'state': 'operational'}
-        mock_non_op_instance = mock.MagicMock(name='mock_instance')
-        mock_non_op_instance.soul = {'state': 'booting'}
+        mock_op_instance = create_instance_mock('operational')
+        mock_non_op_instance = create_instance_mock('booting')
 
         get = mock_tornado([mock_op_instance,
                             mock_non_op_instance,
@@ -939,9 +1001,8 @@ class TestExecuteActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute_array(self):
         mock_array = mock.MagicMock(name='array')
-        mock_op_instance = mock.MagicMock(name='mock_instance')
-        mock_op_instance.soul = {'state': 'operational',
-                                 'name': 'unit-test-instance'}
+        mock_op_instance = create_instance_mock('operational',
+                                                name='unit-test-instance')
         mock_task = mock.MagicMock(name='mock_task')
 
         yi = tornado_value([mock_op_instance])
