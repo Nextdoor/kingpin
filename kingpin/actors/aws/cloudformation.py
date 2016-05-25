@@ -18,8 +18,9 @@
 """
 
 import logging
+import json
 
-from boto.exception import BotoServerError
+from botocore.exceptions import ClientError
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
@@ -27,6 +28,7 @@ from tornado import ioloop
 from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
+from kingpin.constants import SchemaCompareBase
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -61,6 +63,24 @@ class StackNotFound(exceptions.RecoverableActorFailure):
     """The requested CloudFormation stack does not exist."""
 
 
+class ParametersConfig(SchemaCompareBase):
+
+    """Simple validation that the Parameters are pure Key/Value formatted"""
+
+    SCHEMA = {
+        'type': ['object', 'null'],
+        'uniqueItems': True,
+        'patternProperties': {
+            '.*': {
+                'type': 'string'
+            }
+
+        }
+    }
+
+    valid = '{ "key", "value", "key2", "value2" }'
+
+
 # CloudFormation has over a dozen different 'stack states'... but for the
 # purposes of these actors, we really only care about a few logical states.
 # Here we map the raw states into logical states.
@@ -91,6 +111,39 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2')
     }
 
+    def _create_parameters(self, parameters, use_previous_value=False):
+        """Converts a simple Key/Value dict into Amazon CF Parameters.
+
+        The Boto3 interface requires that Parameters are passed in like this:
+
+        .. code-block:: python
+            Parameters=[
+                { 'ParameterKey': 'string',
+                  'ParameterValue': 'string',
+                  'UsePreviousValue': True|False
+                },
+            ]
+
+        This method takes a simple Dict of Key/Value pairs and converts it into
+        the above format.
+
+        Args:
+            parameters: A dict of key/values
+            use_previous_value: During a Stack Update, use the New values or
+                                the Previous values?
+
+        Returns:
+            A dict like above
+        """
+
+        new_params = [
+            {'ParameterKey': k,
+             'ParameterValue': v,
+             'UsePreviousValue': use_previous_value}
+            for k, v in parameters.items()]
+        sorted_params = sorted(new_params, key=lambda k: k['ParameterKey'])
+        return sorted_params
+
     @gen.coroutine
     def _get_stacks(self):
         """Gets a list of existing CloudFormation stacks.
@@ -99,17 +152,16 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         in the status 'DELETE_COMPLETE'.
 
         Returns:
-            A list of boto.cloudformation.stack.StackSummary objects.
+            A list of Boto S3 Stack Dicts
         """
         # Get the list of all possible stack statuses from the Boto module,
         # then pull out the few that indicate a stack is no longer in
         # existence.
         self.log.debug('Getting list of stacks from Amazon..')
-        statuses = list(self.cf_conn.valid_states)
-        statuses.remove('DELETE_COMPLETE')
-        stacks = yield self.thread(self.cf_conn.list_stacks,
-                                   stack_status_filters=statuses)
-        raise gen.Return(stacks)
+        statuses = COMPLETE + IN_PROGRESS + FAILED
+        stacks = yield self.thread(self.cf3_conn.list_stacks,
+                                   StackStatusFilter=statuses)
+        raise gen.Return(stacks['StackSummaries'])
 
     @gen.coroutine
     def _get_stack(self, stack):
@@ -119,11 +171,11 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             stack: String name
 
         Returns
-            <Stack Object> or <None>
+            <Stack Dict> or <None>
         """
         stacks = yield self._get_stacks()
-        self.log.debug('Checking whether stack %s exists.' % stack)
-        new_list = [s for s in stacks if s.stack_name == stack]
+        self.log.debug('Checking whether stack exists')
+        new_list = [s for s in stacks if s['StackName'] == stack]
 
         if len(new_list) > 0:
             raise gen.Return(new_list[0])
@@ -153,26 +205,25 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 msg = 'Stack "%s" not found.' % self.option('name')
                 raise StackNotFound(msg)
 
-            self.log.debug('Got stack %s status: %s' %
-                           (stack.stack_name, stack.stack_status))
+            self.log.debug('Got stack status: %s' % stack['StackStatus'])
 
             # First, lets see if the stack is still in progress (either
             # creation, deletion, or rollback .. doesn't really matter)
-            if stack.stack_status in IN_PROGRESS:
+            if stack['StackStatus'] in IN_PROGRESS:
                 self.log.info('Stack is in %s, waiting %s(s)...' %
-                              (stack.stack_status, sleep))
+                              (stack['StackStatus'], sleep))
                 yield utils.tornado_sleep(sleep)
                 continue
 
             # If the stack is in the desired state, then return
-            if stack.stack_status in desired_states:
+            if stack['StackStatus'] in desired_states:
                 self.log.info('Stack execution completed, final state: %s' %
-                              stack.stack_status)
+                              stack['StackStatus'])
                 raise gen.Return()
 
             # Lastly, if we get here, then something is very wrong and we got
             # some funky status back. Throw an exception.
-            msg = 'Unxpected stack state received (%s)' % stack.stack_status
+            msg = 'Unxpected stack state received (%s)' % stack['StackStatus']
             raise CloudFormationError(msg)
 
 
@@ -243,8 +294,8 @@ class Create(CloudFormationBaseActor):
                              'Set to `True` to disable rollback of the stack '
                              'if stack creation failed.'),
         'name': (str, REQUIRED, 'Name of the stack'),
-        'parameters': (dict, {}, 'Parameters passed into the CF '
-                                 'template execution'),
+        'parameters': (ParametersConfig, {}, 'Parameters passed into the CF '
+                                             'template execution'),
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
         'template': (str, REQUIRED,
                      'Path to the AWS CloudFormation File. http(s)://, '
@@ -259,6 +310,9 @@ class Create(CloudFormationBaseActor):
     def __init__(self, *args, **kwargs):
         """Initialize our object variables."""
         super(Create, self).__init__(*args, **kwargs)
+
+        # Convert our supplied parameters into a properly formatted dict
+        self._parameters = self._create_parameters(self.option('parameters'))
 
         # Check if the supplied CF template is a local file. If it is, read it
         # into memory.
@@ -286,12 +340,12 @@ class Create(CloudFormationBaseActor):
         remote_types = ('http://', 'https://')
 
         if template.startswith(remote_types):
+            self.log.error('GOT HERE')
             return (None, template)
 
         try:
-            # TODO: leverage self.readfile()
-            return (open(template, 'r').read(), None)
-        except IOError as e:
+            return (json.dumps(self._parse_policy_json(template)), None)
+        except exceptions.UnrecoverableActorFailure as e:
             raise InvalidTemplate(e)
 
     @gen.coroutine
@@ -308,44 +362,41 @@ class Create(CloudFormationBaseActor):
             self.log.info('Validating template (%s) with AWS...' %
                           self._template_url)
 
+        if self._template_body:
+            cfg = {'TemplateBody': self._template_body}
+        else:
+            cfg = {'TemplateURL': self._template_url}
+
         try:
-            yield self.thread(
-                self.cf_conn.validate_template,
-                template_body=self._template_body,
-                template_url=self._template_url)
-        except BotoServerError as e:
-            msg = '%s: %s' % (e.error_code, e.message)
-
-            if e.status == 400:
-                raise InvalidTemplate(msg)
-
-            raise
+            yield self.thread(self.cf3_conn.validate_template, **cfg)
+        except ClientError as e:
+            raise InvalidTemplate(e.message)
 
     @gen.coroutine
     def _create_stack(self):
         """Executes the stack creation."""
         # Create the stack, and get its ID.
         self.log.info('Creating stack %s' % self.option('name'))
+
+        if self._template_body:
+            cfg = {'TemplateBody': self._template_body}
+        else:
+            cfg = {'TemplateURL': self._template_url}
+
         try:
-            stack_id = yield self.thread(
-                self.cf_conn.create_stack,
-                self.option('name'),
-                template_body=self._template_body,
-                template_url=self._template_url,
-                parameters=self.option('parameters').items(),
-                disable_rollback=self.option('disable_rollback'),
-                timeout_in_minutes=self.option('timeout_in_minutes'),
-                capabilities=self.option('capabilities'))
-        except BotoServerError as e:
-            msg = '%s: %s' % (e.error_code, e.message)
+            stack = yield self.thread(
+                self.cf3_conn.create_stack,
+                StackName=self.option('name'),
+                Parameters=self._parameters,
+                DisableRollback=self.option('disable_rollback'),
+                TimeoutInMinutes=self.option('timeout_in_minutes'),
+                Capabilities=self.option('capabilities'),
+                **cfg)
+        except ClientError as e:
+            raise CloudFormationError(e.message)
 
-            if e.status == 400:
-                raise CloudFormationError(msg)
-
-            raise
-
-        self.log.info('Stack %s created: %s' % (self.option('name'), stack_id))
-        raise gen.Return(stack_id)
+        self.log.info('Stack created: %s' % stack['StackId'])
+        raise gen.Return(stack['StackId'])
 
     @gen.coroutine
     def _execute(self):
@@ -415,20 +466,16 @@ class Delete(CloudFormationBaseActor):
     def _delete_stack(self):
         """Executes the stack deletion."""
         # Create the stack, and get its ID.
-        self.log.info('Deleting stack %s' % self.option('name'))
+        self.log.info('Deleting stack')
         try:
             ret = yield self.thread(
-                self.cf_conn.delete_stack, self.option('name'))
-        except BotoServerError as e:
-            msg = '%s: %s' % (e.error_code, e.message)
+                self.cf3_conn.delete_stack, StackName=self.option('name'))
+        except ClientError as e:
+            raise CloudFormationError(e.message)
 
-            if e.status == 400:
-                raise CloudFormationError(msg)
-
-            raise
-        self.log.info('Stack %s delete requested: %s' %
-                      (self.option('name'), ret))
-        raise gen.Return(ret)
+        req_id = ret['ResponseMetadata']['RequestId']
+        self.log.info('Stack delete requested: %s' % req_id)
+        raise gen.Return(req_id)
 
     @gen.coroutine
     def _execute(self):
@@ -437,7 +484,7 @@ class Delete(CloudFormationBaseActor):
         # If the stack doesn't exist, let the user know.
         exists = yield self._get_stack(stack_name)
         if not exists:
-            raise StackNotFound('Stack %s does not exist!' % stack_name)
+            raise StackNotFound('Stack does not exist!')
 
         # If we're in dry mode, exit at this point. We can't do anything
         # further to validate that the creation process will work.

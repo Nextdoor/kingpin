@@ -1,21 +1,27 @@
+import datetime
 import logging
 
-from boto.exception import BotoServerError
-from tornado import gen
+from botocore.exceptions import ClientError
 from tornado import testing
 import mock
 
 from kingpin.actors.aws import settings
-from kingpin.actors import exceptions
 from kingpin.actors.aws import cloudformation
+from kingpin.actors.test.helper import tornado_value
 
 log = logging.getLogger(__name__)
 
 
-@gen.coroutine
-def tornado_value(*args):
-    """Returns whatever is passed in. Used for testing."""
-    raise gen.Return(*args)
+def create_fake_stack(name, status):
+    fake_stack = {
+        'StackId': 'arn:aws:cloudformation:us-east-1:xxxx:stack/%s/xyz' % name,
+        'LastUpdatedTime': datetime.datetime.now(),
+        'TemplateDescription': 'Fake Template %s' % name,
+        'CreationTime': datetime.datetime.now(),
+        'StackName': name,
+        'StackStatus': status
+    }
+    return fake_stack
 
 
 class TestCloudFormationBaseActor(testing.AsyncTestCase):
@@ -27,48 +33,70 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
         reload(cloudformation)
 
+    def test_create_parameters(self):
+        params = {
+            'Key1': 'Value1',
+            'Key2': 'Value2',
+        }
+
+        expected = [
+            {'ParameterKey': 'Key1',
+             'ParameterValue': 'Value1',
+             'UsePreviousValue': False},
+            {'ParameterKey': 'Key2',
+             'ParameterValue': 'Value2',
+             'UsePreviousValue': False},
+        ]
+
+        actor = cloudformation.CloudFormationBaseActor(
+            'unittest', {'region': 'us-east-1'})
+
+        ret = actor._create_parameters(params)
+        self.assertEquals(ret, expected)
+
     @testing.gen_test
     def test_get_stacks(self):
         actor = cloudformation.CloudFormationBaseActor(
             'unittest', {'region': 'us-east-1'})
-        actor.cf_conn.list_stacks = mock.MagicMock()
-        actor.cf_conn.list_stacks.return_value = [1, 2, 3]
+        actor.cf3_conn.list_stacks = mock.MagicMock()
+        actor.cf3_conn.list_stacks.return_value = {
+            'StackSummaries': [
+                create_fake_stack('s1', 'UPDATE_COMPLETE'),
+                create_fake_stack('s2', 'UPDATE_COMPLETE'),
+                create_fake_stack('s3', 'UPDATE_COMPLETE')
+            ]
+        }
         ret = yield actor._get_stacks()
-        self.assertEquals([1, 2, 3], ret)
+        self.assertEquals(
+            ['s1', 's2', 's3'],
+            [ret[0]['StackName'],
+             ret[1]['StackName'],
+             ret[2]['StackName']])
 
     @testing.gen_test
     def test_get_stack(self):
         actor = cloudformation.CloudFormationBaseActor(
             'unittest', {'region': 'us-east-1'})
+        actor.cf3_conn.list_stacks = mock.MagicMock()
+        actor.cf3_conn.list_stacks.return_value = {
+            'StackSummaries': [
+                create_fake_stack('s1', 'UPDATE_COMPLETE'),
+                create_fake_stack('s2', 'UPDATE_COMPLETE'),
+                create_fake_stack('s3', 'UPDATE_COMPLETE')
+            ]
+        }
 
-        actor.cf_conn.list_stacks = mock.MagicMock()
-        s1 = mock.MagicMock()
-        s1.stack_name = 'stack-1'
-        s2 = mock.MagicMock()
-        s2.stack_name = 'stack-2'
-        s3 = mock.MagicMock()
-        s3.stack_name = 'stack-3'
-        actor.cf_conn.list_stacks.return_value = [s1, s2, s3]
+        ret = yield actor._get_stack('s1')
+        self.assertEquals(ret['StackName'], 's1')
 
-        ret = yield actor._get_stack('stack-1')
-        self.assertEquals(ret, s1)
-
-        ret = yield actor._get_stack('stack-5')
+        ret = yield actor._get_stack('s5')
         self.assertEquals(ret, None)
 
     @testing.gen_test
     def test_wait_until_state(self):
-        create_in_progress = mock.MagicMock(name='create_in_progress')
-        create_in_progress.stack_status = 'CREATE_IN_PROGRESS'
-        create_in_progress.stack_name = 'unittest'
 
-        create_complete = mock.MagicMock(name='CREATE_COMPLETE')
-        create_complete.stack_status = 'CREATE_COMPLETE'
-        create_complete.stack_name = 'unittest'
-
-        rollback_complete = mock.MagicMock(name='ROLLBACK_COMPLETE')
-        rollback_complete.stack_status = 'ROLLBACK_COMPLETE'
-        rollback_complete.stack_name = 'unittest'
+        create_in_progress = create_fake_stack('test', 'CREATE_IN_PROGRESS')
+        create_complete = create_fake_stack('test', 'CREATE_COMPLETE')
 
         actor = cloudformation.CloudFormationBaseActor(
             'unittest', {'region': 'us-east-1'})
@@ -117,7 +145,6 @@ class TestCreate(testing.AsyncTestCase):
             {'name': 'unit-test-cf',
              'region': 'us-west-2',
              'template': 'examples/test/aws.cloudformation/cf.unittest.json'})
-        # TODO: Fill this in with some real content
         self.assertNotEquals(actor._template_body, '#BLANK\r\n')
         self.assertEquals(actor._template_url, None)
 
@@ -145,10 +172,10 @@ class TestCreate(testing.AsyncTestCase):
             {'name': 'unit-test-cf',
              'region': 'us-west-2',
              'template': 'examples/test/aws.cloudformation/cf.unittest.json'})
-        actor.cf_conn.validate_template = mock.MagicMock()
+        actor.cf3_conn.validate_template = mock.MagicMock()
         yield actor._validate_template()
-        actor.cf_conn.validate_template.assert_called_with(
-            template_body='#BLANK\n', template_url=None)
+        actor.cf3_conn.validate_template.assert_called_with(
+            TemplateBody='{"blank": "json"}')
 
     @testing.gen_test
     def test_validate_template_url(self):
@@ -157,10 +184,10 @@ class TestCreate(testing.AsyncTestCase):
             {'name': 'unit-test-cf',
              'region': 'us-west-2',
              'template': 'http://foobar.json'})
-        actor.cf_conn.validate_template = mock.MagicMock()
+        actor.cf3_conn.validate_template = mock.MagicMock()
         yield actor._validate_template()
-        actor.cf_conn.validate_template.assert_called_with(
-            template_body=None, template_url='http://foobar.json')
+        actor.cf3_conn.validate_template.assert_called_with(
+            TemplateURL='http://foobar.json')
 
     @testing.gen_test
     def test_validate_template_raises_boto_error(self):
@@ -169,32 +196,47 @@ class TestCreate(testing.AsyncTestCase):
             {'name': 'unit-test-cf',
              'region': 'us-west-2',
              'template': 'http://foobar.json'})
-        actor.cf_conn.validate_template = mock.MagicMock()
-        actor.cf_conn.validate_template.side_effect = BotoServerError(
-            400, 'Invalid template property or properties')
+
+        fake_exc = {
+            'ResponseMetadata': {
+                'HTTPStatusCode': 400,
+                'RequestId': 'dfc1a12c-22c1-11e6-80b1-8fd4cf167f54'
+            },
+            'Error': {
+                'Message': 'Template format error: JSON not well-formed',
+                'Code': 'ValidationError',
+                'Type': 'Sender'
+            }
+        }
+
+        actor.cf3_conn.validate_template = mock.MagicMock()
+        actor.cf3_conn.validate_template.side_effect = ClientError(
+            fake_exc, 'FakeOperation')
         with self.assertRaises(cloudformation.InvalidTemplate):
             yield actor._validate_template()
 
-        actor.cf_conn.validate_template.side_effect = BotoServerError(
-            403, 'Invalid Credentials')
-        with self.assertRaises(exceptions.InvalidCredentials):
-            yield actor._validate_template()
-
-        actor.cf_conn.validate_template.side_effect = BotoServerError(
-            500, 'Some other error')
-        with self.assertRaises(BotoServerError):
-            yield actor._validate_template()
-
     @testing.gen_test
-    def test_create_stack(self):
+    def test_create_stack_file(self):
         actor = cloudformation.Create(
             'Unit Test Action',
             {'name': 'unit-test-cf',
              'region': 'us-west-2',
              'template':
                  'examples/test/aws.cloudformation/cf.integration.json'})
-        actor.cf_conn.create_stack = mock.MagicMock(name='create_stack_mock')
-        actor.cf_conn.create_stack.return_value = 'arn:123'
+        actor.cf3_conn.create_stack = mock.MagicMock(name='create_stack_mock')
+        actor.cf3_conn.create_stack.return_value = {'StackId': 'arn:123'}
+        ret = yield actor._create_stack()
+        self.assertEquals(ret, 'arn:123')
+
+    @testing.gen_test
+    def test_create_stack_url(self):
+        actor = cloudformation.Create(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2',
+             'template': 'https://www.test.com'})
+        actor.cf3_conn.create_stack = mock.MagicMock(name='create_stack_mock')
+        actor.cf3_conn.create_stack.return_value = {'StackId': 'arn:123'}
         ret = yield actor._create_stack()
         self.assertEquals(ret, 'arn:123')
 
@@ -206,21 +248,23 @@ class TestCreate(testing.AsyncTestCase):
              'region': 'us-west-2',
              'template':
                  'examples/test/aws.cloudformation/cf.integration.json'})
-        actor.cf_conn.create_stack = mock.MagicMock()
+        actor.cf3_conn.create_stack = mock.MagicMock()
 
-        actor.cf_conn.create_stack.side_effect = BotoServerError(
-            400, 'Invalid template property or properties')
+        fake_exc = {
+            'ResponseMetadata': {
+                'HTTPStatusCode': 400,
+                'RequestId': 'dfc1a12c-22c1-11e6-80b1-8fd4cf167f54'
+            },
+            'Error': {
+                'Message': 'Something failed',
+                'Code': 'ExecutionFailure',
+                'Type': 'Sender'
+            }
+        }
+
+        actor.cf3_conn.create_stack.side_effect = ClientError(
+            fake_exc, 'Failure')
         with self.assertRaises(cloudformation.CloudFormationError):
-            yield actor._create_stack()
-
-        actor.cf_conn.create_stack.side_effect = BotoServerError(
-            403, 'Invalid credentials')
-        with self.assertRaises(exceptions.InvalidCredentials):
-            yield actor._create_stack()
-
-        actor.cf_conn.create_stack.side_effect = BotoServerError(
-            500, 'Some unexpected failure')
-        with self.assertRaises(BotoServerError):
             yield actor._create_stack()
 
     @testing.gen_test
@@ -297,8 +341,10 @@ class TestDelete(testing.AsyncTestCase):
             'Unit Test Action',
             {'name': 'unit-test-cf',
              'region': 'us-west-2'})
-        actor.cf_conn.delete_stack = mock.MagicMock(name='delete_stack_mock')
-        actor.cf_conn.delete_stack.return_value = 'req-id-1'
+        actor.cf3_conn.delete_stack = mock.MagicMock(name='delete_stack_mock')
+        actor.cf3_conn.delete_stack.return_value = {
+            'ResponseMetadata': {'RequestId': 'req-id-1'}
+        }
         ret = yield actor._delete_stack()
         self.assertEquals(ret, 'req-id-1')
 
@@ -308,16 +354,23 @@ class TestDelete(testing.AsyncTestCase):
             'Unit Test Action',
             {'name': 'unit-test-cf',
              'region': 'us-west-2'})
-        actor.cf_conn.delete_stack = mock.MagicMock()
+        actor.cf3_conn.delete_stack = mock.MagicMock()
 
-        actor.cf_conn.delete_stack.side_effect = BotoServerError(
-            400, 'Some error')
+        fake_exc = {
+            'ResponseMetadata': {
+                'HTTPStatusCode': 400,
+                'RequestId': 'dfc1a12c-22c1-11e6-80b1-8fd4cf167f54'
+            },
+            'Error': {
+                'Message': 'Something failed',
+                'Code': 'ExecutionFailure',
+                'Type': 'Sender'
+            }
+        }
+
+        actor.cf3_conn.delete_stack.side_effect = ClientError(
+            fake_exc, 'Error')
         with self.assertRaises(cloudformation.CloudFormationError):
-            yield actor._delete_stack()
-
-        actor.cf_conn.delete_stack.side_effect = BotoServerError(
-            500, 'Some unexpected failure')
-        with self.assertRaises(BotoServerError):
             yield actor._delete_stack()
 
     @testing.gen_test
