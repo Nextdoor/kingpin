@@ -37,6 +37,7 @@ __author__ = 'Matt Wise (matt@nextdoor.com)'
 # We handle all the exceptions ourselves, so additional log statements from
 # BOTO are not needed.
 logging.getLogger('boto').setLevel(logging.CRITICAL)
+logging.getLogger('botocore').setLevel(logging.CRITICAL)
 
 # Initial option handler to set up the basic application environment.
 parser = argparse.ArgumentParser(description='Kingpin v%s' % __version__)
@@ -92,6 +93,7 @@ def get_main_actor(dry):
 
         return ActorClass(options=options,
                           dry=dry,
+                          init_tokens=env_tokens,
                           **parameters)
 
     # Actor not specified. Process JSON file.
