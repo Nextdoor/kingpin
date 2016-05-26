@@ -1,3 +1,99 @@
+## Version 0.4.0
+
+Huge release with a ton of bug fixes, actors and development improvements!
+
+### Bug-fixes/Improvements
+
+Too many bugfixes to list here.. See the full [bugs] list. Here are some
+notable ones though:
+
+  * Improvements to the `aws.elb.RegisterInstance/DeregisterInstance` actors --
+    allowing an instance to be removed from "all" the ELBs its a member of, and
+    allowing the actor to wait for the connection draining to finish before
+    returning.
+  * Contexts can now be loaded up from a file rather than just hard coded in
+    the main script - this makes it easy to build re-usable macros and pull in
+    different contexts to work in different environments.
+  * Releases are now automatically built and pushed to Travis and Github
+  * A few minor improvements to the zip-file packaging to make it easier to use
+  * A bunch of integration test fixes that make them more reliable.
+    Additionally, integration test suites are now optional -- so you can
+    execute only the ones you care about with ease.
+
+[bugs]: https://github.com/Nextdoor/kingpin/issues?q=milestone%3Av0.4.0+is%3Aclosed+label%3Abug
+
+### New Actors
+
+  * `aws.s3.Bucket`: Full management of Amazon S3 buckets, bucket policies,
+    versioning and lifecycle configurations.
+  * `aws.iam.Role`, `aws.iam.User`, `aws.iam.Group` and `aws.iam.Policy`: Full
+    management of Amazon IAM resources allowing you to manage all of your
+    users, groups, etc.
+
+### New Feature: YAML!
+
+Finally, at long last, you can use YAML _or_ JSON in your scripts! YAML is far
+easier to read for most humans, natively allows for code comments, natural
+spacing and more. This is a huge useability change. Here's an example:
+
+    # create_bucket.yaml
+    - actor: aws.s3.Bucket
+      options:
+        name: my-bucket
+        state: present
+        logging:
+          target: logging_bucket.com
+          prefix: my-bucket-prefix
+
+### New Feature: Simple lists instead of group.Sync!
+
+You can now write scripts with simple lists of actors and they will be executed
+in-order with a [group.Sync] actor. This means you no longer are forced to
+start your script with a [group.Sync] actor, but can now just start with the
+actors you actually want to execute.
+
+    [
+      { "actor": "aws.s3.Bucket" ...},
+      { "actor": "aws.iam.User" ... }
+    ]
+[group.Sync]: http://kingpin.readthedocs.io/en/latest/kingpin.actors.group.html#sync
+
+### New Feature: `--explain`
+
+You can now print out the documentation for an actor right from the command line!
+
+    (.venv)$ kingpin --explain --actor aws.s3.Bucket
+    Manage the state of a single S3 Bucket.
+
+    The actor has the following functionality:
+
+      * Ensure that an S3 bucket is present or absent.
+      * Manage the bucket policy.
+      ...
+
+### Enhancement: `desc` is now optional!
+
+You no longer are forced to write in a `desc` parameter for each of your actors
+-- each actor has its own default description that you can override, but you
+can also just leave the default.
+
+### Development Improvements
+
+There have been a ton of development improvements in this release!
+
+  * A new [@dry] decorator has been created to easily wrap any method so that
+    it doesn't execute during a `--dry` run.
+  * For validating more complex user inputs, developers can write their own
+    [self-validating-class] that validates the users input. Some simple
+    examples of this have been created: 
+      [kingpin.constants.StringCompareBase],
+      [kingpin.constants.SchemaCompareBase]
+
+[@dry]: [http://kingpin.readthedocs.io/en/latest/development.html#kingpin-actors-utils-dry]
+[self-validating-class]: http://kingpin.readthedocs.io/en/latest/development.html#the-self-validating-class
+[kingpin.constants.StringCompareBase]: http://kingpin.readthedocs.io/en/latest/modules.html#kingpin.constants.StringCompareBase
+[kingpin.constants.SchemaCompareBase]: http://kingpin.readthedocs.io/en/latest/modules.html#kingpin.constants.SchemaCompareBase
+
 ## Version 0.3.0
 
 Big release with a ton of bug fixes, several new actors, and actor enhancements.
