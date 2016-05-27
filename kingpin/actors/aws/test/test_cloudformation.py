@@ -1,5 +1,6 @@
 import datetime
 import logging
+import json
 
 from botocore.exceptions import ClientError
 from tornado import testing
@@ -14,12 +15,15 @@ log = logging.getLogger(__name__)
 
 def create_fake_stack(name, status):
     fake_stack = {
-        'StackId': 'arn:aws:cloudformation:us-east-1:xxxx:stack/%s/xyz' % name,
+        'StackId': 'arn:aws:cloudformation:us-east-1:xxxx:stack/%s/x' % name,
         'LastUpdatedTime': datetime.datetime.now(),
         'TemplateDescription': 'Fake Template %s' % name,
         'CreationTime': datetime.datetime.now(),
         'StackName': name,
-        'StackStatus': status
+        'StackStatus': status,
+        'Parameters': [
+            {'ParameterKey': 'key1', 'ParameterValue': 'value1'}
+        ],
     }
     return fake_stack
 
@@ -120,11 +124,9 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
 
         expected = [
             {'ParameterKey': 'Key1',
-             'ParameterValue': 'Value1',
-             'UsePreviousValue': False},
+             'ParameterValue': 'Value1'},
             {'ParameterKey': 'Key2',
-             'ParameterValue': 'Value2',
-             'UsePreviousValue': False},
+             'ParameterValue': 'Value2'}
         ]
 
         actor = cloudformation.CloudFormationBaseActor(
@@ -178,6 +180,41 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
 
         with self.assertRaises(cloudformation.CloudFormationError):
             yield self.actor._get_stack('s1')
+
+    @testing.gen_test
+    def test_get_stack_template(self):
+        fake_stack_template = {
+            'ResponseMetadata': {
+                'HTTPStatusCode': 200,
+                'RequestId': '6dcafb4c-2768-11e6-b748-295d1284a76f'
+            },
+            'TemplateBody': {
+                'Fake': 'Stack'
+            }
+        }
+        self.actor.cf3_conn.get_template.return_value = fake_stack_template
+        ret = yield self.actor._get_stack_template('test')
+        self.actor.cf3_conn.get_template.assert_has_calls(
+            [mock.call(StackName='test')])
+        self.assertEquals(ret, {'Fake': 'Stack'})
+
+    @testing.gen_test
+    def test_get_stack_template_exc(self):
+        fake_exc = {
+            'ResponseMetadata': {
+                'HTTPStatusCode': 400,
+                'RequestId': 'dfc1a12c-22c1-11e6-80b1-8fd4cf167f54'
+            },
+            'Error': {
+                'Message': 'Some other error',
+                'Code': 'ExecutionFailure',
+                'Type': 'Sender'
+            }
+        }
+        self.actor.cf3_conn.get_template.side_effect = ClientError(
+            fake_exc, 'Failure')
+        with self.assertRaises(cloudformation.CloudFormationError):
+            yield self.actor._get_stack_template('test')
 
     @testing.gen_test
     def test_wait_until_state_complete(self):
@@ -273,7 +310,8 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             'ResponseMetadata': {'RequestId': 'req-id-1'}
         }
         self.actor._wait_until_state = mock.MagicMock(name='_wait_until_state')
-        self.actor._wait_until_state.side_effect = cloudformation.StackNotFound()
+        exc = cloudformation.StackNotFound()
+        self.actor._wait_until_state.side_effect = exc
 
         yield self.actor._delete_stack(stack='stack')
 
@@ -282,7 +320,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_delete_stack_raises_boto_error(self):
-        self.actor.cf3_conn.delete_stack = mock.MagicMock(name='delete_stack_mock')
+        self.actor.cf3_conn.delete_stack = mock.MagicMock(name='delete_stack')
 
         fake_exc = {
             'ResponseMetadata': {
@@ -506,12 +544,16 @@ class TestStack(testing.AsyncTestCase):
                 'name': 'unit-test-cf',
                 'state': 'present',
                 'region': 'us-west-2',
-                'template': 'examples/test/aws.cloudformation/cf.unittest.json'
+                'template':
+                    'examples/test/aws.cloudformation/cf.unittest.json',
+                'parameters': {
+                    'key1': 'value1'
+                }
             })
         self.actor.cf3_conn = mock.MagicMock(name='cf3_conn')
 
     @testing.gen_test
-    def test_update_stack(self):
+    def test_update_stack_in_failed_state(self):
         fake_stack = create_fake_stack('fake', 'CREATE_FAILED')
         self.actor._get_stack = mock.MagicMock(name='_get_stack')
         self.actor._get_stack.return_value = tornado_value(fake_stack)
@@ -519,13 +561,298 @@ class TestStack(testing.AsyncTestCase):
         self.actor._delete_stack.return_value = tornado_value(fake_stack)
         self.actor._create_stack = mock.MagicMock(name='_create_stack')
         self.actor._create_stack.return_value = tornado_value(fake_stack)
-
         yield self.actor._update_stack(fake_stack)
-
         self.actor._delete_stack.assert_called_with(
-            stack='arn:aws:cloudformation:us-east-1:xxxx:stack/fake/xyz')
+            stack='arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x')
         self.actor._create_stack.assert_called_with(
             stack='fake')
+
+    @testing.gen_test
+    def test_update_stack_ensure_template(self):
+        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
+        self.actor._ensure_template = mock.MagicMock(name='_ensure_stack')
+        self.actor._ensure_template.return_value = tornado_value(None)
+        yield self.actor._update_stack(fake_stack)
+        self.actor._ensure_template.assert_called_with(fake_stack)
+
+    @testing.gen_test
+    def test_ensure_template_with_url_quietly_exits(self):
+        self.actor._template_url = 'http://fakeurl.com'
+        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
+        ret = yield self.actor._ensure_template(fake_stack)
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
+    def test_ensure_template_no_diff(self):
+        self.actor._create_change_set = mock.MagicMock(name='_create_change')
+        self.actor._wait_until_change_set_ready = mock.MagicMock(name='_wait')
+        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
+
+        # Grab the raw stack body from the test actor -- this is what it should
+        # compare against, so this test should cause the method to bail out and
+        # not make any changes.
+        template = json.loads(self.actor._template_body)
+        get_temp_mock = mock.MagicMock(name='_get_stack_template')
+        self.actor._get_stack_template = get_temp_mock
+        self.actor._get_stack_template.return_value = tornado_value(template)
+
+        ret = yield self.actor._ensure_template(fake_stack)
+        self.assertEquals(None, ret)
+
+        self.assertFalse(self.actor._create_change_set.called)
+        self.assertFalse(self.actor._wait_until_change_set_ready.called)
+
+    @testing.gen_test
+    def test_ensure_template_different(self):
+        self.actor._create_change_set = mock.MagicMock(name='_create_change')
+        self.actor._create_change_set.return_value = tornado_value(
+            {'Id': 'abcd'})
+        self.actor._wait_until_change_set_ready = mock.MagicMock(name='_wait')
+        self.actor._wait_until_change_set_ready.return_value = tornado_value(
+            {'Changes': []})
+        self.actor._execute_change_set = mock.MagicMock(name='_execute_change')
+        self.actor._execute_change_set.return_value = tornado_value(None)
+        self.actor.cf3_conn.delete_change_set.return_value = tornado_value(
+            None)
+
+        # Change the actors parameters from the first time it was run -- this
+        # ensures all the lines on the ensure_template method are called
+        self.actor._parameters = self.actor._create_parameters({})
+
+        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
+
+        # Grab the raw stack body from the test actor -- this is what it should
+        # compare against, so this test should cause the method to bail out and
+        # not make any changes.
+        template = {'Fake': 'Stack'}
+        get_temp_mock = mock.MagicMock(name='_get_stack_template')
+        self.actor._get_stack_template = get_temp_mock
+        self.actor._get_stack_template.return_value = tornado_value(template)
+
+        # We run three tests in here because the setup takes so many lines
+        # (above). First test is a normal execution with changes detected.
+        ret = yield self.actor._ensure_template(fake_stack)
+        self.assertEquals(None, ret)
+        self.actor._create_change_set.assert_has_calls(
+            [mock.call(fake_stack)])
+        self.actor._wait_until_change_set_ready.assert_has_calls(
+            [mock.call('abcd', 'Status', 'CREATE_COMPLETE')])
+        self.assertFalse(self.actor.cf3_conn.delete_change_set.called)
+
+        # Quick second execution with _dry set. In this case, we SHOULD call
+        # the delete changset function.
+        self.actor._dry = True
+        yield self.actor._ensure_template(fake_stack)
+        self.actor.cf3_conn.delete_change_set.assert_has_calls(
+            [mock.call(ChangeSetName='abcd')])
+
+    @testing.gen_test
+    def test_ensure_template_exc(self):
+        self.actor._create_change_set = mock.MagicMock(name='_create_change')
+        self.actor._create_change_set.return_value = tornado_value(
+            {'Id': 'abcd'})
+        self.actor._wait_until_change_set_ready = mock.MagicMock(name='_wait')
+        self.actor._wait_until_change_set_ready.return_value = tornado_value(
+            {'Changes': []})
+        self.actor._execute_change_set = mock.MagicMock(name='_execute_change')
+        fake_exc = {
+            'ResponseMetadata': {
+                'HTTPStatusCode': 400,
+                'RequestId': 'dfc1a12c-22c1-11e6-80b1-8fd4cf167f54'
+            },
+            'Error': {
+                'Message': 'Template format error: JSON not well-formed',
+                'Code': 'ValidationError',
+                'Type': 'Sender'
+            }
+        }
+        self.actor._execute_change_set.side_effect = ClientError(
+            fake_exc, 'FakeOperation')
+
+        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
+
+        # Grab the raw stack body from the test actor -- this is what it should
+        # compare against, so this test should cause the method to bail out and
+        # not make any changes.
+        template = {'Fake': 'Stack'}
+        get_temp_mock = mock.MagicMock(name='_get_stack_template')
+        self.actor._get_stack_template = get_temp_mock
+        self.actor._get_stack_template.return_value = tornado_value(template)
+
+        # Ensure we raise an exception if something bad happens
+        with self.assertRaises(cloudformation.StackFailed):
+            yield self.actor._ensure_template(fake_stack)
+
+    @testing.gen_test
+    def test_create_change_set_body(self):
+        self.actor.cf3_conn.create_change_set.return_value = {'Id': 'abcd'}
+        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
+        ret = yield self.actor._create_change_set(fake_stack, 'uuid')
+        self.assertEquals(ret, {'Id': 'abcd'})
+        self.actor.cf3_conn.create_change_set.assert_has_calls(
+            [mock.call(
+                StackName='arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x',
+                TemplateBody='{"blank": "json"}',
+                Capabilities=[],
+                ChangeSetName='kingpin-uuid',
+                Parameters=[
+                    {'ParameterValue': 'value1', 'ParameterKey': 'key1'}
+                ],
+                UsePreviousTemplate=False,
+            )])
+
+    @testing.gen_test
+    def test_create_change_set_url(self):
+        self.actor.cf3_conn.create_change_set.return_value = {'Id': 'abcd'}
+        self.actor._template_body = None
+        self.actor._template_url = 'http://foobar.bin'
+        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
+        ret = yield self.actor._create_change_set(fake_stack, 'uuid')
+        self.assertEquals(ret, {'Id': 'abcd'})
+        self.actor.cf3_conn.create_change_set.assert_has_calls(
+            [mock.call(
+                StackName='arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x',
+                TemplateURL='http://foobar.bin',
+                Capabilities=[],
+                ChangeSetName='kingpin-uuid',
+                Parameters=[
+                    {'ParameterValue': 'value1', 'ParameterKey': 'key1'}
+                ],
+                UsePreviousTemplate=False,
+            )])
+
+    @testing.gen_test
+    def test_create_change_set_exc(self):
+        self.actor.cf3_conn.create_change_set.return_value = {'Id': 'abcd'}
+        fake_exc = {
+            'ResponseMetadata': {
+                'HTTPStatusCode': 400,
+                'RequestId': 'dfc1a12c-22c1-11e6-80b1-8fd4cf167f54'
+            },
+            'Error': {
+                'Message': 'Template format error: JSON not well-formed',
+                'Code': 'ValidationError',
+                'Type': 'Sender'
+            }
+        }
+        self.actor.cf3_conn.create_change_set.side_effect = ClientError(
+            fake_exc, 'FakeOperation')
+        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
+        with self.assertRaises(cloudformation.CloudFormationError):
+            yield self.actor._create_change_set(fake_stack, 'uuid')
+
+    @testing.gen_test
+    def test_wait_until_change_set_ready_complete(self):
+        available = {'Status': 'AVAILABLE'}
+        update_in_progress = {'Status': 'UPDATE_IN_PROGRESS'}
+        update_complete = {'Status': 'UPDATE_COMPLETE'}
+        fake_exc = {
+            'ResponseMetadata': {
+                'HTTPStatusCode': 400,
+                'RequestId': 'dfc1a12c-22c1-11e6-80b1-8fd4cf167f54'
+            },
+            'Error': {
+                'Message': 'Template format error: JSON not well-formed',
+                'Code': 'ValidationError',
+                'Type': 'Sender'
+            }
+        }
+        self.actor.cf3_conn.describe_change_set.side_effect = [
+            available,
+            update_in_progress,
+            update_in_progress,
+            ClientError(fake_exc, 'Failure'),
+            update_complete
+        ]
+        yield self.actor._wait_until_change_set_ready(
+            'test', 'Status', 'UPDATE_COMPLETE', sleep=0.01)
+        self.actor.cf3_conn.describe_change_set.assert_has_calls(
+            [mock.call(ChangeSetName='test'),
+             mock.call(ChangeSetName='test'),
+             mock.call(ChangeSetName='test'),
+             mock.call(ChangeSetName='test')])
+
+    @testing.gen_test
+    def test_wait_until_change_set_ready_failed_status(self):
+        available = {'Status': 'AVAILABLE'}
+        update_in_progress = {'Status': 'UPDATE_IN_PROGRESS'}
+        update_failed = {'Status': 'UPDATE_FAILED'}
+        self.actor.cf3_conn.describe_change_set.side_effect = [
+            available,
+            update_in_progress,
+            update_in_progress,
+            update_failed
+        ]
+        with self.assertRaises(cloudformation.StackFailed):
+            yield self.actor._wait_until_change_set_ready(
+                'test', 'Status', 'UPDATE_COMPLETE', sleep=0.01)
+
+    def test_print_change_set(self):
+        fake_change_set = {
+            'Changes': [
+                {'ResourceChange':
+                    {'Action': 'Created', 'ResourceType': 'S3::Bucket',
+                     'LogicalResourceId': 'MyBucket',
+                     'PhysicalResourceId': 'arn:123',
+                     'Replacement': True}},
+                {'ResourceChange':
+                    {'Action': 'Created', 'ResourceType': 'S3::Bucket',
+                     'LogicalResourceId': 'MySecondBucket'}}
+            ]
+        }
+        self.actor.log = mock.MagicMock(name='log')
+        self.actor._print_change_set(fake_change_set)
+        self.actor.log.warning.assert_has_calls([
+            mock.call(
+                'Change: Created S3::Bucket MyBucket/arn:123 '
+                '(Replacement? True)'),
+            mock.call(
+                'Change: Created S3::Bucket MySecondBucket/N/A '
+                '(Replacement? False)')
+        ])
+
+    @testing.gen_test
+    def test_execute_change_set(self):
+        fake = {'StackId': 'arn::fake_set'}
+        self.actor._wait_until_change_set_ready = mock.MagicMock(name='_wait')
+        self.actor._wait_until_change_set_ready.return_value = tornado_value(
+            fake)
+        self.actor._wait_until_state = mock.MagicMock(name='_wait_until_state')
+        self.actor._wait_until_state.return_value = tornado_value(None)
+
+        yield self.actor._execute_change_set(change_set_name='fake_set')
+
+        self.actor.cf3_conn.execute_change_set.assert_has_calls(
+            [mock.call(ChangeSetName='fake_set')])
+
+        self.actor._wait_until_change_set_ready.assert_has_calls(
+            [mock.call('fake_set', 'ExecutionStatus', 'EXECUTE_COMPLETE')])
+        self.actor._wait_until_state.assert_has_calls(
+            [mock.call('arn::fake_set',
+                       (cloudformation.COMPLETE +
+                        cloudformation.FAILED +
+                        cloudformation.DELETED))])
+
+    @testing.gen_test
+    def test_execute_change_set_exc(self):
+        fake_exc = {
+            'ResponseMetadata': {
+                'HTTPStatusCode': 400,
+                'RequestId': 'dfc1a12c-22c1-11e6-80b1-8fd4cf167f54'
+            },
+            'Error': {
+                'Message': 'Template format error: JSON not well-formed',
+                'Code': 'ValidationError',
+                'Type': 'Sender'
+            }
+        }
+
+        self.actor.cf3_conn.execute_change_set = mock.MagicMock(name='_wait')
+        self.actor.cf3_conn.execute_change_set.side_effect = ClientError(
+            fake_exc, 'FakeOperation')
+
+        with self.assertRaises(cloudformation.StackFailed):
+            yield self.actor._execute_change_set(change_set_name='fake_set')
 
     @testing.gen_test
     def test_ensure_stack_is_absent_and_wants_absent(self):
@@ -591,3 +918,11 @@ class TestStack(testing.AsyncTestCase):
         self.assertFalse(self.actor._delete_stack.called)
         self.assertFalse(self.actor._create_stack.called)
         self.assertTrue(self.actor._update_stack.called)
+
+    @testing.gen_test
+    def test_execute(self):
+        self.actor._validate_template = mock.MagicMock()
+        self.actor._validate_template.return_value = tornado_value(None)
+        self.actor._ensure_stack = mock.MagicMock()
+        self.actor._ensure_stack.return_value = tornado_value(None)
+        yield self.actor._execute()

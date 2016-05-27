@@ -19,6 +19,7 @@
 
 import logging
 import json
+import uuid
 
 from botocore.exceptions import ClientError
 from tornado import concurrent
@@ -126,12 +127,13 @@ class OnFailureConfig(StringCompareBase):
 # CloudFormation has over a dozen different 'stack states'... but for the
 # purposes of these actors, we really only care about a few logical states.
 # Here we map the raw states into logical states.
-COMPLETE = ('CREATE_COMPLETE', 'UPDATE_COMPLETE')
+COMPLETE = ('CREATE_COMPLETE', 'UPDATE_COMPLETE', 'UPDATE_ROLLBACK_COMPLETE')
 DELETED = ('DELETE_COMPLETE', )
 IN_PROGRESS = (
-    'CREATE_IN_PROGRESS', 'DELETE_IN_PROGRESS',
-    'ROLLBACK_IN_PROGRESS', 'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS',
-    'UPDATE_IN_PROGRESS', 'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS',
+    'CREATE_PENDING', 'CREATE_IN_PROGRESS', 'DELETE_IN_PROGRESS',
+    'EXECUTE_IN_PROGRESS', 'ROLLBACK_IN_PROGRESS',
+    'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS', 'UPDATE_IN_PROGRESS',
+    'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS',
     'UPDATE_ROLLBACK_IN_PROGRESS')
 FAILED = (
     'CREATE_FAILED', 'DELETE_FAILED', 'ROLLBACK_FAILED',
@@ -213,7 +215,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             except ClientError as e:
                 raise InvalidTemplate(e.message)
 
-    def _create_parameters(self, parameters, use_previous_value=False):
+    def _create_parameters(self, parameters):
         """Converts a simple Key/Value dict into Amazon CF Parameters.
 
         The Boto3 interface requires that Parameters are passed in like this:
@@ -222,7 +224,6 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             Parameters=[
                 { 'ParameterKey': 'string',
                   'ParameterValue': 'string',
-                  'UsePreviousValue': True|False
                 },
             ]
 
@@ -231,8 +232,6 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
         Args:
             parameters: A dict of key/values
-            use_previous_value: During a Stack Update, use the New values or
-                                the Previous values?
 
         Returns:
             A dict like above
@@ -240,8 +239,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
         new_params = [
             {'ParameterKey': k,
-             'ParameterValue': v,
-             'UsePreviousValue': use_previous_value}
+             'ParameterValue': v}
             for k, v in parameters.items()]
         sorted_params = sorted(new_params, key=lambda k: k['ParameterKey'])
         return sorted_params
@@ -272,6 +270,21 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         raise gen.Return(stacks['Stacks'][0])
 
     @gen.coroutine
+    def _get_stack_template(self, stack):
+        """Returns the live policy attached to a CF Stack.
+
+        args:
+            stack: Stack name or stack ID
+        """
+        try:
+            ret = yield self.thread(self.cf3_conn.get_template,
+                                    StackName=stack)
+        except ClientError as e:
+            raise CloudFormationError(e)
+
+        raise gen.Return(ret['TemplateBody'])
+
+    @gen.coroutine
     def _wait_until_state(self, stack_name, desired_states, sleep=15):
         """Indefinite loop until a stack has finished creating/deleting.
 
@@ -298,14 +311,14 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             # First, lets see if the stack is still in progress (either
             # creation, deletion, or rollback .. doesn't really matter)
             if stack['StackStatus'] in IN_PROGRESS:
-                self.log.info('Stack is in %s, waiting %s(s)...' %
+                self.log.info('Stack state is %s, waiting %s(s)...' %
                               (stack['StackStatus'], sleep))
                 yield utils.tornado_sleep(sleep)
                 continue
 
             # If the stack is in the desired state, then return
             if stack['StackStatus'] in desired_states:
-                self.log.info('Stack state: %s' % stack['StackStatus'])
+                self.log.debug('Found Stack state: %s' % stack['StackStatus'])
                 raise gen.Return()
 
             # Lastly, if we get here, then something is very wrong and we got
@@ -338,8 +351,8 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         # Reverse the list, and iterate through the data
         events = []
         for event in raw['StackEvents'][::-1]:
-            # Not every event has a "reason" ... for those, we add a blank reason
-            # value just to make string formatting easier below.
+            # Not every event has a "reason" ... for those, we add a blank
+            # reason value just to make string formatting easier below.
             if 'ResourceStatusReason' not in event:
                 event['ResourceStatusReason'] = ''
 
@@ -593,7 +606,7 @@ class Stack(CloudFormationBaseActor):
     Amazon:
 
       * Ensure that the Stack is present or absent.
-      * Manage the CF Capabilities
+      * Monitor and update the stack Template and Parameters as necessary.
 
     **Options**
 
@@ -712,6 +725,230 @@ class Stack(CloudFormationBaseActor):
             yield self._delete_stack(stack=stack['StackId'])
             yield self._create_stack(stack=stack['StackName'])
             raise gen.Return()
+
+        # Pull down the live stack template and compare it to the one we have
+        # locally.
+        yield self._ensure_template(stack)
+
+    @gen.coroutine
+    def _ensure_template(self, stack):
+        """Compares and updates the state of a CF Stack template
+
+        Compares the current template body against the template body for the
+        live running stack. If they're different. Triggers a Change Set
+        creation and ultimately executes the change set.
+
+        TODO: Support remote template_url comparison!
+
+        args:
+            stack: A Boto3 Stack object
+        """
+        needs_update = False
+
+        # TODO: Implement this
+        if self._template_url:
+            self.log.warning('Cannot compare against remote template url')
+            raise gen.Return()
+
+        # Get the current template for the stack, and get our local template
+        # body. Make sure they're in the same form (dict).
+        existing = yield self._get_stack_template(stack['StackId'])
+        new = json.loads(self._template_body)
+
+        # Compare the two templates. If they differ at all, log it out for the
+        # user and flip the needs_update bit.
+        diff = self._diff_policy_json(existing, new)
+        if diff:
+            self.log.warning('Stack templates do not match.')
+            for line in diff.split('\n'):
+                self.log.info('Diff: %s' % line)
+
+            # Plan to make a change set!
+            needs_update = True
+
+        # Get and compare the parameters we have vs the ones in CF. If they're
+        # different, plan to do an update!
+        diff = self._diff_policy_json(stack['Parameters'], self._parameters)
+        if diff:
+            self.log.warning('Stack parameters do not match.')
+            for line in diff.split('\n'):
+                self.log.info('Diff: %s' % line)
+
+            # Plan to make a change set!
+            needs_update = True
+
+        # If needs_update isn't set, then the templates are the same and we can
+        # bail!
+        if not needs_update:
+            self.log.debug('Stack matches configuration, no changes necessary')
+            raise gen.Return()
+
+        # If we're here, the templates have diverged. Generate the change set,
+        # log out the changes, and execute them.
+        change_set_req = yield self._create_change_set(stack)
+        change_set = yield self._wait_until_change_set_ready(
+            change_set_req['Id'], 'Status', 'CREATE_COMPLETE')
+        self._print_change_set(change_set)
+
+        # Ok run the change set itself!
+        try:
+            yield self._execute_change_set(
+                change_set_name=change_set_req['Id'])
+        except (ClientError, StackFailed) as e:
+            raise StackFailed(e)
+
+        # In dry mode, delete our change set so we don't leave it around as
+        # cruft. THis isn't necessary in the real run, because the changeset
+        # cannot be deleted once its been applied.
+        if self._dry:
+            yield self.thread(self.cf3_conn.delete_change_set,
+                              ChangeSetName=change_set_req['Id'])
+
+        self.log.info('Done updating template')
+
+    @gen.coroutine
+    def _create_change_set(self, stack, uuid=uuid.uuid4().hex):
+        """Generates a Change Set.
+
+        Takes the current settings (template, capabilities, etc) and generates
+        a Change Set against the live running stack. Returns back a Change Set
+        Request dict, which can be used to poll for a real change set.
+
+        args:
+            stack: Boto3 Stack dict
+
+        returns:
+            Boto3 Change Set Request dict
+        """
+        change_opts = {
+            'StackName': stack['StackId'],
+            'Capabilities': self.option('capabilities'),
+            'ChangeSetName': 'kingpin-%s' % uuid,
+            'Parameters': self._parameters,
+            'UsePreviousTemplate': False,
+        }
+
+        if self._template_body:
+            change_opts['TemplateBody'] = self._template_body
+        else:
+            change_opts['TemplateURL'] = self._template_url
+
+        self.log.info('Generating a stack Change Set...')
+        try:
+            change_set_req = yield self.thread(self.cf3_conn.create_change_set,
+                                               **change_opts)
+        except ClientError as e:
+            raise CloudFormationError(e)
+
+        raise gen.Return(change_set_req)
+
+    @gen.coroutine
+    def _wait_until_change_set_ready(self, change_set_name, status_key,
+                                     desired_state, sleep=5):
+        """Waits until a Change Set has hit the desired state.
+
+        This loop waits until a Change Set has reached a desired state by
+        comparing the value of the `status_key` with the `desired_state`. This
+        allows the method to be used to check the status of the Change Set
+        generation itself (status_key=Status) as well as the execution of the
+        Change Set (status_key=ExecutionStatus).
+
+        args:
+            change_set_name: The Change Set Request Name
+            status_key: The key within the Change Set that defines its status
+            desired_state: A string of the desired state we're looking for
+            sleep: Time to wait between checks in seconds
+
+        returns:
+            The final completed change set dictionary
+        """
+        self.log.info('Waiting for %s to reach %s' %
+                      (change_set_name, desired_state))
+        while True:
+            try:
+                change = yield self.thread(
+                    self.cf3_conn.describe_change_set,
+                    ChangeSetName=change_set_name)
+                self.log.error(change)
+            except ClientError as e:
+                # If we hit an intermittent error, lets just loop around and
+                # try again.
+                self.log.error('Error receiving change set state: %s' % e)
+                yield utils.tornado_sleep(sleep)
+                continue
+
+            # The Stack State can be 'AVAILABLE', or an IN_PROGRESS string. In
+            # either case, we loop and wait.
+            if change[status_key] in (('AVAILABLE',) + IN_PROGRESS):
+                self.log.info('Change Set state is %s, waiting %s(s)...' %
+                              (change[status_key], sleep))
+                yield utils.tornado_sleep(sleep)
+                continue
+
+            # If the stack is in the desired state, then return
+            if change[status_key] == desired_state:
+                self.log.debug('Change Set reached desired state: %s'
+                               % change[status_key])
+                raise gen.Return(change)
+
+            # Lastly, if we get here, then something is very wrong and we got
+            # some funky status back. Throw an exception.
+            msg = 'Unxpected stack state received (%s)' % change[status_key]
+            raise StackFailed(msg)
+
+    def _print_change_set(self, change_set):
+        """Logs out the changes a Change Set would make if executed.
+
+        http://docs.aws.amazon.com/AWSCloudFormation/latest/
+        APIReference/API_DescribeChangeSet.html
+
+        args:
+            change_set: Change Set Object
+        """
+        self.log.debug('Parsing change set: %s' % change_set)
+
+        # Reverse the list, and iterate through the data
+        for change in change_set['Changes']:
+            resource = change['ResourceChange']
+
+            if 'PhysicalResourceId' not in resource:
+                resource['PhysicalResourceId'] = 'N/A'
+
+            if 'Replacement' not in resource:
+                resource['Replacement'] = False
+
+            log_string_fmt = (
+                'Change: '
+                '{Action} {ResourceType} '
+                '{LogicalResourceId}/{PhysicalResourceId} '
+                '(Replacement? {Replacement})'
+            )
+
+            msg = log_string_fmt.format(**resource)
+            self.log.warning(msg)
+
+    @gen.coroutine
+    @dry('Would have executed Change Set {change_set_name}')
+    def _execute_change_set(self, change_set_name):
+        """Executes the Change Set and waits for completion.
+
+        Takes a supplied Change Set name and Stack Name, executes the change
+        set, and waits for it to complete sucessfully.
+
+        args:
+            change_set_name: The Change Set Name/ARN
+        """
+        self.log.info('Executing change set %s' % change_set_name)
+        try:
+            yield self.thread(self.cf3_conn.execute_change_set,
+                              ChangeSetName=change_set_name)
+        except ClientError as e:
+            raise StackFailed(e)
+
+        change_set = yield self._wait_until_change_set_ready(
+            change_set_name, 'ExecutionStatus', 'EXECUTE_COMPLETE')
+        yield self._wait_until_state(change_set['StackId'],
+                                     (COMPLETE + FAILED + DELETED))
 
     @gen.coroutine
     def _ensure_stack(self):
