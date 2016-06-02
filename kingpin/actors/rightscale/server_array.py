@@ -22,6 +22,7 @@
 """
 
 import logging
+import math
 
 from tornado import gen
 import mock
@@ -869,6 +870,9 @@ class Launch(ServerArrayBaseActor):
     :count:
       (str, int) Optional number of instance to launch. Defaults to min_count
       of the array.
+    :success_pct':
+      (str, int) Optional percent (0-100) to wait for instances to launch
+      before exiting this actor as successful. Default: 100.
 
     :enable:
       (bool) Should the autoscaling of the array be enabled? Settings this to
@@ -941,6 +945,9 @@ class Launch(ServerArrayBaseActor):
         'count': (
             (int, str), False,
             "Number of server to launch. Default: up to array's min count"),
+        'success_pct': (
+            (int, str), 100,
+            '% of servers to wait for. Default: 100% of `count`.'),
         'enable': (bool, False, 'Enable autoscaling?'),
         'exact': (bool, True, (
             'Whether to search for multiple ServerArrays and act on them.')),
@@ -975,27 +982,26 @@ class Launch(ServerArrayBaseActor):
                           % array.soul['name'])
             raise gen.Return()
 
-        # Get the current min_count setting from the ServerArray object, or get
-        # the min_count from the count number supplied to the actor (if it
-        # was).
-        min_count = int(self._options.get('count', False))
+        min_count = float(self.option('count'))
+        success_pct = float(self.option('success_pct'))
         if not min_count:
             min_count = int(array.soul['elasticity_params']
                             ['bounds']['min_count'])
+
+        enough_count = int(math.ceil(min_count * (success_pct / 100.0)))
 
         while True:
             instances = yield self._client.get_server_array_current_instances(
                 array, filters=['state==operational'])
             count = len(instances)
-            self.log.info('%s instances found, waiting for %s' %
-                          (count, min_count))
+            self.log.info('%s instances found, waiting for %s/%s' %
+                          (count, enough_count, min_count))
 
-            if min_count <= count:
+            if count >= enough_count:
                 raise gen.Return()
 
-            # At this point, sleep
             self.log.debug('Sleeping..')
-            yield utils.tornado_sleep(sleep)
+            yield gen.sleep(sleep)
 
     @gen.coroutine
     def _launch_instances(self, array, count=False):
