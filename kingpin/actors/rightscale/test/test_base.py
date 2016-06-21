@@ -5,7 +5,7 @@ from tornado import testing
 
 from kingpin.actors import exceptions
 from kingpin.actors.rightscale import base
-from kingpin.actors.test.helper import mock_tornado
+from kingpin.actors.test.helper import mock_tornado, tornado_value
 
 log = logging.getLogger(__name__)
 
@@ -101,6 +101,28 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         # found or not, None should be returned
         ret = yield self.actor._find_server_arrays('t', raise_on=None)
         self.assertEquals(None, ret)
+
+    @testing.gen_test
+    def test_log_account_name(self):
+        cloud_accounts = mock.MagicMock(name='cloud_accounts')
+        mocked_account = mock.MagicMock(name='fake_account_obj')
+        mocked_account.soul = {'name': 'test'}
+
+        base.log = mock.MagicMock(name='mocked_logger')
+        self.client_mock.show.side_effect = [
+            tornado_value([cloud_accounts]),
+            tornado_value(mocked_account)
+        ]
+        yield self.actor._log_account_name()
+
+        base.log.assert_has_calls([
+            mock.call.warning('RightScale account name: test')])
+
+    @testing.gen_test
+    def test_execute(self):
+        self.actor._execute = mock_tornado(None)
+        self.actor._log_account_name = mock_tornado(None)
+        yield self.actor.execute()
 
     def test_generate_rightscale_params_with_invalid_params(self):
         actor = base.RightScaleBaseActor('Unit Test Action', {})

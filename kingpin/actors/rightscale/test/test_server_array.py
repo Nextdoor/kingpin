@@ -453,7 +453,7 @@ class TestUpdateNextInstanceActor(testing.AsyncTestCase):
         self.actor._update_params = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
-        ret = yield self.actor.execute()
+        ret = yield self.actor._execute()
         self.assertEquals(None, ret)
 
 

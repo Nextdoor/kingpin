@@ -200,12 +200,13 @@ class RightScaleBaseActor(base.BaseActor):
 
     @gen.coroutine
     def _log_account_name(self, *args, **kwargs):
+        """Logs out the name of the RightScale account."""
         if not RightScaleBaseActor.account_name:
             ca_resource = self._client._client.cloud_accounts
             cloud_accounts = yield self._client.show(ca_resource)
             account = yield self._client.show(cloud_accounts[0].account)
             RightScaleBaseActor.account_name = account.soul['name']
-            log.warn('RightScale account name: %s' % account.soul['name'])
+            log.warning('RightScale account name: %s' % account.soul['name'])
 
     @gen.coroutine
     def execute(self, *args, **kwargs):

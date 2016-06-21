@@ -289,6 +289,24 @@ class RightScale(object):
         return res.create(params=params)
 
     @concurrent.run_on_executor
+    @sync_retry(**settings.RETRYING_SETTINGS)
+    @utils.exception_logger
+    def commit_resource(self, res, res_type, message):
+        """Commit a RightScale resource
+
+        Args:
+            res: Resource object to commit
+            res_type: The RightScale resource object _type_
+            message: The message to use when committing
+
+        Returns:
+            The Rightscale Resource itself
+        """
+        res_id = self.get_res_id(res)
+        params = {'commit_message': message}
+        return res_type.commit(res_id=res_id, params=params)
+
+    @concurrent.run_on_executor
     @utils.exception_logger
     def clone_server_array(self, array):
         """Clone a Server Array.

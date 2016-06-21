@@ -166,6 +166,16 @@ class TestRightScale(testing.AsyncTestCase):
         mock_res.self.create.assert_called_once()
 
     @testing.gen_test
+    def test_commit_resource(self):
+        mock_res = mock.MagicMock(res='MockedResource')
+        mock_res_type = mock.MagicMock()
+        yield self.client.commit_resource(
+            mock_res, mock_res_type, message='test')
+        mock_res_type.commit.assert_has_calls([
+            mock.call(res_id=1, params={'commit_message': 'test'})
+        ])
+
+    @testing.gen_test
     def test_clone_server_array(self):
         # First, create the rightscale.server_array api mock
         sa_rsr_mock = mock.MagicMock()
