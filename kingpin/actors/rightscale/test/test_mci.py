@@ -324,6 +324,7 @@ class TestMCIActor(testing.AsyncTestCase):
                 'name': 'testmci',
                 'state': 'present',
                 'commit': 'Yeah, committed',
+                'tags': ['tag'],
                 'description': 'test mci desc',
                 'images': self._images
             })
@@ -388,6 +389,60 @@ class TestMCIActor(testing.AsyncTestCase):
 
         ret = yield self.actor._ensure_mci()
         self.assertEquals(existing_mci, ret)
+
+    @testing.gen_test
+    def test_ensure_tags_with_single_string(self):
+        mci = mock.MagicMock(name='mci')
+        mci.href = '/test'
+        self.client_mock.get_resource_tags = mock.MagicMock(name='get')
+        self.client_mock.get_resource_tags.side_effect = [
+            helper.tornado_value(['tag1', 'tag2'])
+        ]
+
+        self.client_mock.add_resource_tags = mock.MagicMock(name='add')
+        self.client_mock.add_resource_tags.side_effect = [
+            helper.tornado_value(None)
+        ]
+
+        self.client_mock.delete_resource_tags = mock.MagicMock(name='delete')
+        self.client_mock.delete_resource_tags.side_effect = [
+            helper.tornado_value(None)
+        ]
+
+        yield self.actor._ensure_tags(mci, 'tag')
+
+        self.client_mock.add_resource_tags.assert_has_calls([
+            mock.call(mci, ['tag'])
+        ])
+        self.client_mock.delete_resource_tags.assert_has_calls([
+            mock.call(mci, ['tag1', 'tag2'])
+        ])
+
+    @testing.gen_test
+    def test_ensure_tags_with_mocked_mci(self):
+        mci = mock.MagicMock(name='mci')
+        mci.href = None
+        self.client_mock.get_resource_tags = mock.MagicMock(name='get')
+        self.client_mock.get_resource_tags.side_effect = [
+            helper.tornado_value(['tag1', 'tag2'])
+        ]
+
+        self.client_mock.add_resource_tags = mock.MagicMock(name='add')
+        self.client_mock.add_resource_tags.side_effect = [
+            helper.tornado_value(None)
+        ]
+
+        self.client_mock.delete_resource_tags = mock.MagicMock(name='delete')
+        self.client_mock.delete_resource_tags.side_effect = [
+            helper.tornado_value(None)
+        ]
+
+        yield self.actor._ensure_tags(mci, 'tag')
+
+        self.client_mock.add_resource_tags.assert_has_calls([
+            mock.call(mci, ['tag'])
+        ])
+        self.assertFalse(self.client_mock.delete_resource_tags.called)
 
     @testing.gen_test
     def test_ensure_description_matches(self):
@@ -508,6 +563,7 @@ class TestMCIActor(testing.AsyncTestCase):
         self.actor._ensure_mci = helper.mock_tornado(None)
         self.actor._ensure_description = helper.mock_tornado(None)
         self.actor._ensure_settings = helper.mock_tornado(None)
+        self.actor._ensure_tags = helper.mock_tornado(None)
         self.actor._commit = helper.mock_tornado(None)
         self.actor.changed = True
         yield self.actor._execute()

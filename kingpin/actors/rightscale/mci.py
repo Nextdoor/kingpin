@@ -167,6 +167,7 @@ class MCIBaseActor(base.RightScaleBaseActor):
             self.log.warning('Would have created MCI: %s' % name)
 
             mci = mock.MagicMock(name=name)
+            mci.href = None
             mci.soul = {
                 'name': '<mocked MCI %s>' % name,
                 'description': None
@@ -362,9 +363,13 @@ class MCI(MCIBaseActor):
       MCI, we will commit a new revision to RightScale. The provided string
       will be used as the commit message. Default: None
 
+    :tags:
+      (list, str) A list of tags to add to the MultiCloud image.
+      Default: None
+
     :description:
-       (str) The description of the MCI image itself.
-       Default: ""
+      (str) The description of the MCI image itself.
+      Default: ""
 
     :images:
        A list of dicts that each describe a single cloud and the image in that
@@ -424,6 +429,7 @@ class MCI(MCIBaseActor):
                   'Desired state of the image: present/absent'),
         'commit': (str, None, 'Commit a new MCI revision if changes made'),
         'description': (str, None, 'The description of the MCI to be updated'),
+        'tags': ((list, str), None, 'List of tags to apply to the MCI'),
         'images': (
             MultiCloudImageSettings, None,
             'A list of objects that describe our per cloud image settings'),
@@ -462,6 +468,32 @@ class MCI(MCIBaseActor):
             self.log.debug('MCI exists')
 
         raise gen.Return(mci)
+
+    @gen.coroutine
+    def _ensure_tags(self, mci, tags):
+        if isinstance(tags, basestring):
+            tags = [tags]
+
+        if not mci.href:
+            # Must be a mocked-out MCI, meaning its brand new, meaning it has
+            # no tags. Definitely set them.
+            yield self._add_resource_tags(resource=mci, tags=tags)
+            self.changed = True
+            raise gen.Return()
+
+        existing_tags = (yield self._get_resource_tags(mci))
+        new_tags = tags
+
+        # What tags should we add, delete?
+        to_add = list(set(new_tags) - set(existing_tags))
+        to_delete = list(set(existing_tags) - set(new_tags))
+
+        if to_add:
+            yield self._add_resource_tags(resource=mci, tags=to_add)
+            self.changed = True
+        if to_delete:
+            yield self._delete_resource_tags(resource=mci, tags=to_delete)
+            self.changed = True
 
     @gen.coroutine
     def _ensure_description(self, mci):
@@ -593,6 +625,10 @@ class MCI(MCIBaseActor):
 
         # Ensure that the description is up to date
         yield self._ensure_description(mci)
+
+        # If tags were supplied, then manage them.
+        if self.option('tags'):
+            yield self._ensure_tags(mci, self.option('tags'))
 
         # Ensure that all of the configured images themselves match
         yield self._ensure_settings(mci)

@@ -176,6 +176,45 @@ class TestRightScale(testing.AsyncTestCase):
         ])
 
     @testing.gen_test
+    def test_add_resource_tags(self):
+        mock_res = mock.MagicMock(res='MockedResource')
+        mock_res.href = '/href'
+        tags = ['a', 'b']
+        yield self.client.add_resource_tags(mock_res, tags)
+        self.mock_client.tags.multi_add.assert_has_calls([
+            mock.call(params=[
+                ('resource_hrefs[]', '/href'),
+                ('tags[]', 'a'),
+                ('tags[]', 'b')
+            ])
+        ])
+
+    @testing.gen_test
+    def test_delete_resource_tags(self):
+        mock_res = mock.MagicMock(res='MockedResource')
+        mock_res.href = '/href'
+        tags = ['a', 'b']
+        yield self.client.delete_resource_tags(mock_res, tags)
+        self.mock_client.tags.multi_delete.assert_has_calls([
+            mock.call(params=[
+                ('resource_hrefs[]', '/href'),
+                ('tags[]', 'a'),
+                ('tags[]', 'b')
+            ])
+        ])
+
+    @testing.gen_test
+    def test_get_resource_tags(self):
+        mock_res = mock.MagicMock(res='MockedResource')
+        mock_res.href = '/href'
+        yield self.client.get_resource_tags(mock_res)
+        self.mock_client.tags.by_resource.assert_has_calls([
+            mock.call(params=[
+                ('resource_hrefs[]', '/href'),
+            ])
+        ])
+
+    @testing.gen_test
     def test_clone_server_array(self):
         # First, create the rightscale.server_array api mock
         sa_rsr_mock = mock.MagicMock()

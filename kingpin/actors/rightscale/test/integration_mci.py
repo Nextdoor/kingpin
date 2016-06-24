@@ -64,6 +64,20 @@ class IntegrationMCI(testing.AsyncTestCase):
 
     @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=60)
+    def integration_03b_update_mci(self):
+
+        actor = mci.MCI(
+            options={'name': self.mci_name,
+                     'description': self.mci_name,
+                     'state': 'present',
+                     'tags': 'some_new_tag',
+                     'commit': 'Added a tag',
+                     'images': self.images})
+
+        yield actor.execute()
+
+    @attr('rightscale', 'integration', 'dry')
+    @testing.gen_test(timeout=60)
     def integration_04a_destroy_mci_dry(self):
         actor = mci.MCI(
             options={'name': self.mci_name,

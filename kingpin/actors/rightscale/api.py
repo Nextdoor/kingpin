@@ -307,6 +307,59 @@ class RightScale(object):
         return res_type.commit(res_id=res_id, params=params)
 
     @concurrent.run_on_executor
+    @sync_retry(**settings.RETRYING_SETTINGS)
+    @utils.exception_logger
+    def add_resource_tags(self, res, tags):
+        """Tags a RightScale resource
+
+        Args:
+            res: Resource object to commit
+            tag: The tag(s) to add to the resource
+
+        Returns:
+            The Rightscale Resource itself
+        """
+        params = [('resource_hrefs[]', res.href)]
+        for tag in tags:
+            params.append(('tags[]', tag))
+        return self._client.tags.multi_add(params=params)
+
+    @concurrent.run_on_executor
+    @sync_retry(**settings.RETRYING_SETTINGS)
+    @utils.exception_logger
+    def delete_resource_tags(self, res, tags):
+        """Deletes tags from a RightScale resource
+
+        Args:
+            res: Resource object to commit
+            tag: The tag(s) to delete from the resource
+
+        Returns:
+            The Rightscale Resource itself
+        """
+        params = [('resource_hrefs[]', res.href)]
+        for tag in tags:
+            params.append(('tags[]', tag))
+        return self._client.tags.multi_delete(params=params)
+
+    @concurrent.run_on_executor
+    @sync_retry(**settings.RETRYING_SETTINGS)
+    @utils.exception_logger
+    def get_resource_tags(self, res):
+        """Returns a list of tags associated with a RightScale resource.
+
+        Args:
+            res: Resource object to search for
+
+        Returns:
+            [List, of, tags]
+        """
+        params = [('resource_hrefs[]', res.href)]
+        raw = self._client.tags.by_resource(params=params)[0]
+        tags = [tag['name'] for tag in raw.soul['tags']]
+        return tags
+
+    @concurrent.run_on_executor
     @utils.exception_logger
     def clone_server_array(self, array):
         """Clone a Server Array.
