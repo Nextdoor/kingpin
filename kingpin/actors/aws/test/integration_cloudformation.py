@@ -86,13 +86,126 @@ class IntegrationCreate(testing.AsyncTestCase):
         done = yield actor.execute()
         self.assertEquals(done, None)
 
-    @attr('aws', 'integration')
-    @testing.gen_test(timeout=60)
-    def integration_04_delete_missing_stack_should_fail(self):
-        actor = cloudformation.Delete(
-            'Delete Stack',
-            {'region': self.region,
-             'name': self.bucket_name})
 
-        with self.assertRaises(cloudformation.StackNotFound):
-            yield actor.execute()
+class IntegrationStack(testing.AsyncTestCase):
+
+    """High Level CloudFormation Stack Testing.
+
+    These tests will check two things:
+    * Create a super-simple CloudFormation stack
+    * Update the stack
+    * Delete that same stack
+
+    Requirements:
+        Your AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must have access to
+        create CF stacks. The stack we create is extremely simple, and should
+        impact none of your AWS resources. The stack creates a simple S3
+        bucket, so your credentials must have access to create that buckets.
+
+    Note, these tests must be run in-order. The order is defined by
+    their definition order in this file. Nose follows this order according
+    to its documentation:
+
+        http://nose.readthedocs.org/en/latest/writing_tests.html
+    """
+
+    integration = True
+
+    region = 'us-east-1'
+    bucket_name = 'kingpin-stack-%s' % UUID
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=600)
+    def integration_01a_ensure_stack(self):
+        actor = cloudformation.Stack(
+            options={
+                'region': self.region,
+                'state': 'present',
+                'name': self.bucket_name,
+                'template':
+                    'examples/test/aws.cloudformation/cf.integration.json',
+                'parameters': {
+                    'BucketName': self.bucket_name}})
+
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=600)
+    def integration_01b_ensure_stack_still_there(self):
+        actor = cloudformation.Stack(
+            options={
+                'region': self.region,
+                'state': 'present',
+                'name': self.bucket_name,
+                'template':
+                    'examples/test/aws.cloudformation/cf.integration.json',
+                'parameters': {
+                    'BucketName': self.bucket_name}})
+
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=600)
+    def integration_02a_update_bucket_name(self):
+        actor = cloudformation.Stack(
+            options={
+                'region': self.region,
+                'state': 'present',
+                'name': self.bucket_name,
+                'template':
+                    'examples/test/aws.cloudformation/cf.integration.json',
+                'parameters': {
+                    'BucketName': '%s-updated' % self.bucket_name}})
+
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=600)
+    def integration_02a_update_bucket_name_second_time_should_work(self):
+        actor = cloudformation.Stack(
+            options={
+                'region': self.region,
+                'state': 'present',
+                'name': self.bucket_name,
+                'template':
+                    'examples/test/aws.cloudformation/cf.integration.json',
+                'parameters': {
+                    'BucketName': '%s-updated' % self.bucket_name}})
+
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=600)
+    def integration_03a_delete_stack(self):
+        actor = cloudformation.Stack(
+            options={
+                'region': self.region,
+                'state': 'absent',
+                'name': self.bucket_name,
+                'template':
+                    'examples/test/aws.cloudformation/cf.integration.json',
+                'parameters': {
+                    'BucketName': '%s-updated' % self.bucket_name}})
+
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=600)
+    def integration_03b_ensure_stack_absent(self):
+        actor = cloudformation.Stack(
+            options={
+                'region': self.region,
+                'state': 'absent',
+                'name': self.bucket_name,
+                'template':
+                    'examples/test/aws.cloudformation/cf.integration.json',
+                'parameters': {
+                    'BucketName': '%s-updated' % self.bucket_name}})
+
+        done = yield actor.execute()
+        self.assertEquals(done, None)

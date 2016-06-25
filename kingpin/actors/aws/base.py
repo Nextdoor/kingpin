@@ -51,6 +51,7 @@ import boto.ec2.elb
 import boto.iam
 import boto.sqs
 import boto.s3
+import boto3
 
 from kingpin import utils
 from kingpin import exceptions as kingpin_exceptions
@@ -155,8 +156,9 @@ class AWSBaseActor(base.BaseActor):
             region,
             aws_access_key_id=key,
             aws_secret_access_key=secret)
-        self.cf_conn = boto.cloudformation.connect_to_region(
-            region,
+        self.cf3_conn = boto3.client(
+            'cloudformation',
+            region_name=region,
             aws_access_key_id=key,
             aws_secret_access_key=secret)
         self.sqs_conn = boto.sqs.connect_to_region(

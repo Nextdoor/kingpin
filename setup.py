@@ -86,6 +86,8 @@ class UnitTestCommand(Command):
     description = 'Run unit tests'
     user_options = []
     args = [PACKAGE,
+            '--cover-erase',
+            '--cover-min-percentage=100',
             '--with-coverage',
             '--cover-package=%s' % PACKAGE,
             '-v']
