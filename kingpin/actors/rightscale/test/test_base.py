@@ -5,7 +5,7 @@ from tornado import testing
 
 from kingpin.actors import exceptions
 from kingpin.actors.rightscale import base
-from kingpin.actors.test.helper import mock_tornado
+from kingpin.actors.test.helper import mock_tornado, tornado_value
 
 log = logging.getLogger(__name__)
 
@@ -102,13 +102,27 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         ret = yield self.actor._find_server_arrays('t', raise_on=None)
         self.assertEquals(None, ret)
 
-    def test_generate_rightscale_params_with_invalid_params(self):
-        actor = base.RightScaleBaseActor('Unit Test Action', {})
-        with self.assertRaises(exceptions.InvalidOptions):
-            actor._generate_rightscale_params('test', ['a', 'b'])
+    @testing.gen_test
+    def test_log_account_name(self):
+        cloud_accounts = mock.MagicMock(name='cloud_accounts')
+        mocked_account = mock.MagicMock(name='fake_account_obj')
+        mocked_account.soul = {'name': 'test'}
 
-        with self.assertRaises(exceptions.InvalidOptions):
-            actor._generate_rightscale_params('test', 'foo')
+        base.log = mock.MagicMock(name='mocked_logger')
+        self.client_mock.show.side_effect = [
+            tornado_value([cloud_accounts]),
+            tornado_value(mocked_account)
+        ]
+        yield self.actor._log_account_name()
+
+        base.log.assert_has_calls([
+            mock.call.warning('RightScale account name: test')])
+
+    @testing.gen_test
+    def test_execute(self):
+        self.actor._execute = mock_tornado(None)
+        self.actor._log_account_name = mock_tornado(None)
+        yield self.actor.execute()
 
     def test_generate_rightscale_params(self):
         params = {'name': 'unittest-name',
@@ -168,3 +182,53 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         self.assertItemsEqual(expected_params[0], ret_chunks[0])
         self.assertItemsEqual(expected_params[1], ret_chunks[1])
         self.assertItemsEqual(expected_params[2], ret_chunks[2])
+
+    def test_generate_rightscale_params_with_pure_array(self):
+        params = [
+            'testA',
+            'testB',
+            'testC'
+        ]
+        expected_params = [
+            ('resource_hrefs[]', 'testA'),
+            ('resource_hrefs[]', 'testB'),
+            ('resource_hrefs[]', 'testC'),
+        ]
+
+        actor = base.RightScaleBaseActor('Unit Test Action', {})
+        ret = actor._generate_rightscale_params('resource_hrefs', params)
+
+        self.assertEquals(expected_params, ret)
+
+    @testing.gen_test
+    def test_get_resource_tags(self):
+        resource = mock.MagicMock(name='resource')
+        self.client_mock.get_resource_tags.side_effect = [
+            tornado_value(None)
+        ]
+        ret = yield self.actor._get_resource_tags(resource=resource)
+        self.assertEquals(None, ret)
+        self.client_mock.get_resource_tags.assert_has_calls([
+            mock.call(resource)
+        ])
+
+    @testing.gen_test
+    def test_add_resource_tags(self):
+        resource = mock.MagicMock(name='resource')
+        self.client_mock.add_resource_tags.side_effect = [tornado_value(None)]
+        yield self.actor._add_resource_tags(resource=resource, tags=['a', 'b'])
+        self.client_mock.add_resource_tags.assert_has_calls([
+            mock.call(resource, ['a', 'b'])
+        ])
+
+    @testing.gen_test
+    def test_delete_resource_tags(self):
+        resource = mock.MagicMock(name='resource')
+        self.client_mock.delete_resource_tags.side_effect = [
+          tornado_value(None)
+        ]
+        yield self.actor._delete_resource_tags(
+            resource=resource, tags=['a', 'b'])
+        self.client_mock.delete_resource_tags.assert_has_calls([
+            mock.call(resource, ['a', 'b'])
+        ])

@@ -6,7 +6,7 @@ Documentation
 .. automodule:: kingpin.actors.rightscale.base
    :noindex:
    :members:
-   :exclude-members: RightScaleBaseActor
+   :exclude-members: RightScaleBaseActor, ArrayNotFound, ArrayAlreadyExists
 
 Deployment
 ^^^^^^^^^^
@@ -31,7 +31,6 @@ Server Arrays
 
 Multi Cloud Images
 ^^^^^^^^^^^^^^^^^^
-.. automodule:: kingpin.actors.rightscale.mci
+.. automodule:: kingpin.actors.rightscale
    :noindex:
-   :members:
-   :exclude-members: MCIBaseActor
+   :members: MCI
