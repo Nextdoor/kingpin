@@ -42,6 +42,7 @@ import mock
 
 from kingpin.actors import base
 from kingpin.actors import exceptions
+from kingpin.actors.utils import dry
 from kingpin.actors.rightscale import api
 
 log = logging.getLogger(__name__)
@@ -66,6 +67,8 @@ class ArrayAlreadyExists(exceptions.RecoverableActorFailure):
 class RightScaleBaseActor(base.BaseActor):
 
     """Abstract class for creating RightScale cloud actors."""
+
+    account_name = None
 
     def __init__(self, *args, **kwargs):
         """Initializes the Actor."""
@@ -169,10 +172,6 @@ class RightScaleBaseActor(base.BaseActor):
         Returns:
             A list of tuples of key/value pairs.
         """
-        if not type(params) == dict:
-            raise exceptions.InvalidOptions(
-                'Parameters passed in must be in the form of a dict.')
-
         # Nested loop that compresses a multi level dictinary into a flat
         # array of key=value strings.
         def flatten(d, parent_key=prefix, sep='_'):
@@ -195,3 +194,36 @@ class RightScaleBaseActor(base.BaseActor):
             return items
 
         return flatten(params)
+
+    @gen.coroutine
+    def _get_resource_tags(self, resource):
+        tags = yield self._client.get_resource_tags(resource)
+        raise gen.Return(tags)
+
+    @gen.coroutine
+    @dry('Would have added tags to {resource.soul[name]}')
+    def _add_resource_tags(self, resource, tags):
+        self.log.info('Adding tags: %s' % ','.join(tags))
+        yield self._client.add_resource_tags(resource, tags)
+
+    @gen.coroutine
+    @dry('Would have deleted tags from {resource.soul[name]}')
+    def _delete_resource_tags(self, resource, tags):
+        self.log.info('Removing tags: %s' % ','.join(tags))
+        yield self._client.delete_resource_tags(resource, tags)
+
+    @gen.coroutine
+    def _log_account_name(self, *args, **kwargs):
+        """Logs out the name of the RightScale account."""
+        if not RightScaleBaseActor.account_name:
+            ca_resource = self._client._client.cloud_accounts
+            cloud_accounts = yield self._client.show(ca_resource)
+            account = yield self._client.show(cloud_accounts[0].account)
+            RightScaleBaseActor.account_name = account.soul['name']
+            log.warning('RightScale account name: %s' % account.soul['name'])
+
+    @gen.coroutine
+    def execute(self, *args, **kwargs):
+        yield self._log_account_name()
+        ret = yield super(RightScaleBaseActor, self).execute(*args, **kwargs)
+        raise gen.Return(ret)

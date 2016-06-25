@@ -87,7 +87,7 @@ class TestCloneActor(testing.AsyncTestCase):
 
         self.client_mock.update = mock_tornado()
 
-        ret = yield self.actor.execute()
+        ret = yield self.actor._execute()
         self.assertEquals(None, ret)
 
     @testing.gen_test
@@ -100,7 +100,7 @@ class TestCloneActor(testing.AsyncTestCase):
 
         self.client_mock.update = mock_tornado()
 
-        ret = yield self.actor.execute()
+        ret = yield self.actor._execute()
         self.assertEquals(None, ret)
 
 
@@ -161,7 +161,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.client_mock.update_server_array_inputs.return_value = (
             tornado_value(None))
 
-        ret = yield self.actor.execute()
+        ret = yield self.actor._execute()
 
         self.client_mock.update.assert_called_once_with(
             mocked_array, [('server_array[name]', 'newunitarray')])
@@ -200,7 +200,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.client_mock.update.side_effect = error
 
         with self.assertRaises(exceptions.ActorException):
-            yield self.actor.execute()
+            yield self.actor._execute()
 
         self.client_mock.update.assert_called_once_with(
             mocked_array, [('server_array[name]', 'newunitarray')])
@@ -219,7 +219,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.client_mock.update.side_effect = error
 
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor.execute()
+            yield self.actor._execute()
 
         self.client_mock.update.assert_called_once_with(
             mocked_array, [('server_array[name]', 'newunitarray')])
@@ -238,7 +238,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.client_mock.update.side_effect = error
 
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor.execute()
+            yield self.actor._execute()
 
         self.client_mock.update.assert_called_once_with(
             mocked_array, [('server_array[name]', 'newunitarray')])
@@ -253,7 +253,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.actor._check_array_inputs = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
-        ret = yield self.actor.execute()
+        ret = yield self.actor._execute()
         self.assertEquals(None, ret)
 
     @testing.gen_test
@@ -265,7 +265,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.actor._check_array_inputs = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
-        ret = yield self.actor.execute()
+        ret = yield self.actor._execute()
         self.assertEquals(None, ret)
 
 
@@ -441,7 +441,7 @@ class TestUpdateNextInstanceActor(testing.AsyncTestCase):
         self.actor._update_params = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
-        ret = yield self.actor.execute()
+        ret = yield self.actor._execute()
 
         self.assertEquals(None, ret)
 
@@ -453,8 +453,7 @@ class TestUpdateNextInstanceActor(testing.AsyncTestCase):
         self.actor._update_params = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
-        ret = yield self.actor.execute()
-
+        ret = yield self.actor._execute()
         self.assertEquals(None, ret)
 
 

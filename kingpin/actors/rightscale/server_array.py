@@ -383,7 +383,7 @@ class Update(ServerArrayBaseActor):
                        self.option('array'))
                 raise exceptions.RecoverableActorFailure(msg)
 
-            raise
+            raise exceptions.ActorException(e)
 
         raise gen.Return()
 

@@ -29,31 +29,70 @@ class IntegrationMCI(testing.AsyncTestCase):
     @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=60)
     def integration_01a_create_mci_dry(self):
-        actor = mci.Create('Integ. Test',
-                           {'name': self.mci_name,
-                            'images': self.images},
-                           dry=True)
+        actor = mci.MCI(
+            options={'name': self.mci_name,
+                     'description': self.mci_name,
+                     'state': 'present',
+                     'images': self.images},
+            dry=True)
         yield actor.execute()
 
     @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
     def integration_01b_create_mci(self):
-        actor = mci.Create('Integ. Test',
-                           {'name': self.mci_name,
-                            'images': self.images})
+        actor = mci.MCI(
+            options={'name': self.mci_name,
+                     'description': self.mci_name,
+                     'state': 'present',
+                     'images': self.images})
         yield actor.execute()
 
     @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=60)
-    def integration_02a_destroy_mci_dry(self):
-        actor = mci.Destroy('Integ. Test',
-                            {'name': self.mci_name},
-                            dry=True)
+    def integration_03a_update_mci(self):
+        self.images[0]['instance_type'] = 'm1.large'
+        self.images[1]['instance_type'] = 'm1.large'
+
+        actor = mci.MCI(
+            options={'name': self.mci_name,
+                     'description': self.mci_name,
+                     'state': 'present',
+                     'commit': 'Changed instance type to m1.large',
+                     'images': self.images})
+
         yield actor.execute()
 
-    @attr('rightscale', 'integration')
+    @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=60)
-    def integration_02b_destroy_mci(self):
-        actor = mci.Destroy('Integ. Test',
-                            {'name': self.mci_name})
+    def integration_03b_update_mci(self):
+
+        actor = mci.MCI(
+            options={'name': self.mci_name,
+                     'description': self.mci_name,
+                     'state': 'present',
+                     'tags': 'some_new_tag',
+                     'commit': 'Added a tag',
+                     'images': self.images})
+
+        yield actor.execute()
+
+    @attr('rightscale', 'integration', 'dry')
+    @testing.gen_test(timeout=60)
+    def integration_04a_destroy_mci_dry(self):
+        actor = mci.MCI(
+            options={'name': self.mci_name,
+                     'description': self.mci_name,
+                     'state': 'absent',
+                     'images': self.images},
+            dry=True)
+        yield actor.execute()
+
+    @attr('rightscale', 'integration', 'dry')
+    @testing.gen_test(timeout=60)
+    def integration_04b_destroy_mci(self):
+        actor = mci.MCI(
+            options={'name': self.mci_name,
+                     'description': self.mci_name,
+                     'state': 'absent',
+                     'images': self.images})
         yield actor.execute()

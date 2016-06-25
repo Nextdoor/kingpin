@@ -11,3 +11,15 @@
 # limitations under the License.
 #
 # Copyright 2014 Nextdoor.com, Inc
+
+import logging
+
+# Expose kingpin.actors.rightscale.mci.MCI as kingpin.actors.rightscale.MCI.
+from kingpin.actors.rightscale.mci import MCI
+
+log = logging.getLogger(__name__)
+
+__author__ = 'Matt Wise <matt@nextdoor.com>'
+
+# Quiet down PyFlakes
+MCI
