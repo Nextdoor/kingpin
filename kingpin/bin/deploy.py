@@ -120,7 +120,7 @@ def main():
     if args.build_only:
         try:
             get_main_actor(dry=False)
-        except actor_exceptions.ActorException as e:
+        except Exception as e:
             log.critical(e)
             sys.exit(1)
         sys.exit(0)
