@@ -152,6 +152,11 @@ class AWSBaseActor(base.BaseActor):
             region,
             aws_access_key_id=key,
             aws_secret_access_key=secret)
+        self.ecs_conn = boto3.client(
+            'ecs',
+            region_name=region,
+            aws_access_key_id=key,
+            aws_secret_access_key=secret)
         self.elb_conn = boto.ec2.elb.connect_to_region(
             region,
             aws_access_key_id=key,
