@@ -363,25 +363,36 @@ class RunTask(ECSBaseActor):
         for container in containers:
             if container['lastStatus'] == 'STOPPED':
                 stopped_count += 1
-            exit_code = container.get('exitCode', None)
-            if exit_code and exit_code != 0:
-                self.log.error('Task {0} exited with code {1}'.format(
-                    container['taskArn'], exit_code))
-                raise exceptions.RecoverableActorFailure()
+                exit_code = container.get('exitCode', None)
+                if exit_code is None:
+                    self.log.error('Task {0} stopped without executing'.format(
+                        container['taskArn']))
+                    raise exceptions.RecoverableActorFailure()
+                if exit_code != 0:
+                    self.log.error(
+                        'Task {0} errored out with exit code {1}'.format(
+                            container['taskArn'], exit_code))
+                    raise exceptions.RecoverableActorFailure()
+                self.log.info('Task {0} finished successfully!'.format(
+                        container['taskArn']))
 
         if stopped_count == total_count:
-            self.log.info('All {0} tasks stopped'.format(total_count))
+            self.log.info('All {0} tasks finished'.format(total_count))
             raise gen.Return(True)
 
         self.log.info(
-            '{0} tasks stopped out of {1} tasks'.format(
+            '{0} tasks finished out of {1} tasks'.format(
                 stopped_count, total_count))
         raise gen.Return(False)
 
     @gen.coroutine
     def _execute(self):
-        self.log.info('Running task from {task_definition} into ECS. '
-                      'Region: {region}, cluster: {cluster}.')
+        self.log.info(
+            'Running task from {task_definition} in ECS. '
+            'Region: {region}, cluster: {cluster}.'.format(
+                task_definition=self.option('task_definition'),
+                region=self.option('region'),
+                cluster=self.option('cluster')))
         family, revision = yield self._register_task(
             self.task_definition)
         tasks = yield self._run_task(
