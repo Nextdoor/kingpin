@@ -470,32 +470,6 @@ class MCI(MCIBaseActor):
         raise gen.Return(mci)
 
     @gen.coroutine
-    def _ensure_tags(self, mci, tags):
-        if isinstance(tags, basestring):
-            tags = [tags]
-
-        if not mci.href:
-            # Must be a mocked-out MCI, meaning its brand new, meaning it has
-            # no tags. Definitely set them.
-            yield self._add_resource_tags(resource=mci, tags=tags)
-            self.changed = True
-            raise gen.Return()
-
-        existing_tags = (yield self._get_resource_tags(mci))
-        new_tags = tags
-
-        # What tags should we add, delete?
-        to_add = list(set(new_tags) - set(existing_tags))
-        to_delete = list(set(existing_tags) - set(new_tags))
-
-        if to_add:
-            yield self._add_resource_tags(resource=mci, tags=to_add)
-            self.changed = True
-        if to_delete:
-            yield self._delete_resource_tags(resource=mci, tags=to_delete)
-            self.changed = True
-
-    @gen.coroutine
     def _ensure_description(self, mci):
         existing = mci.soul['description']
         new = self.option('description')

@@ -213,6 +213,38 @@ class RightScaleBaseActor(base.BaseActor):
         yield self._client.delete_resource_tags(resource, tags)
 
     @gen.coroutine
+    def _ensure_tags(self, res, tags):
+        """Ensures that a set of tags are applied to a RightScale resource.
+
+        Args:
+            res: The resource object itself
+            tags: A list of tags to apply
+        """
+        if isinstance(tags, basestring):
+            tags = [tags]
+
+        if not res.href:
+            # Must be a mocked-out MCI, meaning its brand new, meaning it has
+            # no tags. Definitely set them.
+            yield self._add_resource_tags(resource=res, tags=tags)
+            self.changed = True
+            raise gen.Return()
+
+        existing_tags = (yield self._get_resource_tags(res))
+        new_tags = tags
+
+        # What tags should we add, delete?
+        to_add = list(set(new_tags) - set(existing_tags))
+        to_delete = list(set(existing_tags) - set(new_tags))
+
+        if to_add:
+            yield self._add_resource_tags(resource=res, tags=to_add)
+            self.changed = True
+        if to_delete:
+            yield self._delete_resource_tags(resource=res, tags=to_delete)
+            self.changed = True
+
+    @gen.coroutine
     def _log_account_name(self, *args, **kwargs):
         """Logs out the name of the RightScale account."""
         if not RightScaleBaseActor.account_name:
