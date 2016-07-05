@@ -315,6 +315,7 @@ class RunTask(ECSBaseActor):
             cluster=self.option('cluster'),
             taskDefinition='{0}:{1}'.format(family, revision),
             count=self.option('count'))
+        self.log.info('Scheduled task {0}:{1}'.format(family, revision))
         self._handle_failures(response['failures'])
         tasks = [t['taskArn'] for t in response['tasks']]
         raise gen.Return(tasks)
@@ -363,18 +364,22 @@ class RunTask(ECSBaseActor):
         for container in containers:
             if container['lastStatus'] == 'STOPPED':
                 stopped_count += 1
+                task_id = container['taskArn']
+                if 'reason' in container:
+                    self.log.warning('Error reason for {0}: {1}'.format(
+                        task_id, container['reason']))
                 exit_code = container.get('exitCode', None)
                 if exit_code is None:
                     self.log.error('Task {0} stopped without executing'.format(
-                        container['taskArn']))
+                        task_id))
                     raise exceptions.RecoverableActorFailure()
                 if exit_code != 0:
                     self.log.error(
                         'Task {0} errored out with exit code {1}'.format(
-                            container['taskArn'], exit_code))
+                            task_id, exit_code))
                     raise exceptions.RecoverableActorFailure()
                 self.log.info('Task {0} finished successfully!'.format(
-                        container['taskArn']))
+                        task_id))
 
         if stopped_count == total_count:
             self.log.info('All {0} tasks finished'.format(total_count))
