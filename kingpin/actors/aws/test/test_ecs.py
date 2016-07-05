@@ -317,6 +317,7 @@ class TestTasksDone(testing.AsyncTestCase):
         tasks = ['1']
         ecs_actor._get_containers_from_tasks.return_value = [
             {
+                'taskArn': '1',
                 'lastStatus': 'STOPPED',
                 'exitCode': 0
             }
@@ -332,10 +333,12 @@ class TestTasksDone(testing.AsyncTestCase):
         tasks = ['1', '2']
         ecs_actor._get_containers_from_tasks.return_value = [
             {
+                'taskArn': '1',
                 'lastStatus': 'STOPPED',
                 'exitCode': 0
             },
             {
+                'taskArn': '2',
                 'lastStatus': 'STOPPED',
                 'exitCode': 0
             }
@@ -367,6 +370,7 @@ class TestTasksDone(testing.AsyncTestCase):
         tasks = ['1']
         ecs_actor._get_containers_from_tasks.return_value = [
             {
+                'taskArn': '1',
                 'lastStatus': 'RUNNING'
             }
         ]
@@ -381,10 +385,13 @@ class TestTasksDone(testing.AsyncTestCase):
         tasks = ['1']
         ecs_actor._get_containers_from_tasks.return_value = [
             {
+                'taskArn': '1',
                 'lastStatus': 'RUNNING'
             },
             {
-                'lastStatus': 'STOPPED'
+                'taskArn': '2',
+                'lastStatus': 'STOPPED',
+                'exitCode': 0
             }
         ]
         result = yield self.actor._tasks_done(tasks)
@@ -406,6 +413,21 @@ class TestTasksDone(testing.AsyncTestCase):
                 'taskArn': '2',
                 'lastStatus': 'STOPPED',
                 'exitCode': 1
+            }
+        ]
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._tasks_done(tasks)
+        self.actor.ecs_conn.describe_tasks.assert_called_with(
+            cluster=self.actor.option('cluster'),
+            tasks=tasks)
+
+    @testing.gen_test
+    def test_fail_without_exit(self):
+        tasks = ['1']
+        ecs_actor._get_containers_from_tasks.return_value = [
+            {
+                'taskArn': '1',
+                'lastStatus': 'STOPPED'
             }
         ]
         with self.assertRaises(exceptions.RecoverableActorFailure):
