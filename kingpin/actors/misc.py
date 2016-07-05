@@ -50,6 +50,21 @@ __author__ = ('Matt Wise <matt@nextdoor.com>, '
               'Mikhail Simin <mikhail@nextdoor.com>')
 
 
+class Note(base.BaseActor):
+
+    """Print any message to log."""
+
+    all_options = {
+        'message': (str, REQUIRED, 'Message to log.')
+    }
+
+    desc = "Info Log"
+
+    @gen.coroutine
+    def _execute(self):
+        self.log.info(self.option('message'))
+
+
 class Macro(base.BaseActor):
 
     """Parses a kingpin script, instantiates and executes it.

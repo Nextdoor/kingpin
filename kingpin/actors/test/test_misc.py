@@ -12,6 +12,16 @@ from kingpin.actors.test.helper import mock_tornado
 log = logging.getLogger(__name__)
 
 
+class TestNote(testing.AsyncTestCase):
+
+    @testing.gen_test
+    def test_log(self):
+        note = misc.Note('Test', {'message': 'Hello World'})
+        note.log = mock.Mock()
+        yield note._execute()
+        self.assertEquals(note.log.info.call_count, 1)
+
+
 class TestMacro(testing.AsyncTestCase):
 
     def setUp(self):
