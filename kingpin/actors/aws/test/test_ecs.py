@@ -427,7 +427,8 @@ class TestTasksDone(testing.AsyncTestCase):
         ecs_actor._get_containers_from_tasks.return_value = [
             {
                 'taskArn': '1',
-                'lastStatus': 'STOPPED'
+                'lastStatus': 'STOPPED',
+                'reason': 'fail reason'
             }
         ]
         with self.assertRaises(exceptions.RecoverableActorFailure):
