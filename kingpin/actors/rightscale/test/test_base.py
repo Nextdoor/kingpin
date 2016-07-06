@@ -225,7 +225,7 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
     def test_delete_resource_tags(self):
         resource = mock.MagicMock(name='resource')
         self.client_mock.delete_resource_tags.side_effect = [
-          tornado_value(None)
+            tornado_value(None)
         ]
         yield self.actor._delete_resource_tags(
             resource=resource, tags=['a', 'b'])
@@ -286,4 +286,3 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
             mock.call(mci, ['tag'])
         ])
         self.assertFalse(self.client_mock.delete_resource_tags.called)
-

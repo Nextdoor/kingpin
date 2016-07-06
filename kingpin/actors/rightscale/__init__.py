@@ -14,8 +14,8 @@
 
 import logging
 
-# Expose kingpin.actors.rightscale.mci.MCI as kingpin.actors.rightscale.MCI.
 from kingpin.actors.rightscale.mci import MCI
+from kingpin.actors.rightscale.server_template import ServerTemplate
 
 log = logging.getLogger(__name__)
 
@@ -23,3 +23,4 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 # Quiet down PyFlakes
 MCI
+ServerTemplate
