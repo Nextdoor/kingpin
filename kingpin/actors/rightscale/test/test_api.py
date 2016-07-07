@@ -29,6 +29,17 @@ class TestRightScale(testing.AsyncTestCase):
         ret = self.client.get_res_id(resource)
         self.assertEquals(ret, 12345)
 
+    def test_exception_logger(self):
+        response = mock.MagicMock(name='fake_response')
+        response.text = 'Error'
+
+        @api.rightscale_error_logger
+        def raises_exc():
+            raise requests.exceptions.HTTPError(response=response)
+
+        with self.assertRaises(requests.exceptions.HTTPError):
+            raises_exc()
+
     @testing.gen_test
     def test_find_server_arrays(self):
         with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
