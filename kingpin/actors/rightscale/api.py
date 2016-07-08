@@ -48,6 +48,7 @@ translation.
 
 from datetime import datetime
 from os import path
+import functools
 import logging
 
 from retrying import retry as sync_retry
@@ -77,6 +78,22 @@ DEFAULT_ENDPOINT = 'https://my.rightscale.com'
 # across RightScale objects, but we see testing IO errors when we
 # do this.
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
+
+
+def rightscale_error_logger(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except requests.exceptions.HTTPError as e:
+            log.error('Error in RightScale API Call: %s(%s, %s): %s'
+                      % (func.__name__, args, kwargs, e))
+
+            if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                log.error('RightScale Response: %s' % e.response.text)
+
+            raise
+    return wrapper
 
 
 class ServerArrayException(Exception):
@@ -124,6 +141,7 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
     def find_server_arrays(self, name, exact=True):
         """Search for a list of ServerArray by name and return the resources.
@@ -156,6 +174,7 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
     def show(self, resource):
         """Async wrapping of <resource>.show() with retry wrapper.
@@ -169,6 +188,7 @@ class RightScale(object):
         return resource.show()
 
     @concurrent.run_on_executor
+    @rightscale_error_logger
     @utils.exception_logger
     def find_cookbook(self, name):
         """Search for a Cookbook by-name and return the resource.
@@ -202,6 +222,7 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
     def find_right_script(self, name):
         """Search for a RightScript by-name and return the resource.
@@ -226,6 +247,7 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
     def find_by_name_and_keys(self, collection, exact=True, **kwargs):
         """Search for a RightScale resource by name, and optional keys.
@@ -264,6 +286,7 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
     def destroy_resource(self, res):
         """Destroy an RightScale resource.
@@ -275,6 +298,7 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
     def create_resource(self, res, params):
         """Create an RightScale resource.
@@ -290,24 +314,28 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
-    def commit_resource(self, res, res_type, message):
+    def commit_resource(self, res, res_type, message, params={}):
         """Commit a RightScale resource
 
         Args:
             res: Resource object to commit
             res_type: The RightScale resource object _type_
             message: The message to use when committing
+            params: A dictionary of pre-filled out parameters for the commit
+                    call.
 
         Returns:
             The Rightscale Resource itself
         """
         res_id = self.get_res_id(res)
-        params = {'commit_message': message}
+        params['commit_message'] = message
         return res_type.commit(res_id=res_id, params=params)
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
     def add_resource_tags(self, res, tags):
         """Tags a RightScale resource
@@ -326,6 +354,7 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
     def delete_resource_tags(self, res, tags):
         """Deletes tags from a RightScale resource
@@ -344,6 +373,7 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
     def get_resource_tags(self, res):
         """Returns a list of tags associated with a RightScale resource.
@@ -360,6 +390,7 @@ class RightScale(object):
         return tags
 
     @concurrent.run_on_executor
+    @rightscale_error_logger
     @utils.exception_logger
     def clone_server_array(self, array):
         """Clone a Server Array.
@@ -380,6 +411,7 @@ class RightScale(object):
         return new_array
 
     @concurrent.run_on_executor
+    @rightscale_error_logger
     @utils.exception_logger
     def destroy_server_array(self, array):
         """Destroys a Server Array.
@@ -398,6 +430,7 @@ class RightScale(object):
         log.debug('Array Destroyed')
 
     @concurrent.run_on_executor
+    @rightscale_error_logger
     @utils.exception_logger
     def update(self, resource, params):
         """Updates a RightScale resource with the supplied parameters.
@@ -424,6 +457,7 @@ class RightScale(object):
         return updated_resource
 
     @concurrent.run_on_executor
+    @rightscale_error_logger
     @utils.exception_logger
     def get_server_array_inputs(self, array):
         """Looks up ServerArray 'Next Instance' inputs.
@@ -443,6 +477,7 @@ class RightScale(object):
         return all_inputs
 
     @concurrent.run_on_executor
+    @rightscale_error_logger
     @utils.exception_logger
     def update_server_array_inputs(self, array, inputs):
         """Updates a ServerArray 'Next Instance' with the supplied inputs.
@@ -470,6 +505,7 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
     def launch_server_array(self, array, count=1):
         """Launches an instance of a ServerArray..
@@ -510,6 +546,7 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
     def get_server_array_current_instances(
             self, array, filters=['state<>terminated']):
@@ -538,6 +575,7 @@ class RightScale(object):
         return array.current_instances.index(params=params)
 
     @concurrent.run_on_executor
+    @rightscale_error_logger
     @utils.exception_logger
     def terminate_server_array_instances(self, array):
         """Executes a terminate on all of the current running instances.
@@ -674,6 +712,7 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
     def _get_task_info(self, task):
         """Fetch data for a particular RightScale task.
@@ -685,6 +724,7 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     @utils.exception_logger
     def get_audit_logs(self, instance, start, end, match=None):
         """Fetch a set of audit logs belonging to an instance.
@@ -825,6 +865,7 @@ class RightScale(object):
 
     @concurrent.run_on_executor
     @sync_retry(**settings.RETRYING_SETTINGS)
+    @rightscale_error_logger
     def make_generic_request(self, url, post=None):
         """Make a generic API call and return a Resource Object.
 
@@ -847,7 +888,7 @@ class RightScale(object):
 
         # Here we're reaching into the rightscale client library and getting
         # access directly to its requests client object.
-        if post:
+        if post is not None:
             response = self._client.client.post(url, data=post)
         else:
             response = self._client.client.get(url)
