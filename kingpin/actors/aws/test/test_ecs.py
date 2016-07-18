@@ -121,7 +121,7 @@ class TestRegisterTask(testing.AsyncTestCase):
         reload(ecs_actor)
 
         with mock.patch('kingpin.actors.aws.ecs._load_task_definition'):
-            self.actor = ecs_actor.RunTask(
+            self.actor = ecs_actor.Task(
                 options={
                     'region': '',
                     'cluster': '',
@@ -164,7 +164,7 @@ class TestRunTask(testing.AsyncTestCase):
         reload(ecs_actor)
 
         with mock.patch('kingpin.actors.aws.ecs._load_task_definition'):
-            self.actor = ecs_actor.RunTask(
+            self.actor = ecs_actor.Task(
                 options={
                     'region': '',
                     'cluster': '',
@@ -243,7 +243,7 @@ class TestWaitForTasks(testing.AsyncTestCase):
         reload(ecs_actor)
 
         with mock.patch('kingpin.actors.aws.ecs._load_task_definition'):
-            self.actor = ecs_actor.RunTask(
+            self.actor = ecs_actor.Task(
                 options={
                     'region': '',
                     'cluster': '',
@@ -296,7 +296,7 @@ class TestTasksDone(testing.AsyncTestCase):
         reload(ecs_actor)
 
         with mock.patch('kingpin.actors.aws.ecs._load_task_definition'):
-            self.actor = ecs_actor.RunTask(options={
+            self.actor = ecs_actor.Task(options={
                 'region': '',
                 'cluster': '',
                 'task_definition': ''
@@ -480,7 +480,7 @@ class TestExecute(testing.AsyncTestCase):
         reload(ecs_actor)
 
         with mock.patch('kingpin.actors.aws.ecs._load_task_definition'):
-            self.actor = ecs_actor.RunTask(
+            self.actor = ecs_actor.Task(
                 options={
                     'region': '',
                     'cluster': '',
