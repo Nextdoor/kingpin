@@ -196,7 +196,7 @@ class ECSBaseActor(base.AWSBaseActor):
         raise exceptions.RecoverableActorFailure()
 
 
-class RunTask(ECSBaseActor):
+class Task(ECSBaseActor):
     """Register and run a task on ECS.
 
     This actor will loop indefinitely until the task is complete.
@@ -228,7 +228,7 @@ class RunTask(ECSBaseActor):
 
     .. code-block:: yaml
 
-       actor: aws.ecs.RunTask
+       actor: aws.ecs.Task
        desc: Run migrations
        options:
           task_definition: nextdoor-migrate.json
@@ -259,7 +259,7 @@ class RunTask(ECSBaseActor):
     }
 
     def __init__(self, *args, **kwargs):
-        super(RunTask, self).__init__(*args, **kwargs)
+        super(Task, self).__init__(*args, **kwargs)
         self.task_definition = _load_task_definition(
             self.option('task_definition'),
             self.option('parameters'))
