@@ -423,7 +423,7 @@ class Async(BaseGroupActor):
 
     all_options = {
         'concurrency': (int, 0, "Max number of concurrent executions."),
-        'contexts': ((dict, list), [], "List of contextual hashes."),
+        'contexts': ((dict, str, list), [], "List of contextual hashes."),
         'acts': (list, REQUIRED, "Array of actor definitions.")
     }
 
