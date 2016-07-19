@@ -869,7 +869,6 @@ class Stack(CloudFormationBaseActor):
                 change = yield self.thread(
                     self.cf3_conn.describe_change_set,
                     ChangeSetName=change_set_name)
-                self.log.error(change)
             except ClientError as e:
                 # If we hit an intermittent error, lets just loop around and
                 # try again.
