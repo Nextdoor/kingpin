@@ -768,7 +768,9 @@ class Stack(CloudFormationBaseActor):
 
         # Get and compare the parameters we have vs the ones in CF. If they're
         # different, plan to do an update!
-        diff = self._diff_policy_json(stack['Parameters'], self._parameters)
+        diff = self._diff_policy_json(
+            stack.get('Parameters', {}),
+            self._parameters)
         if diff:
             self.log.warning('Stack parameters do not match.')
             for line in diff.split('\n'):
