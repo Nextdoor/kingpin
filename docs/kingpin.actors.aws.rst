@@ -15,6 +15,13 @@ CloudFormation
    :members:
    :exclude-members: CloudFormationBaseActor, CloudFormationError, InvalidTemplate, StackAlreadyExists, StackNotFound
 
+Elastic Container Service (ECS)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. automodule:: kingpin.actors.aws.ecs
+   :noindex:
+   :members:
+   :exclude-members: ECSBaseActor
+
 Elastic Load Balancing (ELB)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. automodule:: kingpin.actors.aws.elb
