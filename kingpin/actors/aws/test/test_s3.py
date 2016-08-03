@@ -190,7 +190,8 @@ class TestBucket(testing.AsyncTestCase):
         self.actor.s3_conn.create_bucket.return_value = True
         ret = yield self.actor._create_bucket()
         self.assertEquals(True, ret)
-        self.actor.s3_conn.create_bucket.assert_called_with('test')
+        self.actor.s3_conn.create_bucket.assert_called_with(
+                'test', location='us-east-1')
 
     @testing.gen_test
     def test_verify_can_delete_bucket(self):

@@ -474,7 +474,8 @@ class Bucket(S3BaseActor):
         # about or can expect.
         self.log.info('Creating bucket')
         bucket = yield self.thread(self.s3_conn.create_bucket,
-                                   self.option('name'))
+                                   self.option('name'),
+                                   location=self.option('region'))
         raise gen.Return(bucket)
 
     @gen.coroutine
