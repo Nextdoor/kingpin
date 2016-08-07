@@ -150,22 +150,38 @@ class RightScript(base.RightScaleBaseActor):
         log.debug('Got RightScript: %s' % found)
         raise gen.Return(found)
 
-    """Creates a RightScript.
-
-    args:
-        name: The name of the script to create
-    """
     @gen.coroutine
     @dry('Would have created script {name}')
     def _create_script(self, name):
+        """Creates a RightScript.
+
+        args:
+            name: The name of the script to create
+        """
         script = yield self._client.create_resource(
             self._client._client.right_scripts, self._params)
         self.changed = True
         raise gen.Return(script)
 
-    """Creates or deletes a RightScript depending on the state"""
+    @gen.coroutine
+    @dry('Would have deleted script {name}')
+    def _delete_script(self, name):
+        """Creates a RightScript.
+
+        args:
+            name: The name of the script to delete
+        """
+        script = yield self._get_script(name)
+        if not script:
+            raise gen.Return()
+
+        yield self._client.destroy_resource(script)
+        self.changed = True
+        raise gen.Return()
+
     @gen.coroutine
     def _ensure_script(self):
+        """Creates or deletes a RightScript depending on the state"""
         state = self.option('state')
         name = self.option('name')
 

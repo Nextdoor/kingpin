@@ -59,9 +59,9 @@ class TestRightScript(testing.AsyncTestCase):
 
         # Now create a fake Rightscale resource collection object and make sure
         with mock.patch.object(self.actor._client,
-                               'find_by_name_and_keys') as u_mock:
+                               'find_by_name_and_keys') as find:
             # Try a search with no exact matching
-            u_mock.return_value = helper.tornado_value([fake_script])
+            find.return_value = helper.tornado_value([fake_script])
             ret = yield self.actor._get_script('FakeScript')
             self.assertEquals(ret[0].soul['name'], 'FakeScript')
 
@@ -69,20 +69,39 @@ class TestRightScript(testing.AsyncTestCase):
     def test_get_script_empty_result(self):
         # Now create a fake Rightscale resource collection object and make sure
         with mock.patch.object(self.actor._client,
-                               'find_by_name_and_keys') as u_mock:
+                               'find_by_name_and_keys') as find:
             # Try a search with no exact matching
-            u_mock.return_value = helper.tornado_value(None)
+            find.return_value = helper.tornado_value(None)
             ret = yield self.actor._get_script('FakeScript')
             self.assertEquals(ret, None)
 
     @testing.gen_test
     def test_create_script(self):
         with mock.patch.object(self.actor._client,
-                               'create_resource') as u_mock:
-            u_mock.return_value = helper.tornado_value(1)
+                               'create_resource') as create:
+            create.return_value = helper.tornado_value(1)
             ret = yield self.actor._create_script(name='test')
             self.assertTrue(self.actor.changed)
             self.assertEquals(1, ret)
+
+    @testing.gen_test
+    def test_delete_script_already_gone(self):
+        self.actor._get_script = mock.MagicMock(name='get_script')
+        self.actor._get_script.side_effect = [helper.tornado_value(None)]
+
+        yield self.actor._delete_script(name='test')
+        self.assertFalse(self.actor.changed)
+
+    @testing.gen_test
+    def test_delete_script(self):
+        fake_scr = mock.MagicMock(name='fake_script_object')
+        self.actor._get_script = mock.MagicMock(name='get_script')
+        self.actor._get_script.side_effect = [helper.tornado_value(fake_scr)]
+        with mock.patch.object(self.actor._client,
+                               'destroy_resource') as destroy:
+            destroy.return_value = helper.tornado_value(1)
+            yield self.actor._delete_script(name='test')
+            self.assertTrue(self.actor.changed)
 
     @testing.gen_test
     def test_ensure_script_creates_if_missing(self):
