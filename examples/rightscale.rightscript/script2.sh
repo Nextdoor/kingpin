@@ -1,1 +1,1 @@
-echo script2
+echo script2: %TEST%
