@@ -63,7 +63,7 @@ class TestRightScript(testing.AsyncTestCase):
             # Try a search with no exact matching
             find.return_value = helper.tornado_value([fake_script])
             ret = yield self.actor._get_script('FakeScript')
-            self.assertEquals(ret[0].soul['name'], 'FakeScript')
+            self.assertEquals(ret.soul['name'], 'FakeScript')
 
     @testing.gen_test
     def test_get_script_empty_result(self):
@@ -104,6 +104,41 @@ class TestRightScript(testing.AsyncTestCase):
             self.assertTrue(self.actor.changed)
 
     @testing.gen_test
+    def test_update_description(self):
+        script = mock.MagicMock(name='script')
+        desc = 'test desc'
+        with mock.patch.object(self.actor._client,
+                               'update') as update:
+            update.return_value = helper.tornado_value(script)
+            ret = yield self.actor._update_description(
+                script=script, description=desc, params={})
+            self.assertEquals(ret, script)
+            self.assertTrue(self.actor.changed)
+            update.assert_has_calls([mock.call(script, {})])
+
+    @testing.gen_test
+    def test_ensure_description_matches(self):
+        script = mock.MagicMock(name='script')
+        script.soul = {'description': 'test description'}
+        self.actor._update_description = mock.MagicMock(name='update_desc')
+        self.actor._update_description.side_effect = [
+            helper.tornado_value(None)
+        ]
+        yield self.actor._ensure_description(script)
+        self.assertFalse(self.actor._update_description.called)
+
+    @testing.gen_test
+    def test_ensure_description_not_matches(self):
+        script = mock.MagicMock(name='script')
+        script.soul = {'description': 'different desc'}
+        self.actor._update_description = mock.MagicMock(name='update_desc')
+        self.actor._update_description.side_effect = [
+            helper.tornado_value(None)
+        ]
+        yield self.actor._ensure_description(script)
+        self.assertTrue(self.actor._update_description.called)
+
+    @testing.gen_test
     def test_commit(self):
         script = mock.MagicMock(name='script')
         commit_result = mock.MagicMock(name='script_result')
@@ -139,7 +174,7 @@ class TestRightScript(testing.AsyncTestCase):
         self.actor._options['state'] = 'present'
         fake_script = mock.MagicMock(name='script')
         self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value(fake_script)]
+            helper.tornado_value([fake_script])]
 
         ret = yield self.actor._ensure_script()
         self.assertEquals(fake_script, ret)

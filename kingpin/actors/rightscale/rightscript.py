@@ -137,7 +137,7 @@ class RightScript(base.RightScaleBaseActor):
             name: RightScale RightScript Name
 
         Return:
-            [<rightcale.Resource objects>]
+            <rightcale.Resource objects>
         """
         log.debug('Searching for RightScript matching: %s' % name)
         found = yield self._client.find_by_name_and_keys(
@@ -147,8 +147,8 @@ class RightScript(base.RightScaleBaseActor):
             log.debug('RightScript matching "%s" could not be found.' % name)
             return
 
-        log.debug('Got RightScript: %s' % found)
-        raise gen.Return(found)
+        log.debug('Got RightScript: %s' % found[0])
+        raise gen.Return(found[0])
 
     @gen.coroutine
     @dry('Would have created script {name}')
@@ -178,6 +178,26 @@ class RightScript(base.RightScaleBaseActor):
         yield self._client.destroy_resource(script)
         self.changed = True
         raise gen.Return()
+
+    @gen.coroutine
+    @dry('Would have updated the RightScript description to: {description}')
+    def _update_description(self, script, description, params):
+        self.log.info('Updating RightScript description: %s' % description)
+        script = yield self._client.update(script, params)
+        self.changed = True
+        raise gen.Return(script)
+
+    @gen.coroutine
+    def _ensure_description(self, script):
+        existing = script.soul['description']
+        new = self.option('description')
+
+        if existing == new:
+            self.log.debug('Descriptions match')
+            raise gen.Return()
+
+        yield self._update_description(
+            script, description=new, params=self._params)
 
     @gen.coroutine
     @dry('Would have committed HEAD to a revision')
@@ -219,6 +239,9 @@ class RightScript(base.RightScaleBaseActor):
         # after we've done that.
         if self.option('state') == 'absent':
             raise gen.Return()
+
+        # Ensure that the description is up to date
+        yield self._ensure_description(script)
 
         # Finally, if we're committing and a change was made, commit!
         if self.changed and self.option('commit'):
