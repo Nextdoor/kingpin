@@ -76,7 +76,7 @@ class RightScript(base.RightScaleBaseActor):
         'name': (str, REQUIRED, 'Name of the RightScript to manage'),
         'state': (STATE, 'present',
                   'The condition (operator) in the condition sentence.'),
-        'commit': (str, False, 'Commit the RightScript revision on-change.'),
+        'commit': (str, None, 'Commit the RightScript revision on-change.'),
         'description': (str, None, 'The description of the RightScript.'),
         'packages': (list, [], 'List of packages to install.'),
         'source': (str, REQUIRED, 'File containing the script contents.'),
@@ -180,6 +180,17 @@ class RightScript(base.RightScaleBaseActor):
         raise gen.Return()
 
     @gen.coroutine
+    @dry('Would have committed HEAD to a revision')
+    def _commit(self, script, message):
+        self.log.info('Committing a new revision')
+
+        ret = yield self._client.commit_resource(
+            res=script, res_type=self._client._client.right_scripts,
+            params={'right_script[commit_message]': message})
+
+        self.log.info('Committed revision %s' % ret.soul['revision'])
+
+    @gen.coroutine
     def _ensure_script(self):
         """Creates or deletes a RightScript depending on the state"""
         state = self.option('state')
@@ -203,5 +214,14 @@ class RightScript(base.RightScaleBaseActor):
     @gen.coroutine
     def _execute(self):
         script = yield self._ensure_script()
+
+        # If we're deleting the MCI, then there is no need to continue
+        # after we've done that.
+        if self.option('state') == 'absent':
+            raise gen.Return()
+
+        # Finally, if we're committing and a change was made, commit!
+        if self.changed and self.option('commit'):
+            yield self._commit(script, self.option('commit'))
 
         raise gen.Return()

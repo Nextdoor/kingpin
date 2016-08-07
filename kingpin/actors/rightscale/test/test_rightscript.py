@@ -104,6 +104,21 @@ class TestRightScript(testing.AsyncTestCase):
             self.assertTrue(self.actor.changed)
 
     @testing.gen_test
+    def test_commit(self):
+        script = mock.MagicMock(name='script')
+        commit_result = mock.MagicMock(name='script_result')
+        commit_result.soul = {'revision': 2}
+        self.client_mock.commit_resource.side_effect = [
+            helper.tornado_value(commit_result)
+        ]
+        self.actor.log = mock.MagicMock(name='log')
+        yield self.actor._commit(script, 'message')
+        self.actor.log.assert_has_calls([
+            mock.call.info('Committing a new revision'),
+            mock.call.info('Committed revision 2')
+        ])
+
+    @testing.gen_test
     def test_ensure_script_creates_if_missing(self):
         self.actor._options['state'] = 'present'
         self.client_mock.find_by_name_and_keys.side_effect = [
