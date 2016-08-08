@@ -20,7 +20,6 @@
 import logging
 
 from tornado import gen
-import requests
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -53,6 +52,11 @@ class RightScript(base.RightScaleBaseActor):
       the script.
 
     :source:
+      (str) A file name with the contents of the script you want to upload.
+
+    :commit:
+      (str) Optional comment used to commit the revision if Kingpin makes any
+      changes at all.
 
     **Examples**
 
@@ -60,16 +64,16 @@ class RightScript(base.RightScaleBaseActor):
 
     .. code-block:: json
 
-       { "actor": "rightscale.alerts.Create",
-         "options": {
-           "name": "Set Hostname",
-           "ensure": "present",
-           "commit": "yep",
-           "description": "Set the hostname to something usable",
-           "packages": [ "hostname", "sed" ],
-           "source": "./set_hostname.sh"
-         }
-       }
+        { "actor": "rightscale.alerts.Create",
+          "options": {
+            "name": "Set Hostname",
+            "ensure": "present",
+            "commit": "yep",
+            "description": "Set the hostname to something usable",
+            "packages": "hostname sed curl",
+            "source": "./set_hostname.sh"
+          }
+        }
     """
 
     all_options = {
@@ -78,9 +82,11 @@ class RightScript(base.RightScaleBaseActor):
                   'The condition (operator) in the condition sentence.'),
         'commit': (str, None, 'Commit the RightScript revision on-change.'),
         'description': (str, None, 'The description of the RightScript.'),
-        'packages': (list, [], 'List of packages to install.'),
+        'packages': (str, None, 'Space separaged list of packages to install'),
         'source': (str, REQUIRED, 'File containing the script contents.'),
     }
+
+    desc = 'RightScript: {name}'
 
     def __init__(self, *args, **kwargs):
         """Validate the user-supplied parameters at instantiation time."""
@@ -200,6 +206,18 @@ class RightScript(base.RightScaleBaseActor):
         yield self._update_params(script)
 
     @gen.coroutine
+    def _ensure_packages(self, script):
+        existing = script.soul['packages']
+        new = self.option('packages')
+
+        if existing == new:
+            self.log.debug('Packages match')
+            raise gen.Return()
+
+        self.log.warning('Packages do not match')
+        yield self._update_params(script)
+
+    @gen.coroutine
     def _ensure_source(self, script):
         existing = yield self._client.make_generic_request(script.source.path)
         new = self._source
@@ -257,6 +275,9 @@ class RightScript(base.RightScaleBaseActor):
 
         # Ensure that the script contents are correct
         yield self._ensure_source(script)
+
+        # Ensure the package lists match
+        yield self._ensure_packages(script)
 
         # Finally, if we're committing and a change was made, commit!
         if self.changed and self.option('commit'):

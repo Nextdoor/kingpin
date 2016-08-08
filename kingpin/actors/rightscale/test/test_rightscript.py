@@ -2,7 +2,6 @@ import logging
 import mock
 
 from tornado import testing
-import requests
 
 from kingpin.actors import exceptions
 from kingpin.actors.rightscale import base
@@ -24,7 +23,7 @@ class TestRightScript(testing.AsyncTestCase):
                 'name': 'test-name',
                 'commit': 'yeah',
                 'description': 'test description',
-                'packages': ['curl'],
+                'packages': 'curl',
                 'source': 'examples/rightscale.rightscript/script1.sh',
             }
         )
@@ -115,7 +114,7 @@ class TestRightScript(testing.AsyncTestCase):
             update.assert_has_calls([mock.call(
                 script,
                 [('right_script[source]', 'echo script1\n'),
-                 ('right_script[packages][]', u'curl'),
+                 ('right_script[packages]', u'curl'),
                  ('right_script[description]', u'test description'),
                  ('right_script[name]', u'test-name')])])
 
@@ -139,6 +138,28 @@ class TestRightScript(testing.AsyncTestCase):
             helper.tornado_value(None)
         ]
         yield self.actor._ensure_description(script)
+        self.assertTrue(self.actor._update_params.called)
+
+    @testing.gen_test
+    def test_ensure_packages_match(self):
+        script = mock.MagicMock(name='script')
+        script.soul = {'packages': 'curl'}
+        self.actor._update_params = mock.MagicMock(name='update_params')
+        self.actor._update_params.side_effect = [
+            helper.tornado_value(None)
+        ]
+        yield self.actor._ensure_packages(script)
+        self.assertFalse(self.actor._update_params.called)
+
+    @testing.gen_test
+    def test_ensure_packages_not_matches(self):
+        script = mock.MagicMock(name='script')
+        script.soul = {'packages': 'different packages'}
+        self.actor._update_params = mock.MagicMock(name='update_params')
+        self.actor._update_params.side_effect = [
+            helper.tornado_value(None)
+        ]
+        yield self.actor._ensure_packages(script)
         self.assertTrue(self.actor._update_params.called)
 
     @testing.gen_test

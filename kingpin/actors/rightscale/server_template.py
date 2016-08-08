@@ -343,7 +343,7 @@ class ServerTemplate(ServerTemplateBaseActor):
 
         { "actor": "rightscale.ServerTemplate",
           "options": {
-              "name": "Linux Server".
+              "name": "Linux Server",
               "description": "this is a simple linux host",
               "images": [
                 {
@@ -353,7 +353,7 @@ class ServerTemplate(ServerTemplateBaseActor):
                 },
                 {
                     "mci": "Ubuntu 14.04 EBS",
-                },
+                }
               ]
           }
         }

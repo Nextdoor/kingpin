@@ -639,7 +639,8 @@ class TestRightScale(testing.AsyncTestCase):
             requests_mock_client.get.assert_called_once_with('/foobar')
 
         # Test 4: Simple GET that returns no JSON
+        response_mock.raw_response.text = 'test'
         response_mock.json.side_effect = simplejson.scanner.JSONDecodeError(
             'a', 'b', 0)
         ret = yield self.client.make_generic_request('/foo')
-        self.assertEquals(None, ret)
+        self.assertEquals('test', ret)
