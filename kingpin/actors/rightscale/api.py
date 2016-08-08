@@ -906,8 +906,8 @@ class RightScale(object):
         try:
             soul = response.json()
         except simplejson.scanner.JSONDecodeError:
-            log.debug('No JSON found. Returning None')
-            return
+            log.debug('No JSON found. Returning the raw text')
+            return response.raw_response.text
 
         # Now dig deep into the python rightscale library itself and create our
         # own Resource object by hand.

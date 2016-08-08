@@ -180,10 +180,10 @@ class RightScript(base.RightScaleBaseActor):
         raise gen.Return()
 
     @gen.coroutine
-    @dry('Would have updated the RightScript description to: {description}')
-    def _update_description(self, script, description, params):
-        self.log.info('Updating RightScript description: %s' % description)
-        script = yield self._client.update(script, params)
+    @dry('Would have updated the RightScript parameters')
+    def _update_params(self, script):
+        self.log.info('Updating RightScript parameters...')
+        script = yield self._client.update(script, self._params)
         self.changed = True
         raise gen.Return(script)
 
@@ -196,8 +196,20 @@ class RightScript(base.RightScaleBaseActor):
             self.log.debug('Descriptions match')
             raise gen.Return()
 
-        yield self._update_description(
-            script, description=new, params=self._params)
+        self.log.warning('Descriptions do not match')
+        yield self._update_params(script)
+
+    @gen.coroutine
+    def _ensure_source(self, script):
+        existing = yield self._client.make_generic_request(script.source.path)
+        new = self._source
+
+        if existing == new:
+            self.log.debug('Sources match')
+            raise gen.Return()
+
+        self.log.warning('Source does not match')
+        yield self._update_params(script)
 
     @gen.coroutine
     @dry('Would have committed HEAD to a revision')
@@ -242,6 +254,9 @@ class RightScript(base.RightScaleBaseActor):
 
         # Ensure that the description is up to date
         yield self._ensure_description(script)
+
+        # Ensure that the script contents are correct
+        yield self._ensure_source(script)
 
         # Finally, if we're committing and a change was made, commit!
         if self.changed and self.option('commit'):

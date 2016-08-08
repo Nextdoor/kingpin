@@ -104,39 +104,72 @@ class TestRightScript(testing.AsyncTestCase):
             self.assertTrue(self.actor.changed)
 
     @testing.gen_test
-    def test_update_description(self):
+    def test_update_params(self):
         script = mock.MagicMock(name='script')
-        desc = 'test desc'
         with mock.patch.object(self.actor._client,
                                'update') as update:
             update.return_value = helper.tornado_value(script)
-            ret = yield self.actor._update_description(
-                script=script, description=desc, params={})
+            ret = yield self.actor._update_params(script=script)
             self.assertEquals(ret, script)
             self.assertTrue(self.actor.changed)
-            update.assert_has_calls([mock.call(script, {})])
+            update.assert_has_calls([mock.call(
+                script,
+                [('right_script[source]', 'echo script1\n'),
+                 ('right_script[packages][]', u'curl'),
+                 ('right_script[description]', u'test description'),
+                 ('right_script[name]', u'test-name')])])
 
     @testing.gen_test
     def test_ensure_description_matches(self):
         script = mock.MagicMock(name='script')
         script.soul = {'description': 'test description'}
-        self.actor._update_description = mock.MagicMock(name='update_desc')
-        self.actor._update_description.side_effect = [
+        self.actor._update_params = mock.MagicMock(name='update_params')
+        self.actor._update_params.side_effect = [
             helper.tornado_value(None)
         ]
         yield self.actor._ensure_description(script)
-        self.assertFalse(self.actor._update_description.called)
+        self.assertFalse(self.actor._update_params.called)
 
     @testing.gen_test
     def test_ensure_description_not_matches(self):
         script = mock.MagicMock(name='script')
         script.soul = {'description': 'different desc'}
-        self.actor._update_description = mock.MagicMock(name='update_desc')
-        self.actor._update_description.side_effect = [
+        self.actor._update_params = mock.MagicMock(name='update_params')
+        self.actor._update_params.side_effect = [
             helper.tornado_value(None)
         ]
         yield self.actor._ensure_description(script)
-        self.assertTrue(self.actor._update_description.called)
+        self.assertTrue(self.actor._update_params.called)
+
+    @testing.gen_test
+    def test_ensure_source_does_not_match(self):
+        script = mock.MagicMock(name='script')
+        script.soul = {'description': 'different desc'}
+        script.source.path = '/test'
+        self.actor._update_params = mock.MagicMock(name='update_params')
+        self.actor._update_params.side_effect = [
+            helper.tornado_value(None)
+        ]
+        with mock.patch.object(self.client_mock,
+                               'make_generic_request') as gen:
+            gen.return_value = helper.tornado_value(None)
+            yield self.actor._ensure_source(script)
+            self.assertTrue(self.actor._update_params.called)
+
+    @testing.gen_test
+    def test_ensure_source_does_match(self):
+        script = mock.MagicMock(name='script')
+        script.soul = {'description': 'different desc'}
+        script.source.path = '/test'
+        self.actor._update_params = mock.MagicMock(name='update_params')
+        self.actor._update_params.side_effect = [
+            helper.tornado_value(None)
+        ]
+        with mock.patch.object(self.client_mock,
+                               'make_generic_request') as gen:
+            gen.return_value = helper.tornado_value('echo script1\n')
+            yield self.actor._ensure_source(script)
+            self.assertFalse(self.actor._update_params.called)
 
     @testing.gen_test
     def test_commit(self):
@@ -202,3 +235,31 @@ class TestRightScript(testing.AsyncTestCase):
 
         ret = yield self.actor._ensure_script()
         self.assertEquals(None, ret)
+
+    @testing.gen_test
+    def test_execute_present(self):
+        script = mock.MagicMock(name='script')
+
+        self.actor.changed = True
+
+        self.actor._ensure_script = mock.MagicMock('ensure_script')
+        self.actor._ensure_script.side_effect = [helper.tornado_value(script)]
+        self.actor._ensure_source = mock.MagicMock('ensure_source')
+        self.actor._ensure_source.side_effect = [helper.tornado_value(None)]
+        self.actor._ensure_description = mock.MagicMock('ensure_description')
+        self.actor._ensure_description.side_effect = (
+            [helper.tornado_value(None)])
+
+        self.actor._ensure_packages = mock.MagicMock('ensure_packages')
+        self.actor._ensure_packages.side_effect = [helper.tornado_value(None)]
+        self.actor._commit = mock.MagicMock('commit')
+        self.actor._commit.side_effect = [helper.tornado_value(None)]
+
+        yield self.actor._execute()
+
+    @testing.gen_test
+    def test_execute_absent(self):
+        self.actor._options['state'] = 'absent'
+        self.actor._ensure_script = mock.MagicMock('ensure_script')
+        self.actor._ensure_script.side_effect = [helper.tornado_value(None)]
+        yield self.actor._execute()
