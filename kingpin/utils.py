@@ -281,6 +281,13 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
             string = string.replace(
                 ('%s%s%s' % (left_wrapper, k, right_wrapper)), str(v))
 
+    tokens_with_default = re.finditer(
+        r'%s(([\w]+)[|]([\w]+))%s' % (left_wrapper, right_wrapper), string)
+    for match, key, default in (m.groups() for m in tokens_with_default):
+        value = tokens.get(key, default)
+        string = string.replace(
+            '%s%s%s' % (left_wrapper, match, right_wrapper), str(value))
+
     # If we aren't strict, we return...
     if not strict:
         return string
