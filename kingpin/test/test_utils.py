@@ -42,8 +42,8 @@ class TestUtils(unittest.TestCase):
 
     def test_populate_with_default(self):
         tokens = {'OTHER': 'TOKEN'}
-        string = 'Unit %UNIT_TEST|DEFAULT% Test %SECOND_UNIT|DEFAULT2%'
-        expect = 'Unit DEFAULT Test DEFAULT2'
+        string = 'Unit %UNIT_TEST|DEFAULT% Test %SECOND_UNIT|12.34%'
+        expect = 'Unit DEFAULT Test 12.34'
         result = utils.populate_with_tokens(string, tokens)
         self.assertEquals(result, expect)
 

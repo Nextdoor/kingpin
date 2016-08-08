@@ -2,5 +2,5 @@
 
 { "desc": "Hey %USER%, I'm Sleeping",
   "actor": "misc.Sleep",
-  "options": { "sleep": 0.1 }
+  "options": { "sleep": "%SLEEP|0.1%" }
 }

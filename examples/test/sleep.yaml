@@ -1,4 +1,4 @@
 # Used in Integration Test of the misc.Macro testing
 actor: misc.Sleep
 options:
-  sleep: 0.1
+  sleep: '%SLEEP|0.1%'
