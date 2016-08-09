@@ -52,235 +52,160 @@ class TestRightScript(testing.AsyncTestCase):
             self.actor._read_source()
 
     @testing.gen_test
-    def test_get_script(self):
+    def test_precache(self):
         fake_script = mock.MagicMock(name='FakeScript')
         fake_script.soul = {'name': 'FakeScript'}
 
         # Now create a fake Rightscale resource collection object and make sure
-        with mock.patch.object(self.actor._client,
-                               'find_by_name_and_keys') as find:
-            # Try a search with no exact matching
-            find.return_value = helper.tornado_value([fake_script])
-            ret = yield self.actor._get_script('FakeScript')
-            self.assertEquals(ret.soul['name'], 'FakeScript')
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value([fake_script])]
+        self.client_mock.make_generic_request.side_effect = [
+            helper.tornado_value('test script')]
+        yield self.actor._precache()
+        self.assertEquals(fake_script, self.actor.script)
+        self.assertEquals('test script', self.actor.source)
 
     @testing.gen_test
-    def test_get_script_empty_result(self):
+    def test_compare_source(self):
+        self.actor.source = 'cloud source'
+        ret = yield self.actor._compare_source()
+        self.assertFalse(ret)
+
+    @testing.gen_test
+    def test_precache_empty(self):
+        fake_script = mock.MagicMock(name='FakeScript')
+        fake_script.soul = {'name': 'FakeScript'}
+
         # Now create a fake Rightscale resource collection object and make sure
-        with mock.patch.object(self.actor._client,
-                               'find_by_name_and_keys') as find:
-            # Try a search with no exact matching
-            find.return_value = helper.tornado_value(None)
-            ret = yield self.actor._get_script('FakeScript')
-            self.assertEquals(ret, None)
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value(None)]
+        self.client_mock.make_generic_request.side_effect = [
+            helper.tornado_value(None)]
+        yield self.actor._precache()
+        self.assertEquals(None, self.actor.script)
+        self.assertEquals(None, self.actor.source)
 
     @testing.gen_test
-    def test_create_script(self):
-        with mock.patch.object(self.actor._client,
-                               'create_resource') as create:
-            create.return_value = helper.tornado_value(1)
-            ret = yield self.actor._create_script(name='test')
-            self.assertTrue(self.actor.changed)
-            self.assertEquals(1, ret)
-
-    @testing.gen_test
-    def test_delete_script_already_gone(self):
-        self.actor._get_script = mock.MagicMock(name='get_script')
-        self.actor._get_script.side_effect = [helper.tornado_value(None)]
-
-        yield self.actor._delete_script(name='test')
+    def test_set_state_absent_already_gone(self):
+        self.actor.script = None
+        self.actor._options['state'] = 'absent'
+        yield self.actor._set_state()
         self.assertFalse(self.actor.changed)
 
     @testing.gen_test
-    def test_delete_script(self):
-        fake_scr = mock.MagicMock(name='fake_script_object')
-        self.actor._get_script = mock.MagicMock(name='get_script')
-        self.actor._get_script.side_effect = [helper.tornado_value(fake_scr)]
+    def test_set_state_absent(self):
+        self.actor.script = mock.MagicMock(name='fake_script_object')
+        self.actor._options['state'] = 'absent'
         with mock.patch.object(self.actor._client,
                                'destroy_resource') as destroy:
             destroy.return_value = helper.tornado_value(1)
-            yield self.actor._delete_script(name='test')
+            yield self.actor._set_state()
             self.assertTrue(self.actor.changed)
 
     @testing.gen_test
+    def test_set_state_present(self):
+        with mock.patch.object(self.actor._client,
+                               'create_resource') as create:
+            create.return_value = helper.tornado_value(1)
+            yield self.actor._set_state()
+            self.assertTrue(self.actor.changed)
+            self.assertEquals(self.actor.script, 1)
+
+    @testing.gen_test
+    def test_set_state_dry(self):
+        self.actor._dry = True
+        yield self.actor._set_state()
+        self.assertTrue(self.actor.changed)
+        self.assertEquals(self.actor.script, None)
+
+    @testing.gen_test
+    def test_set_source(self):
+        self.actor._update_params = mock.MagicMock()
+        self.actor._update_params.side_effect = [
+            helper.tornado_value(None)]
+        yield self.actor._set_source()
+        self.assertTrue(self.actor._update_params.called)
+
+    @testing.gen_test
+    def test_set_description(self):
+        self.actor._update_params = mock.MagicMock()
+        self.actor._update_params.side_effect = [
+            helper.tornado_value(None)]
+        yield self.actor._set_description()
+        self.assertTrue(self.actor._update_params.called)
+
+    @testing.gen_test
+    def test_get_description_none(self):
+        self.actor.script = None
+        ret = yield self.actor._get_description()
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_get_packages_none(self):
+        self.actor.script = None
+        ret = yield self.actor._get_packages()
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_set_packages(self):
+        self.actor._update_params = mock.MagicMock()
+        self.actor._update_params.side_effect = [
+            helper.tornado_value(None)]
+        yield self.actor._set_packages()
+        self.assertTrue(self.actor._update_params.called)
+
+    @testing.gen_test
     def test_update_params(self):
-        script = mock.MagicMock(name='script')
+        self.actor.script = mock.MagicMock(name='script')
         with mock.patch.object(self.actor._client,
                                'update') as update:
-            update.return_value = helper.tornado_value(script)
-            ret = yield self.actor._update_params(script=script)
-            self.assertEquals(ret, script)
+            update.return_value = helper.tornado_value(self.actor.script)
+            yield self.actor._update_params()
             self.assertTrue(self.actor.changed)
             update.assert_has_calls([mock.call(
-                script,
+                self.actor.script,
                 [('right_script[source]', 'echo script1\n'),
                  ('right_script[packages]', u'curl'),
                  ('right_script[description]', u'test description'),
                  ('right_script[name]', u'test-name')])])
 
     @testing.gen_test
-    def test_ensure_description_matches(self):
-        script = mock.MagicMock(name='script')
-        script.soul = {'description': 'test description'}
-        self.actor._update_params = mock.MagicMock(name='update_params')
-        self.actor._update_params.side_effect = [
-            helper.tornado_value(None)
-        ]
-        yield self.actor._ensure_description(script)
-        self.assertFalse(self.actor._update_params.called)
-
-    @testing.gen_test
-    def test_ensure_description_not_matches(self):
-        script = mock.MagicMock(name='script')
-        script.soul = {'description': 'different desc'}
-        self.actor._update_params = mock.MagicMock(name='update_params')
-        self.actor._update_params.side_effect = [
-            helper.tornado_value(None)
-        ]
-        yield self.actor._ensure_description(script)
-        self.assertTrue(self.actor._update_params.called)
-
-    @testing.gen_test
-    def test_ensure_packages_match(self):
-        script = mock.MagicMock(name='script')
-        script.soul = {'packages': 'curl'}
-        self.actor._update_params = mock.MagicMock(name='update_params')
-        self.actor._update_params.side_effect = [
-            helper.tornado_value(None)
-        ]
-        yield self.actor._ensure_packages(script)
-        self.assertFalse(self.actor._update_params.called)
-
-    @testing.gen_test
-    def test_ensure_packages_not_matches(self):
-        script = mock.MagicMock(name='script')
-        script.soul = {'packages': 'different packages'}
-        self.actor._update_params = mock.MagicMock(name='update_params')
-        self.actor._update_params.side_effect = [
-            helper.tornado_value(None)
-        ]
-        yield self.actor._ensure_packages(script)
-        self.assertTrue(self.actor._update_params.called)
-
-    @testing.gen_test
-    def test_ensure_source_does_not_match(self):
-        script = mock.MagicMock(name='script')
-        script.soul = {'description': 'different desc'}
-        script.source.path = '/test'
-        self.actor._update_params = mock.MagicMock(name='update_params')
-        self.actor._update_params.side_effect = [
-            helper.tornado_value(None)
-        ]
-        with mock.patch.object(self.client_mock,
-                               'make_generic_request') as gen:
-            gen.return_value = helper.tornado_value(None)
-            yield self.actor._ensure_source(script)
-            self.assertTrue(self.actor._update_params.called)
-
-    @testing.gen_test
-    def test_ensure_source_does_match(self):
-        script = mock.MagicMock(name='script')
-        script.soul = {'description': 'different desc'}
-        script.source.path = '/test'
-        self.actor._update_params = mock.MagicMock(name='update_params')
-        self.actor._update_params.side_effect = [
-            helper.tornado_value(None)
-        ]
-        with mock.patch.object(self.client_mock,
-                               'make_generic_request') as gen:
-            gen.return_value = helper.tornado_value('echo script1\n')
-            yield self.actor._ensure_source(script)
-            self.assertFalse(self.actor._update_params.called)
-
-    @testing.gen_test
     def test_commit(self):
-        script = mock.MagicMock(name='script')
+        self.actor.script = mock.MagicMock(name='script')
         commit_result = mock.MagicMock(name='script_result')
         commit_result.soul = {'revision': 2}
         self.client_mock.commit_resource.side_effect = [
             helper.tornado_value(commit_result)
         ]
         self.actor.log = mock.MagicMock(name='log')
-        yield self.actor._commit(script, 'message')
+        yield self.actor._commit()
         self.actor.log.assert_has_calls([
             mock.call.info('Committing a new revision'),
             mock.call.info('Committed revision 2')
         ])
 
     @testing.gen_test
-    def test_ensure_script_creates_if_missing(self):
-        self.actor._options['state'] = 'present'
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value(None)]
-
-        fake_script = mock.MagicMock(name='script')
-
-        self.actor._create_script = mock.MagicMock()
-        self.actor._create_script.side_effect = [
-            helper.tornado_value(fake_script)]
-
-        ret = yield self.actor._ensure_script()
-        self.assertEquals(fake_script, ret)
-        self.assertTrue(self.actor._create_script.called)
-
-    @testing.gen_test
-    def test_ensure_script_does_nothing_if_existing(self):
-        self.actor._options['state'] = 'present'
-        fake_script = mock.MagicMock(name='script')
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value([fake_script])]
-
-        ret = yield self.actor._ensure_script()
-        self.assertEquals(fake_script, ret)
-
-    @testing.gen_test
-    def test_ensure_script_deletes_if_exists(self):
-        self.actor._options['state'] = 'absent'
-        fake_script = mock.MagicMock(name='script')
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value(fake_script)]
-
-        self.actor._delete_script = mock.MagicMock()
-        self.actor._delete_script.side_effect = [
-            helper.tornado_value(None)]
-
-        ret = yield self.actor._ensure_script()
-        self.assertEquals(None, ret)
-        self.assertTrue(self.actor._delete_script.called)
-
-    @testing.gen_test
-    def test_ensure_script_does_nothing_if_absent(self):
-        self.actor._options['state'] = 'absent'
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value(None)]
-
-        ret = yield self.actor._ensure_script()
-        self.assertEquals(None, ret)
-
-    @testing.gen_test
     def test_execute_present(self):
-        script = mock.MagicMock(name='script')
-
         self.actor.changed = True
 
-        self.actor._ensure_script = mock.MagicMock('ensure_script')
-        self.actor._ensure_script.side_effect = [helper.tornado_value(script)]
-        self.actor._ensure_source = mock.MagicMock('ensure_source')
-        self.actor._ensure_source.side_effect = [helper.tornado_value(None)]
-        self.actor._ensure_description = mock.MagicMock('ensure_description')
-        self.actor._ensure_description.side_effect = (
-            [helper.tornado_value(None)])
-
-        self.actor._ensure_packages = mock.MagicMock('ensure_packages')
-        self.actor._ensure_packages.side_effect = [helper.tornado_value(None)]
-        self.actor._commit = mock.MagicMock('commit')
-        self.actor._commit.side_effect = [helper.tornado_value(None)]
+        self.actor.script = mock.MagicMock()
+        self.actor.script.soul = {
+            'name': 'test-script',
+            'description': 'test description',
+            'packages': 'curl'
+        }
+        self.actor.source = 'echo script1\n'
+        self.actor._precache = helper.mock_tornado(None)
+        self.actor._commit = helper.mock_tornado(None)
 
         yield self.actor._execute()
 
     @testing.gen_test
     def test_execute_absent(self):
         self.actor._options['state'] = 'absent'
-        self.actor._ensure_script = mock.MagicMock('ensure_script')
-        self.actor._ensure_script.side_effect = [helper.tornado_value(None)]
+
+        self.actor.script = None
+        self.actor.source = None
+        self.actor._precache = helper.mock_tornado(None)
+
         yield self.actor._execute()

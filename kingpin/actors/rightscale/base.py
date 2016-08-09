@@ -259,3 +259,20 @@ class RightScaleBaseActor(base.BaseActor):
         yield self._log_account_name()
         ret = yield super(RightScaleBaseActor, self).execute(*args, **kwargs)
         raise gen.Return(ret)
+
+
+class EnsurableRightScaleBaseActor(
+        RightScaleBaseActor, base.EnsurableBaseActor):
+
+    """Hacky way to re-use the RightScaleBaseActor but make it ensurable."""
+
+    def __init__(self, *args, **kwargs):
+        """Initializes the Actor."""
+        super(RightScaleBaseActor, self).__init__(*args, **kwargs)
+
+        if not TOKEN:
+            raise exceptions.InvalidCredentials(
+                'Missing the "RIGHTSCALE_TOKEN" environment variable.')
+
+        self._client = api.RightScale(token=TOKEN, endpoint=ENDPOINT)
+        self._verify_methods()

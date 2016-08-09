@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
-class RightScript(base.RightScaleBaseActor):
+class RightScript(base.EnsurableRightScaleBaseActor):
 
     """Manages the state of a RightScale Script
 
@@ -86,20 +86,22 @@ class RightScript(base.RightScaleBaseActor):
         'source': (str, REQUIRED, 'File containing the script contents.'),
     }
 
+    unmanaged_options = ['commit', 'name']
+
     desc = 'RightScript: {name}'
 
     def __init__(self, *args, **kwargs):
         """Validate the user-supplied parameters at instantiation time."""
         super(RightScript, self).__init__(*args, **kwargs)
         self.changed = False
-        self._source = self._read_source()
-        self._params = self._generate_rightscale_params(
+        self._desired_source = self._read_source()
+        self._desired_params = self._generate_rightscale_params(
             prefix='right_script',
             params={
                 'description': self.option('description'),
                 'name': self.option('name'),
                 'packages': self.option('packages'),
-                'source': self._source,
+                'source': self._desired_source,
             })
 
     def _read_source(self):
@@ -132,155 +134,128 @@ class RightScript(base.RightScaleBaseActor):
         return parsed
 
     @gen.coroutine
-    def _get_script(self, name):
-        """Search for an RightScript by-name and return the resource.
-
-        Note: A non-exact resource match is used below so that we return all of
-        the RightSCripts that are matched by name. This method returns the
-        resources in a list.
-
-        Args:
-            name: RightScale RightScript Name
-
-        Return:
-            <rightcale.Resource objects>
-        """
+    def _precache(self):
+        # First go off and find our script object
+        name = self.option('name')
         log.debug('Searching for RightScript matching: %s' % name)
         found = yield self._client.find_by_name_and_keys(
             self._client._client.right_scripts, exact=True, name=name)
 
         if not found:
             log.debug('RightScript matching "%s" could not be found.' % name)
-            return
+            self.script = None
+            self.source = None
+            raise gen.Return()
 
+        # It was found, so save a reference to the object
         log.debug('Got RightScript: %s' % found[0])
-        raise gen.Return(found[0])
+        self.script = found[0]
+
+        # Next, get the source of the script
+        self.source = yield self._client.make_generic_request(
+            self.script.source.path)
 
     @gen.coroutine
-    @dry('Would have created script {name}')
-    def _create_script(self, name):
+    def _set_state(self):
         """Creates a RightScript.
 
         args:
             name: The name of the script to create
         """
-        script = yield self._client.create_resource(
-            self._client._client.right_scripts, self._params)
-        self.changed = True
-        raise gen.Return(script)
-
-    @gen.coroutine
-    @dry('Would have deleted script {name}')
-    def _delete_script(self, name):
-        """Creates a RightScript.
-
-        args:
-            name: The name of the script to delete
-        """
-        script = yield self._get_script(name)
-        if not script:
+        if self._dry:
+            self.log.warning('Would have set RightScript state: %s' %
+                             self.option('state'))
+            self.script = None
+            self.changed = True
             raise gen.Return()
 
-        yield self._client.destroy_resource(script)
+        if self.option('state') == 'absent':
+            if not self.script:
+                raise gen.Return()
+
+            self.log.info('Destroying RightScript')
+            yield self._client.destroy_resource(self.script)
+            self.script = None
+            self.changed = True
+            raise gen.Return()
+
+        self.log.info('Creating RightScript')
+        self.script = yield self._client.create_resource(
+            self._client._client.right_scripts, self._desired_params)
         self.changed = True
-        raise gen.Return()
+
+    @gen.coroutine
+    def _get_state(self):
+        if self.script is None:
+            raise gen.Return('absent')
+
+        raise gen.Return('present')
 
     @gen.coroutine
     @dry('Would have updated the RightScript parameters')
-    def _update_params(self, script):
+    def _update_params(self):
         self.log.info('Updating RightScript parameters...')
-        script = yield self._client.update(script, self._params)
+        self.script = yield self._client.update(
+            self.script, self._desired_params)
         self.changed = True
-        raise gen.Return(script)
 
     @gen.coroutine
-    def _ensure_description(self, script):
-        existing = script.soul['description']
-        new = self.option('description')
-
-        if existing == new:
-            self.log.debug('Descriptions match')
-            raise gen.Return()
-
-        self.log.warning('Descriptions do not match')
-        yield self._update_params(script)
-
-    @gen.coroutine
-    def _ensure_packages(self, script):
-        existing = script.soul['packages']
-        new = self.option('packages')
-
-        if existing == new:
-            self.log.debug('Packages match')
-            raise gen.Return()
-
-        self.log.warning('Packages do not match')
-        yield self._update_params(script)
-
-    @gen.coroutine
-    def _ensure_source(self, script):
-        existing = yield self._client.make_generic_request(script.source.path)
-        new = self._source
-
-        if existing == new:
-            self.log.debug('Sources match')
-            raise gen.Return()
-
+    def _set_source(self):
         self.log.warning('Source does not match')
-        yield self._update_params(script)
+        yield self._update_params()
+
+    @gen.coroutine
+    def _get_source(self):
+        raise gen.Return(self.source)
+
+    @gen.coroutine
+    def _compare_source(self):
+        existing = yield self._get_source()
+        equals = (self._desired_source == existing)
+        raise gen.Return(equals)
+
+    @gen.coroutine
+    def _set_description(self):
+        self.log.warning('Descriptions do not match')
+        yield self._update_params()
+
+    @gen.coroutine
+    def _get_description(self):
+        if self.script is None:
+            raise gen.Return()
+
+        raise gen.Return(self.script.soul['description'])
+
+    @gen.coroutine
+    def _set_packages(self):
+        self.log.warning('Packages do not match')
+        yield self._update_params()
+
+    @gen.coroutine
+    def _get_packages(self):
+        if self.script is None:
+            raise gen.Return()
+
+        raise gen.Return(self.script.soul['packages'])
 
     @gen.coroutine
     @dry('Would have committed HEAD to a revision')
-    def _commit(self, script, message):
+    def _commit(self):
         self.log.info('Committing a new revision')
 
         ret = yield self._client.commit_resource(
-            res=script, res_type=self._client._client.right_scripts,
-            params={'right_script[commit_message]': message})
+            res=self.script, res_type=self._client._client.right_scripts,
+            params={'right_script[commit_message]': self.option('commit')})
 
         self.log.info('Committed revision %s' % ret.soul['revision'])
 
     @gen.coroutine
-    def _ensure_script(self):
-        """Creates or deletes a RightScript depending on the state"""
-        state = self.option('state')
-        name = self.option('name')
-
-        self.log.info('Ensuring that RightScript %s is %s' % (name, state))
-        script = yield self._get_script(name)
-
-        if state == 'absent' and script is None:
-            self.log.debug('RightScript does not exist')
-        elif state == 'absent' and script:
-            yield self._delete_script(name=name)
-            script = None
-        elif state == 'present' and script is None:
-            script = yield self._create_script(name=name)
-        elif state == 'present' and script:
-            self.log.debug('RightScript exists')
-
-        raise gen.Return(script)
-
-    @gen.coroutine
     def _execute(self):
-        script = yield self._ensure_script()
+        yield super(RightScript, self)._execute()
 
-        # If we're deleting the MCI, then there is no need to continue
-        # after we've done that.
         if self.option('state') == 'absent':
             raise gen.Return()
 
-        # Ensure that the description is up to date
-        yield self._ensure_description(script)
-
-        # Ensure that the script contents are correct
-        yield self._ensure_source(script)
-
-        # Ensure the package lists match
-        yield self._ensure_packages(script)
-
         # Finally, if we're committing and a change was made, commit!
         if self.changed and self.option('commit'):
-            yield self._commit(script, self.option('commit'))
-
-        raise gen.Return()
+            yield self._commit()

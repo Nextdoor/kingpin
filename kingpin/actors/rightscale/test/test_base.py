@@ -2,12 +2,25 @@ import logging
 import mock
 
 from tornado import testing
+from tornado import gen
 
 from kingpin.actors import exceptions
 from kingpin.actors.rightscale import base
 from kingpin.actors.test.helper import mock_tornado, tornado_value
 
 log = logging.getLogger(__name__)
+
+
+class FakeEnsurableRightScaleBaseActor(base.EnsurableRightScaleBaseActor):
+
+    @gen.coroutine
+    def _set_state(self):
+        self.state = self.option('state')
+
+    @gen.coroutine
+    def _get_state(self):
+        if self.state:
+            raise gen.Return(self.state)
 
 
 class TestRightScaleBaseActor(testing.AsyncTestCase):
@@ -286,3 +299,25 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
             mock.call(mci, ['tag'])
         ])
         self.assertFalse(self.client_mock.delete_resource_tags.called)
+
+
+class TestEnsurableRightScaleBaseActor(testing.AsyncTestCase):
+
+    def setUp(self, *args, **kwargs):
+        super(TestEnsurableRightScaleBaseActor, self).setUp()
+        base.TOKEN = 'unittest'
+
+        # Create the actor
+        self.actor = FakeEnsurableRightScaleBaseActor(
+            'Copy UnitTestArray to NewUnitArray', {})
+
+        # Patch the actor so that we use the client mock
+        self.client_mock = mock.MagicMock()
+        self.actor._client = self.client_mock
+
+    @testing.gen_test
+    def test_init_without_environment_creds(self):
+        # Un-set the token and make sure the init fails
+        base.TOKEN = None
+        with self.assertRaises(exceptions.InvalidCredentials):
+            FakeEnsurableRightScaleBaseActor('Unit Test Action', {})

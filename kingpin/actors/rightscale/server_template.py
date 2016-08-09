@@ -32,7 +32,6 @@ from kingpin.actors.utils import dry
 from kingpin.actors.rightscale import base
 from kingpin.constants import SchemaCompareBase
 from kingpin.constants import REQUIRED
-from kingpin.constants import STATE
 
 log = logging.getLogger(__name__)
 
@@ -86,196 +85,7 @@ class ServerTemplateMultiCloudImages(SchemaCompareBase):
     }
 
 
-class ServerTemplateBaseActor(base.RightScaleBaseActor):
-
-    """Abstract ServerTemplate Actor that provides some utility methods."""
-
-    def __init__(self, *args, **kwargs):
-        """Validate the user-supplied parameters at instantiation time."""
-
-        super(ServerTemplateBaseActor, self).__init__(*args, **kwargs)
-
-        # Self.changed will be set to True if any _change_ occurs to an
-        # ServerTemplate while its being managed. This is later leveraged by
-        # the 'commit' option.
-        self.changed = False
-
-    @gen.coroutine
-    def _get_st(self, name):
-        """Searches RightScale for an ServerTemplate by name.
-
-        Wrapper around our find_by_name_and_keys() mechanism so that we return
-        either the proper ServerTemplate, or None if one isn't found.
-
-        args:
-            name: ServerTemplate name to search for
-        """
-        self.log.debug('Searching for ServerTemplate')
-        st = yield self._client.find_by_name_and_keys(
-            collection=self._client._client.server_templates,
-            name=name,
-            revision=0)
-
-        # Default searches return us an empty list if there are no matching
-        # resources, or return us the exact resource we're looking for. Thus,
-        # if the return value is not a list, then we know we got the
-        # ServerTemplate back.
-        if not isinstance(st, list):
-            raise gen.Return(st)
-
-        # If we got a list back, return None because that means that the
-        # ServerTemplate doesn't already exist.
-        if isinstance(st, list) and len(st) == 0:
-            raise gen.Return(None)
-
-        # On anything else, raise an exception. Something really strange
-        # happened.
-        raise exceptions.RecoverableActorFailure(
-            'Found too many matching ServerTemplates with the same name, '
-            'this shouldn\'t be possible ... so something bad has happened.')
-
-    @gen.coroutine
-    def _create_st(self, name, params):
-        """Creates a RightScale ServerTemplate if it doesn't exist.
-
-        See http://reference.rightscale.com/api1.5/
-            resources/ResourceServerTemplates.html#create
-
-        Note, returns a mocked out ServerTemplate object if we're in a DRY run.
-        This allows the rest of the actors to pretend like an ServerTemplate
-        was created and continue with their checks.
-
-        args:
-            name: The name of the ServerTemplate we're creating
-            params: RightScale-compatible list of tuples with the required
-                    parameters defined in the URL above.
-
-        returns:
-            <rightscale.server_templates> object
-        """
-        st = yield self._get_st(name)
-        if st:
-            raise gen.Return(st)
-
-        # If we're in a dry run, we return back a mocked out ServerTemplate
-        # image object because its passed around a bunch for the other methods.
-        if self._dry:
-            self.log.warning('Would have created ServerTemplate')
-
-            st = mock.MagicMock(name=name)
-            st.href = None
-            st.soul = {
-                'name': '<mocked st %s>' % name,
-                'description': None
-            }
-            raise gen.Return(st)
-
-        self.log.info('Creating ServerTemplate')
-        st = yield self._client.create_resource(
-            self._client._client.server_templates, params)
-        self.changed = True
-        raise gen.Return(st)
-
-    @gen.coroutine
-    @dry('Would have deleted ServerTemplate: {name}')
-    def _delete_st(self, name):
-        """Deletes a RightScale ServerTemplate if it exists.
-
-        See http://reference.rightscale.com/api1.5/
-            resources/ResourceServerTemplates.html#destroy
-
-        args:
-            name: The name of the ServerTemplate we're destroying
-        """
-        st = yield self._get_st(name)
-        if not st:
-            raise gen.Return()
-
-        self.log.info('Deleting ServerTemplate')
-        yield self._client.destroy_resource(st)
-        self.changed = True
-
-    @gen.coroutine
-    def _get_st_mci_refs(self, image, server_template):
-        """Returns a fully populated set of ServerTemplate MCI References.
-
-        See http://reference.rightscale.com/api1.5/
-        resources/ResourceServerTemplateMultiCloudImages.html for details.
-
-        This method takes in a dictionary with as set of parameters (mci,
-        rev) and returns a fully ready-to-use set of RightScale-formatted
-        parameters to update that image. The method handles discovering the
-        RightScale HREFs.
-
-        Args:
-            image: A dictionary with the keys: mci, rev
-            server_template: A RightScale.server_templates object
-
-        Returns:
-            A tuple with two keys:
-              (<a list of RightScale-formatted array of tuples>,
-               <Boolean whether or not this is the desired default MCI>)
-        """
-        name = image['mci']
-        rev = image.get('rev', 0)
-
-        mci = yield self._client.find_by_name_and_keys(
-            collection=self._client._client.multi_cloud_images,
-            name=name, revision=rev)
-
-        if not mci:
-            raise exceptions.InvalidOptions(
-                'Invalid MCI Name/Rev supplied: %s/%s' % (name, rev))
-
-        definition = self._generate_rightscale_params(
-            prefix='server_template_multi_cloud_image',
-            params={
-                'multi_cloud_image_href': mci.href,
-                'server_template_href': server_template.href,
-            }
-        )
-
-        self.log.debug('Prepared template MCI reference: %s' % definition)
-
-        ret = (definition, image.get('is_default', False))
-
-        raise gen.Return(ret)
-
-    @gen.coroutine
-    @dry('Would have added {mci_ref_param[0][1]}')
-    def _create_st_mci_reference(self, mci_ref_param):
-        self.log.info('Adding MCI %s to ServerTemplate' % mci_ref_param[0][1])
-        yield self._client.create_resource(
-            self._client._client.server_template_multi_cloud_images,
-            mci_ref_param)
-        self.changed = True
-
-    @gen.coroutine
-    @dry('Would have deleted {mci_ref_obj.links[multi_cloud_image]}')
-    def _delete_st_mci_reference(self, mci_ref_obj):
-        self.log.info('Deleting MCI %s from ServerTemplate'
-                      % mci_ref_obj.links['multi_cloud_image'])
-
-        try:
-            yield self._client.destroy_resource(mci_ref_obj)
-        except requests.exceptions.HTTPError as e:
-            if 'Default ServerTemplateMultiCloudImages' in e.response.text:
-                raise exceptions.InvalidOptions(
-                    'Cannot delete the current default MultiCloudImage '
-                    'for this ServerTemplate. You must first re-assign a '
-                    'new default image.')
-        self.changed = True
-
-    @gen.coroutine
-    @dry('Would have updated the template description to: {description}')
-    def _update_description(self, st, description, params):
-        self.log.info('Updating MCI description: %s' % description)
-        st = yield self._client.update(st, params)
-        self.changed = True
-        raise gen.Return(st)
-
-
-class ServerTemplate(ServerTemplateBaseActor):
+class ServerTemplate(base.EnsurableRightScaleBaseActor):
 
     """Manages the state of an RightScale ServerTemplate.
 
@@ -362,8 +172,6 @@ class ServerTemplate(ServerTemplateBaseActor):
 
     all_options = {
         'name': (str, REQUIRED, 'The name of the template to be updated'),
-        'state': (STATE, 'present',
-                  'Desired state of the image: present/absent'),
         'commit': (str, None, 'Commit a new revision if changes made'),
         'commit_head_dependencies': (bool, False, (
             'Commit all HEAD revisions (if any) of the associated MultiCloud'
@@ -379,6 +187,10 @@ class ServerTemplate(ServerTemplateBaseActor):
             'is_default flag')),
     }
 
+    unmanaged_options = [
+        'commit', 'commit_head_dependencies', 'freeze_repositories', 'name'
+    ]
+
     desc = 'RightScale ServerTemplate {name}'
 
     def __init__(self, *args, **kwargs):
@@ -387,16 +199,16 @@ class ServerTemplate(ServerTemplateBaseActor):
         super(ServerTemplate, self).__init__(*args, **kwargs)
         self.changed = False
 
-        self._st_params = self._generate_rightscale_params(
+        self.params = self._generate_rightscale_params(
             prefix='server_template',
             params={
                 'description': self.option('description'),
                 'name': self.option('name')
             })
 
-        self._verify_one_default_image(self.option('images'))
+        self._verify_one_default_image()
 
-    def _verify_one_default_image(self, images):
+    def _verify_one_default_image(self):
         """Parses through the supplied images and finds the default one.
 
         If there are more than one default image defined, throws an exception.
@@ -405,7 +217,7 @@ class ServerTemplate(ServerTemplateBaseActor):
             images: ServerTemplateMultiCloudImages object
         """
         default_image = [
-            i['mci'] for i in images if i.get('is_default')]
+            i['mci'] for i in self.option('images') if i.get('is_default')]
 
         if len(default_image) > 1:
             raise exceptions.InvalidOptions(
@@ -413,39 +225,244 @@ class ServerTemplate(ServerTemplateBaseActor):
                 ', '.join(default_image))
 
     @gen.coroutine
-    def _ensure_st(self):
-        state = self.option('state')
-        name = self.option('name')
-        self.log.info('Ensuring that template is %s' % state)
-        st = yield self._get_st(name)
+    def _precache(self):
+        self.log.debug('Searching for ServerTemplate')
+        st = yield self._client.find_by_name_and_keys(
+            collection=self._client._client.server_templates,
+            name=self.option('name'),
+            revision=0)
 
-        if state == 'absent' and st is None:
-            self.log.debug('ServerTemplate does not exist')
-        elif state == 'absent' and st:
-            yield self._delete_st(name=name)
-            st = None
-        elif state == 'present' and st is None:
-            st = yield self._create_st(name=name,
-                                       params=self._st_params)
-        elif state == 'present' and st:
-            self.log.debug('ServerTemplate exists')
+        # Default searches return us an empty list if there are no matching
+        # resources, or return us the exact resource we're looking for. Thus,
+        # if the return value is not a list, then we know we got the
+        # ServerTemplate back.
+        if not isinstance(st, list):
+            self.st = st
 
-        raise gen.Return(st)
+        # Build up our MCI "references" ... that is, take the plain text names
+        # that the user submitted and turn them into proper HREFs and store
+        # that as the desired "MCI References" state.
+        #
+        #  This dictionary ends up looking like this:
+        #
+        #  {
+        #    "/api/multi_cloud_images/414637003": {
+        #      "default": True,
+        #    },
+        #    "/api/multi_cloud_images/414123004": {
+        #      "default": False,
+        #    }
+        #  }
+        self.desired_images = {}
+        tasks = []
+        for image in self.option('images'):
+            tasks.append(self._get_mci_href(image))
+        yield tasks
 
-    @gen.coroutine
-    def _ensure_description(self, st):
-        existing = st.soul['description']
-        new = self.option('description')
+        # If we got a list back, return None because that means that the
+        # ServerTemplate doesn't already exist.
+        if isinstance(st, list) and len(st) == 0:
+            self.st = mock.MagicMock(name='<mocked template>')
+            self.st.href = None
+            self.st.soul = {
+                'name': None,
+                'description': None,
+            }
 
-        if existing == new:
-            self.log.debug('Descriptions match')
+            self.tags = []
+            self.images = {}
             raise gen.Return()
 
-        yield self._update_description(
-            st, description=new, params=self._st_params)
+        # Get the list of tags associated with the existing ST
+        self.tags = (yield self._get_resource_tags(self.st))
+
+        # Get the _live_ images associated with the server template
+        # {
+        #   "/api/multi_cloud_images/414637003": {
+        #     "default": True,
+        #     "map_href": "/api/server_template_multi_cloud_images/1234",
+        #     "map_obj": <object itself for possible deletion>
+        #   }
+        # }
+        self.images = yield self._get_mci_mappings()
 
     @gen.coroutine
-    def _ensure_st_mci_default(self, st, default_mci_href):
+    def _get_mci_href(self, image):
+        name = image['mci']
+        revision = image.get('revision', 0)
+        default = image.get('is_default', False)
+
+        mci = yield self._client.find_by_name_and_keys(
+            collection=self._client._client.multi_cloud_images,
+            name=name, revision=revision)
+
+        if not mci:
+            raise exceptions.InvalidOptions(
+                'Invalid MCI Name/Rev supplied: %s/%s' % (name, revision))
+
+        self.desired_images[mci.href] = {
+            'default': default,
+        }
+        self.log.debug('Discovered %s (%s) -> %s' % (name, revision, mci.href))
+
+    @gen.coroutine
+    def _get_mci_mappings(self):
+        if not self.st.href:
+            raise gen.Return()
+
+        raw = yield self._client.find_by_name_and_keys(
+            collection=self._client._client.server_template_multi_cloud_images,
+            server_template_href=self.st.href)
+        if not isinstance(raw, list):
+            raw = [raw]
+
+        images = {}
+        for mci_map in raw:
+            self.log.debug('Existing MCI Mapping -> %s (default: %s)' %
+                           (mci_map.href, mci_map.soul['is_default']))
+            images[mci_map.links['multi_cloud_image']] = {
+                'default': mci_map.soul['is_default'],
+                'map_href': mci_map.href,
+                'map_obj': mci_map
+            }
+
+        raise gen.Return(images)
+
+    @gen.coroutine
+    def _get_state(self):
+        if not self.st or self.st.href is None:
+            raise gen.Return('absent')
+
+        raise gen.Return('present')
+
+    @gen.coroutine
+    def _set_state(self):
+        if self.option('state') == 'absent':
+            yield self._delete_st()
+        else:
+            yield self._create_st()
+
+    @gen.coroutine
+    @dry('Would have created the ServerTemplate')
+    def _create_st(self):
+        self.log.info('Creating ServerTemplate')
+        self.st = yield self._client.create_resource(
+            self._client._client.server_templates, self.params)
+        self.changed = True
+
+    @gen.coroutine
+    @dry('Would have deleted ServerTemplate')
+    def _delete_st(self):
+        self.log.info('Deleting ServerTemplate')
+        yield self._client.destroy_resource(self.st)
+        self.changed = True
+
+    @gen.coroutine
+    def _get_description(self):
+        raise gen.Return(self.st.soul['description'])
+
+    @gen.coroutine
+    @dry('Would have updated the template description')
+    def _set_description(self):
+        desc = self.option('description')
+        self.log.info('Updating description: %s' % desc)
+        self.st = yield self._client.update(self.st, self.params)
+        self.changed = True
+
+    @gen.coroutine
+    def _get_tags(self):
+        raise gen.Return(self.tags)
+
+    @gen.coroutine
+    def _set_tags(self):
+        existing_tags = yield self._get_tags()
+        new_tags = self.option('tags')
+
+        # What tags should we add, delete?
+        to_add = list(set(new_tags) - set(existing_tags))
+        to_delete = list(set(existing_tags) - set(new_tags))
+
+        if to_add:
+            yield self._add_resource_tags(resource=self.st, tags=to_add)
+            self.changed = True
+        if to_delete:
+            yield self._delete_resource_tags(resource=self.st, tags=to_delete)
+            self.changed = True
+
+    @gen.coroutine
+    def _get_images(self):
+        # Note, this method is never used.. just a placeholder. See
+        # _compare_images() below instead.
+        raise gen.Return()
+
+    @gen.coroutine
+    def _compare_images(self):
+        # Copy the self.images dict, and then strip each key of the
+        # map_href param. At this point, it should look identical to
+        # our self.desired_images dict.
+        existing_images = {}
+        for image in self.images.keys():
+            existing_images[image] = {
+                'default': self.images[image]['default']
+            }
+
+        raise gen.Return(existing_images == self.desired_images)
+
+    @gen.coroutine
+    def _set_images(self):
+        to_add = [href for href in self.desired_images.keys()
+                  if href not in self.images.keys()]
+        to_delete = [href for href in self.images.keys()
+                     if href not in self.desired_images.keys()]
+
+        tasks = []
+        for href in to_add:
+            tasks.append(self._create_mci_reference(href))
+        yield tasks
+
+        yield self._ensure_mci_default()
+
+        tasks = []
+        for href in to_delete:
+            tasks.append(self._delete_mci_reference(
+                self.images[href]['map_obj']))
+        yield tasks
+
+    @gen.coroutine
+    @dry('Would have added MCI Mapping -> {0}')
+    def _create_mci_reference(self, href):
+        definition = self._generate_rightscale_params(
+            prefix='server_template_multi_cloud_image',
+            params={
+                'multi_cloud_image_href': href,
+                'server_template_href': self.st.href,
+            }
+        )
+
+        self.log.info('Adding MCI %s to ServerTemplate' % href)
+        yield self._client.create_resource(
+            self._client._client.server_template_multi_cloud_images,
+            definition)
+        self.changed = True
+
+    @gen.coroutine
+    @dry('Would have deleted MCI reference {0.links[multi_cloud_image]}')
+    def _delete_mci_reference(self, map_obj):
+        self.log.info('Deleting MCI %s from ServerTemplate' %
+                      map_obj.links['multi_cloud_image'])
+
+        try:
+            yield self._client.destroy_resource(map_obj)
+        except requests.exceptions.HTTPError as e:
+            if 'Default ServerTemplateMultiCloudImages' in e.response.text:
+                raise exceptions.InvalidOptions(
+                    'Cannot delete the current default MultiCloudImage '
+                    'for this ServerTemplate. You must first re-assign a '
+                    'new default image.')
+        self.changed = True
+
+    @gen.coroutine
+    def _ensure_mci_default(self):
         """Sets the ServerTemplates Default MCI.
 
         After we've attached all of the MCIs to a ServerTemplate, we need to
@@ -453,27 +470,26 @@ class ServerTemplate(ServerTemplateBaseActor):
         one. This default can only be set after these attachments are made.
         Also, the default choice is then un-deletable from the MCI until a new
         default is selected.
-
-        This method takes in the ServerTemplate object (st) as well as the
-        desired MCI HREF (default_mci_href). It makes an additional API call to
-        get the ServerTemplate Multi Cloud IMages that are attached. Once it
-        has all of that information, if does some comparisons and makes the
-        appropriate changes if necessary,
-
-        args:
-            st: <rightscale.server_templates> object
-            default_mci_href: A string with the desired MCI HREF
         """
         # If there is no current default, then that means there are no MCIs
         # associated at all and we can't do anything. This only happens when
         # you're creating a new MCI from scratch.
-        if 'default_multi_cloud_image' not in st.links or not default_mci_href:
+        if 'default_multi_cloud_image' not in self.st.links:
             raise gen.Return()
+
+        # Get the default MCI href as described by the user -- or just get the
+        # first key in the list and treat that as the desired default.
+        try:
+            default_mci_href = [key for key in self.desired_images.keys()
+                                if self.desired_images[key]['default'] is
+                                True][0]
+        except IndexError:
+            default_mci_href = self.desired_images.keys()[0]
 
         # Compare the desired vs current default_multi_cloud_image_href. This
         # comparison is quick and doesn't require any API calls, so we do it
         # before we do anything else.
-        current_default = st.links['default_multi_cloud_image']
+        current_default = self.st.links['default_multi_cloud_image']
         self.log.debug('Desired Default MCI HREF: %s' % default_mci_href)
         self.log.debug('Current Default MCI HREF: %s' % current_default)
         matching = (current_default == default_mci_href)
@@ -488,7 +504,7 @@ class ServerTemplate(ServerTemplateBaseActor):
         # these ServerTemplates to the MCIs.
         mci_refs = yield self._client.find_by_name_and_keys(
             collection=self._client._client.server_template_multi_cloud_images,
-            server_template_href=st.links['self'])
+            server_template_href=self.st.href)
 
         # Final sanity check here -- if we're in DRY mode, get out!
         if self._dry:
@@ -520,95 +536,12 @@ class ServerTemplate(ServerTemplateBaseActor):
         yield self._client.make_generic_request(url, post=[])
         self.changed = True
 
-    """Ensures what MCIs are linked to a given Server Template.
-
-    ServerTemplates hold references called ServerTemplateMulti
-    CloudImages to MCIs. This method walks through the mappings
-    and creates/deletes/updates them as necessary.
-
-    args:
-        st: Server Template object that we're working with
-    """
-    @gen.coroutine
-    def _ensure_st_mcis(self, st):
-        # If the server template is mocked out, then don't run this
-        if not st.href:
-            raise gen.Return()
-
-        # Get the existing MCI cloud settings
-        existing = yield self._client.find_by_name_and_keys(
-            collection=self._client._client.server_template_multi_cloud_images,
-            server_template_href=st.links['self'])
-        if not isinstance(existing, list):
-            existing = [existing]
-
-        # Go off and generate what the new settings should look like -- this is
-        # an async IO operation because we let the users give us sane
-        # human-readable resource names, and then we go and discover their raw
-        # HREFs in the RightScale API.
-        tasks = []
-        for image in self.option('images'):
-            tasks.append(self._get_st_mci_refs(image, st))
-        new = yield tasks
-
-        # First, lets create-or-update anything thats not in the
-        # existing list of configured settings.
-        tasks = []
-        for (param, is_default) in new:
-            # Get thew MCI HREF path for comparison purposes below
-            new_mci_href = [
-                s[1] for s in param if 'multi_cloud_image_href' in s[0]][0]
-
-            # Dig through the existing MCI HREF list and look for ones that
-            # match the HREF we just got above. If nothing is returned, then we
-            # know we need to add this HREF to the Server Template.
-            existing_mci = [
-                s for s in existing
-                if s.links['multi_cloud_image'] == new_mci_href]
-
-            # If the configured image doesn't exist in our existing list of
-            # cloud images, then lets just create it.
-            if len(existing_mci) == 0:
-                tasks.append(self._create_st_mci_reference(
-                    mci_ref_param=param))
-                continue
-        yield tasks
-
-        for (param, is_default) in new:
-            new_mci_href = [
-                s[1] for s in param if 'multi_cloud_image_href' in s[0]][0]
-            if is_default:
-                yield self._ensure_st_mci_default(st, new_mci_href)
-
-        # Now that we've added or updated the cloud images we _want_, lets
-        # purge any that are no longer listed.
-        tasks = []
-        for obj in existing:
-
-            # This could be done in a one liner, but its really hard to read.
-            # We're digging through the list of tuples (new), and then digging
-            # into the first element of that tuple (param), and finally pulling
-            # out the value for the multi_cloud_image_href.
-            new_cloud_hrefs = []
-            for (param, is_default) in new:
-                param = dict(param)
-                new_cloud_hrefs.append(
-                    param[('server_template_multi_cloud_image'
-                           '[multi_cloud_image_href]')])
-
-            # Once we have the list of new multi_coud_image_hrefs that we want
-            # to be attached to the template, we search for any that ARE
-            # attached, but ARE NOT in the list. We then delete those.
-            if obj.links['multi_cloud_image'] not in new_cloud_hrefs:
-                tasks.append(self._delete_st_mci_reference(mci_ref_obj=obj))
-
-        yield tasks
-
     @gen.coroutine
     @dry('Would have committed HEAD to a revision')
-    def _commit(self, st, message):
+    def _commit(self):
         self.log.info('Committing a new revision')
         params = {
+            'commit_message': self.option('commit'),
             'freeze_repositories':
                 str(self.option('freeze_repositories')).lower(),
             'commit_head_dependencies':
@@ -616,33 +549,21 @@ class ServerTemplate(ServerTemplateBaseActor):
         }
 
         ret = yield self._client.commit_resource(
-            res=st,
+            res=self.st,
             res_type=self._client._client.server_templates,
-            message=message,
             params=params)
 
         self.log.info('Committed revision %s' % ret.soul['revision'])
 
     @gen.coroutine
     def _execute(self):
-
-        st = yield self._ensure_st()
+        yield super(ServerTemplate, self)._execute()
 
         # If we're deleting the MCI, then there is no need to continue after
         # we've done that.
         if self.option('state') == 'absent':
             raise gen.Return()
 
-        # Ensure that the description is up to date
-        yield self._ensure_description(st)
-
-        # If tags were supplied, then manage them.
-        if self.option('tags'):
-            yield self._ensure_tags(st, self.option('tags'))
-
-        # Ensure that all of the configured images themselves match
-        yield self._ensure_st_mcis(st)
-
         # Finally, if we're committing and a change was made, commit!
         if self.changed and self.option('commit'):
-            yield self._commit(st, self.option('commit'))
+            yield self._commit()

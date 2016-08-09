@@ -12,166 +12,6 @@ from kingpin.actors.test import helper
 log = logging.getLogger(__name__)
 
 
-class TestServerTemplateBaseActor(testing.AsyncTestCase):
-
-    def setUp(self, *args, **kwargs):
-        super(TestServerTemplateBaseActor, self).setUp()
-        base.TOKEN = 'unittest'
-
-        # Create the actor
-        self.actor = server_template.ServerTemplateBaseActor()
-
-        # Patch the actor so that we use the client mock
-        self.client_mock = mock.MagicMock(name='client')
-        self.actor._client = self.client_mock
-
-        # Create a fake ServerTemplate mock that we'll pretend is returned by
-        # RightScale for our tests.
-        self.st_mock = mock.MagicMock(name='server_template_a')
-        self.st_mock.soul = {
-            'actions': [
-                {'rel': 'commit'},
-                {'rel': 'clone'},
-                {'rel': 'resolve'},
-                {'rel': 'swap_repository'},
-                {'rel': 'detect_changes_in_head'}
-            ],
-            'description': 'Fake desc',
-            'lineage': 'https://fake.com/api/acct/xx/ec3_server_templates/xxx',
-            'links': [
-                {'href': '/api/server_templates/xxx',
-                 'rel': 'self'},
-                {'href': '/api/server_templates/xxx/multi_cloud_images',
-                 'rel': 'multi_cloud_images'},
-                {'href': '/api/multi_cloud_images/123',
-                 'rel': 'default_multi_cloud_image'},
-                {'href': '/api/server_templates/xxx/inputs',
-                 'rel': 'inputs'},
-                {'href': '/api/server_templates/xxx/alert_specs',
-                 'rel': 'alert_specs'},
-                {'href': '/api/server_templates/xxx/runnable_bindings',
-                 'rel': 'runnable_bindings'},
-                {'href': '/api/server_templates/xxx/cookbook_attachments',
-                 'rel': 'cookbook_attachments'}
-            ],
-            'name': 'Test ServerTemplate',
-            'revision': 0
-        }
-
-    @testing.gen_test
-    def test_get_st(self):
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value(self.st_mock)
-        ]
-        ret = yield self.actor._get_st('testst')
-        self.assertEquals(self.st_mock, ret)
-        self.client_mock.find_by_name_and_keys.assert_has_calls([
-            mock.call(
-                collection=self.client_mock._client.server_templates,
-                name='testst',
-                revision=0)
-        ])
-
-    @testing.gen_test
-    def test_get_st_returns_empty_list(self):
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value([])
-        ]
-        ret = yield self.actor._get_st('testst')
-        self.assertEquals(None, ret)
-
-    @testing.gen_test
-    def test_get_st_returns_too_many_things(self):
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value([1, 2])
-        ]
-        with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._get_st('testst')
-
-    @testing.gen_test
-    def test_create_st(self):
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value(None)
-        ]
-        self.client_mock.create_resource.side_effect = [
-            helper.tornado_value(self.st_mock)
-        ]
-        ret = yield self.actor._create_st(
-            name='testst',
-            params=[
-                ('test', 'test'),
-                ('testa', 'testa')
-            ]
-        )
-
-        self.assertEquals(self.st_mock, ret)
-
-    @testing.gen_test
-    def test_create_st_dry_returns_mock(self):
-        self.actor._dry = True
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value(None)
-        ]
-        ret = yield self.actor._create_st(
-            name='testst',
-            params=[])
-
-        self.assertEquals('<mocked st testst>', ret.soul['name'])
-
-    @testing.gen_test
-    def test_create_st_already_exists(self):
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value(self.st_mock)
-        ]
-        ret = yield self.actor._create_st(
-            name='testst',
-            params=[
-                ('test', 'test'),
-                ('testa', 'testa')
-            ]
-        )
-
-        self.assertEquals(self.st_mock, ret)
-        self.assertFalse(self.client_mock.create_resource.called)
-
-    @testing.gen_test
-    def test_delete_st(self):
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value(self.st_mock)
-        ]
-        self.client_mock.destroy_resource.side_effect = [
-            helper.tornado_value(None)
-        ]
-        ret = yield self.actor._delete_st(name='st')
-        self.assertEquals(ret, None)
-        self.client_mock.destroy_resource.assert_has_calls([
-            mock.call(self.st_mock)
-        ])
-
-    @testing.gen_test
-    def test_delete_st_already_gone(self):
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value(None)
-        ]
-        ret = yield self.actor._delete_st(name='st')
-        self.assertEquals(ret, None)
-        self.assertFalse(self.client_mock.destroy_resource.called)
-
-    @testing.gen_test
-    def test_update_description(self):
-        st = mock.MagicMock(name='st')
-        desc = 'test desc'
-        self.client_mock.update.side_effect = [
-            helper.tornado_value(st)
-        ]
-        ret = yield self.actor._update_description(
-            st=st, description=desc, params={})
-        self.assertEquals(ret, st)
-        self.client_mock.update.assert_has_calls([
-            mock.call(st, {})
-        ])
-
-
 class TestServerTemplateActor(testing.AsyncTestCase):
 
     def setUp(self, *args, **kwargs):
@@ -200,214 +40,397 @@ class TestServerTemplateActor(testing.AsyncTestCase):
         self.client_mock = mock.MagicMock(name='client')
         self.actor._client = self.client_mock
 
-    def test_get_default_image(self):
-        ret = self.actor._verify_one_default_image(self._images)
-        self.assertEquals(ret, None)
+        # Pre-populate our cached Server Template information for the purposes
+        # of most of the tests. We start with some basic defaults, and then our
+        # tests below will try changing these.
+        self.actor.st = mock.MagicMock(name='server_template_a')
+        self.actor.st.href = '/api/server_templates/test'
+        self.actor.st.links = {
+            'self': '/api/server_templates/xxx',
+            'default_multi_cloud_image': '/api/multi_cloud_images/imageA',
+            'inputs': '/api/server_templates/xxx/inputs',
+            'alert_specs': '/api/server_templates/xxx/alert_specs',
+            'runnable_bindings': '/api/server_templates/xxx/runnable_bindings',
+            'cookbook_attachments': '/api/server_templates/xxx/cookbook_attachments'
+        }
+        self.actor.st.soul = {
+            'actions': [
+                {'rel': 'commit'},
+                {'rel': 'clone'},
+                {'rel': 'resolve'},
+                {'rel': 'swap_repository'},
+                {'rel': 'detect_changes_in_head'}
+            ],
+            'description': 'Fake desc',
+            'lineage': 'https://fake.com/api/acct/xx/ec3_server_templates/xxx',
+            'links': [
+                {'href': '/api/server_templates/xxx',
+                 'rel': 'self'},
+                {'href': '/api/server_templates/xxx/multi_cloud_images',
+                 'rel': 'multi_cloud_images'},
+                {'href': '/api/multi_cloud_images/imageA',
+                 'rel': 'default_multi_cloud_image'},
+                {'href': '/api/server_templates/xxx/inputs',
+                 'rel': 'inputs'},
+                {'href': '/api/server_templates/xxx/alert_specs',
+                 'rel': 'alert_specs'},
+                {'href': '/api/server_templates/xxx/runnable_bindings',
+                 'rel': 'runnable_bindings'},
+                {'href': '/api/server_templates/xxx/cookbook_attachments',
+                 'rel': 'cookbook_attachments'}
+            ],
+            'name': 'Test ServerTemplate',
+            'revision': 0
+        }
+        self.actor.tags = ['tag1', 'tag2']
+        self.actor.desired_images = {
+            '/api/multi_cloud_images/imageA': {
+                'default': True
+            },
+            '/api/multi_cloud_images/imageB': {
+                'default': False
+            },
+            '/api/multi_cloud_images/imageC': {
+                'default': False
+            }
+        }
 
-    def test_verify_one_default_image_too_many(self):
-        self._images[1]['is_default'] = True
-        with self.assertRaises(exceptions.InvalidOptions):
-            self.actor._verify_one_default_image(self._images)
+        self.actor.images = {
+            '/api/multi_cloud_images/imageD': {
+                'default': True,
+                'map_href': '/api/st_mci/imageD',
+                'map_obj': mock.MagicMock(name='imaged_map')
+            }
+        }
 
     @testing.gen_test
-    def test_ensure_st_is_absent_and_is_none(self):
-        self.actor._options['state'] = 'absent'
-        self.actor._get_st = helper.mock_tornado(None)
-        ret = yield self.actor._ensure_st()
-        self.assertEquals(None, ret)
-
-    @testing.gen_test
-    def test_ensure_st_is_absent_but_is_present(self):
-        existing_st = mock.MagicMock(name='existing_st')
-        self.actor._options['state'] = 'absent'
-        self.actor._get_st = helper.mock_tornado(existing_st)
-        self.actor._delete_st = mock.MagicMock(name='delete_st')
-        self.actor._delete_st.side_effect = [helper.tornado_value(None)]
-
-        ret = yield self.actor._ensure_st()
-        self.assertEquals(None, ret)
-        self.assertTrue(self.actor._delete_st.called)
-
-    @testing.gen_test
-    def test_ensure_st_is_present_and_would_create(self):
+    def test_precache(self):
+        # Generate new ST and Tag mocks
         new_st = mock.MagicMock(name='new_st')
-        self.actor._options['state'] = 'present'
-        self.actor._get_st = helper.mock_tornado(None)
-        self.actor._create_st = mock.MagicMock(name='create_st')
-        self.actor._create_st.side_effect = [helper.tornado_value(new_st)]
+        new_tags = ['tag3']
 
-        ret = yield self.actor._ensure_st()
-        self.assertEquals(new_st, ret)
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value(new_st)
+        ]
+
+        self.actor._get_resource_tags = mock.MagicMock()
+        self.actor._get_resource_tags.side_effect = [
+            helper.tornado_value(new_tags)
+        ]
+
+        yield self.actor._precache()
+        self.assertEquals(self.actor.st, new_st)
+        self.assertEquals(self.actor.desired_images, {})
+        self.assertEquals(self.actor.tags, new_tags)
+
+    @testing.gen_test
+    def test_precache_absent_template(self):
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value([])
+        ]
+
+        yield self.actor._precache()
+        self.assertEquals(self.actor.st.soul['description'], None)
+        self.assertEquals(self.actor.st.soul['name'], None)
+        self.assertEquals(self.actor.tags, [])
+
+    @testing.gen_test
+    def test_get_mci_href(self):
+        self.actor.desired_images = {}
+
+        mci_mock = mock.MagicMock(name='returned_mci')
+        mci_mock.href = '/api/multi_cloud_images/test'
+
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value(mci_mock)
+        ]
+        yield self.actor._get_mci_href({'mci': 'test mci'})
+        self.assertEquals(
+            self.actor.desired_images,
+            {'/api/multi_cloud_images/test': {'default': False}}
+        )
+
+    @testing.gen_test
+    def test_get_mci_href_missing(self):
+        self.actor.desired_images = {}
+
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value([])
+        ]
+        with self.assertRaises(exceptions.InvalidOptions):
+            yield self.actor._get_mci_href({'mci': 'test mci'})
+
+    @testing.gen_test
+    def test_get_mci_mappings_no_st(self):
+        self.actor.st.href = None
+        ret = yield self.actor._get_mci_mappings()
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
+    def test_get_mci_mappings(self):
+        mci_map = mock.MagicMock(name='mci_mapping')
+        mci_map.soul = {
+            'is_default': True
+        }
+        mci_map.links = {
+            'multi_cloud_image': '/api/mci/test'
+        }
+        mci_map.href = '/api/st_mci/test'
+
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value(mci_map)
+        ]
+
+        ret = yield self.actor._get_mci_mappings()
+
+        self.maxDiff = None
+        self.assertEquals(
+            ret,
+            {'/api/mci/test': {
+             'default': True,
+             'map_href': '/api/st_mci/test',
+             'map_obj': mci_map
+             }}
+        )
+
+    @testing.gen_test
+    def test_get_state(self):
+        ret = yield self.actor._get_state()
+        self.assertEquals(ret, 'present')
+
+    @testing.gen_test
+    def test_get_state_absent(self):
+        self.actor.st = mock.MagicMock(name='st')
+        self.actor.st.href = None
+        self.actor.st.soul = {'name': None}
+        ret = yield self.actor._get_state()
+        self.assertEquals(ret, 'absent')
+
+    @testing.gen_test
+    def test_set_state_present(self):
+        self.actor._create_st = mock.MagicMock(name='create_st')
+        self.actor._create_st.side_effect = [
+            helper.tornado_value(None)
+        ]
+        yield self.actor._set_state()
         self.assertTrue(self.actor._create_st.called)
 
     @testing.gen_test
-    def test_ensure_st_is_present_and_is_present(self):
-        existing_st = mock.MagicMock(name='existing_st')
-        self.actor._options['state'] = 'present'
-        self.actor._get_st = helper.mock_tornado(existing_st)
-
-        ret = yield self.actor._ensure_st()
-        self.assertEquals(existing_st, ret)
-
-    @testing.gen_test
-    def test_ensure_description_matches(self):
-        st = mock.MagicMock(name='st')
-        st.soul = {
-            'description': 'test st desc'
-        }
-        self.actor._update_description = mock.MagicMock(name='update_desc')
-        self.actor._update_description.side_effect = [
+    def test_set_state_absent(self):
+        self.actor._options['state'] = 'absent'
+        self.actor._delete_st = mock.MagicMock(name='delete_st')
+        self.actor._delete_st.side_effect = [
             helper.tornado_value(None)
         ]
-        yield self.actor._ensure_description(st)
-        self.assertFalse(self.actor._update_description.called)
+        yield self.actor._set_state()
+        self.assertTrue(self.actor._delete_st.called)
 
     @testing.gen_test
-    def test_ensure_description_not_matches(self):
-        st = mock.MagicMock(name='st')
-        st.soul = {
-            'description': 'test st desc different'
-        }
-        self.actor._update_description = mock.MagicMock(name='update_desc')
-        self.actor._update_description.side_effect = [
-            helper.tornado_value(None)
-        ]
-        yield self.actor._ensure_description(st)
-        self.assertTrue(self.actor._update_description.called)
-
-    @testing.gen_test
-    def test_ensure_st_mcis(self):
-        # For simplicity (and to ensure we're passing the right data into the
-        # create/delete/update st_mci setting methods), we mock out the final
-        # API call.. not the internal actor methods.
+    def test_create_st(self):
+        new_st = mock.MagicMock(name='new_st')
         self.client_mock.create_resource.side_effect = [
-            helper.tornado_value(None)
+            helper.tornado_value(new_st)
         ]
-        self.client_mock.update.side_effect = [
-            helper.tornado_value(None)
-        ]
+        yield self.actor._create_st()
+        self.assertEquals(self.actor.st, new_st)
+
+    @testing.gen_test
+    def test_delete_st(self):
         self.client_mock.destroy_resource.side_effect = [
             helper.tornado_value(None)
         ]
+        ret = yield self.actor._delete_st()
+        self.assertEquals(ret, None)
+        self.client_mock.destroy_resource.assert_has_calls([
+            mock.call(self.actor.st)
+        ])
 
-        # This is the final, post HREF-gathering, set of configuration tuples
-        # that we will use to configure the ServerTemplate with MCI refs.
-        st_image_a_href_tuples = [
-            [('server_template_multi_cloud_image[multi_cloud_image_href]',
-              '/api/clouds/A/images/abc'),
-             ('server_template_multi_cloud_image[server_template_href]',
-              '/api/server_templates/abc')], False]
-        st_image_b_href_tuples = [
-            [('server_template_multi_cloud_image[multi_cloud_image_href]',
-              '/api/clouds/B/images/abc'),
-             ('server_template_multi_cloud_image[server_template_href]',
-              '/api/server_templates/abc')], False]
-        st_image_c_href_tuples = [
-            [('server_template_multi_cloud_image[multi_cloud_image_href]',
-              '/api/clouds/C/images/abc'),
-             ('server_template_multi_cloud_image[server_template_href]',
-              '/api/server_templates/abc')], True]
+    @testing.gen_test
+    def test_get_description(self):
+        ret = yield self.actor._get_description()
+        self.assertEquals('Fake desc', ret)
 
-        # Mock out the actual ServerTemplate object we're going to operate on.
-        # Pretend that a 4th MCI (MCI-D) is associated with the template.
-        st = mock.MagicMock(name='st')
-        st_mci_d = mock.MagicMock(name='st_mci_d')
-        st_mci_d.links = {
-            'multi_cloud_image': '/api/clouds/D/images/abc'
+    @testing.gen_test
+    def test_set_description(self):
+        new_st = mock.MagicMock(name='new_st')
+        self.client_mock.update.side_effect = [
+            helper.tornado_value(new_st)
+        ]
+        yield self.actor._set_description()
+        self.assertEquals(new_st, self.actor.st)
+
+    def test_verify_one_default_image(self):
+        ret = self.actor._verify_one_default_image()
+        self.assertEquals(ret, None)
+
+    def test_verify_one_default_image_too_many(self):
+        self.actor.option('images')[1]['is_default'] = True
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._verify_one_default_image()
+
+    @testing.gen_test
+    def test_create_mci_reference(self):
+        mci_ref_params = [
+            ('server_template_multi_cloud_image[multi_cloud_image_href]',
+             '/api/clouds/A/images/abc'),
+            ('server_template_multi_cloud_image[server_template_href]',
+             '/api/server_templates/abc')
+        ]
+        self.client_mock.create_resource.side_effect = [
+            helper.tornado_value(None)
+        ]
+        yield self.actor._create_mci_reference(mci_ref_params)
+
+        self.assertTrue(self.client_mock.create_resource.called)
+        self.assertTrue(self.actor.changed)
+
+    @testing.gen_test
+    def test_delete_mci_reference(self):
+        mci_ref_obj = mock.MagicMock(name='mci_ref_obj')
+        mci_ref_obj.links = {
+            'multi_cloud_image': '/mci_link'
         }
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            # The first call of _client.show should return the list of settings
-            # objects we've created above.
-            helper.tornado_value(st_mci_d)
+        self.client_mock.destroy_resource.side_effect = [
+            helper.tornado_value(None)
         ]
+        yield self.actor._delete_mci_reference(mci_ref_obj)
 
-        # Mock out _get_st_mci_refs and have it return the clouda/cloudb
-        # href populated setting lists.
-        self.actor._get_st_mci_refs = mock.MagicMock(name='get_st_mci_refs')
-        self.actor._get_st_mci_refs.side_effect = [
-            helper.tornado_value(st_image_a_href_tuples),
-            helper.tornado_value(st_image_b_href_tuples),
-            helper.tornado_value(st_image_c_href_tuples),
+        self.assertTrue(self.client_mock.destroy_resource.called)
+        self.assertTrue(self.actor.changed)
+
+    @testing.gen_test
+    def test_delete_mci_reference_fails_was_default(self):
+        mci_ref_obj = mock.MagicMock(name='mci_ref_obj')
+        mci_ref_obj.links = {
+            'multi_cloud_image': '/mci_link'
+        }
+        mocked_resp = mock.MagicMock(name='response')
+        mocked_resp.text = 'Default ServerTemplateMultiCloudImages ...'
+        exc = requests.exceptions.HTTPError(
+            'error', response=mocked_resp)
+        self.client_mock.destroy_resource.side_effect = exc
+        with self.assertRaises(exceptions.InvalidOptions):
+            yield self.actor._delete_mci_reference(mci_ref_obj)
+
+    @testing.gen_test
+    def test_get_tags(self):
+        ret = yield self.actor._get_tags()
+        self.assertEquals(self.actor.tags, ret)
+
+    @testing.gen_test
+    def test_set_tags(self):
+        self.actor._add_resource_tags = mock.MagicMock(name='add_tags')
+        self.actor._add_resource_tags.side_effect = [
+            helper.tornado_value(None)
         ]
+        self.actor._delete_resource_tags = mock.MagicMock(name='delete_tags')
+        self.actor._delete_resource_tags.side_effect = [
+            helper.tornado_value(None)
+        ]
+        self.actor._options['tags'] = ['tag2', 'tag3']
+        yield self.actor._set_tags()
 
-        # Go for it
-        yield self.actor._ensure_st_mcis(st)
+        self.actor._add_resource_tags.assert_has_calls([
+            mock.call(resource=self.actor.st, tags=['tag3'])
+        ])
 
-        # Finally, make sure that the right things were deleted/updated/etc
+        self.actor._delete_resource_tags.assert_has_calls([
+            mock.call(resource=self.actor.st, tags=['tag1'])
+        ])
+
+    @testing.gen_test
+    def test_get_images(self):
+        yield self.actor._get_images()
+
+    @testing.gen_test
+    def test_set_images(self):
+        self.client_mock.create_resource.side_effect = [
+            helper.tornado_value(None)]
+        self.client_mock.destroy_resource.side_effect = [
+            helper.tornado_value(None)]
+        self.actor._ensure_mci_default = mock.MagicMock()
+        self.actor._ensure_mci_default.side_effect = [
+            helper.tornado_value(None)]
+
+        yield self.actor._set_images()
+
         self.client_mock.create_resource.assert_has_calls([
             mock.call(
                 self.client_mock._client.server_template_multi_cloud_images,
-                st_image_a_href_tuples[0]),
+                [('server_template_multi_cloud_image[multi_cloud_image_href]',
+                  '/api/multi_cloud_images/imageB'),
+                 ('server_template_multi_cloud_image[server_template_href]',
+                  '/api/server_templates/test')]
+            ),
             mock.call(
                 self.client_mock._client.server_template_multi_cloud_images,
-                st_image_b_href_tuples[0]),
+                [('server_template_multi_cloud_image[multi_cloud_image_href]',
+                  '/api/multi_cloud_images/imageC'),
+                 ('server_template_multi_cloud_image[server_template_href]',
+                  '/api/server_templates/test')]
+            ),
             mock.call(
                 self.client_mock._client.server_template_multi_cloud_images,
-                st_image_c_href_tuples[0]),
+                [('server_template_multi_cloud_image[multi_cloud_image_href]',
+                  '/api/multi_cloud_images/imageA'),
+                 ('server_template_multi_cloud_image[server_template_href]',
+                  '/api/server_templates/test')]
+            )
         ])
-
         self.client_mock.destroy_resource.assert_has_calls([
-            mock.call(st_mci_d)
+            mock.call(
+                self.actor.images['/api/multi_cloud_images/imageD']
+                ['map_obj']
+            )
         ])
 
     @testing.gen_test
-    def test_ensure_st_mci_skips_on_mock(self):
-        st = mock.MagicMock(name='st')
-        st.href = None
-        yield self.actor._ensure_st_mcis(st)
+    def test_compare_images(self):
+        ret = yield self.actor._compare_images()
+        self.assertFalse(ret)
+
+    @testing.gen_test
+    def test_ensure_mci_default_already_matches(self):
+        yield self.actor._ensure_mci_default()
         self.assertFalse(self.client_mock.find_by_name_and_keys.called)
 
     @testing.gen_test
-    def test_ensure_st_mci_default_already_matches(self):
-        st = mock.MagicMock(name='st')
-        st.links = {
-            'self': '/api/server_templates/abc',
-            'default_multi_cloud_image': '/api/clouds/A/images/abc',
-        }
-        yield self.actor._ensure_st_mci_default(
-            st, '/api/clouds/A/images/abc')
-        self.assertFalse(self.client_mock.find_by_name_and_keys.called)
+    def test_ensure_mci_default_has_no_MCIs(self):
+        self.actor.st.links = {'self': '/api/server_templates/abc'}
+        yield self.actor._ensure_mci_default()
 
     @testing.gen_test
-    def test_ensure_st_mci_default_has_no_MCIs(self):
-        st = mock.MagicMock(name='st')
-        st.links = {'self': '/api/server_templates/abc'}
-
-        yield self.actor._ensure_st_mci_default(
-            st, '/api/clouds/C/images/abc')
+    def test_ensure_mci_default_no_default_selected(self):
+        self.actor._dry = True
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value([])]
+        di = self.actor.desired_images['/api/multi_cloud_images/imageA']
+        di['default'] = False
+        yield self.actor._ensure_mci_default()
 
     @testing.gen_test
-    def test_ensure_st_mci_default_bails_on_dry(self):
-        st = mock.MagicMock(name='st')
-        st.links = {
-            'self': '/api/server_templates/abc',
-            'default_multi_cloud_image': '/api/clouds/A/images/abc',
-        }
+    def test_ensure_mci_default_bails_on_dry(self):
+        self.actor.st.links['default_multi_cloud_image'] = 'invalid'
 
         self.actor._dry = True
         self.client_mock.find_by_name_and_keys.side_effect = [
             helper.tornado_value(['junk'])
         ]
-        yield self.actor._ensure_st_mci_default(
-            st, '/api/clouds/B/images/abc')
+        yield self.actor._ensure_mci_default()
 
     @testing.gen_test
-    def test_ensure_st_mci_default(self):
-        st = mock.MagicMock(name='st')
-        st.links = {
-            'self': '/api/server_templates/abc',
-            'default_multi_cloud_image': '/api/clouds/A/images/abc',
-        }
+    def test_ensure_mci_default(self):
+        self.actor.st.links['default_multi_cloud_image'] = 'invalid'
 
         st_mci_a = mock.MagicMock(name='st_mci_a')
         st_mci_a.links = {
             'self': '/api/server_template_multi_cloud_image/A',
-            'multi_cloud_image': '/api/clouds/A/images/abc'
+            'multi_cloud_image': '/api/multi_cloud_images/imageA'
         }
         st_mci_b = mock.MagicMock(name='st_mci_b')
         st_mci_b.links = {
             'self': '/api/server_template_multi_cloud_image/B',
-            'multi_cloud_image': '/api/clouds/B/images/abc'
+            'multi_cloud_image': '/api/multi_cloud_images/imageB'
         }
 
         self.client_mock.find_by_name_and_keys.side_effect = [
@@ -417,22 +440,17 @@ class TestServerTemplateActor(testing.AsyncTestCase):
         self.client_mock.make_generic_request.side_effect = [
             helper.tornado_value(None)]
 
-        yield self.actor._ensure_st_mci_default(
-            st, '/api/clouds/B/images/abc')
+        yield self.actor._ensure_mci_default()
 
-        self.client_mock.make_generic_request.assert_has_calls(
+        self.client_mock.make_generic_request.assert_has_calls([
             mock.call(
-                '/api/server_template_multi_cloud_image/B/make_default',
+                '/api/server_template_multi_cloud_image/A/make_default',
                 post=[])
-        )
+        ])
 
     @testing.gen_test
-    def test_ensure_st_mci_default_invalid_api_data(self):
-        st = mock.MagicMock(name='st')
-        st.links = {
-            'self': '/api/server_templates/abc',
-            'default_multi_cloud_image': '/api/clouds/A/images/abc',
-        }
+    def test_ensure_mci_default_invalid_api_data(self):
+        self.actor.st.links['default_multi_cloud_image'] = 'junk'
 
         st_mci_a = mock.MagicMock(name='st_mci_a')
         st_mci_a.links = {
@@ -453,68 +471,19 @@ class TestServerTemplateActor(testing.AsyncTestCase):
             helper.tornado_value(None)]
 
         with self.assertRaises(exceptions.InvalidOptions):
-            yield self.actor._ensure_st_mci_default(
-                st, '/api/clouds/B/images/abc')
-
-    @testing.gen_test
-    def test_get_st_mci_refs_wrong_mci(self):
-        img = {'mci': '/mci'}
-        st = mock.MagicMock(name='st')
-
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value(None)]
-
-        with self.assertRaises(exceptions.InvalidOptions):
-            yield self.actor._get_st_mci_refs(img, st)
-
-    @testing.gen_test
-    def test_get_st_mci_refs(self):
-        img = {'mci': '/mci'}
-        st = mock.MagicMock(name='st')
-        st.href = '/href/st'
-
-        mocked_mci = mock.MagicMock(name='mci')
-        mocked_mci.href = '/href'
-
-        self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value(mocked_mci)]
-
-        ret = yield self.actor._get_st_mci_refs(img, st)
-
-        expected_ret = (
-            [('server_template_multi_cloud_image[multi_cloud_image_href]',
-              '/href'),
-             ('server_template_multi_cloud_image[server_template_href]',
-              '/href/st')], False)
-
-        self.assertEquals(expected_ret, ret)
-
-    @testing.gen_test
-    def test_delete_st_mci_reference_handles_error(self):
-            obj = mock.MagicMock(name='mci_ref_obj')
-
-            mocked_resp = mock.MagicMock(name='response')
-            mocked_resp.text = 'Default ServerTemplateMultiCloudImages ...'
-            exc = requests.exceptions.HTTPError(
-                'error', response=mocked_resp)
-            self.client_mock.destroy_resource.side_effect = exc
-
-            with self.assertRaises(exceptions.InvalidOptions):
-                yield self.actor._delete_st_mci_reference(
-                    mci_ref_obj=obj)
+            yield self.actor._ensure_mci_default()
 
     @testing.gen_test
     def test_commit(self):
-        mci = mock.MagicMock(name='mci')
-        fake_mci_setting = mock.MagicMock(name='mci_setting')
-        fake_mci_setting.soul = {
+        fake_st_setting = mock.MagicMock(name='st_setting')
+        fake_st_setting.soul = {
             'revision': 2
         }
         self.client_mock.commit_resource.side_effect = [
-            helper.tornado_value(fake_mci_setting)
+            helper.tornado_value(fake_st_setting)
         ]
         self.actor.log = mock.MagicMock(name='log')
-        yield self.actor._commit(mci, 'message')
+        yield self.actor._commit()
         self.actor.log.assert_has_calls([
             mock.call.info('Committing a new revision'),
             mock.call.info('Committed revision 2')
@@ -522,16 +491,20 @@ class TestServerTemplateActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_present(self):
-        self.actor._ensure_st = helper.mock_tornado(None)
-        self.actor._ensure_description = helper.mock_tornado(None)
-        self.actor._ensure_st_mcis = helper.mock_tornado(None)
-        self.actor._ensure_tags = helper.mock_tornado(None)
-        self.actor._commit = helper.mock_tornado(None)
         self.actor.changed = True
+        self.actor._dry = True
+        self.actor._commit = helper.mock_tornado(None)
+        self.actor._precache = helper.mock_tornado(None)
+        self.actor._set_description = helper.mock_tornado(None)
+        self.actor._set_images = helper.mock_tornado(None)
+
         yield self.actor._execute()
 
     @testing.gen_test
     def test_execute_absent(self):
         self.actor._options['state'] = 'absent'
-        self.actor._ensure_st = helper.mock_tornado(None)
+        self.actor.st = mock.MagicMock()
+        self.actor.st.href = None
+        self.actor._precache = helper.mock_tornado(None)
+
         yield self.actor._execute()
