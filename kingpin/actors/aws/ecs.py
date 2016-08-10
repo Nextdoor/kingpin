@@ -409,6 +409,8 @@ class RunTask(ECSBaseActor):
             yield gen.sleep(10)
 
     @gen.coroutine
+    @utils.retry(excs=[exceptions.RecoverableActorFailure],
+                 retries=3, delay=10)
     def _tasks_done(self, tasks):
         """Checks if tasks are done.
 
@@ -872,6 +874,8 @@ class Service(ECSBaseActor):
             yield gen.sleep(10)
 
     @gen.coroutine
+    @utils.retry(excs=[exceptions.RecoverableActorFailure],
+                 retries=3, delay=10)
     def _is_service_deployed(self, service_name, task_definition_name):
         """Checks if service is finished deploying.
         Meant to be called in a wait-loop.
