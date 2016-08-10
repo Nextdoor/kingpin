@@ -335,6 +335,7 @@ def convert_script_to_dict(script_file, tokens):
         raise exceptions.InvalidScript('Error reading script %s: %s' %
                                        (script_file, e))
 
+    log.info('Reading %s' % filename)
     raw = instance.read()
     parsed = populate_with_tokens(raw, tokens)
 
