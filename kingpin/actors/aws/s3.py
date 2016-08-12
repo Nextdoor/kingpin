@@ -472,10 +472,15 @@ class Bucket(S3BaseActor):
 
         # This throws no exceptions, even if the bucket exists, that we know
         # about or can expect.
+
+        # https://github.com/boto/boto3/issues/125
+        location_args = {}
+        if self.option('region') != 'us-east-1':
+            location_args = {'location': self.option('region')}
+
         self.log.info('Creating bucket')
         bucket = yield self.thread(self.s3_conn.create_bucket,
-                                   self.option('name'),
-                                   location=self.option('region'))
+                                   self.option('name'), **location_args)
         raise gen.Return(bucket)
 
     @gen.coroutine

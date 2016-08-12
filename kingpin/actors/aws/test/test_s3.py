@@ -191,7 +191,17 @@ class TestBucket(testing.AsyncTestCase):
         ret = yield self.actor._create_bucket()
         self.assertEquals(True, ret)
         self.actor.s3_conn.create_bucket.assert_called_with(
-            'test', location='us-east-1')
+            'test')
+
+    @testing.gen_test
+    def test_create_bucket_new_region(self):
+        self.actor.s3_conn.create_bucket = mock.MagicMock()
+        self.actor.s3_conn.create_bucket.return_value = True
+        self.actor._options['region'] = 'us-west-1'
+        ret = yield self.actor._create_bucket()
+        self.assertEquals(True, ret)
+        self.actor.s3_conn.create_bucket.assert_called_with(
+            'test', location='us-west-1')
 
     @testing.gen_test
     def test_verify_can_delete_bucket(self):
