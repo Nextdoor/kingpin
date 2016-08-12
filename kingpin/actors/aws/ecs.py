@@ -828,9 +828,8 @@ class Service(ECSBaseActor):
             yield self._update_service(service_name, task_definition_name)
 
         repeating_log = utils.create_repeating_log(
-                    self.log.info,
-                    'Waiting for primary deployment to be updated...',
-                    seconds=30)
+            self.log.info,
+            'Waiting for primary deployment to be updated...', seconds=30)
         while True:
             service = yield self._describe_service(service_name)
             primary_deployment = self._get_primary_deployment(service)
@@ -1023,7 +1022,7 @@ class Service(ECSBaseActor):
         Returns:
             The name.
         """
-        return arn[arn.index('/')+1:]
+        return arn[arn.index('/') + 1:]
 
     @gen.coroutine
     def _execute(self):

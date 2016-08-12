@@ -8,6 +8,9 @@ BUILD_DIRS = bin .build build include lib lib64 man share package *.egg
 # Only execute a subset of our integration tests by default
 INTEGRATION_TESTS ?= aws,rightscale,http,rollbar,slack
 
+# Hack to ensure we get 100% unit test coverage
+export URLLIB_DEBUG=true
+
 all: build
 
 build: .build

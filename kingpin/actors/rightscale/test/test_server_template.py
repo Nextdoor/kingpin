@@ -51,7 +51,8 @@ class TestServerTemplateActor(testing.AsyncTestCase):
             'inputs': '/api/server_templates/xxx/inputs',
             'alert_specs': '/api/server_templates/xxx/alert_specs',
             'runnable_bindings': '/api/server_templates/xxx/runnable_bindings',
-            'cookbook_attachments': '/api/server_templates/xxx/cookbook_attachments'
+            'cookbook_attachments':
+                '/api/server_templates/xxx/cookbook_attachments'
         }
         self.actor.st.soul = {
             'actions': [

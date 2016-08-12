@@ -44,6 +44,7 @@ class TestECSBaseActor(testing.AsyncTestCase):
 
 
 class TestHandleFailures(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestHandleFailures, self).setUp()
         reload(ecs_actor)
@@ -74,6 +75,7 @@ class TestHandleFailures(testing.AsyncTestCase):
 
 
 class TestLoadTaskDefinition(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestLoadTaskDefinition, self).setUp()
         reload(ecs_actor)
@@ -148,6 +150,7 @@ class TestLoadTaskDefinition(testing.AsyncTestCase):
 
 
 class TestLoadServiceDefinition(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestLoadServiceDefinition, self).setUp()
         reload(ecs_actor)
@@ -210,6 +213,7 @@ class TestLoadServiceDefinition(testing.AsyncTestCase):
 
 
 class TestRegisterTask(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestRegisterTask, self).setUp()
         reload(ecs_actor)
@@ -255,6 +259,7 @@ class TestRegisterTask(testing.AsyncTestCase):
 
 
 class TestTaskRun(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestTaskRun, self).setUp()
         self.actor = _mock_task_actor()
@@ -328,6 +333,7 @@ class TestTaskRun(testing.AsyncTestCase):
 
 
 class TestTaskWait(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestTaskWait, self).setUp()
 
@@ -374,6 +380,7 @@ class TestTaskWait(testing.AsyncTestCase):
 
 
 class TestTaskDone(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestTaskDone, self).setUp()
         reload(ecs_actor)
@@ -538,6 +545,7 @@ class TestTaskDone(testing.AsyncTestCase):
 
 
 class TestTaskExecute(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestTaskExecute, self).setUp()
 
@@ -572,6 +580,7 @@ class TestTaskExecute(testing.AsyncTestCase):
 
 
 class TestGetServiceName(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestGetServiceName, self).setUp()
         self.actor = _mock_service_actor()
@@ -593,6 +602,7 @@ class TestGetServiceName(testing.AsyncTestCase):
 
 
 class TestDescribeService(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestDescribeService, self).setUp()
         self.actor = _mock_service_actor()
@@ -675,6 +685,7 @@ class TestDescribeService(testing.AsyncTestCase):
 
 
 class TestCreateService(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestCreateService, self).setUp()
         self.actor = _mock_service_actor()
@@ -692,11 +703,11 @@ class TestCreateService(testing.AsyncTestCase):
             client_token=token)
         call_args = self.actor.ecs_conn.create_service.call_args
         expected = ({
-                        'clientToken': token,
-                        'cluster': self.actor.option('cluster'),
-                        'serviceName': service_name,
-                        'taskDefinition': task_definition_name,
-                        'desiredCount': self.actor.option('count'),
+                    'clientToken': token,
+                    'cluster': self.actor.option('cluster'),
+                    'serviceName': service_name,
+                    'taskDefinition': task_definition_name,
+                    'desiredCount': self.actor.option('count'),
                     },)
         self.assertTrue(call_args == expected)
 
@@ -713,11 +724,11 @@ class TestCreateService(testing.AsyncTestCase):
             task_definition_name=task_definition_name,
             client_token=token)
         expected = ({
-                        'clientToken': token,
-                        'cluster': self.actor.option('cluster'),
-                        'serviceName': service_name,
-                        'taskDefinition': task_definition_name,
-                        'desiredCount': self.actor.option('count'),
+                    'clientToken': token,
+                    'cluster': self.actor.option('cluster'),
+                    'serviceName': service_name,
+                    'taskDefinition': task_definition_name,
+                    'desiredCount': self.actor.option('count'),
                     },)
         expected[0].update(extra)
         call_args = self.actor.ecs_conn.create_service.call_args
@@ -759,6 +770,7 @@ class TestDeleteService(testing.AsyncTestCase):
 
 
 class TestUpdateService(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestUpdateService, self).setUp()
         self.actor = _mock_service_actor()
@@ -779,11 +791,11 @@ class TestUpdateService(testing.AsyncTestCase):
             task_definition_name='{}:{}'.format(family, revision))
         call_args = self.actor.ecs_conn.update_service.call_args
         expected = ({
-                        'cluster': self.actor.option('cluster'),
-                        'service': service_name,
-                        'taskDefinition': '{0}:{1}'.format(family, revision),
-                        'desiredCount': self.actor.option('count'),
-                        'deploymentConfiguration': configuration
+                    'cluster': self.actor.option('cluster'),
+                    'service': service_name,
+                    'taskDefinition': '{0}:{1}'.format(family, revision),
+                    'desiredCount': self.actor.option('count'),
+                    'deploymentConfiguration': configuration
                     },)
         self.assertTrue(call_args == expected)
 
@@ -794,11 +806,11 @@ class TestUpdateService(testing.AsyncTestCase):
             service_name=service_name,
             task_definition_name='{}:{}'.format(family, revision))
         expected = ({
-                        'cluster': self.actor.option('cluster'),
-                        'service': service_name,
-                        'taskDefinition': '{0}:{1}'.format(family, revision),
-                        'desiredCount': self.actor.option('count'),
-                        'deploymentConfiguration': configuration
+                    'cluster': self.actor.option('cluster'),
+                    'service': service_name,
+                    'taskDefinition': '{0}:{1}'.format(family, revision),
+                    'desiredCount': self.actor.option('count'),
+                    'deploymentConfiguration': configuration
                     },)
         call_args = self.actor.ecs_conn.update_service.call_args
         self.assertTrue(call_args == expected)
@@ -822,6 +834,7 @@ class TestUpdateService(testing.AsyncTestCase):
 
 
 class TestEnsureService(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestEnsureService, self).setUp()
 
@@ -941,6 +954,7 @@ class TestEnsureService(testing.AsyncTestCase):
 
 
 class TestWaitForDeployment(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestWaitForDeployment, self).setUp()
 
@@ -976,6 +990,7 @@ class TestWaitForDeployment(testing.AsyncTestCase):
 
 
 class TestIsServiceDeployed(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestIsServiceDeployed, self).setUp()
 
@@ -1114,6 +1129,7 @@ class TestIsServiceDeployed(testing.AsyncTestCase):
 
 
 class TestServiceExecute(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestServiceExecute, self).setUp()
 
@@ -1153,6 +1169,7 @@ class TestServiceExecute(testing.AsyncTestCase):
 
 
 class TestGetContainersFromTasks(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestGetContainersFromTasks, self).setUp()
         self.actor = _mock_task_actor()
@@ -1202,6 +1219,7 @@ class TestGetContainersFromTasks(testing.AsyncTestCase):
 
 
 class TestCheckImmutableFieldErrors(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestCheckImmutableFieldErrors, self).setUp()
         self.actor = _mock_service_actor()
@@ -1278,6 +1296,7 @@ class TestCheckImmutableFieldErrors(testing.AsyncTestCase):
 
 
 class TestGetSortedNewLogEvents(testing.AsyncTestCase):
+
     def setUp(self):
         super(TestGetSortedNewLogEvents, self).setUp()
         self.actor = _mock_service_actor()
