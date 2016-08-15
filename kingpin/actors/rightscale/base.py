@@ -234,14 +234,14 @@ class RightScaleBaseActor(base.BaseActor):
         new_tags = tags
 
         # What tags should we add, delete?
-        to_add = list(set(new_tags) - set(existing_tags))
         to_delete = list(set(existing_tags) - set(new_tags))
+        to_add = list(set(new_tags) - set(existing_tags))
 
-        if to_add:
-            yield self._add_resource_tags(resource=res, tags=to_add)
-            self.changed = True
         if to_delete:
             yield self._delete_resource_tags(resource=res, tags=to_delete)
+            self.changed = True
+        if to_add:
+            yield self._add_resource_tags(resource=res, tags=to_add)
             self.changed = True
 
     @gen.coroutine
