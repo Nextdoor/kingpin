@@ -233,7 +233,7 @@ class RightScript(base.EnsurableRightScaleBaseActor):
 
     @gen.coroutine
     def _get_packages(self):
-        if self.script is None:
+        if self.script is None or 'packages' not in self.script.soul:
             raise gen.Return()
 
         raise gen.Return(self.script.soul['packages'])
