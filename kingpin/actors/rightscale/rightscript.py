@@ -39,6 +39,21 @@ class RightScript(base.EnsurableRightScaleBaseActor):
     Options match the documentation in RightScale:
     http://reference.rightscale.com/api1.5/resources/ResourceRightScripts.html
 
+    **RightScript Inputs**
+    RightScripts have a concept of "inputs" ... pieces of data that are
+    supplied to the script on-startup to help configure your instance. By
+    *default*, RightScale parses the script you attach and automatically
+    exposes inputs for you:
+
+    http://docs.rightscale.com/cm/rs101/understanding_inputs.html
+
+    RightScale has recently released an automatic script parser that looks for
+    YAML-formatted comments in your script and reads the metadata from the
+    comments. This is much more powerful and allows you to be explicit about
+    the inputs required for your script to function.
+
+    http://docs.rightscale.com/cm/dashboard/design/rightscripts/rightscripts_metadata_comments.html
+
     **Options**
 
     :name:
@@ -53,6 +68,8 @@ class RightScript(base.EnsurableRightScaleBaseActor):
 
     :source:
       (str) A file name with the contents of the script you want to upload.
+      Script should contain the *RightScale Metadata Comments* (see above)
+      which will automatically handle configuring the inputs for your script.
 
     :commit:
       (str) Optional comment used to commit the revision if Kingpin makes any
