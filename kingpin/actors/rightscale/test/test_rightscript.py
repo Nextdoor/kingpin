@@ -58,7 +58,7 @@ class TestRightScript(testing.AsyncTestCase):
 
         # Now create a fake Rightscale resource collection object and make sure
         self.client_mock.find_by_name_and_keys.side_effect = [
-            helper.tornado_value([fake_script])]
+            helper.tornado_value(fake_script)]
         self.client_mock.make_generic_request.side_effect = [
             helper.tornado_value('test script')]
         yield self.actor._precache()

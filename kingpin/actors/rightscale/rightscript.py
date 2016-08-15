@@ -148,6 +148,9 @@ class RightScript(base.EnsurableRightScaleBaseActor):
             raise gen.Return()
 
         # It was found, so save a reference to the object
+        if not isinstance(found, list):
+            found = [found]
+
         log.debug('Got RightScript: %s' % found[0])
         self.script = found[0]
 
