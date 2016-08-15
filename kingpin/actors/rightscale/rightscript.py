@@ -241,7 +241,7 @@ class RightScript(base.EnsurableRightScaleBaseActor):
 
     @gen.coroutine
     def _get_description(self):
-        if self.script is None:
+        if self.script is None or 'description' not in self.script.soul:
             raise gen.Return()
 
         raise gen.Return(self.script.soul['description'])
