@@ -85,6 +85,66 @@ class ServerTemplateMultiCloudImages(SchemaCompareBase):
     }
 
 
+class ServerTemplateRunnableBindings(SchemaCompareBase):
+
+    """Provides JSON-Schema based validation of the supplied Runnable Bindings.
+
+    Each runnable binding must have a recipe or right_script,
+    and a rev. Note, you cannot have both a recipe AND right_script.
+
+    .. code-block:: json
+
+        [
+          {
+            "position": 1,
+            "recipe": "some cute recipe name",
+            "rev": 2
+          }
+        ]
+    """
+
+    SCRIPT = {
+        'type': 'object',
+        'required': ['right_script', 'rev'],
+        'additionalProperties': False,
+        'properties': {
+            'right_script': {
+                'type': 'string',
+            },
+            'rev': {
+                'type': 'number',
+            },
+        }
+    }
+
+    RECIPE = {
+        'type': 'object',
+        'required': ['recipe'],
+        'additionalProperties': False,
+        'properties': {
+            'recipe': {
+                'type': 'string',
+            },
+            'rev': {
+                'type': 'number',
+            },
+        }
+    }
+
+    SCHEMA = {
+        'type': ['array', 'null'],
+        'uniqueItems': True,
+        'items': {
+            'anyOf': [
+                SCRIPT
+
+                # NOTE: This is not complete
+                # RECIPE,
+            ]
+        }
+    }
+
+
 class ServerTemplate(base.EnsurableRightScaleBaseActor):
 
     """Manages the state of an RightScale ServerTemplate.
@@ -130,8 +190,11 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
       Default: ""
 
     :images:
-       A list of dicts that each describe a single cloud and the image in that
-       cloud to launch. See below for details.
+      A list of dicts that each describe a single cloud and the image in that
+      cloud to launch. See below for details.
+
+    :runnable_bindings:
+      A list of runnable binding references.
 
     **Image Definitions**
 
@@ -156,14 +219,14 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
               "name": "Linux Server",
               "description": "this is a simple linux host",
               "images": [
-                {
-                    "mci": "Ubuntu 14.04 HVM",
-                    "rev": 5,
-                    "is_default": true,
-                },
-                {
-                    "mci": "Ubuntu 14.04 EBS",
-                }
+                { "mci": "Ubuntu 14.04 HVM",
+                  "rev": 5,
+                  "is_default": true },
+                { "mci": "Ubuntu 14.04 EBS" }
+              ],
+              "boot_bindings": [
+                { "right_script": "Boot Script",
+                  "rev": 2 }
               ]
           }
         }
@@ -185,6 +248,13 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
             'A list of dicts that include our MultiCloudImage names'
             ', revisions (or default is HEAD), and optionally a '
             'is_default flag')),
+        'boot_bindings': (ServerTemplateRunnableBindings, None,
+                          'A list of scripts to run at boot time'),
+        'operational_bindings': (ServerTemplateRunnableBindings, None, (
+            'A list of scripts that can be run after'
+            ' the host is operational')),
+        'decommission_bindings': (ServerTemplateRunnableBindings, None, (
+            'A list of scripts to run at decommission time')),
     }
 
     unmanaged_options = [
@@ -198,6 +268,16 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
 
         super(ServerTemplate, self).__init__(*args, **kwargs)
         self.changed = False
+
+        self.st = None
+        self.boot_bindings = []
+        self.desired_boot_bindings = []
+        self.operational_bindings = []
+        self.desired_operational_bindings = []
+        self.decommission_bindings = []
+        self.desired_decommission_bindings = []
+        self.tags = []
+        self.images = {}
 
         self.params = self._generate_rightscale_params(
             prefix='server_template',
@@ -259,6 +339,14 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
             tasks.append(self._get_mci_href(image))
         yield tasks
 
+        # Build up all of our runnable binding references
+        self.desired_boot_bindings = yield self._generate_bindings(
+            self.option('boot_bindings'), 'boot')
+        self.desired_operational_bindings = yield self._generate_bindings(
+            self.option('operational_bindings'), 'operational')
+        self.desired_decommission_bindings = yield self._generate_bindings(
+            self.option('decommission_bindings'), 'decommission')
+
         # If we got a list back, return None because that means that the
         # ServerTemplate doesn't already exist.
         if isinstance(st, list) and len(st) == 0:
@@ -272,6 +360,11 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
             self.tags = []
             self.images = {}
             raise gen.Return()
+
+        # Get the boot, operational and decommission runnable bindings
+        # associated with the ServerTemplate and store them.
+        (self.boot_bindings, self.operational_bindings,
+         self.decommission_bindings) = yield self._get_bindings()
 
         # Get the list of tags associated with the existing ST
         self.tags = (yield self._get_resource_tags(self.st))
@@ -427,6 +520,164 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
             tasks.append(self._delete_mci_reference(
                 self.images[href]['map_obj']))
         yield tasks
+
+    @gen.coroutine
+    def _set_operational_bindings(self):
+        yield self._set_bindings(
+            self.desired_operational_bindings,
+            self.operational_bindings,
+            'operational')
+
+    @gen.coroutine
+    def _compare_operational_bindings(self):
+        raise gen.Return(self._compare_bindings(
+            self.desired_operational_bindings,
+            self.operational_bindings))
+
+    @gen.coroutine
+    def _get_operational_bindings(self):
+        raise gen.Return(self.operational_bindings)
+
+    @gen.coroutine
+    def _set_boot_bindings(self):
+        yield self._set_bindings(
+            self.desired_boot_bindings,
+            self.boot_bindings,
+            'boot')
+
+    @gen.coroutine
+    def _compare_boot_bindings(self):
+        raise gen.Return(self._compare_bindings(
+            self.desired_boot_bindings,
+            self.boot_bindings))
+
+    @gen.coroutine
+    def _get_boot_bindings(self):
+        raise gen.Return(self.boot_bindings)
+
+    @gen.coroutine
+    def _set_decommission_bindings(self):
+        yield self._set_bindings(
+            self.desired_decommission_bindings,
+            self.decommission_bindings,
+            'decommission')
+
+    @gen.coroutine
+    def _compare_decommission_bindings(self):
+        raise gen.Return(self._compare_bindings(
+            self.desired_decommission_bindings,
+            self.decommission_bindings))
+
+    @gen.coroutine
+    def _get_decommission_bindings(self):
+        raise gen.Return(self.decommission_bindings)
+
+    @gen.coroutine
+    def _get_bindings(self):
+        all_bindings = yield self._client.show(
+            self.st.runnable_bindings)
+
+        boot = [b for b in all_bindings if b.soul['sequence'] == 'boot']
+        boot.sort(key=lambda x: x.soul['position'])
+        operational = [b for b in all_bindings
+                       if b.soul['sequence'] == 'operational']
+        operational.sort(key=lambda x: x.soul['position'])
+        decommission = [b for b in all_bindings
+                        if b.soul['sequence'] == 'decommission']
+        decommission.sort(key=lambda x: x.soul['position'])
+
+        raise gen.Return((boot, operational, decommission))
+
+    @gen.coroutine
+    def _generate_bindings(self, bindings, sequence):
+        new_bindings = []
+
+        if not bindings:
+            raise gen.Return(new_bindings)
+
+        position = 0
+        for config in bindings:
+            position += 1
+
+            self.log.debug('Searching for %s (rev: %s)' %
+                           (config['right_script'], config.get('rev')))
+
+            raw = yield self._client.find_by_name_and_keys(
+                collection=self._client._client.right_scripts,
+                exact=True,
+                name=config['right_script'])
+
+            # If we got nothing back (empty list, or None), throw an exception
+            if raw is None or not raw:
+                raise exceptions.InvalidOptions(
+                    'Ubable to find RightScript: %s' % config['right_script'])
+
+            # If only one item is returned, and the user didn't explicitly set
+            # the revision number, then we pick one for them. If they _did_
+            # explicitly set the revision number, we'll fail gracefully.
+            if not isinstance(raw, list):
+                if raw.soul['revision'] is not config.get('rev'):
+                    raise exceptions.InvalidOptions(
+                        'Invalid Binding Config: %s' % config)
+
+                new_bindings.append({
+                    'position': position,
+                    'right_script_href': raw.href,
+                    'sequence': sequence
+                })
+                continue
+            else:
+                # Ok, if we got a list back, we need to search through the list
+                # and look for the desired revision. Again, if the user
+                # specified one explicitly, then we'll look for that.
+                # Otherwise, we pick the "latest" release (HEAD/0).
+                try:
+                    res = [res for res in raw
+                           if res.soul['revision'] == config.get('rev')][0]
+                    new_bindings.append({
+                        'position': position,
+                        'right_script_href': res.href,
+                        'sequence': sequence
+                    })
+                    continue
+                except IndexError:
+                    raise exceptions.InvalidOptions(
+                        'Invalid Binding Config: %s' % config)
+
+        new_bindings.sort(key=lambda x: x['position'])
+        raise gen.Return(new_bindings)
+
+    def _compare_bindings(self, desired, existing):
+        existing = [
+            {'position': e.soul['position'],
+             'right_script_href': e.links['right_script']}
+            for e in existing]
+        desired = [
+            {'position': d['position'],
+             'right_script_href': d['right_script_href']}
+            for d in desired]
+
+        return desired == existing
+
+    @gen.coroutine
+    @dry('Would have replaced the {2} runnable bindings')
+    def _set_bindings(self, params_to_add, bindings_to_delete, name):
+        tasks = []
+        for binding in bindings_to_delete:
+            self.log.info('Removing binding %s' % binding.href)
+            tasks.append(self._client.destroy_resource(binding))
+        yield tasks
+
+        for binding in params_to_add:
+            self.log.info('Adding binding %s' % binding['right_script_href'])
+            yield self._client.create_resource(
+                self.st.runnable_bindings,
+                self._generate_rightscale_params(
+                    prefix='runnable_binding',
+                    params={
+                        'right_script_href': binding['right_script_href'],
+                        'sequence': binding['sequence']
+                    }))
 
     @gen.coroutine
     @dry('Would have added MCI Mapping -> {0}')

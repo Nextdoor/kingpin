@@ -25,6 +25,19 @@ class TestServerTemplateActor(testing.AsyncTestCase):
             {'mci': 'imageC'}
         ]
 
+        self._boot_bindings = [
+            {'right_script': 'bootA', 'rev': 0},
+            {'right_script': 'bootB', 'rev': 0},
+        ]
+        self._operational_bindings = [
+            {'right_script': 'operationalA', 'rev': 0},
+            {'right_script': 'operationalB', 'rev': 0},
+        ]
+        self._decommission_bindings = [
+            {'right_script': 'decommissionA', 'rev': 0},
+            {'right_script': 'decommissionB', 'rev': 0},
+        ]
+
         # Create the actor
         self.actor = server_template.ServerTemplate(
             options={
@@ -33,7 +46,10 @@ class TestServerTemplateActor(testing.AsyncTestCase):
                 'commit': 'Yeah, committed',
                 'tags': ['tag'],
                 'description': 'test st desc',
-                'images': self._images
+                'images': self._images,
+                'boot_bindings': self._boot_bindings,
+                'operational_bindings': self._operational_bindings,
+                'decommission_bindings': self._decommission_bindings,
             })
 
         # Patch the actor so that we use the client mock
@@ -95,7 +111,6 @@ class TestServerTemplateActor(testing.AsyncTestCase):
                 'default': False
             }
         }
-
         self.actor.images = {
             '/api/multi_cloud_images/imageD': {
                 'default': True,
@@ -104,14 +119,52 @@ class TestServerTemplateActor(testing.AsyncTestCase):
             }
         }
 
+        # For most tests, pretend we have no bindings at all
+        self.actor.boot_bindings = []
+        self.actor.operational_bindings = []
+        self.actor._bindings = []
+
+        # Pretend though that we were able to populate our desired bindings
+        # with real HREFs.
+        self.actor.desired_boot_bindings = [
+            {'position': 0,
+             'right_script_href': '/api/binding/bootA',
+             'sequence': 'boot'},
+            {'position': 1,
+             'right_script_href': '/api/binding/bootB',
+             'sequence': 'boot'},
+        ]
+        self.actor.desired_operational_bindings = [
+            {'position': 0,
+             'right_script_href': '/api/binding/operationalA',
+             'sequence': 'operational'},
+            {'position': 1,
+             'right_script_href': '/api/binding/operationalB',
+             'sequence': 'operational'},
+        ]
+        self.actor.desired_decommission_bindings = [
+            {'position': 0,
+             'right_script_href': '/api/binding/decommissionA',
+             'sequence': 'decommission'},
+            {'position': 1,
+             'right_script_href': '/api/binding/decommissionB',
+             'sequence': 'decommission'},
+        ]
+
     @testing.gen_test
     def test_precache(self):
         # Generate new ST and Tag mocks
         new_st = mock.MagicMock(name='new_st')
+        boot_binding_c = mock.MagicMock(name='bootC')
         new_tags = ['tag3']
 
+        # Used when searching for the server template
         self.client_mock.find_by_name_and_keys.side_effect = [
             helper.tornado_value(new_st)
+        ]
+
+        self.client_mock.show.side_effect = [
+            helper.tornado_value(boot_binding_c)
         ]
 
         self.actor._get_resource_tags = mock.MagicMock()
@@ -389,6 +442,186 @@ class TestServerTemplateActor(testing.AsyncTestCase):
     def test_compare_images(self):
         ret = yield self.actor._compare_images()
         self.assertFalse(ret)
+
+    @testing.gen_test
+    def test_set_operational_bindings(self):
+        self.actor._set_bindings = mock.MagicMock()
+        self.actor._set_bindings.side_effect = [helper.tornado_value(None)]
+        yield self.actor._set_operational_bindings()
+        self.actor._set_bindings.assert_called_with(
+            self.actor.desired_operational_bindings,
+            self.actor.operational_bindings,
+            'operational'
+        )
+
+    @testing.gen_test
+    def test_get_operational_bindings(self):
+        ret = yield self.actor._get_operational_bindings()
+        self.assertEquals(self.actor.operational_bindings, ret)
+
+    @testing.gen_test
+    def test_set_decommission_bindings(self):
+        self.actor._set_bindings = mock.MagicMock()
+        self.actor._set_bindings.side_effect = [helper.tornado_value(None)]
+        yield self.actor._set_decommission_bindings()
+        self.actor._set_bindings.assert_called_with(
+            self.actor.desired_decommission_bindings,
+            self.actor.decommission_bindings,
+            'decommission'
+        )
+
+    @testing.gen_test
+    def test_get_decommission_bindings(self):
+        ret = yield self.actor._get_decommission_bindings()
+        self.assertEquals(self.actor.decommission_bindings, ret)
+
+    @testing.gen_test
+    def test_set_boot_bindings(self):
+        self.actor._set_bindings = mock.MagicMock()
+        self.actor._set_bindings.side_effect = [helper.tornado_value(None)]
+        yield self.actor._set_boot_bindings()
+        self.actor._set_bindings.assert_called_with(
+            self.actor.desired_boot_bindings,
+            self.actor.boot_bindings,
+            'boot'
+        )
+
+    @testing.gen_test
+    def test_get_boot_bindings(self):
+        ret = yield self.actor._get_boot_bindings()
+        self.assertEquals(self.actor.boot_bindings, ret)
+
+    @testing.gen_test
+    def test_get_bindings(self):
+        boot_binding_c = mock.MagicMock()
+        boot_binding_c.soul = {'sequence': 'boot', 'position': 0}
+
+        operational_binding_c = mock.MagicMock()
+        operational_binding_c.soul = {'sequence': 'operational', 'position': 0}
+
+        existing_bindings = [boot_binding_c, operational_binding_c]
+
+        self.client_mock.show.side_effect = [
+            helper.tornado_value(existing_bindings)
+        ]
+
+        (boot, operational, decommission) = yield self.actor._get_bindings()
+
+        self.assertEquals([boot_binding_c], boot)
+        self.assertEquals([operational_binding_c], operational)
+        self.assertEquals([], decommission)
+
+    @testing.gen_test
+    def test_generate_bindings_empty(self):
+        ret = yield self.actor._generate_bindings([], 'test')
+        self.assertEquals([], ret)
+
+    @testing.gen_test
+    def test_generate_bindings(self):
+        binding_a_mocked_res_rev_0 = mock.MagicMock(name='binding_a')
+        binding_a_mocked_res_rev_0.href = '/api/binding/binding_a_rev_0'
+        binding_a_mocked_res_rev_0.soul = {'revision': 0}
+
+        binding_a_mocked_res_rev_1 = mock.MagicMock(name='binding_a')
+        binding_a_mocked_res_rev_1.href = '/api/binding/binding_a_rev_1'
+        binding_a_mocked_res_rev_1.soul = {'revision': 1}
+
+        binding_b_mocked_res = mock.MagicMock(name='binding_b')
+        binding_b_mocked_res.href = '/api/binding/binding_b_rev_0'
+        binding_b_mocked_res.soul = {'revision': 0}
+
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            # The first call will look for script A and get a list of results
+            # back. One will match, the others wont.
+            helper.tornado_value([
+                binding_a_mocked_res_rev_0, binding_a_mocked_res_rev_1]),
+
+            # The second call will actually get back a single result thats not
+            # in a list. It will match what we're looking for
+            helper.tornado_value(binding_b_mocked_res),
+        ]
+
+        ret = yield self.actor._generate_bindings(
+            self.actor.option('boot_bindings'), 'boot')
+        self.assertEquals(
+            [
+                {'position': 1,
+                 'right_script_href': '/api/binding/binding_a_rev_0',
+                 'sequence': 'boot'},
+                {'position': 2,
+                 'right_script_href': '/api/binding/binding_b_rev_0',
+                 'sequence': 'boot'},
+            ], ret)
+
+    @testing.gen_test
+    def test_generate_bindings_empty_result(self):
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value([])
+        ]
+        with self.assertRaises(exceptions.InvalidOptions):
+            yield self.actor._generate_bindings(
+                self.actor.option('boot_bindings'), 'boot')
+
+    @testing.gen_test
+    def test_generate_bindings_missing_revision(self):
+        binding_a_mocked_res_rev_2 = mock.MagicMock(name='binding_a')
+        binding_a_mocked_res_rev_2.href = '/api/binding/binding_a_rev_2'
+        binding_a_mocked_res_rev_2.soul = {'revision': 2}
+
+        binding_a_mocked_res_rev_1 = mock.MagicMock(name='binding_a')
+        binding_a_mocked_res_rev_1.href = '/api/binding/binding_a_rev_1'
+        binding_a_mocked_res_rev_1.soul = {'revision': 1}
+
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value([
+                binding_a_mocked_res_rev_2, binding_a_mocked_res_rev_1]),
+        ]
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            yield self.actor._generate_bindings(
+                self.actor.option('boot_bindings'), 'boot')
+
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value(binding_a_mocked_res_rev_2)
+        ]
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            yield self.actor._generate_bindings(
+                self.actor.option('boot_bindings'), 'boot')
+
+    @testing.gen_test
+    def test_set_bindings(self):
+        binding_c = mock.MagicMock('binding_c')
+        binding_c.href = '/api/binding/C'
+
+        self.actor.boot_bindings = [
+            binding_c
+        ]
+        self.client_mock.destroy_resource.side_effect = [
+            helper.tornado_value(None)
+        ]
+        self.client_mock.create_resource.side_effect = [
+            helper.tornado_value(None)
+        ]
+
+        yield self.actor._set_bindings(
+            self.actor.desired_boot_bindings,
+            self.actor.boot_bindings,
+            'boot')
+
+        self.client_mock.destroy_resource.assert_has_calls(
+            mock.call(self.actor.boot_bindings[0]),
+        )
+        self.client_mock.create_resource.assert_has_calls([
+            mock.call(
+                self.actor.st.runnable_bindings,
+                [('runnable_binding[right_script_href]', '/api/binding/bootA'),
+                 ('runnable_binding[sequence]', 'boot')]),
+            mock.call(
+                self.actor.st.runnable_bindings,
+                [('runnable_binding[right_script_href]', '/api/binding/bootB'),
+                 ('runnable_binding[sequence]', 'boot')]),
+        ])
 
     @testing.gen_test
     def test_ensure_mci_default_already_matches(self):
