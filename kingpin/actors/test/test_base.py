@@ -56,6 +56,10 @@ class FakeEnsurableBaseActor(base.EnsurableBaseActor):
 
     @gen.coroutine
     def _precache(self):
+        # Call our parent class precache.. no real need here other than for
+        # unit test coverage.
+        yield super(FakeEnsurableBaseActor, self)._precache()
+
         # These do not match -- so we'll trigger the setters
         self.state = 'absent'
         self.name = "Old name"
@@ -413,6 +417,10 @@ class TestEnsurableBaseActor(testing.AsyncTestCase):
              'description': 'Some description'})
 
     @testing.gen_test
+    def test_precache(self):
+        yield self.actor._precache()
+
+    @testing.gen_test
     def test_execute(self):
         yield self.actor._execute()
 
@@ -438,11 +446,11 @@ class TestEnsurableBaseActor(testing.AsyncTestCase):
         self.assertFalse(self.actor.set_name_called)
 
     @testing.gen_test
-    def test_verify_methods_throws_exception(self):
+    def test_gather_methods_throws_exception(self):
         # Mock out the set_name method by replacing it with an attribute
         self.actor._set_name = False
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
-            self.actor._verify_methods()
+            self.actor._gather_methods()
 
 
 class TestHTTPBaseActor(testing.AsyncTestCase):
@@ -529,3 +537,26 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
                               'foo')
             self.assertEquals(m.return_value.request.auth_password,
                               'bar')
+
+
+class TestActualEnsurableBaseActor(testing.AsyncTestCase):
+
+    def setUp(self):
+
+        super(TestActualEnsurableBaseActor, self).setUp()
+        self.actor = base.EnsurableBaseActor(
+            'Unit Test Actor',
+            {'name': 'new name',
+             'state': 'present',
+             'unmanaged': 'nothing happens with this',
+             'description': 'Some description'})
+
+    @testing.gen_test
+    def test_set_state(self):
+        with self.assertRaises(NotImplementedError):
+            yield self.actor._set_state()
+
+    @testing.gen_test
+    def test_get_state(self):
+        with self.assertRaises(NotImplementedError):
+            yield self.actor._get_state()

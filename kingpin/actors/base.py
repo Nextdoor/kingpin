@@ -586,9 +586,9 @@ class EnsurableBaseActor(BaseActor):
         # Finally, do a class validation... make sure that we have actual
         # getter/setter methods for each of the options. This populates dicts
         # that provide references to the actual methods for execution later.
-        self._verify_methods()
+        self._gather_methods()
 
-    def _verify_methods(self):
+    def _gather_methods(self):
         """Generates pointers to the Getter and Setter methods.
 
         Walks through the list of options in self.all_options and discovers the
@@ -617,6 +617,25 @@ class EnsurableBaseActor(BaseActor):
         return hasattr(self, name) and inspect.ismethod(getattr(self, name))
 
     @gen.coroutine
+    def _precache(self):
+        """Override this method to pre-cache data in your actor.
+
+        This method can be overridden to go off and pre-fetch data for your
+        actors _set and _get methods. This helps if you can execute a single
+        API call that gets most of the data you need, before any of the actual
+        get/set operations take place.
+        """
+        raise gen.Return()
+
+    @gen.coroutine
+    def _get_state(self):
+        raise NotImplementedError('_get_state is required for Ensurable')
+
+    @gen.coroutine
+    def _set_state(self):
+        raise NotImplementedError('_set_state is required for Ensurable')
+
+    @gen.coroutine
     def _ensure(self, option):
         """Compares the desired state with the actual state of a resource.
 
@@ -627,14 +646,13 @@ class EnsurableBaseActor(BaseActor):
 
         If the states do not match, then the setter method is called.
         """
-        existing = yield self.getters[option]()
-        new = self.option(option)
-
         # If there is a custom comparison method, use that.. otherwise fall
         # back to a simple comparison
         if self._is_method('_compare_%s' % option):
             equals = yield getattr(self, '_compare_%s' % option)()
         else:
+            existing = yield self.getters[option]()
+            new = self.option(option)
             equals = (existing == new)
 
         if equals:
@@ -648,17 +666,10 @@ class EnsurableBaseActor(BaseActor):
     def _execute(self):
         """A pretty simple execution pipeline for the actor.
 
-        If a _precache() method exists, thats called first. After that, we
-        check the desired state of the resource and we set it appropriately. If
-        we're setting it to absent, we quit after that. Otherwise, we walk
-        through the remaining options that need to be verified and we validate
-        each one in order.
-
         Note: An OrderedDict can be used instead of a plain dict when order
         actually matters for the option setting.
         """
-        if hasattr(self, "_precache"):
-            yield self._precache()
+        yield self._precache()
 
         yield self._ensure('state')
 

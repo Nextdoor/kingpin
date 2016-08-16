@@ -218,7 +218,7 @@ class RightScaleBaseActor(base.BaseActor):
 
         Args:
             res: The resource object itself
-            tags: A list of tags to apply
+            tags: A list of strings, or a single string as a tag.
         """
         if isinstance(tags, basestring):
             tags = [tags]
@@ -230,7 +230,7 @@ class RightScaleBaseActor(base.BaseActor):
             self.changed = True
             raise gen.Return()
 
-        existing_tags = (yield self._get_resource_tags(res))
+        existing_tags = yield self._get_resource_tags(res)
         new_tags = tags
 
         # What tags should we add, delete?
@@ -275,4 +275,4 @@ class EnsurableRightScaleBaseActor(
                 'Missing the "RIGHTSCALE_TOKEN" environment variable.')
 
         self._client = api.RightScale(token=TOKEN, endpoint=ENDPOINT)
-        self._verify_methods()
+        self._gather_methods()

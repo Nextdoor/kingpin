@@ -7,7 +7,7 @@ from kingpin.actors.rightscale import mci
 from kingpin.actors.rightscale import server_template
 
 
-__author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
+__author__ = 'Matt Wise <matt@nextdoor.com>'
 UUID = uuid.uuid4().hex
 
 
