@@ -27,6 +27,7 @@ from tornado import gen
 from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
+from kingpin.actors.aws import settings
 from kingpin.actors.utils import dry
 from kingpin.constants import REQUIRED, STATE
 
@@ -406,8 +407,9 @@ class RunTask(ECSBaseActor):
             yield gen.sleep(10)
 
     @gen.coroutine
-    @utils.retry(excs=[exceptions.RecoverableActorFailure],
-                 retries=3, delay=10)
+    @utils.retry(excs=exceptions.RecoverableActorFailure,
+                 retries=settings.ECS_RETRY_ATTEMPTS,
+                 delay=settings.ECS_RETRY_DELAY)
     def _tasks_done(self, tasks):
         """Checks if tasks are done.
 
@@ -902,8 +904,9 @@ class Service(ECSBaseActor):
             yield gen.sleep(10)
 
     @gen.coroutine
-    @utils.retry(excs=[exceptions.RecoverableActorFailure],
-                 retries=3, delay=10)
+    @utils.retry(excs=exceptions.RecoverableActorFailure,
+                 retries=settings.ECS_RETRY_ATTEMPTS,
+                 delay=settings.ECS_RETRY_DELAY)
     def _is_service_deployed(self, service_name, task_definition_name):
         """Checks if service is finished deploying.
         Meant to be called in a wait-loop.

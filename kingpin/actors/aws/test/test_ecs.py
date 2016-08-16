@@ -8,6 +8,7 @@ from tornado import testing
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import ecs as ecs_actor
+from kingpin.actors.aws import settings
 from kingpin.actors.test import helper
 
 log = logging.getLogger(__name__)
@@ -1334,6 +1335,7 @@ class TestGetSortedNewLogEvents(testing.AsyncTestCase):
 
 
 def _mock_task_actor():
+    settings.ECS_RETRY_ATTEMPTS = 0
     reload(ecs_actor)
     base_actor = 'kingpin.actors.aws.ecs.ECSBaseActor'
     load_task_definition = base_actor + '._load_task_definition'
@@ -1346,6 +1348,7 @@ def _mock_task_actor():
 
 
 def _mock_service_actor():
+    settings.ECS_RETRY_ATTEMPTS = 0
     reload(ecs_actor)
     base_actor = 'kingpin.actors.aws.ecs.ECSBaseActor'
     load_task_definition = base_actor + '._load_task_definition'
