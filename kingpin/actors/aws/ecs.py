@@ -338,7 +338,7 @@ class RunTask(ECSBaseActor):
                    'A dictionary of key/value pairs '
                    'used to fill in the tokens for the '
                    'Task Definition template.'),
-        'count': (int, 1, 'How many tasks to run.'),
+        'count': ((int, str), 1, 'How many tasks to run.'),
         'wait': (bool, True,
                  'Whether to wait for the tasks to complete.')
     }
@@ -624,7 +624,8 @@ class Service(ECSBaseActor):
                    'A dictionary of key/value pairs '
                    'used to fill in the tokens for the Task and Service '
                    'definition templates.'),
-        'count': (int, 1, 'How many instances of the service to deploy.'),
+        'count': ((int, str), 1,
+                  'How many instances of the service to deploy.'),
         'wait': (bool, True,
                  'Whether to wait for the services to deploy.')
     }
