@@ -770,7 +770,7 @@ class Service(ECSBaseActor):
 
         yield self.thread(self.ecs_conn.delete_service,
                           cluster=self.option('cluster'),
-                          service_name=service_name)
+                          service=service_name)
 
     @gen.coroutine
     @dry('Would ensure the service is registered')
