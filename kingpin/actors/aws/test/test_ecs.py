@@ -713,6 +713,21 @@ class TestCreateService(testing.AsyncTestCase):
                 client_token='token')
 
 
+class TestDeleteService(testing.AsyncTestCase):
+    def setUp(self):
+        super(TestDeleteService, self).setUp()
+        self.actor = _mock_service_actor()
+        self.actor.ecs_conn = mock.Mock()
+
+    @testing.gen_test
+    def test_call(self):
+        self.actor._update_service = helper.mock_tornado()
+        self.actor._wait_for_deployment = helper.mock_tornado()
+        yield self.actor._delete_service('sertest', 'tasktest')
+
+        self.assertEquals(self.actor.ecs_conn.delete_service.call_count, 1)
+
+
 class TestUpdateService(testing.AsyncTestCase):
     def setUp(self):
         super(TestUpdateService, self).setUp()
@@ -793,6 +808,7 @@ class TestEnsureService(testing.AsyncTestCase):
 
         self.service_name = 'service_name'
         self.task_definition_name = 'family:1'
+        self.start = datetime.datetime.now()
 
     def tearDown(self):
         reload(gen)
@@ -817,6 +833,17 @@ class TestEnsureService(testing.AsyncTestCase):
         self.assertEqual(self.actor._describe_service._call_count, 2)
         self.assertEqual(self.actor._create_service._call_count, 1)
         self.assertEqual(self.actor._update_service._call_count, 0)
+
+    @testing.gen_test
+    def test_delete(self):
+        self.actor._options['state'] = 'absent'
+        self.actor._describe_service = helper.mock_tornado(
+            {'status': 'ACTIVE'})
+        self.actor._delete_service = helper.mock_tornado()
+        yield self.actor._ensure_service(
+            service_name=self.service_name,
+            task_definition_name=self.task_definition_name)
+        self.assertEqual(self.actor._delete_service._call_count, 1)
 
     @testing.gen_test
     def test_update(self):
@@ -871,6 +898,16 @@ class TestEnsureService(testing.AsyncTestCase):
         self.assertEqual(self.actor._check_immutable_field_errors.call_count,
                          1)
         self.assertEqual(fail_twice.call_count, 3)
+
+    @testing.gen_test
+    def test_already_deleted(self):
+        self.actor._options['state'] = 'absent'
+        self.actor._describe_service = helper.mock_tornado(None)
+        self.actor._delete_service = helper.mock_tornado()
+        yield self.actor._ensure_service(
+            service_name=self.service_name,
+            task_definition_name=self.task_definition_name)
+        self.assertEqual(self.actor._delete_service._call_count, 0)
 
 
 class TestWaitForDeployment(testing.AsyncTestCase):
