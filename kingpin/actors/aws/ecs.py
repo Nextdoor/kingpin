@@ -22,14 +22,13 @@ import logging
 import operator
 import uuid
 
-from boto3.exceptions import Boto3Error
 from tornado import gen
 
 from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
 from kingpin.actors.utils import dry
-from kingpin.constants import REQUIRED
+from kingpin.constants import REQUIRED, STATE
 
 log = logging.getLogger(__name__)
 
@@ -213,11 +212,9 @@ class ECSBaseActor(base.AWSBaseActor):
 
         self.log.info('Registering task definition with family {}'.format(
             family))
-        try:
-            response = yield self.thread(
-                self.ecs_conn.register_task_definition, **task_definition)
-        except Boto3Error as e:
-            raise exceptions.RecoverableActorFailure(e.message)
+
+        response = yield self.thread(
+            self.ecs_conn.register_task_definition, **task_definition)
 
         # Parse data from the server's response.
         task_definition = response['taskDefinition']
@@ -543,6 +540,9 @@ class Service(ECSBaseActor):
 
     **Options**
 
+    :state:
+      Desired state: present/absent
+
     :region:
       AWS region (or zone) name, such as us-west-2 or eu-west-1.
 
@@ -598,6 +598,7 @@ class Service(ECSBaseActor):
     """
 
     all_options = {
+        'state': (STATE, 'present', 'Desired state: present/absent'),
         'region': (str, REQUIRED,
                    'AWS region (or zone) name, like us-west-2 or eu-west-1.'),
         'cluster': (str, REQUIRED,
@@ -718,16 +719,13 @@ class Service(ECSBaseActor):
 
         self.log.info('Creating service')
 
-        try:
-            yield self.thread(
-                self.ecs_conn.create_service,
-                **create_parameters)
-        except Boto3Error as e:
-            raise exceptions.RecoverableActorFailure(e.message)
+        yield self.thread(
+            self.ecs_conn.create_service,
+            **create_parameters)
 
     @gen.coroutine
     @dry('Would update service')
-    def _update_service(self, service_name, task_definition_name):
+    def _update_service(self, service_name, task_definition_name, override=()):
         """Update a service.
 
         Args:
@@ -743,14 +741,36 @@ class Service(ECSBaseActor):
             desiredCount=self.option('count'),
             deploymentConfiguration=deployment_configuration)
 
-        self.log.info('Updating service')
+        update_parameters.update(override)
 
-        try:
-            yield self.thread(
-                self.ecs_conn.update_service,
-                **update_parameters)
-        except Boto3Error as e:
-            raise exceptions.RecoverableActorFailure(e.message)
+        self.log.info('Updating service...')
+        self.log.debug('Service parameters: %s' % update_parameters)
+
+        yield self.thread(
+            self.ecs_conn.update_service,
+            **update_parameters)
+
+        self.log.info('Finished updating service.')
+
+    @gen.coroutine
+    @dry('Would delete service')
+    def _delete_service(self, service_name, task_definition_name):
+        """Delete a service.
+
+        Will stop all the tasks and then delete the definition.
+
+        Args:
+            service_name: string name of the service to delete.
+        """
+
+        self.log.info('Shutting down all current tasks in %s' % service_name)
+        yield self._update_service(service_name, task_definition_name,
+                                   override={'desiredCount': 0})
+        yield self._wait_for_deployment(service_name, task_definition_name)
+
+        yield self.thread(self.ecs_conn.delete_service,
+                          cluster=self.option('cluster'),
+                          service_name=service_name)
 
     @gen.coroutine
     @dry('Would ensure the service is registered')
@@ -768,13 +788,20 @@ class Service(ECSBaseActor):
         """
         existing_service = yield self._describe_service(service_name)
 
-        if not existing_service or (existing_service and
-                                    existing_service['status'] == 'INACTIVE'):
+        if self.option('state') == 'absent':
+            if existing_service:
+                yield self._delete_service(service_name, task_definition_name)
+            else:
+                self.log.info('Service already absent')
+            raise gen.Return()
+
+        if not existing_service or existing_service['status'] == 'INACTIVE':
             # Generate a 32 character uuid for the client token.
             client_token = str(uuid.uuid4())
             yield self._create_service(service_name, task_definition_name,
                                        client_token)
-        else:
+
+        elif existing_service:
             self._check_immutable_field_errors(
                 old_params=existing_service,
                 new_params=self.service_definition,
