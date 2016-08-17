@@ -316,7 +316,7 @@ class RightScale(object):
     @sync_retry(**settings.RETRYING_SETTINGS)
     @rightscale_error_logger
     @utils.exception_logger
-    def commit_resource(self, res, res_type, message, params={}):
+    def commit_resource(self, res, res_type, message=None, params=None):
         """Commit a RightScale resource
 
         Args:
@@ -330,7 +330,8 @@ class RightScale(object):
             The Rightscale Resource itself
         """
         res_id = self.get_res_id(res)
-        params['commit_message'] = message
+        if not params:
+            params = {'commit_message': message}
         return res_type.commit(res_id=res_id, params=params)
 
     @concurrent.run_on_executor
@@ -905,8 +906,8 @@ class RightScale(object):
         try:
             soul = response.json()
         except simplejson.scanner.JSONDecodeError:
-            log.debug('No JSON found. Returning None')
-            return
+            log.debug('No JSON found. Returning the raw text')
+            return response.raw_response.text
 
         # Now dig deep into the python rightscale library itself and create our
         # own Resource object by hand.

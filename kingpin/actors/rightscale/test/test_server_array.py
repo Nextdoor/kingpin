@@ -568,7 +568,7 @@ class TestTerminateActor(testing.AsyncTestCase):
 
         # Verify that the array object would have been patched
         self.client_mock.update.assert_called_once_with(
-            initial_array,  [('server_array[state]', 'disabled')])
+            initial_array, [('server_array[state]', 'disabled')])
         initial_array.updated.assert_called_once_with(
             [('server_array[state]', 'disabled')])
 
@@ -781,7 +781,7 @@ class TestLaunchActor(testing.AsyncTestCase):
         # Verify that the array object would have been patched
         yield self.actor._enable_array(initial_array)
         self.client_mock.update.assert_called_once_with(
-            initial_array,  [('server_array[state]', 'enabled')])
+            initial_array, [('server_array[state]', 'enabled')])
         initial_array.updated.assert_called_once_with(
             [('server_array[state]', 'enabled')])
 

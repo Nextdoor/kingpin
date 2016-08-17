@@ -13,6 +13,15 @@ from tornado import simple_httpclient
 from tornado import testing
 import mock
 
+# Unusual placement -- but we override the environment
+# so that we can test that the urllib debugger works
+#
+# We used to reload(base) this in the test, but that causes
+# unpredictable super() behavior:
+#
+#  http://thomas-cokelaer.info/blog/2011/09/382/
+os.environ['URLLIB_DEBUG'] = '1'
+
 from kingpin import utils
 from kingpin.actors import base
 from kingpin.actors import exceptions
@@ -33,6 +42,70 @@ class FakeHTTPClientClass(object):
     def fetch(self, *args, **kwargs):
         self.request = args[0]
         raise gen.Return(self.response_value)
+
+
+class FakeEnsurableBaseActor(base.EnsurableBaseActor):
+
+    all_options = {
+        'name': (str, REQUIRED, 'Name of thing'),
+        'description': (str, None, 'Some description'),
+        'unmanaged': (str, None, 'some unmanaged option')
+    }
+
+    unmanaged_options = ['unmanaged']
+
+    @gen.coroutine
+    def _precache(self):
+        # Call our parent class precache.. no real need here other than for
+        # unit test coverage.
+        yield super(FakeEnsurableBaseActor, self)._precache()
+
+        # These do not match -- so we'll trigger the setters
+        self.state = 'absent'
+        self.name = "Old name"
+
+        # This matches the desired description on purpose.
+        self.description = 'Some description'
+
+        # Start out with no calls recorded
+        self.set_state_called = False
+        self.set_name_called = False
+        self.set_description_called = False
+
+        # Make it easy to check that this was called
+        self._precache_called = True
+
+    @gen.coroutine
+    def _set_state(self):
+        self.state = True
+        self.set_state_called = True
+
+    @gen.coroutine
+    def _get_state(self):
+        raise gen.Return(self.state)
+
+    @gen.coroutine
+    def _set_name(self):
+        self.name = self.option('name')
+        self.set_name_called = True
+
+    @gen.coroutine
+    def _get_name(self):
+        raise gen.Return(self.name)
+
+    @gen.coroutine
+    def _compare_name(self):
+        exist = yield self._get_name()
+        new = self.option('name')
+        raise gen.Return(exist == new)
+
+    @gen.coroutine
+    def _set_description(self):
+        self.set_description_called = True
+
+    @gen.coroutine
+    def _get_description(self):
+        raise gen.Return(self.description)
 
 
 class TestBaseActor(testing.AsyncTestCase):
@@ -122,9 +195,6 @@ class TestBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_httplib_debugging(self):
-        # Override the environment setting and reload the class
-        os.environ['URLLIB_DEBUG'] = '1'
-        reload(base)
         # Get the logger now and validate that its level was set right
         requests_logger = logging.getLogger('requests.packages.urllib3')
         self.assertEquals(10, requests_logger.level)
@@ -335,6 +405,54 @@ class TestBaseActor(testing.AsyncTestCase):
         base.BaseActor.all_options = {}
 
 
+class TestEnsurableBaseActor(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestEnsurableBaseActor, self).setUp()
+        self.actor = FakeEnsurableBaseActor(
+            'Unit Test Actor',
+            {'name': 'new name',
+             'state': 'present',
+             'unmanaged': 'nothing happens with this',
+             'description': 'Some description'})
+
+    @testing.gen_test
+    def test_precache(self):
+        yield self.actor._precache()
+
+    @testing.gen_test
+    def test_execute(self):
+        yield self.actor._execute()
+
+        # Did the precache execute?
+        self.assertTrue(self.actor._precache_called)
+
+        # First test -- the description should have matched, so
+        # we should not have called self._set_description().
+        self.assertFalse(self.actor.set_description_called)
+
+        # We _should_ have called the setters for the state, and
+        # for the name.
+        self.assertTrue(self.actor.set_state_called)
+        self.assertTrue(self.actor.set_name_called)
+
+    @testing.gen_test
+    def test_execute_absent(self):
+        self.actor._options['state'] = 'absent'
+        yield self.actor._execute()
+
+        # Make sure that the set_name and set_state were NOT called
+        self.assertFalse(self.actor.set_state_called)
+        self.assertFalse(self.actor.set_name_called)
+
+    @testing.gen_test
+    def test_gather_methods_throws_exception(self):
+        # Mock out the set_name method by replacing it with an attribute
+        self.actor._set_name = False
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            self.actor._gather_methods()
+
+
 class TestHTTPBaseActor(testing.AsyncTestCase):
 
     def setUp(self):
@@ -419,3 +537,26 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
                               'foo')
             self.assertEquals(m.return_value.request.auth_password,
                               'bar')
+
+
+class TestActualEnsurableBaseActor(testing.AsyncTestCase):
+
+    def setUp(self):
+
+        super(TestActualEnsurableBaseActor, self).setUp()
+        self.actor = base.EnsurableBaseActor(
+            'Unit Test Actor',
+            {'name': 'new name',
+             'state': 'present',
+             'unmanaged': 'nothing happens with this',
+             'description': 'Some description'})
+
+    @testing.gen_test
+    def test_set_state(self):
+        with self.assertRaises(NotImplementedError):
+            yield self.actor._set_state()
+
+    @testing.gen_test
+    def test_get_state(self):
+        with self.assertRaises(NotImplementedError):
+            yield self.actor._get_state()
