@@ -174,6 +174,21 @@ TASK_DEFINITION_SCHEMA = {
 class ECSBaseActor(base.AWSBaseActor):
     """Base class for ECS actors."""
 
+    all_options = {
+        'count': ((int, str), 1, 'How many tasks to run.')
+    }
+
+    def __init__(self, *args, **kwargs):
+        super(ECSBaseActor, self).__init__(*args, **kwargs)
+
+        count = self.option('count')
+        if type(count) is str or type(count) is unicode:
+            try:
+                self._options['count'] = int(count)
+            except ValueError:
+                raise exceptions.RecoverableActorFailure(
+                    'Could not parse option \'count\' as int: %s' % count)
+
     FAILURE_MISSING = 'MISSING'
 
     def _handle_failures(self, failures, *ignorable):

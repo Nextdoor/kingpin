@@ -14,6 +14,35 @@ from kingpin.actors.test import helper
 log = logging.getLogger(__name__)
 
 
+class TestECSBaseActor(testing.AsyncTestCase):
+    def setUp(self):
+        super(TestECSBaseActor, self).setUp()
+        reload(ecs_actor)
+
+    @testing.gen_test
+    def test_int_count(self):
+        self.actor = ecs_actor.ECSBaseActor(options={'count': 1})
+        self.assertEqual(self.actor.option('count'), 1)
+        self.assertEqual(type(self.actor.option('count')), int)
+
+    @testing.gen_test
+    def test_str_count(self):
+        self.actor = ecs_actor.ECSBaseActor(options={'count': str('1')})
+        self.assertEqual(self.actor.option('count'), 1)
+        self.assertEqual(type(self.actor.option('count')), int)
+
+    @testing.gen_test
+    def test_unicode_count(self):
+        self.actor = ecs_actor.ECSBaseActor(options={'count': unicode('1')})
+        self.assertEqual(self.actor.option('count'), 1)
+        self.assertEqual(type(self.actor.option('count')), int)
+
+    @testing.gen_test
+    def test_invalid_count(self):
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            ecs_actor.ECSBaseActor(options={'count': str('?')})
+
+
 class TestHandleFailures(testing.AsyncTestCase):
     def setUp(self):
         super(TestHandleFailures, self).setUp()
