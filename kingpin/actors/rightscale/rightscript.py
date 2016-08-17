@@ -111,6 +111,14 @@ class RightScript(base.EnsurableRightScaleBaseActor):
         """Validate the user-supplied parameters at instantiation time."""
         super(RightScript, self).__init__(*args, **kwargs)
         self.changed = False
+
+        # The rightscale API allows you to push an invalid list of packages
+        # (multiple spaces, newlines, etc). We need to sanitize the list
+        # quickly first.
+        if self.option('packages'):
+            self._options['packages'] = ' '.join(
+                self.option('packages').split())
+
         self._desired_source = self._read_source()
         self._desired_params = self._generate_rightscale_params(
             prefix='right_script',
