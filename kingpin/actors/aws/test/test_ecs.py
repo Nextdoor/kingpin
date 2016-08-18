@@ -176,71 +176,43 @@ class TestListTaskDefinitions(testing.AsyncTestCase):
     @testing.gen_test
     def test_none(self):
         arns = []
-        self.actor.ecs_conn.list_task_definitions.return_value = {
-            'taskDefinitionArns': arns,
-            'nextToken': None}
+
+        class Paginator(object):
+            def paginate(self, *args, **kwargs):
+                return [{'taskDefinitionArns': arns}]
+
+        paginator = Paginator()
+        self.actor.ecs_conn.get_paginator.return_value = paginator
         result = yield self.actor._list_task_definitions(
             status='ACTIVE', family_prefix='family')
         self.assertEqual(result, arns)
-        self.assertEqual(
-            self.actor.ecs_conn.list_task_definitions.call_count, 1)
-        print self.actor.ecs_conn.list_task_definitions.call_args
-        expected = ({
-            'status': 'ACTIVE',
-            'familyPrefix': 'family',
-            'nextToken': None
-        },)
-        self.assertEqual(
-            self.actor.ecs_conn.list_task_definitions.call_args, expected)
 
     @testing.gen_test
     def test_one_page(self):
         arns = [1, 2, 3]
-        self.actor.ecs_conn.list_task_definitions.return_value = {
-            'taskDefinitionArns': arns,
-            'nextToken': None}
+
+        class Paginator(object):
+            def paginate(self, *args, **kwargs):
+                return [{'taskDefinitionArns': arns}]
+
+        paginator = Paginator()
+        self.actor.ecs_conn.get_paginator.return_value = paginator
         result = yield self.actor._list_task_definitions()
         self.assertEqual(result, arns)
-        self.assertEqual(
-            self.actor.ecs_conn.list_task_definitions.call_count, 1)
 
     @testing.gen_test
     def test_multi_page(self):
         arn_pages = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
-        def paginated(*args, **kwargs):
-            arns = arn_pages[paginated.call_count]
-            if paginated.call_count >= len(arns):
-                self.fail('list_task_definitions was called too many times.')
+        class Paginator(object):
+            def paginate(self, *args, **kwargs):
+                return [{'taskDefinitionArns': arns} for arns in arn_pages]
 
-            passed_next_token = kwargs['nextToken']
-            if passed_next_token is not None and paginated.call_count == 0:
-                self.fail('nextToken has to be None on the first call. '
-                          'Was %s' % passed_next_token)
-            elif passed_next_token is None and paginated.call_count > 0:
-                self.fail(
-                    'nextToken has to be set to %s on call %s' % (
-                        'token' + str(paginated.call_count),
-                        paginated.call_count))
-
-            paginated.call_count += 1
-            next_token = None
-            if paginated.call_count < len(arns):
-                next_token = 'token' + str(paginated.call_count)
-            return {
-                'taskDefinitionArns': arns,
-                'nextToken': next_token
-            }
-
-        paginated.call_count = 0
-
-        self.actor.ecs_conn.list_task_definitions = paginated
+        paginator = Paginator()
+        self.actor.ecs_conn.get_paginator.return_value = paginator
 
         result = yield self.actor._list_task_definitions()
         self.assertEqual(result, sum(arn_pages, []))
-        self.assertEqual(
-            self.actor.ecs_conn.list_task_definitions.call_count,
-            len(arn_pages))
 
 
 class TestLoadServiceDefinition(testing.AsyncTestCase):
