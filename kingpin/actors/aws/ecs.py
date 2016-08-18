@@ -255,6 +255,26 @@ class ECSBaseActor(base.AWSBaseActor):
             self.ecs_conn.deregister_task_definition,
             task_definition=task_definition_name)
 
+    def _read_list_task_definitions_paginator(self, **kwargs):
+        """Reads and aggregates results from a list_task_definitions paginator.
+
+        Args:
+            **kwargs: Args to pass to the paginator.
+
+        Returns: List of task definition arns.
+
+        """
+        paginator = self.ecs_conn.get_paginator('list_task_definitions')
+        task_definitions = []
+        i = 0
+        page_iterator = paginator.paginate(**kwargs)
+        for page in page_iterator:
+            self.log.info('Parsing page {} of results'.format(i))
+            i += 1
+            task_definitions += page['taskDefinitionArns']
+
+        return task_definitions
+
     @gen.coroutine
     @dry('Would list task definitions')
     def _list_task_definitions(self, status='ALL', family_prefix=None):
@@ -277,25 +297,12 @@ class ECSBaseActor(base.AWSBaseActor):
             'Listing task definitions '
             'with status {} and family prefix {}'.format(
                 status, family_prefix))
-        task_definitions = []
-        next_token = None
-        i = 0
-        while True:
-            # This is a paginated result.
-            # Continuously makes requests until there are none left.
-            if i > 0:
-                self.log.info('Getting next page of results: {}'.format(i))
+        task_definitions = yield self.thread(
+            self._read_list_task_definitions_paginator,
+            status=status,
+            family_prefix=family_prefix)
 
-            result = yield self.thread(
-                self.ecs_conn.list_task_definitions,
-                status=status,
-                familyPrefix=family_prefix,
-                nextToken=next_token)
-            i += 1
-            task_definitions += result['taskDefinitionArns']
-            next_token = result['nextToken']
-            if not next_token:
-                raise gen.Return(task_definitions)
+        raise gen.Return(task_definitions)
 
     @staticmethod
     def _load_task_definition(task_definition_file, tokens):
@@ -1081,10 +1088,10 @@ class Service(ECSBaseActor):
             info_log = 'Deploying service from {} in ECS.'
         else:
             info_log = 'Deleting service from {} in ECS.'
-        self.log.info(
-            info_log + ' Region: {}, cluster: {}'.format(
-                self.option('task_definition'), self.option('region'),
-                self.option('cluster')))
+        info_log += ' Region: {}, cluster: {}'
+        self.log.info(info_log.format(
+            self.option('task_definition'), self.option('region'),
+            self.option('cluster')))
 
         task_definition_name = yield self._register_task(
             self.task_definition)
