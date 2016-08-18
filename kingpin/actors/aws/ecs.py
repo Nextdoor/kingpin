@@ -300,7 +300,7 @@ class ECSBaseActor(base.AWSBaseActor):
         task_definitions = yield self.thread(
             self._read_list_task_definitions_paginator,
             status=status,
-            family_prefix=family_prefix)
+            familyPrefix=family_prefix)
 
         raise gen.Return(task_definitions)
 
