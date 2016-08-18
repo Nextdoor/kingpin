@@ -325,13 +325,11 @@ class TestRegisterTask(testing.AsyncTestCase):
         self.actor.ecs_conn.register_task_definition.return_value = {
             'taskDefinition': response_task_definition
         }
-        registered_task = yield \
-            self.actor._register_task(task_definition)
-        family, revision, task_definition_name = registered_task
+        task_definition_name = yield self.actor._register_task(task_definition)
         self.actor.ecs_conn.register_task_definition.assert_called_with(
             **task_definition)
-        self.assertEqual(family, task_definition['family'])
-        self.assertEqual(revision, 100)
+        self.assertEqual(task_definition_name,
+                         '{}:{}'.format(task_definition['family'], '100'))
 
     @testing.gen_test
     def test_dry(self):
@@ -339,9 +337,8 @@ class TestRegisterTask(testing.AsyncTestCase):
         task_definition = {
             'family': 'name',
             'containerDefinitions': []}
-        registered_task = yield \
-            self.actor._register_task(task_definition)
-        self.assertEqual(registered_task, None)
+        task_definition_name = yield self.actor._register_task(task_definition)
+        self.assertEqual(task_definition_name, None)
 
     @testing.gen_test
     def test_internal_exception(self):
@@ -644,8 +641,7 @@ class TestTaskExecute(testing.AsyncTestCase):
         super(TestTaskExecute, self).setUp()
 
         self.actor = _mock_task_actor()
-        self.actor._register_task = helper.mock_tornado(('family', 1,
-                                                         'family:1'))
+        self.actor._register_task = helper.mock_tornado('family:1')
         self.actor._run_task = helper.mock_tornado([1, 2])
         self.actor._wait_for_tasks = helper.mock_tornado()
 
@@ -671,28 +667,6 @@ class TestTaskExecute(testing.AsyncTestCase):
         self.assertEqual(self.actor._register_task._call_count, 1)
         self.assertEqual(self.actor._run_task._call_count, 1)
         self.assertEqual(self.actor._wait_for_tasks._call_count, 1)
-
-
-class TestGetServiceName(testing.AsyncTestCase):
-
-    def setUp(self):
-        super(TestGetServiceName, self).setUp()
-        self.actor = _mock_service_actor()
-
-    @testing.gen_test
-    def testServiceNameSet(self):
-        service_name = 'service_name'
-        family = 'family'
-        self.actor._options['service_name'] = service_name
-        result = self.actor._get_service_name(family)
-        self.assertEqual(result, service_name)
-
-    @testing.gen_test
-    def testServiceNameNotSet(self):
-        family = 'family'
-        self.assertTrue(self.actor.option('service_name') is None)
-        result = self.actor._get_service_name(family)
-        self.assertEqual(result, family)
 
 
 class TestDescribeService(testing.AsyncTestCase):
@@ -1211,10 +1185,7 @@ class TestServiceExecute(testing.AsyncTestCase):
         super(TestServiceExecute, self).setUp()
 
         self.actor = _mock_service_actor()
-        self.actor._register_task = helper.mock_tornado(('family', 1,
-                                                         'family:1'))
-        self.actor._get_service_name = mock.Mock()
-        self.actor._get_service_name.return_value = 'service_name'
+        self.actor._register_task = helper.mock_tornado('family:1')
         self.actor._ensure_service = helper.mock_tornado()
         self.actor._wait_for_service_update = helper.mock_tornado()
         self.actor._describe_service = helper.mock_tornado()
@@ -1224,7 +1195,6 @@ class TestServiceExecute(testing.AsyncTestCase):
     def test_ok(self):
         yield self.actor._execute()
         self.assertEqual(self.actor._register_task._call_count, 1)
-        self.assertEqual(self.actor._get_service_name.call_count, 1)
         self.assertEqual(self.actor._ensure_service._call_count, 1)
         self.assertEqual(self.actor._wait_for_service_update._call_count, 1)
 
@@ -1233,7 +1203,6 @@ class TestServiceExecute(testing.AsyncTestCase):
         self.actor._options['wait'] = False
         yield self.actor._execute()
         self.assertEqual(self.actor._register_task._call_count, 1)
-        self.assertEqual(self.actor._get_service_name.call_count, 1)
         self.assertEqual(self.actor._ensure_service._call_count, 1)
         self.assertEqual(self.actor._wait_for_service_update._call_count, 0)
 
@@ -1242,7 +1211,6 @@ class TestServiceExecute(testing.AsyncTestCase):
         self.actor._dry = True
         yield self.actor._execute()
         self.assertEqual(self.actor._register_task._call_count, 1)
-        self.assertEqual(self.actor._get_service_name.call_count, 1)
         self.assertEqual(self.actor._ensure_service._call_count, 1)
         self.assertEqual(self.actor._wait_for_service_update._call_count, 1)
 
@@ -1252,7 +1220,6 @@ class TestServiceExecute(testing.AsyncTestCase):
         self.actor._describe_service = helper.mock_tornado('service')
         yield self.actor._execute()
         self.assertEqual(self.actor._register_task._call_count, 1)
-        self.assertEqual(self.actor._get_service_name.call_count, 1)
         self.assertEqual(self.actor._ensure_service._call_count, 0)
         self.assertEqual(self.actor._wait_for_service_update._call_count, 0)
         self.assertEqual(self.actor._describe_service._call_count, 1)
@@ -1264,7 +1231,6 @@ class TestServiceExecute(testing.AsyncTestCase):
         self.actor._describe_service = helper.mock_tornado()
         yield self.actor._execute()
         self.assertEqual(self.actor._register_task._call_count, 1)
-        self.assertEqual(self.actor._get_service_name.call_count, 1)
         self.assertEqual(self.actor._ensure_service._call_count, 0)
         self.assertEqual(self.actor._wait_for_service_update._call_count, 0)
         self.assertEqual(self.actor._describe_service._call_count, 1)

@@ -221,7 +221,7 @@ class ECSBaseActor(base.AWSBaseActor):
             task_definition: dict of ECS task definition parameters.
 
         Returns:
-            tuple: ('family', 'revision', 'task_definition_name').
+            Task Definition name string.
         """
 
         family = task_definition['family']
@@ -234,13 +234,12 @@ class ECSBaseActor(base.AWSBaseActor):
 
         # Parse data from the server's response.
         task_definition = response['taskDefinition']
-        family = task_definition['family']
         revision = task_definition['revision']
 
         task_definition_name = '{}:{}'.format(family, revision)
         self.log.info('Task definition {} registered'.format(
             task_definition_name))
-        raise gen.Return((family, revision, task_definition_name))
+        raise gen.Return(task_definition_name)
 
     @gen.coroutine
     @dry('Would deregister task definition {0}')
@@ -563,12 +562,8 @@ class RunTask(ECSBaseActor):
                 task_definition=self.option('task_definition'),
                 region=self.option('region'),
                 cluster=self.option('cluster')))
-        registered_task = yield self._register_task(
+        task_definition_name = yield self._register_task(
             self.task_definition)
-
-        task_definition_name = ''
-        if registered_task is not None:
-            family, revision, task_definition_name = registered_task
 
         tasks = yield self._run_task(task_definition_name)
         if self.option('wait'):
@@ -715,21 +710,6 @@ class Service(ECSBaseActor):
         self.service_definition = self._load_service_definition(
             self.option('service_definition'),
             self.option('tokens'))
-
-    def _get_service_name(self, family):
-        """Gets service_name from either option 'service_name' or given family.
-
-        Args:
-            family: service_name to fallback to if 'service_name' was not set.
-
-        Returns:
-            service_name to use.
-        """
-        # Optionally use specified 'service_name' instead of task family.
-        service_name = self.option('service_name')
-        if service_name is None:
-            service_name = family
-        return service_name
 
     @gen.coroutine
     def _describe_service(self, service_name):
@@ -1106,15 +1086,12 @@ class Service(ECSBaseActor):
                 self.option('task_definition'), self.option('region'),
                 self.option('cluster')))
 
-        registered_task = yield self._register_task(
+        task_definition_name = yield self._register_task(
             self.task_definition)
 
-        family = ''
-        task_definition_name = ''
-        if registered_task is not None:
-            family, revision, task_definition_name = registered_task
+        family = self.task_definition['family']
 
-        service_name = self._get_service_name(family)
+        service_name = self.option('service_name') or family
 
         if desired_state == 'present':
             yield self._ensure_service(service_name, task_definition_name)
