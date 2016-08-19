@@ -52,6 +52,7 @@ def is_retriable_exception(exception):
     """
     retry_codes = (
         'Throttling',
+        'Rate exceeded'
     )
 
     # Only handle Boto exceptions
@@ -59,7 +60,8 @@ def is_retriable_exception(exception):
         return False
 
     # Boto exceptions should have a code attribute
-    return exception.error_code in retry_codes
+    error_code = exception.error_code or ''
+    return any([c in error_code for c in retry_codes])
 
 
 RETRYING_SETTINGS = {
