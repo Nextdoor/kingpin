@@ -23,7 +23,9 @@ from tornado import gen
 import requests
 
 from kingpin.actors import exceptions
+from kingpin.actors.utils import dry
 from kingpin.actors.rightscale import base
+from kingpin.constants import SchemaCompareBase
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -370,3 +372,189 @@ class Destroy(AlertsBaseActor):
         # Wait for the deletes to finish
         if deletes:
             yield deletes
+
+
+class AlertSpecSchema(SchemaCompareBase):
+
+    """Provides JSON-Schema based verification of the supplied AlertSpec
+
+    The majority of the schema mirrors the RightScale API:
+      http://reference.rightscale.com/api1.5/resources/ResourceAlertSpecs.html#create
+    """
+
+    SCHEMA = {
+        'type': ['object'],
+        'required': [
+            'condition', 'duration', 'file', 'name', 'threshold', 'variable'
+        ],
+        'properties': {
+            'condition': {
+                'type': 'string',
+                'enum': ['>', '>=', '<', '<=', '==', '!=']
+            },
+            'description': {'type': 'string'},
+            'duration': {'type': 'integer'},
+            'escalation_name': {'type': 'string'},
+            'file': {'type': 'string'},
+            'name': {'type': 'string'},
+            'threshold': {'type': 'string'},
+            'variable': {'type': 'string'},
+            'vote_tag': {'type': 'string'},
+            'vote_type': {'enum': ['grow', 'shrink']}
+        }
+    }
+
+
+class AlertSpecBase(base.EnsurableRightScaleBaseActor):
+
+    """Extremely simple AlertSpec creation actor.
+
+    This actor isn't really meant to be instantiated on its own -- it provides
+    the base functionality though for creating, deleting and updating an
+    AlertSpec on a given RightScale resource. The resource can be either a
+    Server Array, Server Template, Instance or Deployment.
+
+    **Options**
+
+    :href:
+      The RightScale HREF for the resource you wish to apply the Alert Spec to.
+
+    :state:
+      (str) Either `present` or `absent`
+
+    :spec:
+      A dictionary that conforms to the :py:mod:`AlertSpecSchema`.
+
+    **Examples**
+
+    .. code-block:: json
+
+       { "actor": "rightscale.alerts.AlertSpecBase",
+         "options": {
+           "href": "/api/server_arrays/abcd1234",
+           "spec": {
+                "name": "Instance Stranded",
+                "description": "Alert if an instance enders a stranded",
+                "file": "RS/server-failure",
+                "variable": "state",
+                "condition": "==",
+                "threshold": "stranded",
+                "duration": 2,
+                "escalation_name": "critical"
+           }
+         }
+       }
+
+    """
+
+    all_options = {
+        'href': (str, None, 'RightScale Resource HREF to act on'),
+        'spec': (AlertSpecSchema, None, 'The actual Alert Spec definition itself.')
+    }
+    unmanaged_options = ['href']
+    desc = "AlertSpec: {spec[name]}"
+
+    @gen.coroutine
+    def _precache(self):
+        name = self.option('spec').get('name')
+        href = self.option('href')
+
+        # Generate a fully populated set of parameters by including the href
+        # that was supplied to us.
+        desired_spec = dict(self.option('spec'))
+        desired_spec['subject_href'] = href
+        self.desired_params = self._generate_rightscale_params(
+            'alert_spec', desired_spec)
+
+        # Search for the existing spec
+        log.debug('Searching for AlertSpec matching: %s' % name)
+        self.spec = yield self._client.find_by_name_and_keys(
+            self._client._client.alert_specs,
+            name=name, exact=True, subject_href=href)
+
+        if not self.spec:
+            log.debug('AlertSpec matching "%s" could not be found.' % name)
+            self.spec = None
+        else:
+            log.debug('Got AlertSpec: %s' % self.spec)
+
+    @gen.coroutine
+    def _get_state(self):
+        if self.spec:
+            raise gen.Return('present')
+        raise gen.Return('absent')
+
+    @gen.coroutine
+    def _set_state(self):
+        if self.option('state') == 'absent':
+            yield self._delete_spec()
+        else:
+            yield self._create_spec()
+
+    @gen.coroutine
+    def _get_spec(self):
+        if self.spec:
+            raise gen.Return(
+                self._strip_returned_spec_resource(self.spec))
+
+    @gen.coroutine
+    def _set_spec(self):
+        yield self._update_spec()
+
+    @gen.coroutine
+    @dry('Would have created the AlertSpec')
+    def _create_spec(self):
+        try:
+            self.spec = yield self._client.create_resource(
+                self._client._client.alert_specs, self.desired_params)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code in (422, 400):
+                msg = ('Invalid parameters supplied to Alert Spec "%s": %s'
+                       % (self.option('href'), self.desired_params))
+                raise exceptions.RecoverableActorFailure(msg)
+            raise
+
+        self.log.info('Alert spec has been created')
+
+    @gen.coroutine
+    @dry('Would have updated the AlertSpec')
+    def _update_spec(self):
+        try:
+            self.spec = yield self._client.update(
+                self.spec, self.desired_params)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code in (422, 400):
+                msg = ('Invalid parameters supplied to Alert Spec "%s": %s'
+                       % (self.spec.soul['name'], self.desired_params))
+                raise exceptions.RecoverableActorFailure(msg)
+            raise
+
+        self.log.info('Alert spec has been updated')
+
+    @gen.coroutine
+    @dry('Would have deleted the AlertSpec')
+    def _delete_spec(self):
+        yield self._client.destroy_resource(self.spec)
+        self.spec = None
+
+        self.log.info('Alert spec has been destroyed')
+
+    def _strip_returned_spec_resource(self, spec):
+        """Converts an AlertSpec resource into a comparable dict.
+
+        Walks through the AlertSpecSchema and creates a new dictionary object
+        with only the values from the AlertSpec that were supplied. This
+        creates a dict we can compare against the supplied data by the user.
+
+        args:
+            spec: A RightScale AlertSpec resource
+
+        returns:
+            <dictionary that matches the AlertSpecSchema>
+        """
+        new = {}
+        desired_keys = AlertSpecSchema.SCHEMA['properties'].keys()
+        for key in desired_keys:
+            if key in spec.soul:
+                new[key] = spec.soul[key]
+        return new
