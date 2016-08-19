@@ -35,6 +35,14 @@ log = logging.getLogger(__name__)
 
 __author__ = 'Steve Mostovoy <smostovoy@nextdoor.com>'
 
+
+class ECSAPIException(exceptions.RecoverableActorFailure):
+    """A failure from the ECS API."""
+
+
+class ECSTaskFailedException(exceptions.RecoverableActorFailure):
+    """A failure from an ECS Task."""
+
 # http://boto3.readthedocs.io/en/latest/reference/services/ecs.html
 TASK_DEFINITION_SCHEMA = {
     'type': 'object',
@@ -210,7 +218,7 @@ class ECSBaseActor(base.AWSBaseActor):
             failure_reasons.append(reason)
             self.log.error(failure)
         if failure_reasons:
-            raise exceptions.RecoverableActorFailure(failure_reasons)
+            raise ECSAPIException(failure_reasons)
 
     @gen.coroutine
     @dry('Would register task definition with family {0[family]}')
@@ -484,7 +492,7 @@ class RunTask(ECSBaseActor):
             yield gen.sleep(10)
 
     @gen.coroutine
-    @utils.retry(excs=exceptions.RecoverableActorFailure,
+    @utils.retry(excs=ECSAPIException,
                  retries=settings.ECS_RETRY_ATTEMPTS,
                  delay=settings.ECS_RETRY_DELAY)
     def _tasks_done(self, tasks):
@@ -518,14 +526,13 @@ class RunTask(ECSBaseActor):
                         task_id, container['reason']))
                 exit_code = container.get('exitCode', None)
                 if exit_code is None:
-                    self.log.error('Task {} stopped without executing'.format(
-                        task_id))
-                    raise exceptions.RecoverableActorFailure()
+                    raise ECSTaskFailedException(
+                        'Task {} stopped without executing'.format(
+                            task_id))
                 if exit_code != 0:
-                    self.log.error(
+                    raise ECSTaskFailedException(
                         'Task {} errored out with exit code {}'.format(
                             task_id, exit_code))
-                    raise exceptions.RecoverableActorFailure()
                 self.log.info('Task {} finished successfully!'.format(
                     task_id))
 
@@ -848,7 +855,8 @@ class Service(ECSBaseActor):
             task_definition_name: Task Definition string.
         """
         if service_description['status'] == 'INACTIVE':
-            self.log.info('Service {} is already inactive.')
+            self.log.info(
+                'Service {} is already inactive.'.format(service_name))
         else:
             yield self._stop_service(service_name, task_definition_name)
             yield self.thread(self.ecs_conn.delete_service,
