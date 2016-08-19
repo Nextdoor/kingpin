@@ -423,7 +423,8 @@ class AlertSpecBase(base.EnsurableRightScaleBaseActor):
       (str) Either `present` or `absent`
 
     :spec:
-      A dictionary that conforms to the :py:mod:`AlertSpecSchema`.
+      A dictionary that conforms to the
+      :py:mod:`~kingpin.actors.rightscale.alerts.AlertSpecSchema`.
 
     **Examples**
 
@@ -453,6 +454,10 @@ class AlertSpecBase(base.EnsurableRightScaleBaseActor):
     }
     unmanaged_options = ['href']
     desc = "AlertSpec: {spec[name]}"
+
+    def __init__(self, *args, **kwargs):
+        super(AlertSpecBase, self).__init__(*args, **kwargs)
+        self.changed = False
 
     @gen.coroutine
     def _precache(self):
@@ -491,6 +496,8 @@ class AlertSpecBase(base.EnsurableRightScaleBaseActor):
         else:
             yield self._create_spec()
 
+        self.changed = True
+
     @gen.coroutine
     def _get_spec(self):
         if self.spec:
@@ -500,6 +507,7 @@ class AlertSpecBase(base.EnsurableRightScaleBaseActor):
     @gen.coroutine
     def _set_spec(self):
         yield self._update_spec()
+        self.changed = True
 
     @gen.coroutine
     @dry('Would have created the AlertSpec')
@@ -558,3 +566,8 @@ class AlertSpecBase(base.EnsurableRightScaleBaseActor):
             if key in spec.soul:
                 new[key] = spec.soul[key]
         return new
+
+    @gen.coroutine
+    def _execute(self):
+        yield super(AlertSpecBase, self)._execute()
+        raise gen.Return(self.changed)

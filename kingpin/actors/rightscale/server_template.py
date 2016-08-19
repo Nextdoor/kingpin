@@ -30,6 +30,7 @@ import requests
 from kingpin.actors import exceptions
 from kingpin.actors.utils import dry
 from kingpin.actors.rightscale import base
+from kingpin.actors.rightscale import alerts
 from kingpin.constants import SchemaCompareBase
 from kingpin.constants import REQUIRED
 
@@ -145,6 +146,17 @@ class ServerTemplateRunnableBindings(SchemaCompareBase):
     }
 
 
+class ServerTemplateAlertSpecs(SchemaCompareBase):
+
+    SCHEMA = {
+        'type': ['array', 'null'],
+        'uniqueItems': True,
+        'items': {
+            'anyOf': [alerts.AlertSpecSchema.SCHEMA],
+        }
+    }
+
+
 class ServerTemplate(base.EnsurableRightScaleBaseActor):
 
     """Manages the state of an RightScale ServerTemplate.
@@ -195,6 +207,10 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
 
     :runnable_bindings:
       A list of runnable binding references.
+
+    :alerts:
+      A list of :py:mod:`kingpin.actors.rightscale.alerts.AlertSpecSchema`
+      compatible dictionaries.
 
     **Image Definitions**
 
@@ -255,6 +271,8 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
             ' the host is operational')),
         'decommission_bindings': (ServerTemplateRunnableBindings, None, (
             'A list of scripts to run at decommission time')),
+        'alerts': (ServerTemplateAlertSpecs, None, (
+            'A list of dicts with AlertSpec parameters')),
     }
 
     unmanaged_options = [
@@ -358,6 +376,7 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
             }
 
             self.tags = []
+            self.alert_actors = []
             self.images = {}
             raise gen.Return()
 
@@ -378,6 +397,28 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         #   }
         # }
         self.images = yield self._get_mci_mappings()
+
+        # Create a list of RightScale alert actors
+        self.alert_actors = []
+        tasks = []
+        for alert in self.option('alerts'):
+
+            # First, go off and create our actor
+            a = alerts.AlertSpecBase(
+                desc=('%s AlertSpec: %s' %
+                      (self.st.soul['name'],
+                       alert['name'])),
+                options={
+                    'href': self.st.href,
+                    'spec': alert
+                },
+                dry=self._dry,
+            )
+            self.alert_actors.append(a)
+
+            # Now, for all the actors, go off and precache everything
+            tasks.append(a._precache())
+        yield tasks
 
     @gen.coroutine
     def _get_mci_href(self, image):
@@ -786,6 +827,32 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         url = '%s/make_default' % new_default.links['self']
         yield self._client.make_generic_request(url, post=[])
         self.changed = True
+
+    @gen.coroutine
+    def _get_alerts(self):
+        raise gen.Return()
+
+    @gen.coroutine
+    def _compare_alerts(self):
+        equals = True
+        for spec in self.alert_actors:
+            exist = yield spec._get_spec()
+            new = spec.option('spec')
+            if (exist != new):
+                equals = False
+
+        raise gen.Return(equals)
+
+    @gen.coroutine
+    def _set_alerts(self):
+        tasks = []
+        for spec in self.alert_actors:
+            tasks.append(spec.execute())
+        yield tasks
+
+        for spec in self.alert_actors:
+            if spec.changed:
+                self.changed = True
 
     @gen.coroutine
     @dry('Would have committed HEAD to a revision')
