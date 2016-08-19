@@ -253,7 +253,7 @@ class ECSBaseActor(base.AWSBaseActor):
             'Deregistering task definition {}'.format(task_definition_name))
         yield self.thread(
             self.ecs_conn.deregister_task_definition,
-            task_definition=task_definition_name)
+            taskDefinition=task_definition_name)
 
     def _read_list_task_definitions_paginator(self, **kwargs):
         """Reads and aggregates results from a list_task_definitions paginator.
@@ -835,19 +835,25 @@ class Service(ECSBaseActor):
 
     @gen.coroutine
     @dry('Would delete service')
-    def _delete_service(self, service_name, task_definition_name):
+    def _delete_service(self, service_name, service_description,
+                        task_definition_name):
         """Delete a service.
 
         This also deregisters task definitions with the same family.
 
         Args:
             service_name: name of the service to delete.
+            service_description: service description,
+                given by describe_service.
             task_definition_name: Task Definition string.
         """
-        yield self._stop_service(service_name, task_definition_name)
-        yield self.thread(self.ecs_conn.delete_service,
-                          cluster=self.option('cluster'),
-                          service=service_name)
+        if service_description['status'] == 'INACTIVE':
+            self.log.info('Service {} is already inactive.')
+        else:
+            yield self._stop_service(service_name, task_definition_name)
+            yield self.thread(self.ecs_conn.delete_service,
+                              cluster=self.option('cluster'),
+                              service=service_name)
         task_definitions = yield self._list_task_definitions(
             status='ACTIVE',
             family_prefix=service_name)
@@ -1112,10 +1118,10 @@ class Service(ECSBaseActor):
                     'Not waiting for service {} to be deployed.'.format(
                         service_name))
         else:
-            existing_service = yield self._describe_service(service_name)
-            if existing_service:
+            service_description = yield self._describe_service(service_name)
+            if service_description:
                 yield self._delete_service(
-                    service_name, task_definition_name)
+                    service_name, service_description, task_definition_name)
             else:
                 self.log.info(
                     'Service {} already absent.'.format(service_name))
