@@ -583,6 +583,11 @@ class EnsurableBaseActor(BaseActor):
         # Now go ahead and validate all of the user inputs the normal way
         super(EnsurableBaseActor, self).__init__(*args, **kwargs)
 
+        # Generate a list of options that will be ensured ...
+        self._ensurable_options = self.all_options.keys()
+        for option in self.unmanaged_options:
+            self._ensurable_options.remove(option)
+
         # Finally, do a class validation... make sure that we have actual
         # getter/setter methods for each of the options. This populates dicts
         # that provide references to the actual methods for execution later.
@@ -597,21 +602,30 @@ class EnsurableBaseActor(BaseActor):
         """
         self.setters = {}
         self.getters = {}
-        for option in self.all_options:
+        self.comparers = {}
+        for option in self._ensurable_options:
             setter = '_set_%s' % option
             getter = '_get_%s' % option
+            comparer = '_compare_%s' % option
 
             if not self._is_method(getter) or not self._is_method(setter):
-                if option in self.unmanaged_options:
-                    continue
-
                 raise exceptions.UnrecoverableActorFailure(
                     'Invalid Actor Code Detected in %s: '
                     'Unable to find required methods: %s, %s'
                     % (self.__class__.__name__, setter, getter))
 
+            if not self._is_method(comparer):
+                @gen.coroutine
+                def _comparer(option=option):
+                    existing = yield self.getters[option]()
+                    new = self.option(option)
+                    raise gen.Return(existing == new)
+                setattr(self, comparer, _comparer)
+                # self.log.debug('Creating dynamic method %s' % comparer)
+
             self.setters[option] = getattr(self, setter)
             self.getters[option] = getattr(self, getter)
+            self.comparers[option] = getattr(self, comparer)
 
     def _is_method(self, name):
         return hasattr(self, name) and inspect.ismethod(getattr(self, name))
@@ -646,14 +660,7 @@ class EnsurableBaseActor(BaseActor):
 
         If the states do not match, then the setter method is called.
         """
-        # If there is a custom comparison method, use that.. otherwise fall
-        # back to a simple comparison
-        if self._is_method('_compare_%s' % option):
-            equals = yield getattr(self, '_compare_%s' % option)()
-        else:
-            existing = yield self.getters[option]()
-            new = self.option(option)
-            equals = (existing == new)
+        equals = yield self.comparers[option]()
 
         if equals:
             self.log.debug('Option "%s" matches' % option)
@@ -676,13 +683,11 @@ class EnsurableBaseActor(BaseActor):
         if self.option('state') == 'absent':
             raise gen.Return()
 
-        options_to_ensure = self.all_options.keys()
-        options_to_ensure.remove('state')
-        for option in self.unmanaged_options:
-            options_to_ensure.remove(option)
-
-        for option in options_to_ensure:
-            yield self._ensure(option)
+        for option in self._ensurable_options:
+            # We've already managed state .. so make sure we skip the state
+            # option and only manage the others.
+            if option != 'state':
+                yield self._ensure(option)
 
 
 class HTTPBaseActor(BaseActor):
