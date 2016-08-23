@@ -58,6 +58,7 @@ TASK_DEFINITION_SCHEMA = {
                     'image': {'type': 'string'},
                     'cpu': {'type': 'number'},
                     'memory': {'type': 'number'},
+                    'memoryReservation': {'type': 'number'},
                     'links': {
                         'type': 'array',
                         'items': {'type': 'string'}
