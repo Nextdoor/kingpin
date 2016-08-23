@@ -58,6 +58,7 @@ TASK_DEFINITION_SCHEMA = {
                     'image': {'type': 'string'},
                     'cpu': {'type': 'number'},
                     'memory': {'type': 'number'},
+                    'memoryReservation': {'type': 'number'},
                     'links': {
                         'type': 'array',
                         'items': {'type': 'string'}
@@ -854,9 +855,12 @@ class Service(ECSBaseActor):
                 given by describe_service.
             task_definition_name: Task Definition string.
         """
-        if service_description['status'] == 'INACTIVE':
+        status = service_description['status']
+        if status != 'ACTIVE':
+            # Either DRAINING or INACTIVE
             self.log.info(
-                'Service {} is already inactive.'.format(service_name))
+                'Service {} is already not active: is {}.'.format(
+                    service_name, status))
         else:
             yield self._stop_service(service_name, task_definition_name)
             yield self.thread(self.ecs_conn.delete_service,
