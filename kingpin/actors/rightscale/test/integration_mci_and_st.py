@@ -40,6 +40,16 @@ class IntegrationMCIandST(testing.AsyncTestCase):
             'images': [{'mci': self.name}],
             'tags': [
                 'boneman:test=true'
+            ],
+            'alerts': [
+                {'name': 'Instance Stranded',
+                 'description': 'Alert if an instance enders a stranded',
+                 'file': 'RS/server-failure',
+                 'variable': 'state',
+                 'condition': '==',
+                 'threshold': 'stranded',
+                 'duration': 2,
+                 'escalation_name': 'critical'}
             ]
         }
 
@@ -104,6 +114,14 @@ class IntegrationMCIandST(testing.AsyncTestCase):
     @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
     def integration_05b_create_st(self):
+        actor = server_template.ServerTemplate(
+            options=self.template)
+        yield actor.execute()
+
+    @attr('rightscale', 'integration')
+    @testing.gen_test(timeout=60)
+    def integration_05c_update_st(self):
+        self.template['alerts'][0]['threshold'] = 5
         actor = server_template.ServerTemplate(
             options=self.template)
         yield actor.execute()

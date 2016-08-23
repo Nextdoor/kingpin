@@ -6,6 +6,7 @@ import requests
 
 from kingpin.actors import exceptions
 from kingpin.actors.rightscale import base
+from kingpin.actors.rightscale import alerts
 from kingpin.actors.rightscale import server_template
 from kingpin.actors.test import helper
 
@@ -37,6 +38,16 @@ class TestServerTemplateActor(testing.AsyncTestCase):
             {'right_script': 'decommissionA', 'rev': 0},
             {'right_script': 'decommissionB', 'rev': 0},
         ]
+        self._alerts = [
+            {'name': 'Instance Stranded',
+             'description': 'Alert if an instance enders a stranded',
+             'file': 'RS/server-failure',
+             'variable': 'state',
+             'condition': '==',
+             'threshold': 'stranded',
+             'duration': 2,
+             'escalation_name': 'critical'}
+        ]
 
         # Create the actor
         self.actor = server_template.ServerTemplate(
@@ -50,6 +61,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
                 'boot_bindings': self._boot_bindings,
                 'operational_bindings': self._operational_bindings,
                 'decommission_bindings': self._decommission_bindings,
+                'alerts': self._alerts,
             })
 
         # Patch the actor so that we use the client mock
@@ -172,7 +184,12 @@ class TestServerTemplateActor(testing.AsyncTestCase):
             helper.tornado_value(new_tags)
         ]
 
-        yield self.actor._precache()
+        with mock.patch.object(alerts, 'AlertSpecsBase') as a_mock:
+            a_mock()._precache.side_effect = [
+                helper.tornado_value(None)]
+
+            yield self.actor._precache()
+            self.assertEquals(self.actor.alert_specs, a_mock())
         self.assertEquals(self.actor.st, new_st)
         self.assertEquals(self.actor.desired_images, {})
         self.assertEquals(self.actor.tags, new_tags)
@@ -706,6 +723,28 @@ class TestServerTemplateActor(testing.AsyncTestCase):
 
         with self.assertRaises(exceptions.InvalidOptions):
             yield self.actor._ensure_mci_default()
+
+    @testing.gen_test
+    def test_get_alerts(self):
+        ret = yield self.actor._get_alerts()
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
+    def test_compare_alerts(self):
+        self.actor.alert_specs = mock.MagicMock()
+        self.actor.alert_specs._compare_specs.side_effect = [
+            helper.tornado_value(False)]
+        ret = yield self.actor._compare_alerts()
+        self.assertEquals(False, ret)
+
+    @testing.gen_test
+    def test_set_alerts(self):
+        self.actor.alert_specs = mock.MagicMock()
+        self.actor.alert_specs.execute.side_effect = [
+            helper.tornado_value(None)]
+        yield self.actor._set_alerts()
+        self.assertTrue(self.actor.changed)
+        self.assertTrue(self.actor.alert_specs.execute.called)
 
     @testing.gen_test
     def test_commit(self):

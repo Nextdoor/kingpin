@@ -30,6 +30,7 @@ import requests
 from kingpin.actors import exceptions
 from kingpin.actors.utils import dry
 from kingpin.actors.rightscale import base
+from kingpin.actors.rightscale import alerts
 from kingpin.constants import SchemaCompareBase
 from kingpin.constants import REQUIRED
 
@@ -196,6 +197,10 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
     :runnable_bindings:
       A list of runnable binding references.
 
+    :alerts:
+      A list of :py:mod:`kingpin.actors.rightscale.alerts.AlertSpecSchema`
+      compatible dictionaries.
+
     **Image Definitions**
 
     Each cloud image definition is a dictionary that takes a few keys.
@@ -255,13 +260,15 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
             ' the host is operational')),
         'decommission_bindings': (ServerTemplateRunnableBindings, None, (
             'A list of scripts to run at decommission time')),
+        'alerts': (alerts.AlertSpecsSchema, [], (
+            'A list of dicts with AlertSpec parameters')),
     }
 
     unmanaged_options = [
         'commit', 'commit_head_dependencies', 'freeze_repositories', 'name'
     ]
 
-    desc = 'RightScale ServerTemplate {name}'
+    desc = 'ServerTemplate: {name}'
 
     def __init__(self, *args, **kwargs):
         """Validate the user-supplied parameters at instantiation time."""
@@ -278,6 +285,7 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         self.desired_decommission_bindings = []
         self.tags = []
         self.images = {}
+        self.alert_specs = None
 
         self.params = self._generate_rightscale_params(
             prefix='server_template',
@@ -358,6 +366,7 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
             }
 
             self.tags = []
+            self.alert_specs = None
             self.images = {}
             raise gen.Return()
 
@@ -378,6 +387,23 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         #   }
         # }
         self.images = yield self._get_mci_mappings()
+
+        # Create a list of RightScale alert actors. Each one of these actors
+        # will be responsible for ensuring that a specific AlertSpec is up to
+        # date. However, none of these actors will handle deleting any
+        # unexpected AlertSpecs.
+
+        self.alert_specs = alerts.AlertSpecsBase(
+            desc=('ServerTemplate AlertSpecs: %s' %
+                  self.st.soul['name']),
+            options={
+                'href': self.st.href,
+                'specs': self.option('alerts')
+            },
+            dry=self._dry,
+        )
+        self.alert_specs._client = self._client
+        yield self.alert_specs._precache()
 
     @gen.coroutine
     def _get_mci_href(self, image):
@@ -786,6 +812,24 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         url = '%s/make_default' % new_default.links['self']
         yield self._client.make_generic_request(url, post=[])
         self.changed = True
+
+    @gen.coroutine
+    def _get_alerts(self):
+        """Unnecessary method -- _compare_alerts is used instead"""
+        raise gen.Return()
+
+    @gen.coroutine
+    def _compare_alerts(self):
+        equals = True
+        if self.alert_specs:
+            equals = yield self.alert_specs._compare_specs()
+        raise gen.Return(equals)
+
+    @gen.coroutine
+    def _set_alerts(self):
+        yield self.alert_specs.execute()
+        if self.alert_specs.changed:
+            self.changed = True
 
     @gen.coroutine
     @dry('Would have committed HEAD to a revision')
