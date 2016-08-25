@@ -812,6 +812,18 @@ class TestDeleteService(testing.AsyncTestCase):
         self.assertEqual(self.actor._deregister_task_definition._call_count, 1)
 
     @testing.gen_test
+    def test_deregister_false(self):
+        self.actor._update_service = helper.mock_tornado()
+        self.actor._wait_for_service_update = helper.mock_tornado()
+        self.actor._list_task_definitions = helper.mock_tornado([1])
+        self.actor._deregister_task_definition = helper.mock_tornado()
+        yield self.actor._delete_service('service',
+                                         {'status': 'ACTIVE'}, 'task',
+                                         deregister=False)
+        self.assertEquals(self.actor.ecs_conn.delete_service.call_count, 1)
+        self.assertEqual(self.actor._deregister_task_definition._call_count, 0)
+
+    @testing.gen_test
     def test_inactive(self):
         self.actor._update_service = helper.mock_tornado()
         self.actor._wait_for_service_update = helper.mock_tornado()
