@@ -121,7 +121,7 @@ class IntegrationMCIandST(testing.AsyncTestCase):
     @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
     def integration_05c_update_st(self):
-        self.template['alerts'][0]['threshold'] = 5
+        self.template['alerts'][0]['threshold'] = '5'
         actor = server_template.ServerTemplate(
             options=self.template)
         yield actor.execute()
