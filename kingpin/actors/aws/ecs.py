@@ -665,6 +665,10 @@ class Service(ECSBaseActor):
       Not used when state is 'absent'.
       Default: True.
 
+    :deregister_task_definitions:
+      Whether to deregister related Task Definitions.
+      Only used when state is 'absent'.
+
     **Examples**
 
     .. code-block:: yaml
@@ -714,7 +718,11 @@ class Service(ECSBaseActor):
                   "Not used when state is 'absent'."),
         'wait': (bool, True,
                  'Whether to wait for the services to deploy. '
-                 "Not used when state is 'absent'.")
+                 "Not used when state is 'absent'."),
+        'deregister_task_definitions': (
+            bool, True,
+            'Whether to deregister related Task Definitions. '
+            "Only used when state is 'absent'.")
     }
 
     def __init__(self, *args, **kwargs):
@@ -844,7 +852,7 @@ class Service(ECSBaseActor):
     @gen.coroutine
     @dry('Would delete service')
     def _delete_service(self, service_name, service_description,
-                        task_definition_name):
+                        task_definition_name, deregister=True):
         """Delete a service.
 
         This also deregisters task definitions with the same family.
@@ -854,6 +862,7 @@ class Service(ECSBaseActor):
             service_description: service description,
                 given by describe_service.
             task_definition_name: Task Definition string.
+            deregister: Whether to deregister related Task Definitions.
         """
         status = service_description['status']
         if status != 'ACTIVE':
@@ -866,11 +875,12 @@ class Service(ECSBaseActor):
             yield self.thread(self.ecs_conn.delete_service,
                               cluster=self.option('cluster'),
                               service=service_name)
-        task_definitions = yield self._list_task_definitions(
-            status='ACTIVE',
-            family_prefix=service_name)
-        for task_definition in task_definitions:
-            yield self._deregister_task_definition(task_definition)
+        if deregister:
+            task_definitions = yield self._list_task_definitions(
+                status='ACTIVE',
+                family_prefix=service_name)
+            for task_definition in task_definitions:
+                yield self._deregister_task_definition(task_definition)
 
     @gen.coroutine
     @dry('Would ensure the service is registered')
@@ -1133,7 +1143,8 @@ class Service(ECSBaseActor):
             service_description = yield self._describe_service(service_name)
             if service_description:
                 yield self._delete_service(
-                    service_name, service_description, task_definition_name)
+                    service_name, service_description, task_definition_name,
+                    deregister=self.option('deregister_task_definitions'))
             else:
                 self.log.info(
                     'Service {} already absent.'.format(service_name))
