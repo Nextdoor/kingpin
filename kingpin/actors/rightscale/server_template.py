@@ -692,6 +692,7 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         for binding in bindings_to_delete:
             self.log.info('Removing binding %s' % binding.href)
             tasks.append(self._client.destroy_resource(binding))
+            self.changed = True
         yield tasks
 
         for binding in params_to_add:
@@ -704,6 +705,7 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
                         'right_script_href': binding['right_script_href'],
                         'sequence': binding['sequence']
                     }))
+            self.changed = True
 
     @gen.coroutine
     @dry('Would have added MCI Mapping -> {0}')
