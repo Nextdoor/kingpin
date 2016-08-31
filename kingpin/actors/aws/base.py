@@ -37,20 +37,21 @@ import logging
 import urllib
 import re
 
-from boto import utils as boto_utils
 from boto import exception as boto_exception
+from boto import utils as boto_utils
+from boto.s3.connection import OrdinaryCallingFormat
+from boto3 import exceptions as boto3_exceptions
 from datadiff import diff
+from retrying import retry
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
-from retrying import retry
-from boto.s3.connection import OrdinaryCallingFormat
 import boto.cloudformation
 import boto.ec2
 import boto.ec2.elb
 import boto.iam
-import boto.sqs
 import boto.s3
+import boto.sqs
 import boto3
 
 from kingpin import utils
@@ -210,6 +211,9 @@ class AWSBaseActor(base.BaseActor):
                 raise exceptions.InvalidCredentials(msg)
 
             raise
+        except boto3_exceptions.Boto3Error as e:
+            raise exceptions.RecoverableActorFailure(
+                'Boto3 had a failure: %s' % e)
 
     @gen.coroutine
     def _find_elb(self, name):

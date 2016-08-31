@@ -249,3 +249,308 @@ class TestDestroyActor(testing.AsyncTestCase):
         with self.assertRaises(alerts.AlertSpecNotFound):
             yield self.actor._execute()
         self.assertEquals(0, destroy_mock._call_count)
+
+
+class TestAlertSpecBase(testing.AsyncTestCase):
+
+    def setUp(self, *args, **kwargs):
+        super(TestAlertSpecBase, self).setUp()
+        base.TOKEN = 'unittest'
+
+        self._spec = {
+            'name': 'high load alarm',
+            'description': 'My test alert',
+            'escalation_name': 'critical',
+            'file': 'cpu-0/cpu-idle',
+            'variable': 'value',
+            'condition': '>=',
+            'duration': 5,
+            'threshold': '0.3',
+            'vote_tag': 'array_1',
+            'vote_type': 'grow'
+        }
+
+        # Create the actor
+        self.actor = alerts.AlertSpecBase(
+            options={
+                'href': '/api/template/abcd',
+                'spec': self._spec,
+            }
+        )
+
+        # Patch the actor so that we use the client mock
+        self.client_mock = mock.MagicMock()
+        self.actor._client = self.client_mock
+
+    @testing.gen_test
+    def test_precache(self):
+        fake_spec = mock.MagicMock(name='fake_spec')
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value(fake_spec)]
+        yield self.actor._precache()
+        self.assertEquals(self.actor.existing_spec, fake_spec)
+
+    @testing.gen_test
+    def test_precache_too_many_matching(self):
+        fake_spec = mock.MagicMock(name='fake_spec')
+        fake_spec.soul = {'name': 'high load alarm'}
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value([
+                fake_spec, fake_spec
+            ])
+        ]
+        yield self.actor._precache()
+        self.assertEquals(self.actor.existing_spec, fake_spec)
+
+    @testing.gen_test
+    def test_precache_missing(self):
+        fake_spec = None
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value(fake_spec)]
+        yield self.actor._precache()
+        self.assertEquals(self.actor.existing_spec, fake_spec)
+
+    @testing.gen_test
+    def test_get_state(self):
+        self.actor.existing_spec = mock.MagicMock()
+        ret = yield self.actor._get_state()
+        self.assertEquals(ret, 'present')
+
+        self.actor.existing_spec = None
+        ret = yield self.actor._get_state()
+        self.assertEquals(ret, 'absent')
+
+    @testing.gen_test
+    def test_set_state_present(self):
+        self.actor._create_spec = mock.MagicMock()
+        self.actor._create_spec.side_effect = [helper.tornado_value(None)]
+        yield self.actor._set_state()
+        self.assertTrue(self.actor._create_spec.called)
+
+    @testing.gen_test
+    def test_set_state_absent(self):
+        self.actor._delete_spec = mock.MagicMock()
+        self.actor._delete_spec.side_effect = [helper.tornado_value(None)]
+        self.actor._options['state'] = 'absent'
+        yield self.actor._set_state()
+        self.assertTrue(self.actor._delete_spec.called)
+
+    @testing.gen_test
+    def test_get_spec(self):
+        self.actor.existing_spec = mock.MagicMock()
+        self.actor.existing_spec.soul = {
+            'created_at': 'some_time',
+            'updated_at': 'some_other_time',
+            'name': 'high load alarm',
+            'description': 'My test alert',
+            'file': 'cpu-0/cpu-idle',
+            'variable': 'value',
+            'condition': '>='
+        }
+        ret = yield self.actor._get_spec()
+        self.assertEquals(
+            {'name': 'high load alarm',
+             'description': 'My test alert',
+             'file': 'cpu-0/cpu-idle',
+             'variable': 'value',
+             'condition': '>='},
+            ret)
+
+    @testing.gen_test
+    def test_set_spec(self):
+        self.actor._update_spec = mock.MagicMock()
+        self.actor._update_spec.side_effect = [helper.tornado_value(None)]
+        yield self.actor._set_spec()
+        self.assertTrue(self.actor._update_spec.called)
+
+    @testing.gen_test
+    def test_create_spec(self):
+        fake_spec = mock.MagicMock()
+        self.actor.desired_params = {}
+        self.client_mock.create_resource.side_effect = [
+            helper.tornado_value(fake_spec)
+        ]
+        yield self.actor._create_spec()
+        self.assertEquals(self.actor.existing_spec, fake_spec)
+
+    @testing.gen_test
+    def test_create_spec_422(self):
+        self.actor.desired_params = {}
+
+        # Mock the create_resource() call so we don't really try to do work
+        msg = '422: Unprocessible entity'
+        mocked_response = mock.MagicMock(name='response')
+        mocked_response.status_code = 422
+        exc = requests.exceptions.HTTPError(msg, response=mocked_response)
+        self.actor._client.create_resource.side_effect = exc
+
+        # Do it, then check the mock calls
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._create_spec()
+
+    @testing.gen_test
+    def test_create_spec_500(self):
+        self.actor.desired_params = {}
+
+        # Mock the create_resource() call so we don't really try to do work
+        msg = '500: Server Error'
+        mocked_response = mock.MagicMock(name='response')
+        mocked_response.status_code = 500
+        exc = requests.exceptions.HTTPError(msg, response=mocked_response)
+        self.actor._client.create_resource.side_effect = exc
+
+        # Do it, then check the mock calls
+        with self.assertRaises(requests.exceptions.HTTPError):
+            yield self.actor._create_spec()
+
+    @testing.gen_test
+    def test_update_spec(self):
+        fake_spec = mock.MagicMock()
+        self.actor.existing_spec = mock.MagicMock()
+        self.actor.desired_params = {}
+        self.client_mock.update.side_effect = [
+            helper.tornado_value(fake_spec)
+        ]
+        yield self.actor._update_spec()
+        self.assertEquals(self.actor.existing_spec, fake_spec)
+
+    @testing.gen_test
+    def test_update_spec_422(self):
+        self.actor.desired_params = {}
+        self.actor.existing_spec = mock.MagicMock()
+
+        # Mock the update_resource() call so we don't really try to do work
+        msg = '422: Unprocessible entity'
+        mocked_response = mock.MagicMock(name='response')
+        mocked_response.status_code = 422
+        exc = requests.exceptions.HTTPError(msg, response=mocked_response)
+        self.actor._client.update.side_effect = exc
+
+        # Do it, then check the mock calls
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._update_spec()
+
+    @testing.gen_test
+    def test_update_spec_500(self):
+        self.actor.desired_params = {}
+        self.actor.existing_spec = mock.MagicMock()
+
+        # Mock the update_resource() call so we don't really try to do work
+        msg = '500: Server Error'
+        mocked_response = mock.MagicMock(name='response')
+        mocked_response.status_code = 500
+        exc = requests.exceptions.HTTPError(msg, response=mocked_response)
+        self.actor._client.update.side_effect = exc
+
+        # Do it, then check the mock calls
+        with self.assertRaises(requests.exceptions.HTTPError):
+            yield self.actor._update_spec()
+
+    @testing.gen_test
+    def test_delete_spec(self):
+        self.actor.existing_spec = mock.MagicMock()
+        self.client_mock.destroy_resource.side_effect = [
+            helper.tornado_value(None)
+        ]
+        yield self.actor._delete_spec()
+        self.assertEquals(self.actor.existing_spec, None)
+
+
+class TestAlertSpecsBase(testing.AsyncTestCase):
+
+    def setUp(self, *args, **kwargs):
+        super(TestAlertSpecsBase, self).setUp()
+        base.TOKEN = 'unittest'
+
+        self._spec = {
+            'name': 'high load alarm',
+            'description': 'My test alert',
+            'escalation_name': 'critical',
+            'file': 'cpu-0/cpu-idle',
+            'variable': 'value',
+            'condition': '>=',
+            'duration': 5,
+            'threshold': '0.3',
+            'vote_tag': 'array_1',
+            'vote_type': 'grow'
+        }
+
+        # Create the actor. Mock out any calls to create an AlertSpecBase
+        # object and instead return fake object instead.
+        with mock.patch.object(alerts, "AlertSpecBase") as a_mock:
+            a_mock()._precache.side_effect = [helper.tornado_value(None)]
+
+            self.actor = alerts.AlertSpecsBase(
+                options={
+                    'href': '/api/template/abcd',
+                    'specs': [self._spec],
+                }
+            )
+
+        # Patch the actor so that we use the client mock
+        self.client_mock = mock.MagicMock()
+        self.actor._client = self.client_mock
+
+    @testing.gen_test
+    def test_precache(self):
+        unwanted_fake_spec = mock.MagicMock(name='unwanted_fake_spec')
+        unwanted_fake_spec.soul = {
+            'name': 'unwanted spec that should be deleted'
+        }
+        wanted_fake_spec = mock.MagicMock(name='wanted_fake_spec')
+        wanted_fake_spec.soul = {
+            'name': 'high load alarm'
+        }
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value([unwanted_fake_spec, wanted_fake_spec])
+        ]
+        with mock.patch.object(alerts, "AlertSpecBase") as a_mock:
+            a_mock()._precache.side_effect = [helper.tornado_value(None)]
+            yield self.actor._precache()
+
+        self.assertEquals(2, len(self.actor.alert_actors))
+
+        self.assertTrue(self.actor.alert_actors[0]._precache.called)
+        self.assertTrue(self.actor.alert_actors[1]._precache.called)
+
+    @testing.gen_test
+    def test_get_state(self):
+        ret = yield self.actor._get_state()
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
+    def test_compare_state(self):
+        self.actor.alert_actors[0]._compare_state.side_effect = [
+            helper.tornado_value(False)]
+
+        ret = yield self.actor._compare_state()
+        self.assertEquals(False, ret)
+
+    @testing.gen_test
+    def test_set_state(self):
+        test_actor = self.actor.alert_actors[0]
+        test_actor._compare_state.side_effect = [helper.tornado_value(False)]
+        test_actor._set_state.side_effect = [helper.tornado_value(None)]
+
+        yield self.actor._set_state()
+
+        self.assertTrue(test_actor._set_state.called)
+        self.assertTrue(self.actor.changed)
+
+    @testing.gen_test
+    def test_get_specs(self):
+        self.actor.alert_actors[0]._get_spec.side_effect = [
+            helper.tornado_value(1)]
+        ret = yield self.actor._get_specs()
+        self.assertEquals([1], ret)
+
+    @testing.gen_test
+    def test_set_specs(self):
+        test_actor = self.actor.alert_actors[0]
+        test_actor._compare_spec.side_effect = [helper.tornado_value(False)]
+        test_actor._execute.side_effect = [helper.tornado_value(None)]
+
+        yield self.actor._set_specs()
+
+        self.assertTrue(test_actor._execute.called)
+        self.assertTrue(self.actor.changed)

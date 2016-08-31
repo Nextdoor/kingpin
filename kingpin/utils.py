@@ -281,6 +281,14 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
             string = string.replace(
                 ('%s%s%s' % (left_wrapper, k, right_wrapper)), str(v))
 
+    tokens_with_default = re.finditer(
+        r'{0}(([\w]+)[|]([^{1}]+)){1}'.format(left_wrapper, right_wrapper),
+        string)
+    for match, key, default in (m.groups() for m in tokens_with_default):
+        value = tokens.get(key, default)
+        string = string.replace(
+            '%s%s%s' % (left_wrapper, match, right_wrapper), str(value))
+
     # If we aren't strict, we return...
     if not strict:
         return string
@@ -328,6 +336,7 @@ def convert_script_to_dict(script_file, tokens):
         raise exceptions.InvalidScript('Error reading script %s: %s' %
                                        (script_file, e))
 
+    log.info('Reading %s' % filename)
     raw = instance.read()
     parsed = populate_with_tokens(raw, tokens)
 

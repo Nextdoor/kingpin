@@ -768,7 +768,9 @@ class Stack(CloudFormationBaseActor):
 
         # Get and compare the parameters we have vs the ones in CF. If they're
         # different, plan to do an update!
-        diff = self._diff_policy_json(stack['Parameters'], self._parameters)
+        diff = self._diff_policy_json(
+            stack.get('Parameters', {}),
+            self._parameters)
         if diff:
             self.log.warning('Stack parameters do not match.')
             for line in diff.split('\n'):
@@ -869,7 +871,6 @@ class Stack(CloudFormationBaseActor):
                 change = yield self.thread(
                     self.cf3_conn.describe_change_set,
                     ChangeSetName=change_set_name)
-                self.log.error(change)
             except ClientError as e:
                 # If we hit an intermittent error, lets just loop around and
                 # try again.

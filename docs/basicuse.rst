@@ -322,6 +322,21 @@ For an example, take a look at the :download:`complex.json
     2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Sending message "Beginning release 0001a" to Hipchat room "Oncall"
     ...
 
+*Default values for variables*
+
+Tokens and Contexts can have default values specified after a pipe `|` in the variable name. Example with tokens:
+
+*sleeper.json*
+
+.. code-block:: json
+
+    { "actor": "misc.Sleep",
+      "desc": "Sleeping because %DESC%",
+      "options": {
+        "sleep": "%SLEEP|60%"
+      }
+    }
+
 *Deep Nested Tokens and Macros (new in 0.4.0)*
 
 In order to allow for more complex Kingpin script definitions with

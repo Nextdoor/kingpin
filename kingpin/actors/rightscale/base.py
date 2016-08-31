@@ -213,6 +213,38 @@ class RightScaleBaseActor(base.BaseActor):
         yield self._client.delete_resource_tags(resource, tags)
 
     @gen.coroutine
+    def _ensure_tags(self, res, tags):
+        """Ensures that a set of tags are applied to a RightScale resource.
+
+        Args:
+            res: The resource object itself
+            tags: A list of strings, or a single string as a tag.
+        """
+        if isinstance(tags, basestring):
+            tags = [tags]
+
+        if not res.href:
+            # Must be a mocked-out MCI, meaning its brand new, meaning it has
+            # no tags. Definitely set them.
+            yield self._add_resource_tags(resource=res, tags=tags)
+            self.changed = True
+            raise gen.Return()
+
+        existing_tags = yield self._get_resource_tags(res)
+        new_tags = tags
+
+        # What tags should we add, delete?
+        to_delete = list(set(existing_tags) - set(new_tags))
+        to_add = list(set(new_tags) - set(existing_tags))
+
+        if to_delete:
+            yield self._delete_resource_tags(resource=res, tags=to_delete)
+            self.changed = True
+        if to_add:
+            yield self._add_resource_tags(resource=res, tags=to_add)
+            self.changed = True
+
+    @gen.coroutine
     def _log_account_name(self, *args, **kwargs):
         """Logs out the name of the RightScale account."""
         if not RightScaleBaseActor.account_name:
@@ -227,3 +259,20 @@ class RightScaleBaseActor(base.BaseActor):
         yield self._log_account_name()
         ret = yield super(RightScaleBaseActor, self).execute(*args, **kwargs)
         raise gen.Return(ret)
+
+
+class EnsurableRightScaleBaseActor(
+        RightScaleBaseActor, base.EnsurableBaseActor):
+
+    """Hacky way to re-use the RightScaleBaseActor but make it ensurable."""
+
+    def __init__(self, *args, **kwargs):
+        """Initializes the Actor."""
+        super(RightScaleBaseActor, self).__init__(*args, **kwargs)
+
+        if not TOKEN:
+            raise exceptions.InvalidCredentials(
+                'Missing the "RIGHTSCALE_TOKEN" environment variable.')
+
+        self._client = api.RightScale(token=TOKEN, endpoint=ENDPOINT)
+        self._gather_methods()

@@ -34,3 +34,15 @@ Multi Cloud Images
 .. automodule:: kingpin.actors.rightscale
    :noindex:
    :members: MCI
+
+Right Scripts
+^^^^^^^^^^^^^^^^^^
+.. automodule:: kingpin.actors.rightscale
+   :noindex:
+   :members: RightScript
+
+Server Templates
+^^^^^^^^^^^^^^^^^^
+.. automodule:: kingpin.actors.rightscale
+   :noindex:
+   :members: ServerTemplate

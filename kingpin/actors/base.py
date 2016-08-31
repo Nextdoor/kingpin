@@ -31,6 +31,7 @@ any live changes. It is up to the developer of the Actor to define what
 'dry' mode looks like for that particular action.
 """
 
+import inspect
 import json
 import logging
 import os
@@ -44,7 +45,7 @@ from tornado import httputil
 from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.utils import timer
-from kingpin.constants import REQUIRED
+from kingpin.constants import REQUIRED, STATE
 
 log = logging.getLogger(__name__)
 
@@ -496,6 +497,197 @@ class BaseActor(object):
 
         # If we got here, we're exiting the actor cleanly and moving on.
         raise gen.Return(result)
+
+
+class EnsurableBaseActor(BaseActor):
+
+    """Base Class for Actors that "ensure" the state of a resource.
+
+    Many of our actors have a goal of ensuring that a particular resource is in
+    a given state. This leads to a ton of boiler plate code to "get" the state
+    of something, "compare" that to the desired state, and then maybe "set" the
+    state.
+
+    This actor provides a framework allowing the user to simply write the
+    getters and setters (and optionally compare), and lets the rest of the
+    actor handle the order of operations.
+
+    **Required Methods:**
+
+      :`_set_state`: Creates or destroys the resource depending on
+                      the 'state' parameter that was passed in.
+
+                      *Note: The 'state' parameter is automatically added to
+                      the options. You do not need to define it.*
+      :`_get_state`: Gets the current state of the resource.
+      :`_set_[option]`: A 'setter' for each option name passed in.
+      :`_get_[option]`: A 'getter' for each option name passed in.
+
+    **Optional Methods:**
+
+      :`_precache`: Called before any setters/getters are triggered. Used
+                       to optionally populate a cache of data to make the
+                       getters faster. For example, if you can make one API
+                       call to get all of the data about a resource, then
+                       store that data locally for fast access.
+
+      :`_compare_[option]`: Optionally you can write your own comparison
+                               method if you're not doing a pure string
+                               comparison between the source and destination.
+
+    **Examples**
+
+    .. code-block:: python
+
+        class MyClass(base.EnsurableBaseActor):
+
+            all_options = {
+                'name': (str, REQUIRED, 'Name of thing'),
+                'description': (str, None, 'Description of thing')
+            }
+
+            unmanaged_options = ['name']
+
+            @gen.coroutine
+            def _set_state(self):
+                if self.option('state') == 'absent':
+                    yield self.conn.delete_resource(
+                        name=self.option('name'))
+                else:
+                    yield self.conn.create_resource(
+                        name=self.option('name'),
+                        desc=self.option('description'))
+
+            @gen.coroutine
+            def _set_description(self):
+                yield self.conn.set_desc_of_resource(
+                    name=self.option('name'),
+                    desc=self.option('description'))
+
+            @gen.coroutine
+            def _get_description(self):
+                yield self.conn.get_desc_of_resource(
+                    name=self.option('name'))
+    """
+
+    # A list of option names that are _not_ automatically managed. These are
+    # useful if you have special behaviors like 'commit' on change, or if you
+    # have parameters that are unmutable ('name').
+    unmanaged_options = []
+
+    def __init__(self, *args, **kwargs):
+        # The 'state' parameter is a given, so make sure its set,
+        self.all_options['state'] = (
+            STATE, 'present', 'Desired state: present or absent')
+
+        # Now go ahead and validate all of the user inputs the normal way
+        super(EnsurableBaseActor, self).__init__(*args, **kwargs)
+
+        # Generate a list of options that will be ensured ...
+        self._ensurable_options = self.all_options.keys()
+        for option in self.unmanaged_options:
+            self._ensurable_options.remove(option)
+
+        # Finally, do a class validation... make sure that we have actual
+        # getter/setter methods for each of the options. This populates dicts
+        # that provide references to the actual methods for execution later.
+        self._gather_methods()
+
+    def _gather_methods(self):
+        """Generates pointers to the Getter and Setter methods.
+
+        Walks through the list of options in self.all_options and discovers the
+        pointers to the getter/setter methods. If any are missing, throws an
+        exception quickly.
+        """
+        self.setters = {}
+        self.getters = {}
+        self.comparers = {}
+        for option in self._ensurable_options:
+            setter = '_set_%s' % option
+            getter = '_get_%s' % option
+            comparer = '_compare_%s' % option
+
+            if not self._is_method(getter) or not self._is_method(setter):
+                raise exceptions.UnrecoverableActorFailure(
+                    'Invalid Actor Code Detected in %s: '
+                    'Unable to find required methods: %s, %s'
+                    % (self.__class__.__name__, setter, getter))
+
+            if not self._is_method(comparer):
+                @gen.coroutine
+                def _comparer(option=option):
+                    existing = yield self.getters[option]()
+                    new = self.option(option)
+                    raise gen.Return(existing == new)
+                setattr(self, comparer, _comparer)
+                # self.log.debug('Creating dynamic method %s' % comparer)
+
+            self.setters[option] = getattr(self, setter)
+            self.getters[option] = getattr(self, getter)
+            self.comparers[option] = getattr(self, comparer)
+
+    def _is_method(self, name):
+        return hasattr(self, name) and inspect.ismethod(getattr(self, name))
+
+    @gen.coroutine
+    def _precache(self):
+        """Override this method to pre-cache data in your actor.
+
+        This method can be overridden to go off and pre-fetch data for your
+        actors _set and _get methods. This helps if you can execute a single
+        API call that gets most of the data you need, before any of the actual
+        get/set operations take place.
+        """
+        raise gen.Return()
+
+    @gen.coroutine
+    def _get_state(self):
+        raise NotImplementedError('_get_state is required for Ensurable')
+
+    @gen.coroutine
+    def _set_state(self):
+        raise NotImplementedError('_set_state is required for Ensurable')
+
+    @gen.coroutine
+    def _ensure(self, option):
+        """Compares the desired state with the actual state of a resource.
+
+        Uses the getter for a resource option to determine its current state,
+        and then compares it with the desired state. Generally does a simple
+        string comparison of the states, but user can optionally define their
+        own comparison mechanism as well.
+
+        If the states do not match, then the setter method is called.
+        """
+        equals = yield self.comparers[option]()
+
+        if equals:
+            self.log.debug('Option "%s" matches' % option)
+            raise gen.Return()
+
+        self.log.debug('Option "%s" DOES NOT match, calling setter' % option)
+        yield self.setters[option]()
+
+    @gen.coroutine
+    def _execute(self):
+        """A pretty simple execution pipeline for the actor.
+
+        Note: An OrderedDict can be used instead of a plain dict when order
+        actually matters for the option setting.
+        """
+        yield self._precache()
+
+        yield self._ensure('state')
+
+        if self.option('state') == 'absent':
+            raise gen.Return()
+
+        for option in self._ensurable_options:
+            # We've already managed state .. so make sure we skip the state
+            # option and only manage the others.
+            if option != 'state':
+                yield self._ensure(option)
 
 
 class HTTPBaseActor(BaseActor):

@@ -33,6 +33,20 @@ class TestUtils(unittest.TestCase):
         result = utils.populate_with_tokens(string, tokens)
         self.assertEquals(result, expect)
 
+    def test_populate_with_values_not_default(self):
+        tokens = {'UNIT_TEST': 'FOOBAR', 'SECOND_UNIT': 'BARBAR'}
+        string = 'Unit %UNIT_TEST|DEFAULT% Test %SECOND_UNIT|DEFAULT2%'
+        expect = 'Unit FOOBAR Test BARBAR'
+        result = utils.populate_with_tokens(string, tokens)
+        self.assertEquals(result, expect)
+
+    def test_populate_with_default(self):
+        tokens = {'OTHER': 'TOKEN'}
+        string = 'Unit %UNIT_TEST|DEFAULT% Test %SECOND_UNIT|1.2,3;4-5%'
+        expect = 'Unit DEFAULT Test 1.2,3;4-5'
+        result = utils.populate_with_tokens(string, tokens)
+        self.assertEquals(result, expect)
+
     def test_populate_with_unicode_env(self):
         tokens = {'UNIT_TEST': u'FOOBAR'}
         string = 'Unit %UNIT_TEST% Test'
@@ -125,12 +139,19 @@ class TestUtils(unittest.TestCase):
             utils.convert_script_to_dict(instance, {})
 
     def test_exception_logger(self):
-        @utils.exception_logger
-        def raises_exc():
-            raise Exception('Whoa')
+        patch = mock.patch.object(utils.logging, 'getLogger')
+        with patch as logger:
+            reload(utils)
 
-        with self.assertRaises(Exception):
-            raises_exc()
+            @utils.exception_logger
+            def raises_exc():
+                raise Exception('Whoa')
+
+            with self.assertRaises(Exception):
+                raises_exc()
+
+            self.assertEquals(1, logger().debug.call_count)
+            logger().debug.assert_called_with(mock.ANY, exc_info=1)
 
 
 class TestSetupRootLoggerUtils(unittest.TestCase):
