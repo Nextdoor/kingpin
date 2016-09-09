@@ -514,6 +514,23 @@ class TestAlertSpecsBase(testing.AsyncTestCase):
         self.assertTrue(self.actor.alert_actors[1]._precache.called)
 
     @testing.gen_test
+    def test_precache_only_one_returned(self):
+        wanted_fake_spec = mock.MagicMock(name='wanted_fake_spec')
+        wanted_fake_spec.soul = {
+            'name': 'high load alarm'
+        }
+        self.client_mock.find_by_name_and_keys.side_effect = [
+            helper.tornado_value(wanted_fake_spec)
+        ]
+        with mock.patch.object(alerts, "AlertSpecBase") as a_mock:
+            a_mock()._precache.side_effect = [helper.tornado_value(None)]
+            yield self.actor._precache()
+
+        self.assertEquals(1, len(self.actor.alert_actors))
+
+        self.assertTrue(self.actor.alert_actors[0]._precache.called)
+
+    @testing.gen_test
     def test_get_state(self):
         ret = yield self.actor._get_state()
         self.assertEquals(None, ret)

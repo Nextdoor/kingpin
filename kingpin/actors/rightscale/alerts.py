@@ -678,6 +678,8 @@ class AlertSpecsBase(base.EnsurableRightScaleBaseActor):
         all_resource_specs = yield self._client.find_by_name_and_keys(
             self._client._client.alert_specs, exact=True,
             subject_href=self.option('href'))
+        if not isinstance(all_resource_specs, list):
+            all_resource_specs = [all_resource_specs]
 
         # Now quickly compare this list to the list of desired specs. For each
         # one thats found that doesn't match, create a new AlertSpecBase actor

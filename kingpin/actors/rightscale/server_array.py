@@ -377,13 +377,10 @@ class Update(ServerArrayBaseActor):
                       (array.soul['name'], self._params))
         try:
             yield self._client.update(array, self._params)
+        except api.RightScaleError as e:
+            raise exceptions.RecoverableActorFailure(e)
         except requests.exceptions.HTTPError as e:
-            if e.response.status_code in (422, 400):
-                msg = ('Invalid parameters supplied to patch array "%s"' %
-                       self.option('array'))
-                raise exceptions.RecoverableActorFailure(msg)
-
-            raise exceptions.ActorException(e)
+            raise exceptions.UnrecoverableActorFailure(e)
 
         raise gen.Return()
 
@@ -558,12 +555,10 @@ class UpdateNextInstance(ServerArrayBaseActor):
 
         try:
             yield self._client.update(instance, rs_params)
+        except api.RightScaleError as e:
+            raise exceptions.RecoverableActorFailure(e)
         except requests.exceptions.HTTPError as e:
-            if e.response.status_code in (422, 400):
-                msg = ('Invalid parameters supplied to patch array "%s"' %
-                       self.option('array'))
-                raise exceptions.RecoverableActorFailure(msg)
-            raise
+            raise exceptions.UnrecoverableActorFailure(e)
 
         raise gen.Return()
 
