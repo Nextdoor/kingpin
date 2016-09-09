@@ -640,6 +640,8 @@ class TestServerTemplateActor(testing.AsyncTestCase):
                  ('runnable_binding[sequence]', 'boot')]),
         ])
 
+        self.assertTrue(self.actor.changed)
+
     @testing.gen_test
     def test_ensure_mci_default_already_matches(self):
         yield self.actor._ensure_mci_default()
