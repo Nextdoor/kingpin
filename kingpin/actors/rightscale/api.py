@@ -80,6 +80,11 @@ DEFAULT_ENDPOINT = 'https://my.rightscale.com'
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
+class RightScaleError(Exception):
+
+    """Raised when the RightScale API returns a specific error"""
+
+
 def rightscale_error_logger(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -90,7 +95,7 @@ def rightscale_error_logger(func):
                       % (func.__name__, args, kwargs, e))
 
             if hasattr(e, 'response') and hasattr(e.response, 'text'):
-                log.error('RightScale Response: %s' % e.response.text)
+                raise RightScaleError('RightScale Error: %s' % e.response.text)
 
             raise
     return wrapper
@@ -843,7 +848,7 @@ class RightScale(object):
             try:
                 result = yield task
                 yielded_tasks.append((i, result))
-            except requests.exceptions.HTTPError as e:
+            except (requests.exceptions.HTTPError, RightScaleError) as e:
                 msg = ('Failed to queue execution on %s: %s' %
                        (i.soul['name'], e))
                 exceptions_caught.append(msg)

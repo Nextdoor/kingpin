@@ -199,26 +199,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         error = requests.exceptions.HTTPError(msg, response=mocked_response)
         self.client_mock.update.side_effect = error
 
-        with self.assertRaises(exceptions.ActorException):
-            yield self.actor._execute()
-
-        self.client_mock.update.assert_called_once_with(
-            mocked_array, [('server_array[name]', 'newunitarray')])
-
-    @testing.gen_test
-    def test_execute_400_error(self):
-        mocked_array = mock.MagicMock(name='unittestarray')
-
-        self.actor._check_array_inputs = mock_tornado(True)
-        self.actor._find_server_arrays = mock_tornado(mocked_array)
-
-        msg = '400 Client Error: Bad Request'
-        mocked_response = mock.MagicMock(name='response')
-        mocked_response.status_code = 400
-        error = requests.exceptions.HTTPError(msg, response=mocked_response)
-        self.client_mock.update.side_effect = error
-
-        with self.assertRaises(exceptions.RecoverableActorFailure):
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
             yield self.actor._execute()
 
         self.client_mock.update.assert_called_once_with(
@@ -231,10 +212,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.actor._check_array_inputs = mock_tornado(True)
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
-        msg = '422 Client Error: Unprocessable Entity'
-        mocked_response = mock.MagicMock(name='response')
-        mocked_response.status_code = 422
-        error = requests.exceptions.HTTPError(msg, response=mocked_response)
+        error = api.RightScaleError('error doing thing')
         self.client_mock.update.side_effect = error
 
         with self.assertRaises(exceptions.RecoverableActorFailure):
@@ -341,29 +319,7 @@ class TestUpdateNextInstanceActor(testing.AsyncTestCase):
         self.actor._find_def_image_href = mock_tornado('fake_href')
         self.actor._client.show.side_effect = mock_tornado(mocked_instance)
 
-        msg = '400 Client Error: Bad Request'
-        mocked_response = mock.MagicMock(name='response')
-        mocked_response.status_code = 400
-        error = requests.exceptions.HTTPError(msg, response=mocked_response)
-        self.client_mock.update.side_effect = error
-
-        with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._update_params(mocked_array)
-
-    @testing.gen_test
-    def test_update_params_422_error(self):
-        # Mock out our array object, and the next_instance. Then mock out the
-        # api.show() method to return the mocked instance. Verify that the
-        # right calls were made to the API though.
-        mocked_array = mock.MagicMock(name='unittestarray')
-        mocked_instance = mock.MagicMock(name='nextinstance')
-        self.actor._find_def_image_href = mock_tornado('fake_href')
-        self.actor._client.show.side_effect = mock_tornado(mocked_instance)
-
-        msg = '422 Client Error: Unprocessable Entity'
-        mocked_response = mock.MagicMock(name='response')
-        mocked_response.status_code = 422
-        error = requests.exceptions.HTTPError(msg, response=mocked_response)
+        error = api.RightScaleError('error')
         self.client_mock.update.side_effect = error
 
         with self.assertRaises(exceptions.RecoverableActorFailure):
@@ -385,7 +341,7 @@ class TestUpdateNextInstanceActor(testing.AsyncTestCase):
         error = requests.exceptions.HTTPError(msg, response=mocked_response)
         self.client_mock.update.side_effect = error
 
-        with self.assertRaises(requests.exceptions.HTTPError):
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
             yield self.actor._update_params(mocked_array)
 
     @testing.gen_test

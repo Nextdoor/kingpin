@@ -37,6 +37,16 @@ class TestRightScale(testing.AsyncTestCase):
         def raises_exc():
             raise requests.exceptions.HTTPError(response=response)
 
+        with self.assertRaises(api.RightScaleError):
+            raises_exc()
+
+    def test_exception_logger_with_no_text(self):
+        response = mock.MagicMock(name='fake_response', spec=[])
+
+        @api.rightscale_error_logger
+        def raises_exc():
+            raise requests.exceptions.HTTPError(response=response)
+
         with self.assertRaises(requests.exceptions.HTTPError):
             raises_exc()
 
