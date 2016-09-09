@@ -130,16 +130,6 @@ class TestLoadTaskDefinition(testing.AsyncTestCase):
             'containerDefinitions': [],
             'extra': 'read all about it'})
 
-    @testing.gen_test
-    def test_schema_fail_empty(self):
-        with self.assertRaises(exceptions.InvalidOptions):
-            self._test('')
-
-    @testing.gen_test
-    def test_schema_fail_none(self):
-        with self.assertRaises(exceptions.InvalidOptions):
-            self._test(None)
-
     def _test(self, task_definition):
         with mock.patch('kingpin.utils.convert_script_to_dict',
                         return_value=task_definition) as utils_convert_mock:
@@ -246,16 +236,6 @@ class TestLoadServiceDefinition(testing.AsyncTestCase):
         self._test({
             'other stuff': 0,
             'extra': 'read all about it'})
-
-    @testing.gen_test
-    def test_schema_fail_empty(self):
-        with self.assertRaises(exceptions.InvalidOptions):
-            self._test('')
-
-    @testing.gen_test
-    def test_schema_fail_none(self):
-        with self.assertRaises(exceptions.InvalidOptions):
-            self._test(None)
 
     @testing.gen_test
     def test_default(self):

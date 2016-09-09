@@ -17,7 +17,6 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 """
 
-import jsonschema
 import logging
 import operator
 import uuid
@@ -42,142 +41,6 @@ class ECSAPIException(exceptions.RecoverableActorFailure):
 
 class ECSTaskFailedException(exceptions.RecoverableActorFailure):
     """A failure from an ECS Task."""
-
-# http://boto3.readthedocs.io/en/latest/reference/services/ecs.html
-TASK_DEFINITION_SCHEMA = {
-    'type': 'object',
-    'required': ['family', 'containerDefinitions'],
-    'properties': {
-        'family': {'type': 'string'},
-        'containerDefinitions': {
-            'type': 'array',
-            'items': {
-                'type': 'object',
-                'properties': {
-                    'name': {'type': 'string'},
-                    'image': {'type': 'string'},
-                    'cpu': {'type': 'number'},
-                    'memory': {'type': 'number'},
-                    'memoryReservation': {'type': 'number'},
-                    'links': {
-                        'type': 'array',
-                        'items': {'type': 'string'}
-                    },
-                    'portMappings': {
-                        'type': 'array',
-                        'items': {
-                            'type': 'object',
-                            'properties': {
-                                'containerPort': {'type': 'number'},
-                                'hostPort': {'type': 'number'},
-                                'protocol': {'type': 'string'}
-                            }
-                        }
-                    },
-                    'essential': {'type': 'boolean'},
-                    'entryPoint': {
-                        'type': 'array',
-                        'items': {'type': 'string'}
-                    },
-                    'command': {
-                        'type': 'array',
-                        'items': {'type': 'string'}
-                    },
-                    'environment': {
-                        'type': 'array',
-                        'items': {
-                            'type': 'object',
-                            'properties': {
-                                'name': {'type': 'string'},
-                                'value': {'type': 'string'}
-                            }
-                        }
-                    },
-                    'mountPoints': {
-                        'type': 'array',
-                        'items': {
-                            'type': 'object',
-                            'properties': {
-                                'sourceVolume': {'type': 'string'},
-                                'containerPath': {'type': 'string'},
-                                'readOnly': {'type': 'boolean'}
-                            }
-                        }
-                    },
-                    'volumesFrom': {
-                        'type': 'array',
-                        'items': {
-                            'type': 'object',
-                            'properties': {
-                                'sourceContainer': {'type': 'string'},
-                                'readOnly': {'type': 'boolean'}
-                            }
-                        }
-                    },
-                    'hostname': {'type': 'string'},
-                    'user': {'type': 'string'},
-                    'workingDirectory': {'type': 'string'},
-                    'disableNetworking': {'type': 'boolean'},
-                    'privileged': {'type': 'boolean'},
-                    'readonlyRootFilesystem': {'type': 'boolean'},
-                    'dnsServers': {
-                        'type': 'array',
-                        'items': {'type': 'string'}
-                    },
-                    'dnsSearchDomains': {
-                        'type': 'array',
-                        'items': {'type': 'string'}
-                    },
-                    'extraHosts': {
-                        'type': 'array',
-                        'items': {
-                            'type': 'object',
-                            'properties': {
-                                'hostname': {'type': 'string'},
-                                'ipAddress': {'type': 'string'}
-                            }
-                        }
-                    },
-                    'dockerSecurityOptions': {
-                        'type': 'array',
-                        'items': {'type': 'string'}
-                    },
-                    'dockerLabels': {'type': 'object'},
-                    'ulimits': {
-                        'type': 'array',
-                        'items': {
-                            'type': 'object',
-                            'required': ['name', 'softLimit', 'hardLimit'],
-                            'properties': {
-                                'name': {'type': 'string'},
-                                'softLimit': {'type': 'number'},
-                                'hardLimit': {'type': 'number'}
-                            }
-                        }
-                    },
-                    'logConfiguration': {'type': 'object'},
-                    'logDriver': {'type': 'string'},
-                    'options': {'type': 'object'}
-                }
-            }
-        },
-        'volumes': {
-            'type': 'array',
-            'items': {
-                'type': 'object',
-                'properties': {
-                    'name': {'type': 'string'},
-                    'host': {
-                        'type': 'object',
-                        'properties': {
-                            'sourcePath': {'type': 'string'}
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 
 class ECSBaseActor(base.AWSBaseActor):
@@ -315,8 +178,7 @@ class ECSBaseActor(base.AWSBaseActor):
 
     @staticmethod
     def _load_task_definition(task_definition_file, tokens):
-        """Loads and verifies a task definition template file, and interpolates
-        tokens.
+        """Loads a task definition template file and interpolates tokens.
 
         Args:
             task_definition_file: task definition file to load.
@@ -325,19 +187,12 @@ class ECSBaseActor(base.AWSBaseActor):
         Returns:
             Resulting task definition dict.
         """
-        task_definition = utils.convert_script_to_dict(
-            task_definition_file, tokens)
-        try:
-            jsonschema.validate(task_definition,
-                                TASK_DEFINITION_SCHEMA)
-        except jsonschema.exceptions.ValidationError as e:
-            raise exceptions.InvalidOptions(e)
-        return task_definition
+        return utils.convert_script_to_dict(task_definition_file, tokens)
 
     @staticmethod
     def _load_service_definition(service_definition_file, tokens):
-        """Loads and verifies a service definition template file, and interpolates
-        tokens. The service definition template file can be None.
+        """Loads a service definition template file and interpolates tokens.
+        The service definition template file can be None.
 
         Args:
             service_definition_file: service definition file to load.
@@ -352,12 +207,6 @@ class ECSBaseActor(base.AWSBaseActor):
         else:
             service_definition = utils.convert_script_to_dict(
                 service_definition_file, tokens)
-            try:
-                jsonschema.validate(service_definition,
-                                    SERVICE_DEFINITION_SCHEMA)
-
-            except jsonschema.exceptions.ValidationError as e:
-                raise exceptions.InvalidOptions(e)
 
         # Set default values.
         service_definition.setdefault(
@@ -587,33 +436,6 @@ class RunTask(ECSBaseActor):
             self.log.info('Not waiting for tasks to complete')
 
 
-# http://boto3.readthedocs.io/en/latest/reference/services/ecs.html
-SERVICE_DEFINITION_SCHEMA = {
-    'type': 'object',
-    'properties': {
-        'loadBalancers': {
-            'type': 'array',
-            'items': {
-                'type': 'object',
-                'properties': {
-                    'loadBalancerName': {'type': 'string'},
-                    'containerName': {'type': 'string'},
-                    'containerPort': {'type': 'number'},
-                }
-            }
-        },
-        'role': {'type': 'string'},
-        'deploymentConfiguration': {
-            'type': 'object',
-            'properties': {
-                'maximumPercent': {'type': 'number'},
-                'minimumHealthyPercent': {'type': 'number'},
-            }
-        }
-    }
-}
-
-
 class Service(ECSBaseActor):
     """Register and run a service on ECS.
 
@@ -682,7 +504,7 @@ class Service(ECSBaseActor):
 
     **Dry Mode**
 
-    Will only validate and interpolate tokens into both the
+    Will only interpolate tokens into both the
     task and service definition files.
     """
 
