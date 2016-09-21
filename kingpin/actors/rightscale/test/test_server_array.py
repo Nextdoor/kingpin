@@ -633,7 +633,7 @@ class TestLaunchActor(testing.AsyncTestCase):
         array_mock = mock.MagicMock(name='unittest')
         array_mock.soul = {
             'name': 'unittest',
-            'elasticity_params': {'bounds': {'min_count': '4'}}}
+            'elasticity_params': {'bounds': {'max_count': '4'}}}
 
         server_list = []
 
@@ -663,7 +663,7 @@ class TestLaunchActor(testing.AsyncTestCase):
         array_mock = mock.MagicMock(name='unittest')
         array_mock.soul = {
             'name': 'unittest',
-            'elasticity_params': {'bounds': {'min_count': '4'}}}
+            'elasticity_params': {'bounds': {'max_count': '4'}}}
 
         server_list = []
 
@@ -689,7 +689,7 @@ class TestLaunchActor(testing.AsyncTestCase):
         array_mock = mock.MagicMock(name='unittest')
         array_mock.soul = {
             'name': 'unittest',
-            'elasticity_params': {'bounds': {'min_count': '4'}}}
+            'elasticity_params': {'bounds': {'max_count': '4'}}}
 
         launch = mock_tornado()
         self.client_mock.launch_server_array.side_effect = launch
@@ -710,7 +710,7 @@ class TestLaunchActor(testing.AsyncTestCase):
         self.client_mock.launch_server_array.assert_has_calls(
             [mock.call(array_mock, count=2)])
 
-        # Regular function call more arrays than min_count
+        # Regular function call more arrays than max_count
         self.client_mock.get_server_array_current_instances = mock_tornado([
             1, 2, 3, 4, 5])
         self.client_mock.launch_server_array.reset_mock()

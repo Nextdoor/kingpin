@@ -855,7 +855,7 @@ class Launch(ServerArrayBaseActor):
 
     Launches instances in an existing ServerArray and waits until that array
     has become healthy before returning. *Healthy* means that the array has at
-    least the user-specified ``count`` or ``min_count`` number of instances
+    least the user-specified ``count`` or ``max_count`` number of instances
     running as defined by the array definition in RightScale.
 
     **Options**
@@ -863,7 +863,7 @@ class Launch(ServerArrayBaseActor):
     :array:
       (str) The name of the ServerArray to launch
     :count:
-      (str, int) Optional number of instance to launch. Defaults to min_count
+      (str, int) Optional number of instance to launch. Defaults to max_count
       of the array.
     :success_pct':
       (str, int) Optional percent (0-100) to wait for instances to launch
@@ -939,7 +939,7 @@ class Launch(ServerArrayBaseActor):
         'array': (str, REQUIRED, 'ServerArray name to launch'),
         'count': (
             (int, str), False,
-            "Number of server to launch. Default: up to array's min count"),
+            "Number of server to launch. Default: up to array's max count"),
         'success_pct': (
             (int, str), 100,
             '% of servers to wait for. Default: 100% of `count`.'),
@@ -961,7 +961,7 @@ class Launch(ServerArrayBaseActor):
 
     @gen.coroutine
     def _wait_until_healthy(self, array, sleep=60):
-        """Sleep until a server array has its min_count servers running.
+        """Sleep until a server array has its max_count servers running.
 
         This loop monitors the server array for its current live instance count
         and waits until the count hits zero before progressing.
@@ -977,20 +977,20 @@ class Launch(ServerArrayBaseActor):
                           % array.soul['name'])
             raise gen.Return()
 
-        min_count = float(self.option('count'))
+        max_count = int(self.option('count'))
         success_pct = float(self.option('success_pct'))
-        if not min_count:
-            min_count = int(array.soul['elasticity_params']
-                            ['bounds']['min_count'])
+        if not max_count:
+            max_count = int(array.soul['elasticity_params']
+                            ['bounds']['max_count'])
 
-        enough_count = int(math.ceil(min_count * (success_pct / 100.0)))
+        enough_count = int(math.ceil(max_count * (success_pct / 100.0)))
 
         while True:
             instances = yield self._client.get_server_array_current_instances(
                 array, filters=['state==operational'])
             count = len(instances)
             self.log.info('%s instances found, waiting for %s/%s' %
-                          (count, enough_count, min_count))
+                          (count, enough_count, max_count))
 
             if count >= enough_count:
                 raise gen.Return()
@@ -1003,7 +1003,7 @@ class Launch(ServerArrayBaseActor):
         """Launch new instances in a specified array.
 
         Instructs RightScale to launch instances, specified amount, or array's
-        autoscaling 'min' value, in a syncronous or async way.
+        autoscaling 'max' value, in a syncronous or async way.
 
         TODO: Ensure that if 'count' is supplied, its *added* to the current
         array 'server instance count'. This allows the actor to launch 10 new
@@ -1012,20 +1012,20 @@ class Launch(ServerArrayBaseActor):
 
         Args:
             array - rightscale ServerArray object
-            count - `False` to use array's _min_ value
+            count - `False` to use array's _max_ value
                     `int` to launch a specific number of instances
         """
         if not count:
-            # Get the current min_count setting from the ServerArray object
-            min_count = int(
-                array.soul['elasticity_params']['bounds']['min_count'])
+            # Get the current max_count setting from the ServerArray object
+            max_count = int(
+                array.soul['elasticity_params']['bounds']['max_count'])
 
             instances = yield self._client.get_server_array_current_instances(
                 array, filters=['state==operational'])
             current_count = len(instances)
 
-            # Launch *up to* min_count. Not *new* min_count.
-            count = min_count - current_count
+            # Launch *up to* max_count. Not *new* max_count.
+            count = max_count - current_count
 
             # Silly sanity check. If count < 0, set it to 0. There is no
             # concept of launching "negative" instance counts.
@@ -1040,7 +1040,7 @@ class Launch(ServerArrayBaseActor):
         if count < 1:
             self.log.warning((
                 'This array already has %s instances, and '
-                'min_count is set to %s') % (current_count, min_count))
+                'max_count is set to %s') % (current_count, max_count))
             raise gen.Return()
 
         self.log.info('Launching %s instances of array %s' % (
@@ -1085,7 +1085,7 @@ class Launch(ServerArrayBaseActor):
                           int(self.option('count')))
 
         # Now, wait until the number of healthy instances in the array matches
-        # the min_count (or is greater than) of that array.
+        # the max_count (or is greater than) of that array.
         yield self._apply(self._wait_until_healthy, arrays)
         raise gen.Return()
 
