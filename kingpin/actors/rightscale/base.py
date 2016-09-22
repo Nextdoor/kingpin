@@ -127,7 +127,8 @@ class RightScaleBaseActor(base.BaseActor):
 
                 # Fake out common server array object properties
                 'name': '<mocked array %s>' % array_name,
-                'elasticity_params': {'bounds': {'min_count': 4}}
+                'elasticity_params': {'bounds': {'min_count': 4,
+                                                 'max_count': 4}}
             }
             array.self.path = '/fake/array/%s' % randint(10000, 20000)
             array.self.show.return_value = array
