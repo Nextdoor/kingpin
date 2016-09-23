@@ -742,7 +742,10 @@ class Service(ECSBaseActor):
             service_name: service name to describe.
 
         Returns:
-            Service param dict, or None if the service does not exist.
+            Service param dict.
+
+        Raises:
+            RecoverableActorFailure if number of services found is not 1.
         """
         response = yield self.thread(
             self.ecs_conn.describe_services,
@@ -753,13 +756,12 @@ class Service(ECSBaseActor):
         services = response['services']
 
         # There should never be more than one service for a given name.
-        if len(services) > 1:
+        if len(services) != 1:
             raise exceptions.RecoverableActorFailure(
-                'API returned more than one service for {name}'.format(
-                    name=service_name))
+                'API returned {count} services for {name}'.format(
+                    count=len(services), name=service_name))
 
-        if services:
-            raise gen.Return(services[0])
+        raise gen.Return(services[0])
 
     @staticmethod
     def _get_primary_deployment(service):

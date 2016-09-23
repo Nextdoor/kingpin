@@ -656,14 +656,16 @@ class TestDescribeService(testing.AsyncTestCase):
             'services': []}
 
         service_name1 = 'service_name1'
-        yield self.actor._describe_service(service_name1)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._describe_service(service_name1)
         self.actor.ecs_conn.describe_services.assert_called_with(
             cluster=self.actor.option('cluster'),
             services=[service_name1])
 
         service_name2 = 'service_name2'
         self.actor._options['cluster'] = 'cluster'
-        yield self.actor._describe_service(service_name2)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._describe_service(service_name2)
         self.actor.ecs_conn.describe_services.assert_called_with(
             cluster=self.actor.option('cluster'),
             services=[service_name2])
@@ -677,7 +679,8 @@ class TestDescribeService(testing.AsyncTestCase):
             'failures': failures,
             'services': []}
 
-        yield self.actor._describe_service(service_name)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._describe_service(service_name)
         self.actor._handle_failures.assert_called_with(
             failures,
             ecs_actor.ECSBaseActor.FAILURE_MISSING)
@@ -687,7 +690,8 @@ class TestDescribeService(testing.AsyncTestCase):
             'failures': failures,
             'services': []}
 
-        yield self.actor._describe_service(service_name)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._describe_service(service_name)
         self.actor._handle_failures.assert_called_with(
             failures,
             ecs_actor.ECSBaseActor.FAILURE_MISSING)
@@ -699,8 +703,8 @@ class TestDescribeService(testing.AsyncTestCase):
             'services': []}
 
         service_name = 'service_name'
-        result = yield self.actor._describe_service(service_name)
-        self.assertEqual(result, None)
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._describe_service(service_name)
 
     @testing.gen_test
     def test_one_service(self):
