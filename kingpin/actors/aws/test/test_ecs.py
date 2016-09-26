@@ -939,11 +939,11 @@ class TestEnsureService(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_create(self):
-        self.actor._describe_service = helper.mock_tornado(None)
+        self.actor._describe_service = mock.Mock(side_effect=(
+            ecs_actor.ServiceNotFound, ecs_actor.ServiceNotFound, {}))
         yield self.actor._ensure_service(
             service_name=self.service_name,
             task_definition_name=self.task_definition_name)
-        self.assertEqual(self.actor._describe_service._call_count, 2)
         self.assertEqual(self.actor._create_service._call_count, 1)
         self.assertEqual(self.actor._update_service._call_count, 0)
 
@@ -954,7 +954,6 @@ class TestEnsureService(testing.AsyncTestCase):
         yield self.actor._ensure_service(
             service_name=self.service_name,
             task_definition_name=self.task_definition_name)
-        self.assertEqual(self.actor._describe_service._call_count, 2)
         self.assertEqual(self.actor._create_service._call_count, 1)
         self.assertEqual(self.actor._update_service._call_count, 0)
 
@@ -966,7 +965,6 @@ class TestEnsureService(testing.AsyncTestCase):
         yield self.actor._ensure_service(
             service_name=self.service_name,
             task_definition_name=self.task_definition_name)
-        self.assertEqual(self.actor._describe_service._call_count, 2)
         self.assertEqual(self.actor._create_service._call_count, 0)
         self.assertEqual(self.actor._update_service._call_count, 1)
         self.assertEqual(self.actor._check_immutable_field_errors.call_count,
@@ -1005,7 +1003,6 @@ class TestEnsureService(testing.AsyncTestCase):
         yield self.actor._ensure_service(
             service_name=self.service_name,
             task_definition_name=self.task_definition_name)
-        self.assertEqual(self.actor._describe_service._call_count, 4)
         self.assertEqual(self.actor._create_service._call_count, 0)
         self.assertEqual(self.actor._update_service._call_count, 1)
         self.assertEqual(self.actor._check_immutable_field_errors.call_count,

@@ -43,6 +43,11 @@ class ECSAPIException(exceptions.RecoverableActorFailure):
 class ECSTaskFailedException(exceptions.RecoverableActorFailure):
     """A failure from an ECS Task."""
 
+
+class ServiceNotFound(exceptions.RecoverableActorFailure):
+    """Failure to find an ECS Service."""
+
+
 # http://boto3.readthedocs.io/en/latest/reference/services/ecs.html
 TASK_DEFINITION_SCHEMA = {
     'type': 'object',
@@ -757,7 +762,7 @@ class Service(ECSBaseActor):
 
         # There should never be more than one service for a given name.
         if len(services) != 1:
-            raise exceptions.RecoverableActorFailure(
+            raise ServiceNotFound(
                 'API returned {count} services for {name}'.format(
                     count=len(services), name=service_name))
 
@@ -898,7 +903,10 @@ class Service(ECSBaseActor):
             service_name: service_name to use.
             task_definition_name: Task Definition string.
         """
-        existing_service = yield self._describe_service(service_name)
+        try:
+            existing_service = yield self._describe_service(service_name)
+        except ServiceNotFound:
+            existing_service = None
 
         if not existing_service or existing_service['status'] == 'INACTIVE':
             # Generate a 32 character uuid for the client token.
@@ -917,8 +925,16 @@ class Service(ECSBaseActor):
         repeating_log = utils.create_repeating_log(
             self.log.info,
             'Waiting for primary deployment to be updated...', seconds=30)
+
         while True:
-            service = yield self._describe_service(service_name)
+            try:
+                service = yield self._describe_service(service_name)
+            except ServiceNotFound:
+                yield gen.sleep(2)
+            else:
+                break
+
+        while True:
             primary_deployment = self._get_primary_deployment(service)
             if primary_deployment and self._is_task_in_deployment(
                     primary_deployment, task_definition_name):
