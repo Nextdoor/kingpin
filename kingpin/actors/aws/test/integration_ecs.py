@@ -185,12 +185,12 @@ class IntegrationECS(testing.AsyncTestCase):
         name, task = self._hanging_task()
         with self._tmp_file(task) as definition:
             actor = ecs.Service(
-                'Scaling service %s to count 5' % name,
+                'Scaling service %s to count 2' % name,
                 {'region': self.region,
                  'cluster': self.cluster,
                  'task_definition': definition,
                  'service_name': '%s_%s' % (name, '03'),
-                 'count': 5})
+                 'count': 2})
         yield actor.execute()
 
     @attr('aws', 'integration')

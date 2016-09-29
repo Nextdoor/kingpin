@@ -172,11 +172,11 @@ class TestBase(testing.AsyncTestCase):
         self.assertEquals(ret, None)
 
     @testing.gen_test
-    def test_diff_policy_json(self):
+    def test_diff_dicts(self):
         actor = base.AWSBaseActor('Unit Test Action', {})
 
         p1 = {'a': 'a', 'b': 'b'}
         p2 = {'a': 'a', 'c': 'c'}
 
-        self.assertEquals(None, actor._diff_policy_json(p1, p1))
-        self.assertNotEquals(None, actor._diff_policy_json(p1, p2))
+        self.assertEquals(None, actor._diff_dicts(p1, p1))
+        self.assertNotEquals(None, actor._diff_dicts(p1, p2))

@@ -32,8 +32,10 @@ _Note, these can be skipped only if you have a .aws/credentials file in place._
   Your AWS secret
 """
 
+import difflib
 import json
 import logging
+import pprint
 import urllib
 import re
 
@@ -41,7 +43,6 @@ from boto import exception as boto_exception
 from boto import utils as boto_utils
 from boto.s3.connection import OrdinaryCallingFormat
 from boto3 import exceptions as boto3_exceptions
-from datadiff import diff
 from retrying import retry
 from tornado import concurrent
 from tornado import gen
@@ -310,23 +311,26 @@ class AWSBaseActor(base.BaseActor):
 
         return p_doc
 
-    def _diff_policy_json(self, policy1, policy2):
-        """Compares two dicts and returns True/False.
+    def _diff_dicts(self, dict1, dict2):
+        """Compares two dicts and returns the difference as a string,
+        if there is any.
 
         Sorts two dicts (including sorting of the lists!!) and then diffs them.
 
         args:
-            policy1: First policy (a)
-            policy2: Second policy (b)
+            dict1: First dict
+            dict2: Second dict
 
         returns:
-            None: No diff
-            Str: A diff string
+            A diff string if there's any difference, otherwise None.
         """
-        policy1 = utils.order_dict(policy1)
-        policy2 = utils.order_dict(policy2)
+        dict1 = utils.order_dict(dict1)
+        dict2 = utils.order_dict(dict2)
 
-        if policy1 == policy2:
+        if dict1 == dict2:
             return
 
-        return str(diff(policy1, policy2))
+        dict1 = pprint.pformat(dict1).splitlines()
+        dict2 = pprint.pformat(dict2).splitlines()
+
+        return '\n'.join(difflib.unified_diff(dict1, dict2, n=2))

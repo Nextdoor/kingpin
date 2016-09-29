@@ -541,7 +541,7 @@ class Bucket(S3BaseActor):
 
         # Now, diff our new policy from the existing policy. If there is no
         # difference, then we bail out of the method.
-        diff = self._diff_policy_json(exist, new)
+        diff = self._diff_dicts(exist, new)
         if not diff:
             self.log.debug('Bucket policy matches')
             raise gen.Return()
@@ -733,7 +733,7 @@ class Bucket(S3BaseActor):
         # Now sort through the existing Lifecycle configuration and the one
         # that we've built locally. If there are any differences, we're going
         # to push an all new config.
-        diff = self._diff_policy_json(
+        diff = self._diff_dicts(
             json.loads(jsonpickle.encode(existing)),
             json.loads(jsonpickle.encode(self.lifecycle)))
         if diff:

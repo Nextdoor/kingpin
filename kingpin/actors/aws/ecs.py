@@ -20,7 +20,6 @@
 import jsonschema
 import logging
 import operator
-import uuid
 
 from tornado import gen
 
@@ -275,8 +274,8 @@ class ECSBaseActor(base.AWSBaseActor):
         Args:
             **kwargs: Args to pass to the paginator.
 
-        Returns: List of task definition arns.
-
+        Returns:
+            List of task definition arns.
         """
         paginator = self.ecs_conn.get_paginator('list_task_definitions')
         task_definitions = []
@@ -288,6 +287,25 @@ class ECSBaseActor(base.AWSBaseActor):
             task_definitions += page['taskDefinitionArns']
 
         return task_definitions
+
+    @gen.coroutine
+    @dry('Would describe task definition {0}')
+    def _describe_task_definition(self, task_definition_name):
+        """Describes the given task definition.
+
+        Args:
+            task_definition_name: Task Definition string.
+
+        Returns:
+            Task Definition description dict.
+        """
+        self.log.info('Describing task definition {}'.format(
+            task_definition_name))
+        task_definition = yield self.thread(
+            self.ecs_conn.describe_task_definition,
+            taskDefinition=task_definition_name)
+
+        raise gen.Return(task_definition['taskDefinition'])
 
     @gen.coroutine
     @dry('Would list task definitions')
@@ -324,14 +342,18 @@ class ECSBaseActor(base.AWSBaseActor):
         tokens.
 
         Args:
-            task_definition_file: task definition file to load.
+            task_definition_file: task definition file to load, or None.
             tokens: dict of key/value pairs to interpolate into the file.
 
         Returns:
-            Resulting task definition dict.
+            Resulting task definition dict or
+                None if task_definition_file is None.
         """
+        if not task_definition_file:
+            return None
         task_definition = utils.convert_script_to_dict(
             task_definition_file, tokens)
+
         try:
             jsonschema.validate(task_definition,
                                 TASK_DEFINITION_SCHEMA)
@@ -370,6 +392,34 @@ class ECSBaseActor(base.AWSBaseActor):
         service_definition.setdefault(
             'deploymentConfiguration', {})
         return service_definition
+
+    @staticmethod
+    def _arn_to_name(arn):
+        """Gets the name in an arn.
+
+        Example input:
+            arn:aws:ecs:region:account-id:task-definition/name:135
+        Example output:
+            name:135
+
+        Args:
+            arn: The arn to process.
+
+        Returns:
+            The name.
+        """
+        return arn[arn.index('/') + 1:]
+
+    def _format_location(self):
+        """Get a formatted location describing where this actor is running
+        for logging.
+
+        Returns:
+            Formatted location string with region and cluster.
+        """
+        return "'{}', cluster '{}'".format(
+            self.option('region'),
+            self.option('cluster'))
 
 
 class RunTask(ECSBaseActor):
@@ -475,7 +525,7 @@ class RunTask(ECSBaseActor):
 
         utils.clear_repeating_log(repeating_log)
 
-        self.log.info('Scheduled task {}'.format(task_definition_name))
+        self.log.info('Scheduled task {}.'.format(task_definition_name))
         tasks = [t['taskArn'] for t in response['tasks']]
         raise gen.Return(tasks)
 
@@ -528,26 +578,26 @@ class RunTask(ECSBaseActor):
                 stopped_count += 1
                 task_id = container['taskArn']
                 if 'reason' in container:
-                    self.log.warning('Error reason for {}: {}'.format(
+                    self.log.warning('Error reason for {}: {}.'.format(
                         task_id, container['reason']))
                 exit_code = container.get('exitCode', None)
                 if exit_code is None:
                     raise ECSTaskFailedException(
-                        'Task {} stopped without executing'.format(
+                        'Task {} stopped without executing.'.format(
                             task_id))
                 if exit_code != 0:
                     raise ECSTaskFailedException(
-                        'Task {} errored out with exit code {}'.format(
+                        'Task {} errored out with exit code {}.'.format(
                             task_id, exit_code))
                 self.log.info('Task {} finished successfully!'.format(
                     task_id))
 
         if stopped_count == total_count:
-            self.log.info('All {} tasks finished'.format(total_count))
+            self.log.info('All {} tasks finished.'.format(total_count))
             raise gen.Return(True)
 
         self.log.info(
-            '{stopped} tasks finished out of {total}'.format(
+            '{stopped} tasks finished out of {total}.'.format(
                 stopped=stopped_count,
                 total=total_count))
         raise gen.Return(False)
@@ -589,7 +639,7 @@ class RunTask(ECSBaseActor):
         if self.option('wait'):
             yield self._wait_for_tasks(tasks)
         else:
-            self.log.info('Not waiting for tasks to complete')
+            self.log.info('Not waiting for tasks to complete.')
 
 
 # http://boto3.readthedocs.io/en/latest/reference/services/ecs.html
@@ -641,6 +691,7 @@ class Service(ECSBaseActor):
       String of path to the Task Definition file template.
       Must be a local file path.
       Tokens to be interpolated must be of the form %VAR%.
+      Default: None.
 
     :service_definition:
       String of path to the Service Definition file template.
@@ -654,6 +705,7 @@ class Service(ECSBaseActor):
     :service_name:
       Service name to use. If not specified, this will use
       the Task Definition's family.
+      Necessary if there is no given Task Definition.
       Default: None.
 
     :tokens:
@@ -698,7 +750,7 @@ class Service(ECSBaseActor):
         'cluster': (str, REQUIRED,
                     'ECS cluster in the region to launch the task into.'),
         'task_definition':
-            (str, REQUIRED,
+            (str, None,
              'String of path to the Task Definition file template. '
              'Must be a local file path. '
              'Tokens to be interpolated must be of the form %VAR%.'),
@@ -713,7 +765,8 @@ class Service(ECSBaseActor):
         'service_name':
             (str, None,
              'Service name to use. If not specified, this will use '
-             "the Task Definition's family."),
+             "the Task Definition's family."
+             'Necessary if there is no given Task Definition.'),
         'tokens': (dict, {},
                    'A dictionary of key/value pairs '
                    'used to fill in the tokens for the Task and Service '
@@ -747,7 +800,7 @@ class Service(ECSBaseActor):
             service_name: service name to describe.
 
         Returns:
-            Service param dict.
+            Service description dict.
 
         Raises:
             RecoverableActorFailure if number of services found is not 1.
@@ -773,7 +826,8 @@ class Service(ECSBaseActor):
         """Gets the primary deployment from a service.
 
         Args:
-            service: service dict to get the primary deployment from.
+            service: Result of _describe_service
+                to get the primary deployment from.
 
         Returns:
             Primary deployment dict, or None if there is no primary deployment.
@@ -787,141 +841,13 @@ class Service(ECSBaseActor):
         return primary_deployment
 
     @gen.coroutine
-    @dry('Would create service')
-    def _create_service(self, service_name, task_definition_name,
-                        client_token):
-        """Create a service.
+    def _wait_for_deployment_update(self, service_name, task_definition_name):
+        """Wait's for a service's primary deployment to be updated.
 
         Args:
-            service_name: service name to use.
-            task_definition_name: Task Definition string.
-            client_token: uuid for the service creation.
+            service_name: Service name to wait for.
+            task_definition_name: Expected Task Definition string.
         """
-        create_parameters = dict(
-            cluster=self.option('cluster'),
-            serviceName=service_name,
-            taskDefinition=task_definition_name,
-            desiredCount=self.option('count'),
-            clientToken=client_token,
-            **self.service_definition)
-
-        self.log.info('Creating service')
-
-        yield self.thread(
-            self.ecs_conn.create_service,
-            **create_parameters)
-
-    @gen.coroutine
-    @dry('Would update service')
-    def _update_service(self, service_name, task_definition_name, override=()):
-        """Update a service.
-
-        Args:
-            service_name: service name to use.
-            task_definition_name: Task Definition string.
-        """
-        deployment_configuration = self.service_definition[
-            'deploymentConfiguration']
-        update_parameters = dict(
-            cluster=self.option('cluster'),
-            service=service_name,
-            taskDefinition=task_definition_name,
-            desiredCount=self.option('count'),
-            deploymentConfiguration=deployment_configuration)
-
-        update_parameters.update(override)
-
-        self.log.info('Updating service...')
-        self.log.debug('Service parameters: %s' % update_parameters)
-
-        yield self.thread(
-            self.ecs_conn.update_service,
-            **update_parameters)
-
-        self.log.info('Finished updating service.')
-
-    @gen.coroutine
-    @dry('Would stop service')
-    def _stop_service(self, service_name, task_definition_name):
-        """Stop all the tasks in a service.
-
-        Args:
-            service_name: name of the service to stop.
-            task_definition_name: Task Definition string.
-        """
-        self.log.info('Shutting down all current tasks in %s' % service_name)
-        yield self._update_service(service_name, task_definition_name,
-                                   override={'desiredCount': 0})
-        yield self._wait_for_service_update(service_name, task_definition_name)
-        self.log.info('Service {} stopped successfully'.format(
-            service_name))
-
-    @gen.coroutine
-    @dry('Would delete service')
-    def _delete_service(self, service_name, service_description,
-                        task_definition_name, deregister=True):
-        """Delete a service.
-
-        This also deregisters task definitions with the same family.
-
-        Args:
-            service_name: name of the service to delete.
-            service_description: service description,
-                given by describe_service.
-            task_definition_name: Task Definition string.
-            deregister: Whether to deregister related Task Definitions.
-        """
-        status = service_description['status']
-        if status != 'ACTIVE':
-            # Either DRAINING or INACTIVE
-            self.log.info(
-                'Service {} is already not active: is {}.'.format(
-                    service_name, status))
-        else:
-            yield self._stop_service(service_name, task_definition_name)
-            yield self.thread(self.ecs_conn.delete_service,
-                              cluster=self.option('cluster'),
-                              service=service_name)
-        if deregister:
-            task_definitions = yield self._list_task_definitions(
-                status='ACTIVE',
-                family_prefix=service_name)
-            for task_definition in task_definitions:
-                yield self._deregister_task_definition(task_definition)
-
-    @gen.coroutine
-    @dry('Would ensure the service is registered')
-    def _ensure_service(self, service_name, task_definition_name):
-        """Registers a service.
-
-        This handles the logic of either:
-            1) Creating a new service if it doesn't exist.
-            or
-            2) Updating the existing service.
-
-        Args:
-            service_name: service_name to use.
-            task_definition_name: Task Definition string.
-        """
-        try:
-            existing_service = yield self._describe_service(service_name)
-        except ServiceNotFound:
-            existing_service = None
-
-        if not existing_service or existing_service['status'] == 'INACTIVE':
-            # Generate a 32 character uuid for the client token.
-            client_token = str(uuid.uuid4())
-            yield self._create_service(service_name, task_definition_name,
-                                       client_token)
-
-        elif existing_service:
-            self._check_immutable_field_errors(
-                old_params=existing_service,
-                new_params=self.service_definition,
-                immutable_fields=['loadBalancers', 'role'])
-
-            yield self._update_service(service_name, task_definition_name)
-
         repeating_log = utils.create_repeating_log(
             self.log.info,
             'Waiting for primary deployment to be updated...', seconds=30)
@@ -938,12 +864,174 @@ class Service(ECSBaseActor):
             primary_deployment = self._get_primary_deployment(service)
             if primary_deployment and self._is_task_in_deployment(
                     primary_deployment, task_definition_name):
-                self.log.info('Primary deployment updated')
+                self.log.info('Primary deployment updated.')
                 break
             yield gen.sleep(2)
 
         utils.clear_repeating_log(repeating_log)
-        raise gen.Return()
+
+    @gen.coroutine
+    def _is_task_definition_different(self, old_task_definition_name,
+                                      new_task_definition_name):
+        """Checks if the actor's task definition is different
+        than the given service's.
+
+        Args:
+            old_task_definition_name: Task Definition string of the
+                old task definition.
+            new_task_definition_name: Task Definition string of the
+                new task definition.
+
+        Returns:
+            A boolean which is true if there are no differences.
+        """
+        old_task_definition = yield self._describe_task_definition(
+            old_task_definition_name)
+        new_task_definition = yield self._describe_task_definition(
+            new_task_definition_name)
+        del new_task_definition['revision']
+        del new_task_definition['taskDefinitionArn']
+        del old_task_definition['revision']
+        del old_task_definition['taskDefinitionArn']
+        raise gen.Return(old_task_definition != new_task_definition)
+
+    @gen.coroutine
+    @dry('Would create service')
+    def _create_service(self, service_name):
+        """Create a service.
+
+        Args:
+            service_name: Service name to use.
+
+        Returns:
+            task_definition_name: Task Definition string that was registered.
+        """
+        # Need to register a new task definition and deploy.
+        task_definition_name = yield self._register_task(
+            self.task_definition)
+
+        create_parameters = dict(
+            cluster=self.option('cluster'),
+            serviceName=service_name,
+            taskDefinition=task_definition_name,
+            desiredCount=self.option('count'),
+            **self.service_definition)
+
+        self.log.info('Creating service.')
+
+        yield self.thread(
+            self.ecs_conn.create_service,
+            **create_parameters)
+
+        yield self._wait_for_deployment_update(service_name,
+                                               task_definition_name)
+        self.log.info('Finished creating service.')
+        raise gen.Return(task_definition_name)
+
+    @gen.coroutine
+    @dry('Would update service')
+    def _update_service(self, service_name, existing_service, override=None):
+        """Update a service.
+
+        Args:
+            service_name: Service name to use.
+            existing_service: Result of _describe_service
+                on the existing service.
+            override: List of tuples of key:value to override.
+
+        Returns:
+            Task Definition string that was updated or registered.
+        """
+        deployment_configuration = self.service_definition[
+            'deploymentConfiguration']
+        update_parameters = dict(
+            cluster=self.option('cluster'),
+            service=service_name,
+            deploymentConfiguration=deployment_configuration,
+            desiredCount=self.option('count'))
+
+        task_definition_name = yield self._register_task(
+            self.task_definition)
+        is_new_task_definition = yield self._is_task_definition_different(
+            self._arn_to_name(existing_service['taskDefinition']),
+            task_definition_name)
+        if is_new_task_definition:
+            self.log.info(
+                'The task definition is different, using the new one.')
+            # Need to use the new task definition.
+            update_parameters.update({'taskDefinition': task_definition_name})
+        else:
+            self.log.info(
+                'The task definition is the same, using the old one.')
+            yield self._deregister_task_definition(task_definition_name)
+            task_definition_name = self._arn_to_name(
+                existing_service['taskDefinition'])
+
+        if override is not None:
+            update_parameters.update(override)
+
+        self.log.info('Updating service.')
+
+        yield self.thread(
+            self.ecs_conn.update_service,
+            **update_parameters)
+
+        if is_new_task_definition:
+            yield self._wait_for_deployment_update(service_name,
+                                                   task_definition_name)
+        self.log.info('Finished updating service')
+        raise gen.Return(task_definition_name)
+
+    @gen.coroutine
+    @dry('Would stop service')
+    def _stop_service(self, service_name, existing_service):
+        """Stop all the tasks in a service.
+
+        Args:
+            service_name: name of the service to stop.
+            existing_service: result of _describe_service on the given
+                service name.
+        """
+        task_definition_name = self._arn_to_name(
+            existing_service['taskDefinition'])
+        self.log.info('Shutting down all current tasks in %s.' % service_name)
+        yield self._update_service(service_name, existing_service,
+                                   override={'desiredCount': 0})
+        yield self._wait_for_service_update(service_name, task_definition_name)
+        self.log.info('Service {} stopped successfully.'.format(service_name))
+
+    @gen.coroutine
+    @dry('Would delete service')
+    def _delete_service(self, service_name, existing_service,
+                        deregister=True):
+        """Delete a service.
+
+        This also deregisters task definitions with the same family
+        unless deregister is False.
+
+        Args:
+            service_name: name of the service to delete.
+            existing_service: result of _describe_service on the given
+                service name.
+            deregister: Whether to deregister related Task Definitions.
+        """
+        status = existing_service['status']
+        if status != 'ACTIVE':
+            # Either DRAINING or INACTIVE
+            self.log.info(
+                'Service {} is already not active, is {}.'.format(
+                    service_name, status))
+        else:
+            yield self._stop_service(service_name, existing_service)
+            yield self.thread(self.ecs_conn.delete_service,
+                              cluster=self.option('cluster'),
+                              service=service_name)
+        if deregister:
+            task_definition_names = yield self._list_task_definitions(
+                status='ACTIVE',
+                family_prefix=service_name)
+            for task_definition_name in task_definition_names:
+                yield self._deregister_task_definition(task_definition_name)
 
     def _is_task_in_deployment(self, primary_deployment, task_definition_name):
         """Checks whether the given task definition is in the deployment.
@@ -954,7 +1042,7 @@ class Service(ECSBaseActor):
             task_definition_name: Task Definition string to look for.
 
         Returns:
-            Boolean indicating whether the deployment has the task definition.
+            A boolean, true if the deployment has the task definition.
         """
         return task_definition_name == self._arn_to_name(
             primary_deployment['taskDefinition'])
@@ -998,7 +1086,7 @@ class Service(ECSBaseActor):
         if has_error:
             raise exceptions.RecoverableActorFailure(
                 'Immutable fields cannot be updated. '
-                'A new service must be created')
+                'A new service must be created.')
 
     @gen.coroutine
     @dry('Would wait for service to update its state successfully')
@@ -1054,7 +1142,7 @@ class Service(ECSBaseActor):
                     self._arn_to_name(primary_deployment['taskDefinition']),
                     task_definition_name))
 
-        service_timestamp = primary_deployment['createdAt']
+        service_timestamp = primary_deployment['updatedAt']
 
         sorted_new_events = self._get_sorted_new_log_events(
             events=service['events'],
@@ -1062,7 +1150,8 @@ class Service(ECSBaseActor):
 
         for event in sorted_new_events:
             event_timestamp, event_message = event
-            self.log.info('Event: {}'.format(event_message))
+            self.log.info('Event [{}]: {}'.format(event_timestamp,
+                                                  event_message))
 
         running_count = primary_deployment['runningCount']
         desired_count = primary_deployment['desiredCount']
@@ -1075,7 +1164,7 @@ class Service(ECSBaseActor):
 
         self.log.info(
             '{} tasks running out of {}, '
-            'and {} deployments waiting on termination'.format(
+            'and {} deployments waiting on termination.'.format(
                 running_count, desired_count, extra_deployment_count))
         raise gen.Return(False)
 
@@ -1110,59 +1199,96 @@ class Service(ECSBaseActor):
         # Sort events on timestamp.
         return sorted(new_events, key=operator.itemgetter(0))
 
-    @staticmethod
-    def _arn_to_name(arn):
-        """Gets the name in an arn.
-
-        Example input:
-            arn:aws:ecs:region:account-id:task-definition/name:135
-        Example output:
-            name:135
+    @gen.coroutine
+    @dry('Would ensure the service is absent')
+    def _ensure_service_absent(self, service_name, existing_service):
+        """Ensures a service is absent.
 
         Args:
-            arn: The arn to process.
-
-        Returns:
-            The name.
+            service_name: service name to use.
+            existing_service:
+                Result of _describe_service on the given service name.
         """
-        return arn[arn.index('/') + 1:]
+        if existing_service:
+            yield self._delete_service(
+                service_name, existing_service,
+                deregister=self.option('deregister_task_definitions'))
+            self.log.info(
+                'Service {} deleted successfully in {}.'.format(
+                    service_name, self._format_location()))
+        else:
+            self.log.info(
+                'Service {} already absent in {}.'.format(
+                    service_name, self._format_location()))
+
+    @gen.coroutine
+    @dry('Would ensure the service is present')
+    def _ensure_service_present(self, service_name, existing_service):
+        """Ensures a service is present.
+
+        Args:
+            service_name: service name to use.
+            existing_service:
+                Result of _describe_service on the given service name.
+        """
+        service_is_active = (existing_service and
+                             existing_service['status'] != 'INACTIVE')
+        if not service_is_active and not self.task_definition:
+            # Without a task definition,
+            # we can only update an existing service.
+            self.log.error(
+                'Could not find service with name {} to update '
+                'in {}.'.format(
+                    service_name, self._format_location()))
+            raise exceptions.RecoverableActorFailure(
+                'Cannot update non-existant service.')
+
+        if service_is_active:
+            # Service already exists - update it.
+            # Ensure no immutable fields were mutated.
+            self._check_immutable_field_errors(
+                old_params=existing_service,
+                new_params=self.service_definition,
+                immutable_fields=['loadBalancers', 'role'])
+            task_definition_name = yield self._update_service(service_name,
+                                                              existing_service)
+        else:
+            task_definition_name = yield self._create_service(service_name)
+
+        if self.option('wait'):
+            yield self._wait_for_service_update(
+                service_name, task_definition_name)
+            self.log.info(
+                'Service {} updated successfully in {}.'.format(
+                    service_name, self._format_location()))
+        else:
+            self.log.info(
+                'Not waiting for service {} to finish updating '
+                'in {}.'.format(
+                    service_name, self._format_location()))
 
     @gen.coroutine
     def _execute(self):
+        # Get service name
+        if self.task_definition:
+            service_name = (
+                self.option('service_name') or
+                self.task_definition['family'])
+        else:
+            service_name = self.option('service_name')
+
+        if not service_name:
+            raise exceptions.RecoverableActorFailure(
+                'Either service_name or task_definition must be provided.')
+        # Get existing service
+        try:
+            existing_service = yield self._describe_service(service_name)
+        except ServiceNotFound:
+            existing_service = None
+
+        # Ensure state
         desired_state = self.option('state')
         if desired_state == 'present':
-            info_log = 'Deploying service from {} in ECS.'
-        else:
-            info_log = 'Deleting service from {} in ECS.'
-        info_log += ' Region: {}, cluster: {}'
-        self.log.info(info_log.format(
-            self.option('task_definition'), self.option('region'),
-            self.option('cluster')))
-
-        task_definition_name = yield self._register_task(
-            self.task_definition)
-
-        family = self.task_definition['family']
-
-        service_name = self.option('service_name') or family
-
-        if desired_state == 'present':
-            yield self._ensure_service(service_name, task_definition_name)
-            if self.option('wait'):
-                yield self._wait_for_service_update(
-                    service_name, task_definition_name)
-                self.log.info(
-                    'Service {} deployed successfully.'.format(service_name))
-            else:
-                self.log.info(
-                    'Not waiting for service {} to be deployed.'.format(
-                        service_name))
-        else:
-            service_description = yield self._describe_service(service_name)
-            if service_description:
-                yield self._delete_service(
-                    service_name, service_description, task_definition_name,
-                    deregister=self.option('deregister_task_definitions'))
-            else:
-                self.log.info(
-                    'Service {} already absent.'.format(service_name))
+            yield self._ensure_service_present(service_name, existing_service)
+        elif desired_state == 'absent':
+            yield self._ensure_service_absent(service_name, existing_service)
