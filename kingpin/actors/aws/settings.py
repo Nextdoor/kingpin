@@ -37,7 +37,7 @@ AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', None)
 SQS_RETRY_DELAY = 30
 
 ECS_RETRY_ATTEMPTS = 3
-ECS_RETRY_DELAY = 30
+ECS_RETRY_DELAY = 5
 
 
 # Common Settings for the retrying.retry() decorator

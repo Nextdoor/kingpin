@@ -140,6 +140,10 @@ class TestLoadTaskDefinition(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidOptions):
             self._test(None)
 
+    @testing.gen_test
+    def test_none_task_definition(self):
+        self.assertEqual(self.actor._load_task_definition(None, {}), None)
+
     def _test(self, task_definition):
         with mock.patch('kingpin.utils.convert_script_to_dict',
                         return_value=task_definition) as utils_convert_mock:
@@ -163,6 +167,29 @@ class TestDeregisterTaskDefinition(testing.AsyncTestCase):
         yield self.actor._deregister_task_definition(task_definition_name)
         self.assertEqual(
             self.actor.ecs_conn.deregister_task_definition.call_count, 1)
+
+
+class TestDescribeTaskDefinition(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestDescribeTaskDefinition, self).setUp()
+        reload(ecs_actor)
+        self.actor = ecs_actor.ECSBaseActor()
+        self.actor.ecs_conn = mock.Mock()
+
+    @testing.gen_test
+    def test_call(self):
+        task_definition = {'family': 'family'}
+        task_definition_name = 'task_definition'
+        self.actor.ecs_conn.describe_task_definition.return_value = {
+            'taskDefinition': task_definition}
+        result = yield self.actor._describe_task_definition(
+            task_definition_name)
+        self.assertEqual(result, task_definition)
+
+        call_args = self.actor.ecs_conn.describe_task_definition.call_args
+        expected = ({'taskDefinition': task_definition_name},)
+        self.assertEqual(call_args, expected)
 
 
 class TestListTaskDefinitions(testing.AsyncTestCase):
@@ -645,6 +672,7 @@ class TestDescribeService(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestDescribeService, self).setUp()
+        reload(ecs_actor)
         self.actor = _mock_service_actor()
         self.actor.ecs_conn = mock.Mock()
         self.actor._handle_failures = mock.Mock()
@@ -728,26 +756,121 @@ class TestDescribeService(testing.AsyncTestCase):
             yield self.actor._describe_service(service_name1)
 
 
+class TestWaitForDeploymentUpdate(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestWaitForDeploymentUpdate, self).setUp()
+        reload(ecs_actor)
+        self.actor = _mock_service_actor()
+        self.actor.ecs_conn = mock.Mock()
+        gen.sleep = helper.mock_tornado()
+
+    def tearDown(self):
+        reload(gen)
+
+    @testing.gen_test
+    def test_slow_update(self):
+        @gen.coroutine
+        def service_not_found_once(*args, **kwargs):
+            service_not_found_once.call_count += 1
+            if service_not_found_once.call_count == 1:
+                raise ecs_actor.ServiceNotFound()
+            raise gen.Return({'status': 'ACTIVE'})
+
+        service_not_found_once.call_count = 0
+
+        def fail_twice(*args, **kwargs):
+            fail_twice.call_count += 1
+            if fail_twice.call_count > 2:
+                return {'taskDefinition': 'arn/family:1'}
+
+        fail_twice.call_count = 0
+
+        self.actor._get_primary_deployment = fail_twice
+        self.actor._describe_service = service_not_found_once
+
+        yield self.actor._wait_for_deployment_update(
+            service_name='service',
+            task_definition_name='family:1')
+        self.assertEqual(fail_twice.call_count, 3)
+
+
+class TestIsTaskDefinitionDifferent(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestIsTaskDefinitionDifferent, self).setUp()
+        reload(ecs_actor)
+        self.actor = _mock_service_actor()
+        self.actor.ecs_conn = mock.Mock()
+
+    @testing.gen_test
+    def test_same(self):
+        @gen.coroutine
+        def mock_describe_task_definition(*args, **kwargs):
+            mock_describe_task_definition.call_count += 1
+            if mock_describe_task_definition.call_count == 1:
+                raise gen.Return({
+                    'revision': 0,
+                    'taskDefinitionArn': 'arn/family:1',
+                    'family': 'family'
+                })
+            if mock_describe_task_definition.call_count == 2:
+                raise gen.Return({
+                    'revision': 0,
+                    'taskDefinitionArn': 'arn/family:2',
+                    'family': 'family'
+                })
+            if mock_describe_task_definition.call_count > 2:
+                self.fail('Called more than twice.')
+
+        mock_describe_task_definition.call_count = 0
+        self.actor._describe_task_definition = mock_describe_task_definition
+        diff = yield self.actor._is_task_definition_different('a', 'b')
+        self.assertEquals(diff, False)
+
+    @testing.gen_test
+    def test_different(self):
+        @gen.coroutine
+        def mock_describe_task_definition(*args, **kwargs):
+            mock_describe_task_definition.call_count += 1
+            if mock_describe_task_definition.call_count == 1:
+                raise gen.Return({
+                    'revision': 0,
+                    'taskDefinitionArn': 'arn/family:1',
+                    'family': 'family1'
+                })
+            if mock_describe_task_definition.call_count == 2:
+                raise gen.Return({
+                    'revision': 0,
+                    'taskDefinitionArn': 'arn/family:2',
+                    'family': 'family2'
+                })
+            if mock_describe_task_definition.call_count > 2:
+                self.fail('Called more than twice.')
+
+        mock_describe_task_definition.call_count = 0
+        self.actor._describe_task_definition = mock_describe_task_definition
+        diff = yield self.actor._is_task_definition_different('a', 'b')
+        self.assertEquals(diff, True)
+
+
 class TestCreateService(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestCreateService, self).setUp()
         self.actor = _mock_service_actor()
         self.actor.ecs_conn = mock.Mock()
+        self.actor._wait_for_deployment_update = helper.mock_tornado()
 
     @testing.gen_test
     def test_call(self):
         service_name = 'service_name'
         task_definition_name = 'family:1'
-        token = 'token'
+        self.actor._register_task = helper.mock_tornado(task_definition_name)
 
-        yield self.actor._create_service(
-            service_name=service_name,
-            task_definition_name=task_definition_name,
-            client_token=token)
+        yield self.actor._create_service(service_name=service_name)
         call_args = self.actor.ecs_conn.create_service.call_args
         expected = ({
-                    'clientToken': token,
                     'cluster': self.actor.option('cluster'),
                     'serviceName': service_name,
                     'taskDefinition': task_definition_name,
@@ -756,6 +879,7 @@ class TestCreateService(testing.AsyncTestCase):
         self.assertEqual(call_args, expected)
 
         task_definition_name = 'family:2'
+        self.actor._register_task = helper.mock_tornado(task_definition_name)
         self.actor._options['cluster'] = 'cluster'
         self.actor._options['count'] = 5
         extra = {
@@ -763,12 +887,8 @@ class TestCreateService(testing.AsyncTestCase):
             'test2': 'b'
         }
         self.actor.service_definition = extra
-        yield self.actor._create_service(
-            service_name=service_name,
-            task_definition_name=task_definition_name,
-            client_token=token)
+        yield self.actor._create_service(service_name=service_name)
         expected = ({
-                    'clientToken': token,
                     'cluster': self.actor.option('cluster'),
                     'serviceName': service_name,
                     'taskDefinition': task_definition_name,
@@ -778,24 +898,37 @@ class TestCreateService(testing.AsyncTestCase):
         call_args = self.actor.ecs_conn.create_service.call_args
         self.assertEqual(call_args, expected)
 
+        self.assertEqual(self.actor._wait_for_deployment_update._call_count, 2)
+
     @testing.gen_test
     def test_dry(self):
         self.actor._dry = True
-        yield self.actor._create_service(
-            service_name='',
-            family='',
-            revision='',
-            client_token='')
+        yield self.actor._create_service(service_name='')
         self.assertFalse(self.actor.ecs_conn.create_service.called)
 
     @testing.gen_test
     def test_internal_exception(self):
+        self.actor._register_task = helper.mock_tornado('family:1')
         self.actor.ecs_conn.create_service.side_effect = Boto3Error
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._create_service(
-                service_name='service_name',
-                task_definition_name='family:1',
-                client_token='token')
+            yield self.actor._create_service(service_name='service_name')
+
+
+class TestStopService(testing.AsyncTestCase):
+    def setUp(self):
+        super(TestStopService, self).setUp()
+        self.actor = _mock_service_actor()
+        self.actor.ecs_conn = mock.Mock()
+
+    @testing.gen_test
+    def test_call(self):
+        self.actor._update_service = helper.mock_tornado()
+        self.actor._wait_for_service_update = helper.mock_tornado()
+        yield self.actor._stop_service('service',
+                                       {'taskDefinition': 'arn/family:1'})
+
+        self.assertEquals(self.actor._update_service._call_count, 1)
+        self.assertEquals(self.actor._wait_for_service_update._call_count, 1)
 
 
 class TestDeleteService(testing.AsyncTestCase):
@@ -808,10 +941,11 @@ class TestDeleteService(testing.AsyncTestCase):
     def test_active(self):
         self.actor._update_service = helper.mock_tornado()
         self.actor._wait_for_service_update = helper.mock_tornado()
+        self.actor._stop_service = helper.mock_tornado()
         self.actor._list_task_definitions = helper.mock_tornado([1])
         self.actor._deregister_task_definition = helper.mock_tornado()
         yield self.actor._delete_service('service',
-                                         {'status': 'ACTIVE'}, 'task')
+                                         {'status': 'ACTIVE'})
         self.assertEquals(self.actor.ecs_conn.delete_service.call_count, 1)
         self.assertEqual(self.actor._deregister_task_definition._call_count, 1)
 
@@ -819,10 +953,11 @@ class TestDeleteService(testing.AsyncTestCase):
     def test_deregister_false(self):
         self.actor._update_service = helper.mock_tornado()
         self.actor._wait_for_service_update = helper.mock_tornado()
+        self.actor._stop_service = helper.mock_tornado()
         self.actor._list_task_definitions = helper.mock_tornado([1])
         self.actor._deregister_task_definition = helper.mock_tornado()
         yield self.actor._delete_service('service',
-                                         {'status': 'ACTIVE'}, 'task',
+                                         {'status': 'ACTIVE'},
                                          deregister=False)
         self.assertEquals(self.actor.ecs_conn.delete_service.call_count, 1)
         self.assertEqual(self.actor._deregister_task_definition._call_count, 0)
@@ -831,10 +966,11 @@ class TestDeleteService(testing.AsyncTestCase):
     def test_inactive(self):
         self.actor._update_service = helper.mock_tornado()
         self.actor._wait_for_service_update = helper.mock_tornado()
+        self.actor._stop_service = helper.mock_tornado()
         self.actor._list_task_definitions = helper.mock_tornado([1, 2])
         self.actor._deregister_task_definition = helper.mock_tornado()
         yield self.actor._delete_service('service',
-                                         {'status': 'INACTIVE'}, 'task')
+                                         {'status': 'INACTIVE'})
         self.assertEquals(self.actor.ecs_conn.delete_service.call_count, 0)
         self.assertEqual(self.actor._deregister_task_definition._call_count, 2)
 
@@ -842,10 +978,11 @@ class TestDeleteService(testing.AsyncTestCase):
     def test_draining(self):
         self.actor._update_service = helper.mock_tornado()
         self.actor._wait_for_service_update = helper.mock_tornado()
+        self.actor._stop_service = helper.mock_tornado()
         self.actor._list_task_definitions = helper.mock_tornado([1, 2])
         self.actor._deregister_task_definition = helper.mock_tornado()
         yield self.actor._delete_service('service',
-                                         {'status': 'DRAINING'}, 'task')
+                                         {'status': 'DRAINING'})
         self.assertEquals(self.actor.ecs_conn.delete_service.call_count, 0)
         self.assertEqual(self.actor._deregister_task_definition._call_count, 2)
 
@@ -860,40 +997,89 @@ class TestUpdateService(testing.AsyncTestCase):
     @testing.gen_test
     def test_call(self):
         service_name = 'service_name'
-        family = 'family'
-        revision = '1'
         configuration = 'configuration'
+        self.actor._register_task = helper.mock_tornado()
+        self.actor._is_task_definition_different = helper.mock_tornado(False)
         self.actor.service_definition = {
             'deploymentConfiguration': configuration,
             'extra': 'not included'}
 
         yield self.actor._update_service(
             service_name=service_name,
-            task_definition_name='{}:{}'.format(family, revision))
+            existing_service={'taskDefinition': 'arn/family:1'})
         call_args = self.actor.ecs_conn.update_service.call_args
         expected = ({
                     'cluster': self.actor.option('cluster'),
                     'service': service_name,
-                    'taskDefinition': '{0}:{1}'.format(family, revision),
                     'desiredCount': self.actor.option('count'),
                     'deploymentConfiguration': configuration
                     },)
         self.assertEqual(call_args, expected)
 
-        revision = '2'
         self.actor._options['cluster'] = 'cluster'
         self.actor._options['count'] = 5
         yield self.actor._update_service(
             service_name=service_name,
-            task_definition_name='{}:{}'.format(family, revision))
+            existing_service={'taskDefinition': 'arn/family:2'})
+        call_args = self.actor.ecs_conn.update_service.call_args
         expected = ({
                     'cluster': self.actor.option('cluster'),
                     'service': service_name,
-                    'taskDefinition': '{0}:{1}'.format(family, revision),
                     'desiredCount': self.actor.option('count'),
                     'deploymentConfiguration': configuration
                     },)
+        self.assertEqual(call_args, expected)
+        self.assertEqual(self.actor._register_task._call_count, 2)
+        self.assertEqual(self.actor._is_task_definition_different._call_count,
+                         2)
+
+    @testing.gen_test
+    def test_different_task_definition(self):
+        service_name = 'service_name'
+        configuration = 'configuration'
+        self.actor._register_task = helper.mock_tornado('arn/family:1')
+        self.actor._is_task_definition_different = helper.mock_tornado(True)
+        self.actor._wait_for_deployment_update = helper.mock_tornado()
+        self.actor.service_definition = {
+            'deploymentConfiguration': configuration,
+            'extra': 'not included'}
+
+        yield self.actor._update_service(
+            service_name=service_name,
+            existing_service={'taskDefinition': 'arn/family:1'})
         call_args = self.actor.ecs_conn.update_service.call_args
+        expected = ({
+                    'cluster': self.actor.option('cluster'),
+                    'service': service_name,
+                    'taskDefinition': 'arn/family:1',
+                    'desiredCount': self.actor.option('count'),
+                    'deploymentConfiguration': configuration
+                    },)
+        self.assertEqual(call_args, expected)
+
+        self.assertEqual(self.actor._wait_for_deployment_update._call_count, 1)
+
+    @testing.gen_test
+    def test_override(self):
+        service_name = 'service_name'
+        configuration = 'configuration'
+        self.actor._register_task = helper.mock_tornado()
+        self.actor._is_task_definition_different = helper.mock_tornado(False)
+        self.actor.service_definition = {
+            'deploymentConfiguration': configuration,
+            'extra': 'not included'}
+
+        yield self.actor._update_service(
+            service_name=service_name,
+            existing_service={'taskDefinition': 'arn/family:1'},
+            override={'desiredCount': 5})
+        call_args = self.actor.ecs_conn.update_service.call_args
+        expected = ({
+                    'cluster': self.actor.option('cluster'),
+                    'service': service_name,
+                    'desiredCount': 5,
+                    'deploymentConfiguration': configuration
+                    },)
         self.assertEqual(call_args, expected)
 
     @testing.gen_test
@@ -901,113 +1087,129 @@ class TestUpdateService(testing.AsyncTestCase):
         self.actor._dry = True
         yield self.actor._update_service(
             service_name='',
-            family='',
-            revision='')
+            existing_service=None)
         self.assertFalse(self.actor.ecs_conn.update_service.called)
 
     @testing.gen_test
     def test_internal_exception(self):
         self.actor.ecs_conn.update_service.side_effect = Boto3Error
+        self.actor._register_task = helper.mock_tornado()
+        self.actor._is_task_definition_different = helper.mock_tornado(False)
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._update_service(
                 service_name='service_name',
-                task_definition_name='family:1')
+                existing_service={'taskDefinition': 'arn/family:1'})
 
 
-class TestEnsureService(testing.AsyncTestCase):
+class TestEnsureServicePresent(testing.AsyncTestCase):
 
     def setUp(self):
-        super(TestEnsureService, self).setUp()
-
+        super(TestEnsureServicePresent, self).setUp()
+        reload(ecs_actor)
         self.actor = _mock_service_actor()
         self.actor.ecs_conn = mock.Mock()
         self.actor._create_service = helper.mock_tornado()
         self.actor._update_service = helper.mock_tornado()
         self.actor._check_immutable_field_errors = mock.Mock()
+        self.actor._wait_for_service_update = helper.mock_tornado()
         self.actor._get_primary_deployment = mock.Mock()
         self.actor._get_primary_deployment.return_value = {
             'taskDefinition': 'arn/family:1'}
-
-        gen.sleep = helper.mock_tornado()
 
         self.service_name = 'service_name'
         self.task_definition_name = 'family:1'
         self.start = datetime.datetime.now()
 
-    def tearDown(self):
-        reload(gen)
-
     @testing.gen_test
     def test_create(self):
-        self.actor._describe_service = mock.Mock(side_effect=(
-            ecs_actor.ServiceNotFound, ecs_actor.ServiceNotFound, {}))
-        yield self.actor._ensure_service(
+        yield self.actor._ensure_service_present(
             service_name=self.service_name,
-            task_definition_name=self.task_definition_name)
+            existing_service=None)
         self.assertEqual(self.actor._create_service._call_count, 1)
         self.assertEqual(self.actor._update_service._call_count, 0)
+        self.assertEqual(self.actor._wait_for_service_update._call_count, 1)
 
     @testing.gen_test
     def test_create_inactive(self):
-        self.actor._describe_service = helper.mock_tornado(
-            {'status': 'INACTIVE'})
-        yield self.actor._ensure_service(
+        yield self.actor._ensure_service_present(
             service_name=self.service_name,
-            task_definition_name=self.task_definition_name)
+            existing_service={'status': 'INACTIVE'})
         self.assertEqual(self.actor._create_service._call_count, 1)
         self.assertEqual(self.actor._update_service._call_count, 0)
+        self.assertEqual(self.actor._wait_for_service_update._call_count, 1)
 
     @testing.gen_test
     def test_update(self):
-        self.actor._describe_service = helper.mock_tornado(
-            {'status': 'ACTIVE'})
         self.actor._check_immutable_field_errors.return_value = []
-        yield self.actor._ensure_service(
+        yield self.actor._ensure_service_present(
             service_name=self.service_name,
-            task_definition_name=self.task_definition_name)
+            existing_service={'status': 'ACTIVE'})
         self.assertEqual(self.actor._create_service._call_count, 0)
         self.assertEqual(self.actor._update_service._call_count, 1)
         self.assertEqual(self.actor._check_immutable_field_errors.call_count,
                          1)
+        self.assertEqual(self.actor._wait_for_service_update._call_count, 1)
 
     @testing.gen_test
     def test_update_with_immutable_error(self):
-        self.actor._describe_service = helper.mock_tornado(
-            {'status': 'ACTIVE'})
         ex = exceptions.RecoverableActorFailure
         self.actor._check_immutable_field_errors.side_effect = ex
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._ensure_service(
+            yield self.actor._ensure_service_present(
                 service_name=self.service_name,
-                task_definition_name=self.task_definition_name)
-        self.assertEqual(self.actor._describe_service._call_count, 1)
+                existing_service={'status': 'ACTIVE'})
         self.assertEqual(self.actor._create_service._call_count, 0)
         self.assertEqual(self.actor._update_service._call_count, 0)
         self.assertEqual(self.actor._check_immutable_field_errors.call_count,
                          1)
+        self.assertEqual(self.actor._wait_for_service_update._call_count, 0)
 
     @testing.gen_test
-    def test_slow_update(self):
-        def fail_twice(*args, **kwargs):
-            fail_twice.call_count += 1
-            if fail_twice.call_count > 2:
-                return {'taskDefinition': 'arn/family:1'}
-            return None
+    def test_non_existant_update_error(self):
+        self.actor.task_definition = None
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._ensure_service_present(
+                service_name=self.service_name,
+                existing_service=None)
+        self.assertEqual(self.actor._create_service._call_count, 0)
+        self.assertEqual(self.actor._update_service._call_count, 0)
+        self.assertEqual(self.actor._check_immutable_field_errors.call_count,
+                         0)
+        self.assertEqual(self.actor._wait_for_service_update._call_count, 0)
 
-        fail_twice.call_count = 0
-
-        self.actor._get_primary_deployment = fail_twice
-
-        self.actor._describe_service = helper.mock_tornado(
-            {'status': 'ACTIVE'})
-        yield self.actor._ensure_service(
+    @testing.gen_test
+    def test_no_wait(self):
+        self.actor._options['wait'] = False
+        yield self.actor._ensure_service_present(
             service_name=self.service_name,
-            task_definition_name=self.task_definition_name)
+            existing_service={'status': 'ACTIVE'})
         self.assertEqual(self.actor._create_service._call_count, 0)
         self.assertEqual(self.actor._update_service._call_count, 1)
-        self.assertEqual(self.actor._check_immutable_field_errors.call_count,
-                         1)
-        self.assertEqual(fail_twice.call_count, 3)
+        self.assertEqual(self.actor._wait_for_service_update._call_count, 0)
+
+
+class TestEnsureServiceAbsent(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestEnsureServiceAbsent, self).setUp()
+        reload(ecs_actor)
+        self.actor = _mock_service_actor()
+        self.actor.ecs_conn = mock.Mock()
+        self.actor._delete_service = helper.mock_tornado()
+
+    @testing.gen_test
+    def test_existing(self):
+        yield self.actor._ensure_service_absent(
+            service_name='service',
+            existing_service={'family': 'family'})
+        self.assertEqual(self.actor._delete_service._call_count, 1)
+
+    @testing.gen_test
+    def test_absent(self):
+        yield self.actor._ensure_service_absent(
+            service_name='service',
+            existing_service=None)
+        self.assertEqual(self.actor._delete_service._call_count, 0)
 
 
 class TestWaitForServiceUpdate(testing.AsyncTestCase):
@@ -1090,6 +1292,7 @@ class TestIsServiceUpdated(testing.AsyncTestCase):
                 'status': 'PRIMARY',
                 'taskDefinition': 'arn/family:1',
                 'createdAt': self.start,
+                'updatedAt': self.start,
                 'runningCount': 1,
                 'desiredCount': 1}],
             'events': []})
@@ -1105,6 +1308,7 @@ class TestIsServiceUpdated(testing.AsyncTestCase):
                 'status': 'PRIMARY',
                 'taskDefinition': 'arn/family:1',
                 'createdAt': self.start,
+                'updatedAt': self.start,
                 'runningCount': 0,
                 'desiredCount': 1}],
             'events': []})
@@ -1120,6 +1324,7 @@ class TestIsServiceUpdated(testing.AsyncTestCase):
                 'status': 'PRIMARY',
                 'taskDefinition': 'arn/family:1',
                 'createdAt': self.start,
+                'updatedAt': self.start,
                 'runningCount': 0,
                 'desiredCount': 1,
             }, {
@@ -1138,6 +1343,7 @@ class TestIsServiceUpdated(testing.AsyncTestCase):
                 'status': 'PRIMARY',
                 'taskDefinition': 'arn/family:1',
                 'createdAt': self.start,
+                'updatedAt': self.start,
                 'runningCount': 1,
                 'desiredCount': 1,
             }, {
@@ -1157,6 +1363,7 @@ class TestIsServiceUpdated(testing.AsyncTestCase):
                 'status': 'PRIMARY',
                 'taskDefinition': 'arn/family:1',
                 'createdAt': self.start,
+                'updatedAt': self.start,
                 'runningCount': 1,
                 'desiredCount': 1}],
             'events': events})
@@ -1178,6 +1385,7 @@ class TestIsServiceUpdated(testing.AsyncTestCase):
                 'status': 'PRIMARY',
                 'taskDefinition': 'arn/family:1',
                 'createdAt': self.start,
+                'updatedAt': self.start,
                 'runningCount': 1,
                 'desiredCount': 1}],
             'events': []})
@@ -1193,56 +1401,71 @@ class TestServiceExecute(testing.AsyncTestCase):
         super(TestServiceExecute, self).setUp()
 
         self.actor = _mock_service_actor()
-        self.actor._register_task = helper.mock_tornado('family:1')
-        self.actor._ensure_service = helper.mock_tornado()
-        self.actor._wait_for_service_update = helper.mock_tornado()
+        self.actor._ensure_service_present = helper.mock_tornado()
+        self.actor._ensure_service_absent = helper.mock_tornado()
         self.actor._describe_service = helper.mock_tornado()
-        self.actor._delete_service = helper.mock_tornado()
 
     @testing.gen_test
     def test_ok(self):
         yield self.actor._execute()
-        self.assertEqual(self.actor._register_task._call_count, 1)
-        self.assertEqual(self.actor._ensure_service._call_count, 1)
-        self.assertEqual(self.actor._wait_for_service_update._call_count, 1)
-
-    @testing.gen_test
-    def test_without_wait(self):
-        self.actor._options['wait'] = False
-        yield self.actor._execute()
-        self.assertEqual(self.actor._register_task._call_count, 1)
-        self.assertEqual(self.actor._ensure_service._call_count, 1)
-        self.assertEqual(self.actor._wait_for_service_update._call_count, 0)
+        self.assertEqual(self.actor._describe_service._call_count, 1)
+        self.assertEqual(self.actor._ensure_service_present._call_count, 1)
+        self.assertEqual(self.actor._ensure_service_absent._call_count, 0)
 
     @testing.gen_test
     def test_dry(self):
         self.actor._dry = True
         yield self.actor._execute()
-        self.assertEqual(self.actor._register_task._call_count, 1)
-        self.assertEqual(self.actor._ensure_service._call_count, 1)
-        self.assertEqual(self.actor._wait_for_service_update._call_count, 1)
+        self.assertEqual(self.actor._describe_service._call_count, 1)
+        self.assertEqual(self.actor._ensure_service_present._call_count, 1)
+        self.assertEqual(self.actor._ensure_service_absent._call_count, 0)
 
     @testing.gen_test
     def test_state_absent(self):
         self.actor._options['state'] = 'absent'
         self.actor._describe_service = helper.mock_tornado('service')
         yield self.actor._execute()
-        self.assertEqual(self.actor._register_task._call_count, 1)
-        self.assertEqual(self.actor._ensure_service._call_count, 0)
-        self.assertEqual(self.actor._wait_for_service_update._call_count, 0)
         self.assertEqual(self.actor._describe_service._call_count, 1)
-        self.assertEqual(self.actor._delete_service._call_count, 1)
+        self.assertEqual(self.actor._ensure_service_present._call_count, 0)
+        self.assertEqual(self.actor._ensure_service_absent._call_count, 1)
 
     @testing.gen_test
     def test_service_already_absent(self):
         self.actor._options['state'] = 'absent'
         self.actor._describe_service = helper.mock_tornado()
         yield self.actor._execute()
-        self.assertEqual(self.actor._register_task._call_count, 1)
-        self.assertEqual(self.actor._ensure_service._call_count, 0)
-        self.assertEqual(self.actor._wait_for_service_update._call_count, 0)
         self.assertEqual(self.actor._describe_service._call_count, 1)
-        self.assertEqual(self.actor._delete_service._call_count, 0)
+        self.assertEqual(self.actor._ensure_service_present._call_count, 0)
+        self.assertEqual(self.actor._ensure_service_absent._call_count, 1)
+
+    @testing.gen_test
+    def test_no_task_definition(self):
+        self.actor.task_definition = None
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._execute()
+        self.assertEqual(self.actor._describe_service._call_count, 0)
+        self.assertEqual(self.actor._ensure_service_present._call_count, 0)
+        self.assertEqual(self.actor._ensure_service_absent._call_count, 0)
+
+    @testing.gen_test
+    def test_no_task_definition_has_service_name(self):
+        self.actor._options['service_name'] = 'service'
+        self.actor.task_definition = None
+        yield self.actor._execute()
+        self.assertEqual(self.actor._describe_service._call_count, 1)
+        self.assertEqual(self.actor._ensure_service_present._call_count, 1)
+        self.assertEqual(self.actor._ensure_service_absent._call_count, 0)
+
+    @testing.gen_test
+    def test_service_not_found(self):
+        @gen.coroutine
+        def raise_service_not_found(*args, **kwargs):
+            raise ecs_actor.ServiceNotFound()
+
+        self.actor._describe_service = raise_service_not_found
+        yield self.actor._execute()
+        self.assertEqual(self.actor._ensure_service_present._call_count, 1)
+        self.assertEqual(self.actor._ensure_service_absent._call_count, 0)
 
 
 class TestGetContainersFromTasks(testing.AsyncTestCase):
