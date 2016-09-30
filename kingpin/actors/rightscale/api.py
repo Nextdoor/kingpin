@@ -663,7 +663,7 @@ class RightScale(object):
         while True:
             # Get the task status
             output = yield self._get_task_info(task)
-            summary = output.soul['summary']
+            summary = output.soul['summary'].lower()
             stamp = datetime.now()
 
             if 'success' in summary or 'completed' in summary:
