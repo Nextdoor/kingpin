@@ -236,7 +236,6 @@ class ECSBaseActor(base.AWSBaseActor):
         Returns:
             Task Definition name string.
         """
-
         family = task_definition['family']
 
         self.log.info('Registering task definition with family {}'.format(
@@ -950,22 +949,29 @@ class Service(ECSBaseActor):
             deploymentConfiguration=deployment_configuration,
             desiredCount=self.option('count'))
 
-        task_definition_name = yield self._register_task(
-            self.task_definition)
-        is_new_task_definition = yield self._is_task_definition_different(
-            self._arn_to_name(existing_service['taskDefinition']),
-            task_definition_name)
-        if is_new_task_definition:
-            self.log.info(
-                'The task definition is different, using the new one.')
-            # Need to use the new task definition.
-            update_parameters.update({'taskDefinition': task_definition_name})
-        else:
-            self.log.info(
-                'The task definition is the same, using the old one.')
-            yield self._deregister_task_definition(task_definition_name)
-            task_definition_name = self._arn_to_name(
-                existing_service['taskDefinition'])
+        old_task_definition_name = self._arn_to_name(
+            existing_service['taskDefinition'])
+        task_definition_name = old_task_definition_name
+
+        is_new_task_definition = False
+        if self.task_definition:
+            new_task_definition_name = yield self._register_task(
+                self.task_definition)
+            is_new_task_definition = yield self._is_task_definition_different(
+                old_task_definition_name,
+                new_task_definition_name)
+            if is_new_task_definition:
+                self.log.info(
+                    'The task definition is different, using the new one.')
+                # Need to use the new task definition.
+                update_parameters.update({
+                    'taskDefinition': new_task_definition_name})
+            else:
+                self.log.info(
+                    'The task definition is the same, using the old one.')
+                yield self._deregister_task_definition(
+                    new_task_definition_name)
+                task_definition_name = old_task_definition_name
 
         if override is not None:
             update_parameters.update(override)
