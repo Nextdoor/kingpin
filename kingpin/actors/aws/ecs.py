@@ -966,6 +966,7 @@ class Service(ECSBaseActor):
                 # Need to use the new task definition.
                 update_parameters.update({
                     'taskDefinition': new_task_definition_name})
+                task_definition_name = new_task_definition_name
             else:
                 self.log.info(
                     'The task definition is the same, using the old one.')
