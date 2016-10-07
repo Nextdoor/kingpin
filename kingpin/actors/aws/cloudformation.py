@@ -174,15 +174,15 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             InvalidTemplate
         """
         if template is None:
-            return (None, None)
+            return None, None
 
         remote_types = ('http://', 'https://')
 
         if template.startswith(remote_types):
-            return (None, template)
+            return None, template
 
         try:
-            return (json.dumps(self._parse_policy_json(template)), None)
+            return json.dumps(self._parse_policy_json(template)), None
         except exceptions.UnrecoverableActorFailure as e:
             raise InvalidTemplate(e)
 
@@ -506,6 +506,9 @@ class Create(CloudFormationBaseActor):
         'name': (str, REQUIRED, 'Name of the stack'),
         'parameters': (ParametersConfig, {}, 'Parameters passed into the CF '
                                              'template execution'),
+        'tokens': (dict, {},
+                   'A dictionary of key/value pairs '
+                   'used to fill in the tokens in the template.'),
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
         'template': (str, REQUIRED,
                      'Path to the AWS CloudFormation File. http(s)://, '
@@ -523,6 +526,7 @@ class Create(CloudFormationBaseActor):
 
         # Convert our supplied parameters into a properly formatted dict
         self._parameters = self._create_parameters(self.option('parameters'))
+        self._init_tokens.update(self.option('tokens'))
 
         # Check if the supplied CF template is a local file. If it is, read it
         # into memory.
@@ -688,6 +692,9 @@ class Stack(CloudFormationBaseActor):
                        'Action to take if the stack fails to be created'),
         'parameters': (ParametersConfig, {}, 'Parameters passed into the CF '
                                              'template execution'),
+        'tokens': (dict, {},
+                   'A dictionary of key/value pairs '
+                   'used to fill in the tokens in the template.'),
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
         'template': (str, REQUIRED,
                      'Path to the AWS CloudFormation File. http(s)://, '
@@ -705,6 +712,7 @@ class Stack(CloudFormationBaseActor):
 
         # Convert our supplied parameters into a properly formatted dict
         self._parameters = self._create_parameters(self.option('parameters'))
+        self._init_tokens.update(self.option('tokens'))
 
         # Check if the supplied CF template is a local file. If it is, read it
         # into memory.
