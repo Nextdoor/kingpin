@@ -447,13 +447,18 @@ class BaseActor(object):
           parent_id: organizational relationship. Same as `id` above.
         """
 
-        return [{
-            'id': str(id(self)),
-            'desc': self._desc,
-            'class': self.__class__.__name__,
-            # 'options': self._options,  # May include tokens & ENV vars
-            'parent_id': parent,
-        }]
+        ret = []
+
+        if self._check_condition():
+            ret = [{
+                'id': str(id(self)),
+                'desc': self._desc,
+                'class': self.__class__.__name__,
+                # 'options': self._options,  # May include tokens & ENV vars
+                'parent_id': parent,
+            }]
+
+        return ret
 
     @gen.coroutine
     @timer

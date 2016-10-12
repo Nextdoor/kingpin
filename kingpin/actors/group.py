@@ -101,9 +101,10 @@ class BaseGroupActor(base.BaseActor):
         """Generate an orgchart for all the `acts` specified."""
 
         ret = super(BaseGroupActor, self).get_orgchart(parent=parent)
-        group_id = str(id(self))
-        for act in self._actions:
-            ret = ret + act.get_orgchart(parent=group_id)
+        if ret:
+            group_id = str(id(self))
+            for act in self._actions:
+                ret = ret + act.get_orgchart(parent=group_id)
 
         return ret
 

@@ -264,8 +264,10 @@ class Macro(base.BaseActor):
     def get_orgchart(self, parent=''):
         """Return orgchart including the actor inside of the macro file."""
         ret = super(Macro, self).get_orgchart(parent=parent)
-        macro = self.initial_actor.get_orgchart(parent=str(id(self)))
-        return ret + macro
+        if ret:
+            macro = self.initial_actor.get_orgchart(parent=str(id(self)))
+            ret = ret + macro
+        return ret
 
     @gen.coroutine
     def _execute(self):
