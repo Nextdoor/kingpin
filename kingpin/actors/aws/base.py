@@ -41,7 +41,6 @@ import re
 
 from boto import exception as boto_exception
 from boto import utils as boto_utils
-from boto.s3.connection import OrdinaryCallingFormat
 from boto3 import exceptions as boto3_exceptions
 from retrying import retry
 from tornado import concurrent
@@ -51,7 +50,6 @@ import boto.cloudformation
 import boto.ec2
 import boto.ec2.elb
 import boto.iam
-import boto.s3
 import boto.sqs
 import boto3
 
@@ -172,11 +170,11 @@ class AWSBaseActor(base.BaseActor):
             region,
             aws_access_key_id=key,
             aws_secret_access_key=secret)
-        self.s3_conn = boto.s3.connect_to_region(
-            region,
+        self.s3_conn = boto3.client(
+            's3',
+            region_name=region,
             aws_access_key_id=key,
-            aws_secret_access_key=secret,
-            calling_format=OrdinaryCallingFormat())
+            aws_secret_access_key=secret)
 
     @concurrent.run_on_executor
     @retry(**aws_settings.RETRYING_SETTINGS)
@@ -334,3 +332,8 @@ class AWSBaseActor(base.BaseActor):
         dict2 = pprint.pformat(dict2).splitlines()
 
         return '\n'.join(difflib.unified_diff(dict1, dict2, n=2))
+
+
+class EnsurableAWSBaseActor(AWSBaseActor, base.EnsurableBaseActor):
+
+    """Ensurable version of the AWS Base Actor"""

@@ -63,7 +63,7 @@ class SchemaCompareBase(object):
     @classmethod
     def validate(self, option):
         try:
-            jsonschema.validate(option, self.SCHEMA)
+            jsonschema.Draft3Validator(self.SCHEMA).validate(option)
         except jsonschema.exceptions.ValidationError as e:
             raise exceptions.InvalidOptions(
                 'Supplied parameter does not match schema: %s' % e)
