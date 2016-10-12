@@ -97,6 +97,16 @@ class BaseGroupActor(base.BaseActor):
         # Pre-initialize all of our actions!
         self._actions = self._build_actions()
 
+    def get_orgchart(self, parent=''):
+        """Generate an orgchart for all the `acts` specified."""
+
+        ret = super(BaseGroupActor, self).get_orgchart(parent=parent)
+        group_id = str(id(self))
+        for act in self._actions:
+            ret = ret + act.get_orgchart(parent=group_id)
+
+        return ret
+
     def _build_actions(self):
         """Builds either a single set of actions, or multiple sets.
 

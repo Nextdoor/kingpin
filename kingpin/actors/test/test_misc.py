@@ -196,6 +196,18 @@ class TestMacro(testing.AsyncTestCase):
 
             self.assertEquals(get_actor().execute._call_count, 1)
 
+    @testing.gen_test
+    def test_orgchart(self):
+
+        misc.Macro._get_macro = mock.Mock(name='unittestmacro')
+        misc.Macro._get_config_from_script = mock.Mock(
+            return_value=[{'actor': 'misc.Sleep', 'options': {'sleep': 0}}]
+        )
+        actor = misc.Macro('Unit test', {'macro': 'test'})
+
+        self.assertEquals(len(actor.get_orgchart()), 3)  # Macro, Group, Sleep
+        self.assertEquals(type(actor.get_orgchart()[0]), dict)
+
 
 class TestSleep(testing.AsyncTestCase):
 
