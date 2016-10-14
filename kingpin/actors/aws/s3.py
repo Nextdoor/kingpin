@@ -19,13 +19,11 @@
 
 import json
 import logging
-import mock
 
-from boto.s3 import lifecycle
-from boto.exception import S3ResponseError
-from boto.exception import BotoServerError
+from botocore.exceptions import ClientError, ParamValidationError
 from tornado import concurrent
 from tornado import gen
+from inflection import camelize
 import jsonpickle
 
 from kingpin.actors import exceptions
@@ -100,10 +98,19 @@ class LifecycleConfig(SchemaCompareBase):
           { "id": "unique_rule_identifier",
             "prefix": "/some_path",
             "status": "Enabled",
-            "expiration": 365,
+            "expiration": {
+              "days": 365,
+            },
+            "noncurrent_version_expiration": {
+              "noncurrent_days": 365,
+            },
             "transition": {
               "days": 90,
               "date": "2016-05-19T20:04:17+00:00",
+              "storage_class": "GLACIER",
+            },
+            "noncurrent_version_transition": {
+              "noncurrent_days": 90,
               "storage_class": "GLACIER",
             }
           }
@@ -126,24 +133,55 @@ class LifecycleConfig(SchemaCompareBase):
                     'type': 'string',
                     'minLength': 1,
                     'maxLength': 255,
+                    'required': True,
                 },
-                'prefix': {'type': 'string'},
+                'prefix': {
+                    'type': 'string',
+                    'required': True,
+                },
 
                 # The Status field must be 'Enabled' or 'Disabled'
                 'status': {
                     'type': 'string',
                     'enum': ['Enabled', 'Disabled'],
+                    'required': True,
                 },
 
                 # Expiration and Transition can be empty, or have
                 # configurations associated with them.
                 'expiration': {
-                    'type': ['string', 'integer'],
-                    'pattern': '^[0-9]+$',
+                    'type': [
+
+                        # This is broken out to support the older style of just
+                        # typing expiration: <days> rather than expiration: {
+                        # days: 5}.
+                        {
+                            'type': ['string', 'integer'],
+                            'pattern': '^[0-9]+$'
+                        },
+
+                        {
+                            'type': 'object',
+                            'additionalProperties': False,
+                            'properties': {
+                                'days': {
+                                    'type': ['string', 'integer'],
+                                    'pattern': '^[0-9]+$',
+                                },
+                                'date': {
+                                    'type': 'string',
+                                    'format': 'date-time',
+                                },
+                                'expired_object_delete_marker': {
+                                    'type': 'boolean',
+                                }
+                            }
+                        }
+                    ],
                 },
                 'transition': {
                     'type': ['object', 'null'],
-                    'required': ['storage_class'],
+                    'additionalProperties': False,
                     'properties': {
                         'days': {
                             'type': ['string', 'integer'],
@@ -154,38 +192,78 @@ class LifecycleConfig(SchemaCompareBase):
                             'format': 'date-time'
                         },
                         'storage_class': {
+                            'required': True,
                             'type': 'string',
                             'enum': ['GLACIER', 'STANDARD_IA']
                         }
                     }
-                }
+                },
+                'noncurrent_version_transition': {
+                    'type': 'object',
+                    'additionalProperties': False,
+                    'properties': {
+                        'noncurrent_days': {
+                            'type': ['string', 'integer'],
+                            'pattern': '^[0-9]+$',
+                        },
+                        'storage_class': {
+                            'required': True,
+                            'type': 'string',
+                            'enum': ['GLACIER', 'STANDARD_IA']
+                        }
+                    }
+                },
+                'noncurrent_version_expiration': {
+                    'type': 'object',
+                    'additionalProperties': False,
+                    'properties': {
+                        'noncurrent_days': {
+                            'type': ['string', 'integer'],
+                            'pattern': '^[0-9]+$',
+                        },
+                    }
+                },
             }
         }
     }
 
 
-class S3BaseActor(base.AWSBaseActor):
+class TaggingConfig(SchemaCompareBase):
 
-    """Base class for S3 actors."""
+    """Provides JSON-Schema based validation of the supplied tagging config.
 
-    all_options = {
-        'name': (str, REQUIRED, 'Name of the S3 Bucket'),
-        'state': (STATE, 'present',
-                  'Desired state of the bucket: present/absent'),
-        'lifecycle': (LifecycleConfig, None,
-                      'List of Lifecycle configurations.'),
-        'logging': (LoggingConfig, None,
-                    'Dict with the logging configuration information.'),
-        'policy': ((str, None), None,
-                   'Path to the JSON policy file to apply to the bucket.'),
-        'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
-        'versioning': ((bool, None), None,
-                       ('Desired state of versioning on the bucket: '
-                        'true/false')),
+    The S3 TaggingConfig format should look like this:
+
+    .. code-block:: json
+
+        { "key": "my_key",
+          "value": "some_value" }
+
+    """
+
+    SCHEMA = {
+        'type': ['array', 'null'],
+        'uniqueItems': True,
+        'items': {
+            'type': 'object',
+            'additionalProperties': False,
+            'properties': {
+                'key': {
+                    'type': 'string',
+                    'required': True,
+                },
+                'value': {
+                    'type': 'string',
+                    'required': True,
+                }
+            }
+        }
     }
 
+    valid = '{ "target": "<bucket name>", [ "prefix": "<logging prefix>" ]}'
 
-class Bucket(S3BaseActor):
+
+class Bucket(base.EnsurableAWSBaseActor):
 
     """Manage the state of a single S3 Bucket.
 
@@ -235,6 +313,11 @@ class Bucket(S3BaseActor):
       logging on the bucket. If `None` is supplied, we will not manage logging
       either way.
 
+    :tags:
+      (:py:class:`TaggingConfig`, None)
+
+      A list of dictionaries with a `key` and `value` key.
+
     :policy:
       (str, None) A JSON file with the bucket policy. Passing in a blank string
       will cause any policy to be deleted. Passing in None (or not passing it
@@ -257,16 +340,20 @@ class Bucket(S3BaseActor):
            "name": "kingpin-integration-testing",
            "region": "us-west-2",
            "policy": "./examples/aws.s3/amazon_put.json",
-           "lifecycle": {
-              "id": "main",
-              "prefix": "/",
-              "status": "Enabled",
-              "expiration": 30,
-           },
+           "lifecycle": [
+              { "id": "main",
+                "prefix": "/",
+                "status": "Enabled",
+                "expiration": 30,
+              }
+           ],
            "logging": {
              "target": "logs.myco.com",
              "prefix": "/kingpin-integratin-testing"
            },
+           "tags": [
+             {"key": "my_key", "value": "billing-grp-1"},
+           ],
            "versioning": true,
          }
        }
@@ -285,6 +372,26 @@ class Bucket(S3BaseActor):
 
     desc = "S3 Bucket {name}"
 
+    all_options = {
+        'name': (str, REQUIRED, 'Name of the S3 Bucket'),
+        'state': (STATE, 'present',
+                  'Desired state of the bucket: present/absent'),
+        'lifecycle': (LifecycleConfig, None,
+                      'List of Lifecycle configurations.'),
+        'logging': (LoggingConfig, None,
+                    'Logging configuration for the bucket'),
+        'tags': (TaggingConfig, None,
+                 'Array of dicts with the key/value tags'),
+        'policy': ((str, None), None,
+                   'Path to the JSON policy file to apply to the bucket.'),
+        'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
+        'versioning': ((bool, None), None,
+                       ('Desired state of versioning on the bucket: '
+                        'true/false')),
+    }
+
+    unmanaged_options = ['name', 'region']
+
     def __init__(self, *args, **kwargs):
         super(Bucket, self).__init__(*args, **kwargs)
 
@@ -296,8 +403,30 @@ class Bucket(S3BaseActor):
 
         # If the Lifecycle config is anything but None, we parse it and
         # pre-build all of our Lifecycle/Rule/Expiration/Transition objects.
+        self.lifecycle = self.option('lifecycle')
         if self.option('lifecycle') is not None:
             self.lifecycle = self._generate_lifecycle(self.option('lifecycle'))
+
+        # Start out assuming the bucket doesn't exist. The _precache() method
+        # will populate this with True if the bucket does exist.
+        self._bucket_exists = False
+
+    def _snake_to_camel(self, data):
+        """Converts a snake_case dict to CamelCase.
+
+        To keep our LifecycleConfig schema in-line with the rest of Kingpin, we
+        use snake_case for all key values. This method converts the snake_case
+        into CamelCase for final uploading to Amazons API where CamelCase is
+        required.
+        """
+        if isinstance(data, list):
+            return [self._snake_to_camel(v) for v in data]
+        elif isinstance(data, dict):
+            return dict(
+                (camelize(k), self._snake_to_camel(v)) for k, v
+                in data.iteritems())
+        else:
+            return data
 
     def _generate_lifecycle(self, config):
         """Generates a Lifecycle Configuration object.
@@ -315,16 +444,10 @@ class Bucket(S3BaseActor):
         """
         self.log.debug('Generating boto.s3.lifecycle.Lifecycle config..')
 
-        # If the config list is empty, return None -- later in the code this
-        # None will be used to determine whether or not to "delete" the
-        # existing bucket lifecycle configs.
-        if len(config) < 1:
-            return None
-
         # Generate a fresh Lifecycle configuration object
-        lc = lifecycle.Lifecycle()
+        rules = []
         for c in config:
-            self.log.debug('Generating lifecycle rule from: %s' % config)
+            self.log.debug('Generating lifecycle rule from: %s' % c)
 
             # You must supply at least 'expiration' or 'transition' in your
             # lifecycle config. This is tricky to check in the jsonschema, so
@@ -334,305 +457,220 @@ class Bucket(S3BaseActor):
                     'You must supply at least an expiration or transition '
                     'configuration in your config: %s' % c)
 
-            # If the expiration 'days' were in string form turn them into an
-            # integer.
-            if 'expiration' in c:
-                c['expiration'] = int(c['expiration'])
+            # Convert the snake_case into CamelCase.
+            c = self._snake_to_camel(c)
 
-            # If 'transition' is supplied, turn it into a lifecycle.Transition
-            # object using the generate_transition() method.
-            if 'transition' in c:
-                transition_dict = c['transition']
-                transition_obj = self._generate_transition(transition_dict)
-                c['transition'] = transition_obj
+            # Fully capitalize the ID field
+            c['ID'] = c.pop('Id')
+
+            # If the Expiration was supplied in the old style as a string/int,
+            # convert it into the proper format for Amazon.
+            if 'Expiration' in c and not isinstance(c['Expiration'], dict):
+                c['Expiration'] = {'Days': int(c.pop('Expiration'))}
 
             # Finally add our rule to the lifecycle object
-            lc.add_rule(**c)
+            rules.append(c)
 
-        # Interesting hack -- Although Amazon does not document this, or
-        # provide it as a parameter to the boto.s3.lifecycle.Rule/Lifecycle
-        # objects, it seems that when you "get" the config from Amazon, each
-        # Rule has a blank "Rule" attribute added. The Lifecycle object is the
-        # same it get a blank "Lifecycle" attribute added. These show up when
-        # we do the comparison between our config and the Amazon one, so we are
-        # adding them here to help the comparison later on in
-        # self._ensure_lifecycle().
-        for r in lc:
-            r.Rule = ''
-        lc.LifecycleConfiguration = ''
-
-        return lc
-
-    def _generate_transition(self, config):
-        """Generates a Lifecycle Transition object.
-
-        See :py:class:`~boto.s3.lifecycle.Transition` for details about the
-        contents of the dictionary.
-
-        (*Note, we don't do much input validation here - we rely on the
-        :py:class:`LifecycleConfig` schema to do that for us*)
-
-        args:
-            config: A dictionary with `days` or `date`, and `storage_class`.
-
-        returns:
-            :py:class:`boto.s3.lifecycle.Transition`
-        """
-        self.log.debug('Generating transition config from: %s' % config)
-        if 'days' in config:
-            config['days'] = int(config['days'])
-        return lifecycle.Transition(**config)
+        return rules
 
     @gen.coroutine
-    def _get_bucket(self):
-        """Retrives the existing S3 bucket object, or None.
-
-        Returns either the S3 bucket or None if the bucket doesn't exist. Note,
-        the boto.s3.lookup() method claims to do this, but has odd inconsistent
-        behavior where it returns None very quickly sometimes. Also, it does
-        not help us determine whether or not the bucket we find is in the
-        target region we actually intended to use.
-
-        Returns:
-          <A Boto.s3.Bucket object> or None
-        """
-        try:
-            bucket = yield self.thread(self.s3_conn.get_bucket,
-                                       self.option('name'))
-        except BotoServerError as e:
-            if e.status == 301:
-                raise exceptions.RecoverableActorFailure(
-                    'Bucket %s exists, but is not in %s' %
-                    (self.option('name'), self.option('region')))
-            if e.status == 404:
-                self.log.debug('No bucket %s found' % self.option('name'))
-                raise gen.Return(None)
-
-            raise exceptions.RecoverableActorFailure(
-                'An unexpected error occurred: %s' % e)
-
-        self.log.debug('Found bucket %s' % bucket)
-        raise gen.Return(bucket)
+    def _precache(self):
+        # Store a quick reference to whether or not the bucket exists or not.
+        # This allows the rest of the getter-methods to know whether or not the
+        # bucket exists and not make bogus API calls when the bucket doesn't
+        # exist.
+        buckets = yield self.thread(self.s3_conn.list_buckets)
+        matching = [
+            b for b in buckets['Buckets'] if b['Name'] == self.option('name')]
+        if len(matching) == 1:
+            self._bucket_exists = True
 
     @gen.coroutine
-    def _ensure_bucket(self):
-        """Ensures a bucket exists or does not."""
-        # Determine if the bucket already exists or not
-        state = self.option('state')
-        name = self.option('name')
-        self.log.info('Ensuring that s3://%s is %s' % (name, state))
-        bucket = yield self._get_bucket()
+    def _get_state(self):
+        if not self._bucket_exists:
+            raise gen.Return('absent')
 
-        if state == 'absent' and bucket is None:
-            self.log.debug('Bucket does not exist')
-        elif state == 'absent' and bucket:
-            yield self._verify_can_delete_bucket(bucket=bucket)
-            yield self._delete_bucket(bucket=bucket)
-            bucket = None
-        elif state == 'present' and bucket is None:
-            bucket = yield self._create_bucket()
-        elif state == 'present' and bucket:
-            self.log.debug('Bucket exists')
-
-        raise gen.Return(bucket)
+        raise gen.Return('present')
 
     @gen.coroutine
+    def _set_state(self):
+        if self.option('state') == 'absent':
+            yield self._verify_can_delete_bucket()
+            yield self._delete_bucket()
+        else:
+            yield self._create_bucket()
+
+    @gen.coroutine
+    @dry('Would have created the bucket')
     def _create_bucket(self):
         """Creates an S3 bucket if its missing.
 
         returns:
             <A boto.s3.Bucket object>
         """
-        # If we're running in DRY mode, then we create a fake bucket object
-        # that will be passed back. This mock object lets us simplify the rest
-        # of our code because we can mock out the results of creating a fresh
-        # empty bucket with no policies, versions, etc.
-        if self._dry:
-            self.log.warning('Would have created s3://%s' %
-                             self.option('name'))
+        params = {
+            'Bucket': self.option('name')
+        }
 
-            # Generate a fake bucket and return it
-            mock_bucket = mock.MagicMock(name=self.option('name'))
-
-            # Mock out the get_policy function to raise a 404 because there is
-            # no policy attached to buckets by default. This is used to trick
-            # the self._ensure_policy() function.
-            mock_bucket.get_policy.side_effect = S3ResponseError(404, 'Empty')
-
-            # Mock out the versioning config -- return an empty dict to
-            # indicate there is no configuration.
-            mock_bucket.get_versioning_config.return_value = {}
-
-            # Raise a 404 (empty) because new buckets do not have lifecycle
-            # policies attached.
-            mock_bucket.get_lifecycle_config.side_effect = S3ResponseError(
-                404, 'Empty')
-
-            raise gen.Return(mock_bucket)
-
-        # This throws no exceptions, even if the bucket exists, that we know
-        # about or can expect.
-
-        # https://github.com/boto/boto3/issues/125
-        location_args = {}
         if self.option('region') != 'us-east-1':
-            location_args = {'location': self.option('region')}
+            params['CreateBucketConfiguration'] = {
+                'LocationConstraint': self.option('region')
+            }
 
         self.log.info('Creating bucket')
-        bucket = yield self.thread(self.s3_conn.create_bucket,
-                                   self.option('name'), **location_args)
-        raise gen.Return(bucket)
+        yield self.thread(self.s3_conn.create_bucket, **params)
 
     @gen.coroutine
-    def _verify_can_delete_bucket(self, bucket):
+    def _verify_can_delete_bucket(self):
         # Find out if there are any files in the bucket before we go to delete
         # it. We cannot delete a bucket with files in it -- nor do we want to.
-        keys = yield self.thread(bucket.get_all_keys)
-        if len(keys) > 0:
+        bucket = self.option('name')
+        keys = yield self.thread(self.s3_conn.list_objects, Bucket=bucket)
+
+        if 'Contents' not in keys:
+            raise gen.Return()
+
+        if len(keys['Contents']) > 0:
             raise exceptions.RecoverableActorFailure(
                 'Cannot delete bucket with keys: %s files found' % len(keys))
 
     @gen.coroutine
-    @dry('Would have deleted bucket {bucket}')
-    def _delete_bucket(self, bucket):
-        """Tries to delete an S3 bucket.
-
-        args:
-            bucket: The S3 bucket object as returned by Boto
-        """
+    @dry('Would have deleted bucket')
+    def _delete_bucket(self):
+        bucket = self.option('name')
         try:
             self.log.info('Deleting bucket %s' % bucket)
-            yield self.thread(bucket.delete)
-        except S3ResponseError as e:
-            if e.status == 409:
-                raise exceptions.RecoverableActorFailure(
-                    'Cannot delete bucket: %s' % e.message)
+            yield self.thread(self.s3_conn.delete_bucket, Bucket=bucket)
+        except ClientError as e:
+            raise exceptions.RecoverableActorFailure(
+                'Cannot delete bucket: %s' % e.message)
 
     @gen.coroutine
-    def _ensure_policy(self, bucket):
-        """Ensure the policy attached to the bucket is correct.
-
-        (Note, this method is longer than we'd like .. but in this Bucket actor
-        is going to do _a lot_ of things, so encapsulating the logic all in a
-        single method makes the rest of the code easier to read and
-        understand.)
-
-        args:
-            bucket: The S3 bucket object as returned by Boto
-        """
-        new = self.policy
-        exist = {}
-
-        # Get our existing policy and convert it into a dict we can deal with
+    def _get_policy(self):
         try:
-            raw = yield self.thread(bucket.get_policy)
-            exist = json.loads(raw)
-        except S3ResponseError as e:
-            if e.status != 404:
-                raise exceptions.RecoverableActorFailure(
-                    'An unexpected error occurred: %s' % e)
+            raw = yield self.thread(
+                self.s3_conn.get_bucket_policy,
+                Bucket=self.option('name'))
+            exist = json.loads(raw['Policy'])
+        except ClientError as e:
+            if 'NoSuchBucketPolicy' in e.message:
+                raise gen.Return('')
+            raise
 
-        # Now, if we're deleting the policy (policy=''), then optionally do
-        # that and bail.
-        if new == '':
-            if exist:
-                yield self._delete_policy(bucket)
-            raise gen.Return()
+        raise gen.Return(exist)
+
+    @gen.coroutine
+    def _compare_policy(self):
+        new = self.policy
+        if self.policy is None:
+            self.log.debug('Not managing policy')
+            raise gen.Return(True)
+
+        exist = yield self._get_policy()
 
         # Now, diff our new policy from the existing policy. If there is no
         # difference, then we bail out of the method.
         diff = self._diff_dicts(exist, new)
         if not diff:
             self.log.debug('Bucket policy matches')
-            raise gen.Return()
+            raise gen.Return(True)
 
         # Now, print out the diff..
         self.log.info('Bucket policy differs from Amazons:')
         for line in diff.split('\n'):
             self.log.info('Diff: %s' % line)
 
-        # Push the new policy!
-        yield self._set_policy(bucket)
+        raise gen.Return(False)
 
     @gen.coroutine
-    @dry('Would delete bucket policy')
-    def _delete_policy(self, bucket):
-        """Deletes a Bucket Policy.
-
-        args:
-            bucket: :py:class:`~boto.s3.bucket.Bucket`
-        """
-        self.log.info('Deleting bucket policy')
-        try:
-            yield self.thread(bucket.delete_policy)
-        except S3ResponseError as e:
-            raise exceptions.RecoverableActorFailure(
-                'An unexpected error occurred: %s' % e)
+    def _set_policy(self):
+        if self.policy == '':
+            yield self._delete_policy()
+        else:
+            yield self._push_policy()
 
     @gen.coroutine
     @dry('Would have pushed bucket policy')
-    def _set_policy(self, bucket):
-        """Sets a Bucket policy.
-
-        args:
-            bucket: :py:class:`~boto.s3.bucket.Bucket`
-        """
+    def _push_policy(self):
         self.log.info('Pushing bucket policy %s' % self.option('policy'))
         self.log.debug('Policy doc: %s' % self.policy)
+
         try:
-            yield self.thread(bucket.set_policy, json.dumps(self.policy))
-        except S3ResponseError as e:
-            if e.error_code == 'MalformedPolicy':
+            yield self.thread(
+                self.s3_conn.put_bucket_policy,
+                Bucket=self.option('name'),
+                Policy=json.dumps(self.policy))
+        except ClientError as e:
+            if 'MalformedPolicy' in e.message:
                 raise base.InvalidPolicy(e.message)
 
             raise exceptions.RecoverableActorFailure(
                 'An unexpected error occurred: %s' % e)
 
     @gen.coroutine
-    def _ensure_logging(self, bucket):
-        """Ensure that the bucket logging configuration is setup.
+    @dry('Would delete bucket policy')
+    def _delete_policy(self):
+        self.log.info('Deleting bucket policy')
+        yield self.thread(
+            self.s3_conn.delete_bucket_policy,
+            Bucket=self.option('name'))
 
-        args:
-            bucket: The S3 bucket object as returned by Boto
-        """
-        # Get the buckets current logging configuration
-        existing = yield self.thread(bucket.get_logging_status)
+    @gen.coroutine
+    def _get_logging(self):
+        if not self._bucket_exists:
+            raise gen.Return(None)
 
-        # Shortcuts for our desired logging state
+        data = yield self.thread(
+            self.s3_conn.get_bucket_logging, Bucket=self.option('name'))
+
+        if 'LoggingEnabled' not in data:
+            self.log.debug('Logging is disabled')
+            raise gen.Return({
+                'target': '',
+                'prefix': ''})
+
+        self.log.debug('Logging is set to s3://%s/%s' %
+                       (data['LoggingEnabled']['TargetBucket'],
+                        data['LoggingEnabled']['TargetPrefix']))
+        raise gen.Return({
+            'target': data['LoggingEnabled']['TargetBucket'],
+            'prefix': data['LoggingEnabled']['TargetPrefix']})
+
+    @gen.coroutine
+    def _set_logging(self):
         desired = self.option('logging')
 
+        if desired is None:
+            self.log.debug('Not managing logging')
+            raise gen.Return()
+
         # If desired is False, check the state, potentially disable it, and
-        # then bail out.
+        # then bail out. Note, we check explicitly for 'target' to be set to
+        # ''. Setting it to None, or setting the entire logging config to None
+        # should not destroy any existing logging configs.
         if desired['target'] == '':
-            if existing.target is None:
-                raise gen.Return()
-            yield self._disable_logging(bucket)
+            yield self._disable_logging()
             raise gen.Return()
 
         # If desired has a logging or prefix config, check each one and
         # validate that they are correct.
-        if (desired['target'] != existing.target or
-                desired['prefix'] != existing.prefix):
-            yield self._enable_logging(bucket, **desired)
+        yield self._enable_logging(**desired)
 
     @gen.coroutine
     @dry('Bucket logging would have been disabled')
-    def _disable_logging(self, bucket):
-        """Disables logging on a bucket.
-
-        args:
-            bucket: :py:class`~boto.s3.bucket.Bucket`
-        """
+    def _disable_logging(self):
         self.log.info('Deleting Bucket logging configuration')
-        yield self.thread(bucket.disable_logging)
+        yield self.thread(
+            self.s3_conn.put_bucket_logging,
+            Bucket=self.option('name'),
+            BucketLoggingStatus={})
 
     @gen.coroutine
     @dry('Bucket logging config would be updated to {target}/{prefix}')
-    def _enable_logging(self, bucket, target, prefix):
+    def _enable_logging(self, target, prefix):
         """Enables logging on a bucket.
 
         args:
-            bucket: :py:class:`~boto.s3.bucket.Bucket`
             target: Target S3 bucket
             prefix: Target S3 bucket prefix
         """
@@ -640,155 +678,144 @@ class Bucket(S3BaseActor):
         self.log.info('Updating Bucket logging config to %s' % target_str)
 
         try:
-            yield self.thread(bucket.enable_logging, target, prefix)
-        except S3ResponseError as e:
-            if e.error_code == 'InvalidTargetBucketForLogging':
-                raise InvalidBucketConfig(e.message)
-            raise exceptions.RecoverableActorFailure(
-                'An unexpected error occurred. %s' % e)
+            yield self.thread(
+                self.s3_conn.put_bucket_logging,
+                Bucket=self.option('name'),
+                BucketLoggingStatus={
+                    'LoggingEnabled': {
+                        'TargetBucket': target,
+                        'TargetPrefix': prefix,
+                    }
+                })
+        except ClientError as e:
+            raise InvalidBucketConfig(e.message)
 
     @gen.coroutine
-    def _ensure_versioning(self, bucket):
-        """Enables or suspends object versioning on the bucket.
+    def _get_versioning(self):
+        existing = yield self.thread(
+            self.s3_conn.get_bucket_versioning,
+            Bucket=self.option('name'))
 
-        args:
-            bucket: The S3 bucket object as returned by Boto
-        """
-        # Get the buckets current versioning status
-        existing = yield self.thread(bucket.get_versioning_status)
+        if ('Status' not in existing or
+                existing['Status'] == 'Suspended'):
+            self.log.debug('Versioning is disabled/suspended')
+            raise gen.Return(False)
 
-        # Shortcuts for our desired state
-        desired = self.option('versioning')
+        self.log.debug('Versioning is enabled')
+        raise gen.Return(True)
 
-        if not desired:
-            # If desired is False, check the state, potentially disable it, and
-            # then bail out.
-            if ('Versioning' not in existing or
-                    existing['Versioning'] == 'Suspended'):
-                self.log.debug('Versioning is already disabled.')
-                raise gen.Return()
-            yield self._disable_versioning(bucket)
+    @gen.coroutine
+    def _set_versioning(self):
+        if self.option('versioning') is None:
+            self.log.debug('Not managing versioning')
+            raise gen.Return()
+
+        if self.option('versioning') is False:
+            yield self._put_versioning('Suspended')
         else:
-            # If desired is True, check the state, potentially enable it, and
-            # bail.
-            if ('Versioning' in existing and
-                    existing['Versioning'] == 'Enabled'):
-                self.log.debug('Versioning is already enabled.')
-                raise gen.Return()
-
-            yield self._enable_versioning(bucket)
+            yield self._put_versioning('Enabled')
 
     @gen.coroutine
-    @dry('Bucket versioning would be suspended')
-    def _disable_versioning(self, bucket):
-        """Disables Bucket Versioning.
-
-        args:
-            bucket: :py:class:`~boto.s3.bucket.Bucket`
-        """
-        self.log.info('Suspending bucket versioning.')
-        yield self.thread(bucket.configure_versioning, False)
+    @dry('Bucket versioning would set to: {0}')
+    def _put_versioning(self, state):
+        self.log.info('Setting bucket object versioning to: %s' % state)
+        yield self.thread(
+            self.s3_conn.put_bucket_versioning,
+            Bucket=self.option('name'),
+            VersioningConfiguration={'Status': state})
 
     @gen.coroutine
-    @dry('Would enable bucket versioning')
-    def _enable_versioning(self, bucket):
-        """Enables Bucket Versioning.
-
-        args:
-            bucket: :py:class:`~boto.s3.bucket.Bucket`
-        """
-        self.log.info('Enabling bucket versioning.')
-        yield self.thread(bucket.configure_versioning, True)
-
-    @gen.coroutine
-    def _ensure_lifecycle(self, bucket):
-        """Ensures that the Bucket Lifecycle configuration is in place.
-
-        args:
-            bucket: A :py:class:`boto.s3.Bucket` object
-        """
+    def _get_lifecycle(self):
         try:
-            existing = yield self.thread(bucket.get_lifecycle_config)
-        except S3ResponseError as e:
-            if e.status != 404:
-                raise exceptions.RecoverableActorFailure(
-                    'An unexpected error occurred. %s' % e)
-            existing = None
+            raw = yield self.thread(
+                self.s3_conn.get_bucket_lifecycle,
+                Bucket=self.option('name'))
+        except ClientError as e:
+            if 'NoSuchLifecycleConfiguration' in e.message:
+                raise gen.Return([])
 
-        # Simple check -- are we deleting the lifecycle? Do it.
-        if self.lifecycle is None:
-            if existing is None:
-                self.log.debug('No existing lifecycle configuration found.')
-                raise gen.Return()
-            yield self._delete_lifecycle(bucket)
-            raise gen.Return()
+        raise gen.Return(raw['Rules'])
 
-        # Next simple check -- if we're pushing a new config, and the old
-        # config is empty (there was none), then just go and push it.
-        if existing is None:
-            yield self._configure_lifecycle(bucket=bucket,
-                                            lifecycle=self.lifecycle)
-            raise gen.Return()
+    @gen.coroutine
+    def _compare_lifecycle(self):
+        existing = yield self._get_lifecycle()
+        new = self.lifecycle
+
+        if new is None:
+            self.log.debug('Not managing lifecycle')
+            raise gen.Return(True)
 
         # Now sort through the existing Lifecycle configuration and the one
         # that we've built locally. If there are any differences, we're going
         # to push an all new config.
         diff = self._diff_dicts(
             json.loads(jsonpickle.encode(existing)),
-            json.loads(jsonpickle.encode(self.lifecycle)))
-        if diff:
-            self.log.info('Lifecycle configurations do not match. Updating.')
-            for line in diff.split('\n'):
-                self.log.info('Diff: %s' % line)
-            yield self._configure_lifecycle(bucket=bucket,
-                                            lifecycle=self.lifecycle)
+            json.loads(jsonpickle.encode(new)))
+
+        if not diff:
+            raise gen.Return(True)
+
+        self.log.info('Lifecycle configurations do not match. Updating.')
+        for line in diff.split('\n'):
+            self.log.info('Diff: %s' % line)
+        raise gen.Return(False)
+
+    @gen.coroutine
+    def _set_lifecycle(self):
+        if self.lifecycle == []:
+            yield self._delete_lifecycle()
+        else:
+            yield self._push_lifecycle()
 
     @gen.coroutine
     @dry('Would have deleted the existing lifecycle configuration')
-    def _delete_lifecycle(self, bucket):
+    def _delete_lifecycle(self):
         self.log.info('Deleting the existing lifecycle configuration.')
-        yield self.thread(bucket.delete_lifecycle_configuration)
+        yield self.thread(
+            self.s3_conn.delete_bucket_lifecycle,
+            Bucket=self.option('name'))
 
     @gen.coroutine
-    @dry('Would have pushed this lifecycle configuration: {lifecycle}')
-    def _configure_lifecycle(self, bucket, lifecycle):
+    @dry('Would have pushed a new lifecycle configuration')
+    def _push_lifecycle(self):
         self.log.debug('Lifecycle config: %s' %
-                       jsonpickle.encode(lifecycle))
+                       jsonpickle.encode(self.lifecycle))
 
         self.log.info('Updating the Bucket Lifecycle config')
         try:
-            yield self.thread(bucket.configure_lifecycle, lifecycle)
-        except S3ResponseError as e:
+            yield self.thread(
+                self.s3_conn.put_bucket_lifecycle,
+                Bucket=self.option('name'),
+                LifecycleConfiguration={'Rules': self.lifecycle})
+        except (ParamValidationError, ClientError) as e:
             raise InvalidBucketConfig('Invalid Lifecycle Configuration: %s'
                                       % e.message)
 
     @gen.coroutine
-    def _execute(self):
-        """Executes an actor and yields the results when its finished.
+    def _get_tags(self):
+        try:
+            raw = yield self.thread(
+                self.s3_conn.get_bucket_tagging,
+                Bucket=self.option('name'))
+        except ClientError as e:
+            if 'NoSuchTagSet' in e.message:
+                raise gen.Return([])
+            raise
 
-        raises: gen.Return(True)
-        """
-        bucket = yield self._ensure_bucket()
+        raise gen.Return(raw['TagSet'])
 
-        # If we're deleting the bucket, then there is no need to continue after
-        # we've done that.
-        if self.option('state') == 'absent':
-            raise gen.Return()
+    @gen.coroutine
+    @dry('Would have pushed tags')
+    def _set_tags(self):
+        tags = self.option('tags')
 
-        # Only manage the policy if self.policy was actually set.
-        if self.policy is not None:
-            yield self._ensure_policy(bucket)
+        if tags is None:
+            self.log.debug('Not managing tags')
+            raise gen.Return(None)
 
-        # Only manage the logging config if the logging config was supplied
-        if self.option('logging') is not None:
-            yield self._ensure_logging(bucket)
-
-        # Only manage versioning if a config was supplied
-        if self.option('versioning') is not None:
-            yield self._ensure_versioning(bucket)
-
-        # Only manage the lifecycle configuration if one was supplied
-        if self.option('lifecycle') is not None:
-            yield self._ensure_lifecycle(bucket)
-
-        raise gen.Return()
+        tagset = self._snake_to_camel(self.option('tags'))
+        self.log.info('Updating the Bucket Tags')
+        yield self.thread(
+            self.s3_conn.put_bucket_tagging,
+            Bucket=self.option('name'),
+            Tagging={'TagSet': tagset})
