@@ -692,6 +692,9 @@ class Bucket(base.EnsurableAWSBaseActor):
 
     @gen.coroutine
     def _get_versioning(self):
+        if not self._bucket_exists:
+            raise gen.Return(None)
+
         existing = yield self.thread(
             self.s3_conn.get_bucket_versioning,
             Bucket=self.option('name'))
@@ -726,6 +729,9 @@ class Bucket(base.EnsurableAWSBaseActor):
 
     @gen.coroutine
     def _get_lifecycle(self):
+        if not self._bucket_exists:
+            raise gen.Return(None)
+
         try:
             raw = yield self.thread(
                 self.s3_conn.get_bucket_lifecycle,
@@ -733,6 +739,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         except ClientError as e:
             if 'NoSuchLifecycleConfiguration' in e.message:
                 raise gen.Return([])
+            raise
 
         raise gen.Return(raw['Rules'])
 
@@ -793,6 +800,9 @@ class Bucket(base.EnsurableAWSBaseActor):
 
     @gen.coroutine
     def _get_tags(self):
+        if not self._bucket_exists:
+            raise gen.Return(None)
+
         try:
             raw = yield self.thread(
                 self.s3_conn.get_bucket_tagging,
