@@ -310,13 +310,21 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_get_versioning(self):
+        self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_versioning.return_value = {
             'Status': 'Enabled'}
         ret = yield self.actor._get_versioning()
         self.assertTrue(ret)
 
     @testing.gen_test
+    def test_get_versioning_no_bucket(self):
+        self.actor._bucket_exists = False
+        ret = yield self.actor._get_versioning()
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
     def test_get_versioning_suspended(self):
+        self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_versioning.return_value = {
             'Status': 'Suspended'}
         ret = yield self.actor._get_versioning()
@@ -348,20 +356,37 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_get_lifecycle(self):
+        self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_lifecycle.return_value = {
             'Rules': []}
         ret = yield self.actor._get_lifecycle()
         self.assertEquals(ret, [])
 
     @testing.gen_test
+    def test_get_lifecycle_no_bucket(self):
+        self.actor._bucket_exists = False
+        ret = yield self.actor._get_lifecycle()
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
     def test_get_lifecycle_empty(self):
+        self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_lifecycle.side_effect = ClientError(
             {'Error': {}}, 'NoSuchLifecycleConfiguration')
         ret = yield self.actor._get_lifecycle()
         self.assertEquals(ret, [])
 
     @testing.gen_test
+    def test_get_lifecycle_clienterror(self):
+        self.actor._bucket_exists = True
+        self.actor.s3_conn.get_bucket_lifecycle.side_effect = ClientError(
+            {'Error': {}}, 'SomeOtherError')
+        with self.assertRaises(ClientError):
+            yield self.actor._get_lifecycle()
+
+    @testing.gen_test
     def test_compare_lifecycle(self):
+        self.actor._bucket_exists = True
         self.actor.lifecycle = [{'test': 'test'}]
         self.actor.s3_conn.get_bucket_lifecycle.return_value = {
             'Rules': [{'test': 'test'}]}
@@ -407,13 +432,21 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_get_tags(self):
+        self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_tagging.return_value = {
             'TagSet': []}
         ret = yield self.actor._get_tags()
         self.assertEquals(ret, [])
 
     @testing.gen_test
+    def test_get_tags_no_bucket(self):
+        self.actor._bucket_exists = False
+        ret = yield self.actor._get_tags()
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
     def test_get_tags_empty(self):
+        self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_tagging.side_effect = ClientError(
             {'Error': {}}, 'NoSuchTagSet')
         ret = yield self.actor._get_tags()
@@ -421,6 +454,7 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_get_tags_exc(self):
+        self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_tagging.side_effect = ClientError(
             {'Error': {}}, 'SomeOtherError')
         with self.assertRaises(ClientError):
