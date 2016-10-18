@@ -547,6 +547,9 @@ class Bucket(base.EnsurableAWSBaseActor):
 
     @gen.coroutine
     def _get_policy(self):
+        if not self._bucket_exists:
+            raise gen.Return(None)
+
         try:
             raw = yield self.thread(
                 self.s3_conn.get_bucket_policy,

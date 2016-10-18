@@ -168,12 +168,20 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_get_policy(self):
+        self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_policy.return_value = {'Policy': '{}'}
         ret = yield self.actor._get_policy()
         self.assertEquals({}, ret)
 
     @testing.gen_test
+    def test_get_policy_no_bucket(self):
+        self.actor._bucket_exists = False
+        ret = yield self.actor._get_policy()
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
     def test_get_policy_empty(self):
+        self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_policy.side_effect = ClientError(
             {'Error': {}}, 'NoSuchBucketPolicy')
         ret = yield self.actor._get_policy()
@@ -181,6 +189,7 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_get_policy_exc(self):
+        self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_policy.side_effect = ClientError(
             {'Error': {}}, 'SomeOtherError')
         with self.assertRaises(ClientError):
@@ -188,6 +197,7 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_compare_policy(self):
+        self.actor._bucket_exists = True
         self.actor.policy = {'test': 'policy'}
         self.actor.s3_conn.get_bucket_policy.return_value = {
             'Policy': '{"test": "policy"}'
@@ -197,6 +207,7 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_compare_policy_false(self):
+        self.actor._bucket_exists = True
         self.actor.policy = {'test': 'bah'}
         self.actor.s3_conn.get_bucket_policy.return_value = {
             'Policy': '{"test": "policy"}'
@@ -206,6 +217,7 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_compare_policy_not_managing(self):
+        self.actor._bucket_exists = True
         self.actor.policy = None
         self.actor.s3_conn.get_bucket_policy.return_value = {
             'Policy': '{"test": "policy"}'
