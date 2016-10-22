@@ -89,7 +89,7 @@ class IntegrationECS(testing.AsyncTestCase):
         os.unlink(temp.name)
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=120)
     def integration_01a_run_successful_task(self):
         name, task = self._successful_task()
         with self._tmp_file(task) as definition:
@@ -101,7 +101,7 @@ class IntegrationECS(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=120)
     def integration_01b_run_slow_successful_task(self):
         name, task = self._slow_successful_task()
         with self._tmp_file(task) as definition:
@@ -113,7 +113,7 @@ class IntegrationECS(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=120)
     def integration_01c_run_failing_task(self):
         name, task = self._failing_task()
         with self._tmp_file(task) as definition:
@@ -126,7 +126,7 @@ class IntegrationECS(testing.AsyncTestCase):
             yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=120)
     def integration_01d_run_slow_failing_task(self):
         name, task = self._slow_failing_task()
         with self._tmp_file(task) as definition:
@@ -139,7 +139,7 @@ class IntegrationECS(testing.AsyncTestCase):
             yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=30)
     def integration_02a_run_slow_failing_task_dont_wait(self):
         name, task = self._slow_failing_task()
         with self._tmp_file(task) as definition:
@@ -152,7 +152,7 @@ class IntegrationECS(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=30)
     def integration_03a_start_service_no_count(self):
         name, task = self._hanging_task()
         with self._tmp_file(task) as definition:
@@ -166,7 +166,7 @@ class IntegrationECS(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=120)
     def integration_03b_scale_service(self):
         name, task = self._hanging_task()
         with self._tmp_file(task) as definition:
@@ -180,7 +180,7 @@ class IntegrationECS(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=30)
     def integration_03c_scale_service_dont_wait(self):
         name, task = self._hanging_task()
         with self._tmp_file(task) as definition:
@@ -194,7 +194,7 @@ class IntegrationECS(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=120)
     def integration_03d_delete_service(self):
         name, task = self._hanging_task()
         with self._tmp_file(task) as definition:
@@ -208,7 +208,7 @@ class IntegrationECS(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=120)
     def integration_04a_start_service_scaled(self):
         name, task = self._hanging_task()
         with self._tmp_file(task) as definition:
@@ -222,7 +222,7 @@ class IntegrationECS(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=120)
     def integration_04b_scale_service_down(self):
         name, task = self._hanging_task()
         with self._tmp_file(task) as definition:
@@ -236,7 +236,7 @@ class IntegrationECS(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=60)
+    @testing.gen_test(timeout=30)
     def integration_04c_delete_service(self):
         name, task = self._hanging_task()
         with self._tmp_file(task) as definition:
