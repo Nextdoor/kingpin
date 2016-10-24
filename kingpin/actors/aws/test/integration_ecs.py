@@ -139,7 +139,7 @@ class IntegrationECS(testing.AsyncTestCase):
             yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=30)
+    @testing.gen_test(timeout=120)
     def integration_02a_run_slow_failing_task_dont_wait(self):
         name, task = self._slow_failing_task()
         with self._tmp_file(task) as definition:
@@ -152,7 +152,7 @@ class IntegrationECS(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=30)
+    @testing.gen_test(timeout=120)
     def integration_03a_start_service_no_count(self):
         name, task = self._hanging_task()
         with self._tmp_file(task) as definition:
@@ -180,7 +180,7 @@ class IntegrationECS(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=30)
+    @testing.gen_test(timeout=120)
     def integration_03c_scale_service_dont_wait(self):
         name, task = self._hanging_task()
         with self._tmp_file(task) as definition:
@@ -236,7 +236,7 @@ class IntegrationECS(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr('aws', 'integration')
-    @testing.gen_test(timeout=30)
+    @testing.gen_test(timeout=120)
     def integration_04c_delete_service(self):
         name, task = self._hanging_task()
         with self._tmp_file(task) as definition:
