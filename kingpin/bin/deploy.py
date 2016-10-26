@@ -128,7 +128,7 @@ def main():
             sys.exit(1)
 
         if args.orgchart:
-            log.info('Creating organization chat into %s' % args.orgchart)
+            log.info('Creating organizational chart into %s' % args.orgchart)
             try:
                 orgdata = actor.get_orgchart()
             except Exception as e:
