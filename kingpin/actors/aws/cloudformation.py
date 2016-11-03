@@ -174,15 +174,15 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             InvalidTemplate
         """
         if template is None:
-            return (None, None)
+            return None, None
 
         remote_types = ('http://', 'https://')
 
         if template.startswith(remote_types):
-            return (None, template)
+            return None, template
 
         try:
-            return (json.dumps(self._parse_policy_json(template)), None)
+            return json.dumps(self._parse_policy_json(template)), None
         except exceptions.UnrecoverableActorFailure as e:
             raise InvalidTemplate(e)
 
@@ -526,7 +526,7 @@ class Create(CloudFormationBaseActor):
 
         # Check if the supplied CF template is a local file. If it is, read it
         # into memory.
-        (self._template_body, self._template_url) = self._get_template_body(
+        self._template_body, self._template_url = self._get_template_body(
             self.option('template'))
 
     @gen.coroutine
@@ -708,7 +708,7 @@ class Stack(CloudFormationBaseActor):
 
         # Check if the supplied CF template is a local file. If it is, read it
         # into memory.
-        (self._template_body, self._template_url) = self._get_template_body(
+        self._template_body, self._template_url = self._get_template_body(
             self.option('template'))
 
     @gen.coroutine
