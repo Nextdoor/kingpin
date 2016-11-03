@@ -182,6 +182,7 @@ def begin():
         ioloop.IOLoop.instance().run_sync(main)
     except KeyboardInterrupt:
         log.info('CTRL-C Caught, shutting down')
+        sys.exit(130)  # Standard KeyboardInterrupt exit code.
     except Exception as e:
         # Skip traceback that involves tornado's libraries.
         import traceback
@@ -194,6 +195,7 @@ def begin():
             if not skip_next:
                 print(l)
             skip_next = False
+        sys.exit(3)
 
 if __name__ == '__main__':
     begin()
