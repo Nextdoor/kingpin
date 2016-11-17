@@ -105,10 +105,10 @@ class CapabilitiesConfig(SchemaCompareBase):
         'uniqueItems': True,
         'items': {
             'type': 'string',
-            'enum': ['CAPABILITY_IAM']
+            'enum': ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM']
         }
     }
-    valid = '[ "CAPABILITY_IAM" ]'
+    valid = '[ "CAPABILITY_IAM", "CAPABILITY_NAMED_IAM" ]'
 
 
 class OnFailureConfig(StringCompareBase):
