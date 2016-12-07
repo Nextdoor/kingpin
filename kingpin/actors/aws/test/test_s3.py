@@ -40,6 +40,7 @@ class TestBucket(testing.AsyncTestCase):
                     'prefix': '/prefix'
                 },
                 'versioning': False,
+                'tags': [],
             })
         self.actor.s3_conn = mock.MagicMock()
 
@@ -446,13 +447,33 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_tags(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_tagging.return_value = {
-            'TagSet': []}
+            'TagSet': [{'Key': 'k1', 'Value': 'v1'}]}
         ret = yield self.actor._get_tags()
-        self.assertEquals(ret, [])
+        self.assertEquals(ret, [{'key': 'k1', 'value': 'v1'}])
+
+    @testing.gen_test
+    def test_get_tags_multiple_tags(self):
+        self.actor._bucket_exists = True
+        self.actor.s3_conn.get_bucket_tagging.return_value = {
+            'TagSet': [
+                {'Key': 'k1', 'Value': 'v1'},
+                {'Key': 'k2', 'Value': 'v2'}
+            ]}
+        ret = yield self.actor._get_tags()
+        self.assertEquals(ret, [
+            {'key': 'k1', 'value': 'v1'},
+            {'key': 'k2', 'value': 'v2'}
+        ])
 
     @testing.gen_test
     def test_get_tags_no_bucket(self):
         self.actor._bucket_exists = False
+        ret = yield self.actor._get_tags()
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
+    def test_get_tags_not_managed(self):
+        self.actor._options['tags'] = None
         ret = yield self.actor._get_tags()
         self.assertEquals(None, ret)
 

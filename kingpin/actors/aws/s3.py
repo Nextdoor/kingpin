@@ -316,7 +316,8 @@ class Bucket(base.EnsurableAWSBaseActor):
     :tags:
       (:py:class:`TaggingConfig`, None)
 
-      A list of dictionaries with a `key` and `value` key.
+      A list of dictionaries with a `key` and `value` key. Defaults to an empty
+      list, which means that if you manually add tags, they will be removed.
 
     :policy:
       (str, None) A JSON file with the bucket policy. Passing in a blank string
@@ -803,6 +804,9 @@ class Bucket(base.EnsurableAWSBaseActor):
 
     @gen.coroutine
     def _get_tags(self):
+        if self.option('tags') is None:
+            raise gen.Return(None)
+
         if not self._bucket_exists:
             raise gen.Return(None)
 
@@ -815,7 +819,15 @@ class Bucket(base.EnsurableAWSBaseActor):
                 raise gen.Return([])
             raise
 
-        raise gen.Return(raw['TagSet'])
+        # The keys in the sets returned always are capitalized (Key, Value) ...
+        # but our schema uses lower case. Lowercase all of the keys before
+        # returning them so that they are compared properly.
+        tagset = []
+        for tag in raw['TagSet']:
+            tag = {k.lower(): v for k, v in tag.items()}
+            tagset.append(tag)
+
+        raise gen.Return(tagset)
 
     @gen.coroutine
     @dry('Would have pushed tags')
