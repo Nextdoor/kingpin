@@ -446,9 +446,9 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_tags(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_tagging.return_value = {
-            'TagSet': []}
+            'TagSet': [{'Key': 'k1', 'Value': 'v1'}]}
         ret = yield self.actor._get_tags()
-        self.assertEquals(ret, [])
+        self.assertEquals(ret, [{'key': 'k1', 'value': 'v1'}])
 
     @testing.gen_test
     def test_get_tags_no_bucket(self):

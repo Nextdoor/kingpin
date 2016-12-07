@@ -815,7 +815,15 @@ class Bucket(base.EnsurableAWSBaseActor):
                 raise gen.Return([])
             raise
 
-        raise gen.Return(raw['TagSet'])
+        # The keys in the sets returned always are capitalized (Key, Value) ...
+        # but our schema uses lower case. Lowercase all of the keys before
+        # returning them so that they are compared properly.
+        tagset = []
+        for tag in raw['TagSet']:
+            tag = {k.lower(): v for k, v in tag.items()}
+            tagset.append(tag)
+
+        raise gen.Return(tagset)
 
     @gen.coroutine
     @dry('Would have pushed tags')
