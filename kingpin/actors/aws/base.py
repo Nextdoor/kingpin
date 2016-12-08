@@ -314,6 +314,7 @@ class AWSBaseActor(base.BaseActor):
         if there is any.
 
         Sorts two dicts (including sorting of the lists!!) and then diffs them.
+        This will ignore string types ('unicode' vs 'string').
 
         args:
             dict1: First dict
@@ -330,6 +331,10 @@ class AWSBaseActor(base.BaseActor):
 
         dict1 = pprint.pformat(dict1).splitlines()
         dict2 = pprint.pformat(dict2).splitlines()
+
+        # Remove unicode identifiers.
+        dict1 = map(lambda line: line.replace('u\'', '\''), dict1)
+        dict2 = map(lambda line: line.replace('u\'', '\''), dict2)
 
         return '\n'.join(difflib.unified_diff(dict1, dict2, n=2))
 
