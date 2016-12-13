@@ -856,10 +856,8 @@ class Service(ECSBaseActor):
                 service = yield self._describe_service(service_name)
             except ServiceNotFound:
                 yield gen.sleep(2)
-            else:
-                break
+                continue
 
-        while True:
             primary_deployment = self._get_primary_deployment(service)
             if primary_deployment and self._is_task_in_deployment(
                     primary_deployment, task_definition_name):
