@@ -830,6 +830,26 @@ class Bucket(base.EnsurableAWSBaseActor):
         raise gen.Return(tagset)
 
     @gen.coroutine
+    def _compare_tags(self):
+        new = self.option('tags')
+        if new is None:
+            self.log.debug('Not managing Tags')
+            raise gen.Return(True)
+
+        exist = yield self._get_tags()
+
+        diff = self._diff_dicts(exist, new)
+        if not diff:
+            self.log.debug('Bucket tags match')
+            raise gen.Return(True)
+
+        self.log.info('Bucket tags differs from Amazons:')
+        for line in diff.split('\n'):
+            self.log.info('Diff: %s' % line)
+
+        raise gen.Return(False)
+
+    @gen.coroutine
     @dry('Would have pushed tags')
     def _set_tags(self):
         tags = self.option('tags')

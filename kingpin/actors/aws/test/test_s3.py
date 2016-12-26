@@ -494,6 +494,40 @@ class TestBucket(testing.AsyncTestCase):
             yield self.actor._get_tags()
 
     @testing.gen_test
+    def test_compare_tags(self):
+        self.actor._bucket_exists = True
+        self.actor._options['tags'] = [
+            {'key': 'test_key', 'value': 'test_value'}
+        ]
+        self.actor.s3_conn.get_bucket_tagging.return_value = {
+            'TagSet': [
+                {'Key': 'test_key', 'Value': 'test_value'},
+            ]}
+        ret = yield self.actor._compare_tags()
+        self.assertTrue(ret)
+
+    @testing.gen_test
+    def test_compare_tags_false(self):
+        self.actor._bucket_exists = True
+        self.actor._options['tags'] = [
+            {'key': 'test_key', 'value': 'test_value'}
+        ]
+        self.actor.s3_conn.get_bucket_tagging.return_value = {
+            'TagSet': [
+                {'Key': 'k1', 'Value': 'v1'},
+                {'Key': 'k2', 'Value': 'v2'}
+            ]}
+        ret = yield self.actor._compare_tags()
+        self.assertFalse(ret)
+
+    @testing.gen_test
+    def test_compare_tags_not_managing(self):
+        self.actor._bucket_exists = True
+        self.actor._options['tags'] = None
+        ret = yield self.actor._compare_tags()
+        self.assertTrue(ret)
+
+    @testing.gen_test
     def test_set_tags_none(self):
         self.actor._options['tags'] = None
         yield self.actor._set_tags()
