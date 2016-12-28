@@ -41,6 +41,8 @@ Full Module Docs
    :members:
 .. automodule:: kingpin.actors.slack
    :members:
+.. automodule:: kingpin.actors.spotinst
+   :members:
 .. automodule:: kingpin.actors.support.api
    :members:
 .. automodule:: kingpin.actors.utils

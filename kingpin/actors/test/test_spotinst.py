@@ -1,0 +1,260 @@
+import mock
+import logging
+import json
+
+from tornado import testing
+from tornado import httpclient
+
+from kingpin.actors import exceptions
+from kingpin.actors import spotinst
+from kingpin.actors.test.helper import mock_tornado, tornado_value
+
+__author__ = 'Matt Wise <matt@nextdoor.com>'
+
+
+class TestSpotinstException(testing.AsyncTestCase):
+
+    def test_no_json_in_body(self):
+        fake_body = '400 Bad Mmmkay'
+        exc = spotinst.SpotinstException(fake_body)
+        self.assertEquals(
+            'Unknown error: 400 Bad Mmmkay',
+            str(exc))
+
+    def test_invalid_auth_response(self):
+        fake_resp_body = mock.MagicMock(name='response_body')
+        fake_resp_body.body = json.dumps(
+            {
+                'request': {
+                    'id': 'fake_id',
+                    'url': '/fake',
+                    'method': 'GET',
+                    'timestamp': '2016-12-28T22:36:36.324Z',
+                },
+                'response': {
+                    'error': 'invalid auth',
+                    'error_id': 'NOAUTH'
+                },
+            }
+        )
+        source_exc = httpclient.HTTPError(
+            400, '400 Bad Request', fake_resp_body)
+        fake_exc = spotinst.SpotinstException(source_exc)
+        self.assertEquals(
+            'Spotinst Request ID (fake_id) GET /fake: invalid auth',
+            str(fake_exc))
+
+    def test_group_validation_errors(self):
+        fake_resp_body = mock.MagicMock(name='response_body')
+        fake_resp_body.body = json.dumps(
+            {
+                'request': {
+                    'id': 'fake_id',
+                    'url': '/fake',
+                    'method': 'GET',
+                    'timestamp': '2016-12-28T22:36:36.324Z',
+                },
+                'response': {
+                    'errors': [
+                        {'message': 'Cant create spot requests.',
+                         'code': 'GENERAL_ERROR'},
+                        {'message': 'AMI ami-16fc4976 with an...',
+                         'code': 'UnsupportedOperation'},
+                    ]
+                },
+            }
+        )
+        source_exc = httpclient.HTTPError(
+            400, '400 Bad Request', fake_resp_body)
+        fake_exc = spotinst.SpotinstException(source_exc)
+        self.assertEquals(
+            ('Spotinst Request ID (fake_id) GET /fake: GENERAL_ERROR: Cant '
+             'create spot requests., UnsupportedOperation: AMI ami-16fc4976 '
+             'with an...'),
+            str(fake_exc))
+
+    def test_unknown_error_body(self):
+        fake_resp_body = mock.MagicMock(name='response_body')
+        fake_resp_body.body = json.dumps(
+            {
+                'request': {
+                    'id': 'fake_id',
+                    'url': '/fake',
+                    'method': 'GET',
+                    'timestamp': '2016-12-28T22:36:36.324Z',
+                },
+                'response': {
+                    'something': 'else'
+                },
+            }
+        )
+        source_exc = httpclient.HTTPError(
+            400, '400 Bad Request', fake_resp_body)
+        fake_exc = spotinst.SpotinstException(source_exc)
+        self.assertEquals(
+            ('Spotinst Request ID (fake_id) GET /fake: '
+             '{u\'something\': u\'else\'}'),
+            str(fake_exc))
+
+
+class TestSpotinstBase(testing.AsyncTestCase):
+
+    """Unit tests for the packagecloud Base actor."""
+
+    def setUp(self, *args, **kwargs):
+        super(TestSpotinstBase, self).setUp(*args, **kwargs)
+        spotinst.TOKEN = 'Unittest'
+        spotinst.DEBUG = True
+
+    def test_init_with_debug_disabled(self):
+        spotinst.DEBUG = False
+        spotinst.SpotinstBase('Unit Test Action', {})
+        self.assertEquals(
+            20, logging.getLogger('tornado_rest_client.api').level)
+
+    def test_init_missing_token(self):
+        # Un-set the token and make sure the init fails
+        spotinst.TOKEN = None
+        with self.assertRaises(exceptions.InvalidCredentials):
+            spotinst.SpotinstBase('Unit Test Action', {})
+
+
+class TestElastiGroup(testing.AsyncTestCase):
+
+    """Unit tests for the ElastiGroup actor."""
+
+    def setUp(self, *args, **kwargs):
+        super(TestElastiGroup, self).setUp(*args, **kwargs)
+        file = 'examples/test/spotinst.elastigroup/unittest.json'
+        spotinst.TOKEN = 'Unittest'
+
+        # Manually inject some fake values for the subnet/secgrp/zone
+        init_tokens = {
+            'SECGRP': 'sg-123123',
+            'ZONE': 'us-test-1a',
+            'SUBNET': 'sn-123123'
+        }
+
+        self.actor = spotinst.ElastiGroup(
+            'unittest',
+            {'name': 'unittest', 'config': file},
+            init_tokens=init_tokens)
+        self.actor._client = mock.Mock()
+
+    def test_parse_group_config(self):
+        self.assertEquals(
+            self.actor._config['group']['compute']['availabilityZones'][0]['name'],
+            'us-test-1a')
+        self.assertEquals(
+            self.actor._config['group']['name'], 'unittest')
+
+    def test_parse_group_config_no_config(self):
+        self.actor._options['config'] = None
+        self.assertEquals(
+            None, self.actor._parse_group_config())
+
+    def test_parse_group_config_missing_token(self):
+        del(self.actor._init_tokens['ZONE'])
+        with self.assertRaises(exceptions.InvalidOptions):
+            self.actor._parse_group_config()
+
+    def test_parse_group_with_b64_data(self):
+        file = 'examples/test/spotinst.elastigroup/unittest.b64.json'
+        init_tokens = {
+            'SECGRP': 'sg-123123',
+            'ZONE': 'us-test-1a',
+            'SUBNET': 'sn-123123'
+        }
+        self.actor = spotinst.ElastiGroup(
+            'unittest',
+            {'name': 'unittest', 'config': file},
+            init_tokens=init_tokens)
+        self.actor._client = mock.Mock()
+
+        self.assertEquals(
+            'IyEvYmluL2Jhc2gKZWNobyBEb25l',
+            self.actor._config['group']['compute']['launchSpecification']['userData'])
+
+    @testing.gen_test
+    def test_list_groups(self):
+        list_of_groups = {
+            'request': {
+                'id': 'fake_id',
+                'url': '/fake',
+                'method': 'GET',
+                'timestamp': '2016-12-28T22:36:36.324Z',
+            },
+            'response': {
+                'items': [
+                    {'group': {'name': 'test'}}
+                ]
+            }
+        }
+
+        self.actor._client.aws.ec2.list_groups.http_get = mock_tornado(
+            list_of_groups)
+        ret = yield self.actor._list_groups()
+        self.assertEquals(
+            ret, [{'group': {'name': 'test'}}])
+
+    @testing.gen_test
+    def test_get_group(self):
+        matching_group = {
+            'name': 'unittest',
+            'id': 'bogus',
+        }
+        self.actor._list_groups = mock_tornado([matching_group])
+
+        ret = yield self.actor._get_group()
+        self.assertEquals(ret, matching_group)
+
+    @testing.gen_test
+    def test_get_group_too_many_results(self):
+        matching_group = {
+            'name': 'unittest',
+            'id': 'bogus',
+        }
+        self.actor._list_groups = mock_tornado(
+            [matching_group, matching_group])
+
+        with self.assertRaises(exceptions.InvalidOptions):
+            yield self.actor._get_group()
+
+    @testing.gen_test
+    def test_get_group_no_groups(self):
+        self.actor._list_groups = mock_tornado(None)
+        ret = yield self.actor._get_group()
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_get_group_no_matching_groups(self):
+        unmatching_group = {
+            'name': 'unittest-not-matching',
+            'id': 'bogus',
+        }
+        self.actor._list_groups = mock_tornado([unmatching_group])
+        ret = yield self.actor._get_group()
+        self.assertEquals(ret, None)
+
+    @testing.gen_test
+    def test_precache(self):
+        fake_group = {
+            'name': 'unittest',
+            'id': 'bogus'
+        }
+        self.actor._get_group = mock_tornado(fake_group)
+        self.actor._validate_group = mock_tornado(None)
+        yield self.actor._precache()
+        self.assertEquals(fake_group, self.actor._group)
+
+    @testing.gen_test
+    def test_get_state(self):
+        self.actor._group = True
+        ret = yield self.actor._get_state()
+        self.assertEquals('present', ret)
+
+    @testing.gen_test
+    def test_get_state_false(self):
+        self.actor._group = None
+        ret = yield self.actor._get_state()
+        self.assertEquals('absent', ret)
