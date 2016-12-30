@@ -25,6 +25,7 @@ from boto.exception import BotoServerError
 from tornado import concurrent
 from tornado import gen
 
+from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws.iam import base
 from kingpin.constants import REQUIRED
@@ -255,7 +256,7 @@ class EntityBaseActor(base.IAMBaseActor):
                        set(existing_policies.keys())):
             new = self.inline_policies[policy]
             exist = existing_policies[policy]
-            diff = self._diff_dicts(exist, new)
+            diff = utils.diff_dicts(exist, new)
             if diff:
                 self.log.info('Policy %s differs from Amazons:' % policy)
                 for line in diff.split('\n'):
@@ -892,7 +893,7 @@ class Role(EntityBaseActor):
 
         # Now diff it against our desired policy. If no diff, then quietly
         # return.
-        diff = self._diff_dicts(exist, new)
+        diff = utils.diff_dicts(exist, new)
         if not diff:
             self.log.debug('Assume Role Policy documents match')
             raise gen.Return()

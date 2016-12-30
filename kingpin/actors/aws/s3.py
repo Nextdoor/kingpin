@@ -26,6 +26,7 @@ from tornado import gen
 from inflection import camelize
 import jsonpickle
 
+from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.utils import dry
 from kingpin.actors.aws import base
@@ -80,7 +81,7 @@ class LoggingConfig(SchemaCompareBase):
         }
     }
 
-    valid = '{ "target": "<bucket name>", [ "prefix": "<logging prefix>" ]}'
+    valid = '{ "target": "<bucket name>", "prefix": "<logging prefix>" }'
 
 
 class LifecycleConfig(SchemaCompareBase):
@@ -133,54 +134,40 @@ class LifecycleConfig(SchemaCompareBase):
                     'type': 'string',
                     'minLength': 1,
                     'maxLength': 255,
-                    'required': True,
                 },
                 'prefix': {
                     'type': 'string',
-                    'required': True,
                 },
 
                 # The Status field must be 'Enabled' or 'Disabled'
                 'status': {
                     'type': 'string',
                     'enum': ['Enabled', 'Disabled'],
-                    'required': True,
                 },
 
                 # Expiration and Transition can be empty, or have
                 # configurations associated with them.
                 'expiration': {
-                    'type': [
-
-                        # This is broken out to support the older style of just
-                        # typing expiration: <days> rather than expiration: {
-                        # days: 5}.
-                        {
+                    'type': ['string', 'integer', 'object'],
+                    'pattern': '^[0-9]+$',
+                    'additionalProperties': False,
+                    'properties': {
+                        'days': {
                             'type': ['string', 'integer'],
-                            'pattern': '^[0-9]+$'
+                            'pattern': '^[0-9]+$',
                         },
-
-                        {
-                            'type': 'object',
-                            'additionalProperties': False,
-                            'properties': {
-                                'days': {
-                                    'type': ['string', 'integer'],
-                                    'pattern': '^[0-9]+$',
-                                },
-                                'date': {
-                                    'type': 'string',
-                                    'format': 'date-time',
-                                },
-                                'expired_object_delete_marker': {
-                                    'type': 'boolean',
-                                }
-                            }
+                        'date': {
+                            'type': 'string',
+                            'format': 'date-time',
+                        },
+                        'expired_object_delete_marker': {
+                            'type': 'boolean',
                         }
-                    ],
+                    }
                 },
                 'transition': {
                     'type': ['object', 'null'],
+                    'required': ['storage_class'],
                     'additionalProperties': False,
                     'properties': {
                         'days': {
@@ -192,7 +179,6 @@ class LifecycleConfig(SchemaCompareBase):
                             'format': 'date-time'
                         },
                         'storage_class': {
-                            'required': True,
                             'type': 'string',
                             'enum': ['GLACIER', 'STANDARD_IA']
                         }
@@ -200,6 +186,7 @@ class LifecycleConfig(SchemaCompareBase):
                 },
                 'noncurrent_version_transition': {
                     'type': 'object',
+                    'required': ['storage_class'],
                     'additionalProperties': False,
                     'properties': {
                         'noncurrent_days': {
@@ -207,7 +194,6 @@ class LifecycleConfig(SchemaCompareBase):
                             'pattern': '^[0-9]+$',
                         },
                         'storage_class': {
-                            'required': True,
                             'type': 'string',
                             'enum': ['GLACIER', 'STANDARD_IA']
                         }
@@ -236,8 +222,7 @@ class TaggingConfig(SchemaCompareBase):
 
     .. code-block:: json
 
-        { "key": "my_key",
-          "value": "some_value" }
+        [ { "key": "my_key", "value": "some_value" } ]
 
     """
 
@@ -246,21 +231,20 @@ class TaggingConfig(SchemaCompareBase):
         'uniqueItems': True,
         'items': {
             'type': 'object',
+            'required': ['key', 'value'],
             'additionalProperties': False,
             'properties': {
                 'key': {
                     'type': 'string',
-                    'required': True,
                 },
                 'value': {
                     'type': 'string',
-                    'required': True,
                 }
             }
         }
     }
 
-    valid = '{ "target": "<bucket name>", [ "prefix": "<logging prefix>" ]}'
+    valid = '[ { "key": "<key name>", "value": "<tag value>" } ]'
 
 
 class Bucket(base.EnsurableAWSBaseActor):
@@ -574,7 +558,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         # Now, diff our new policy from the existing policy. If there is no
         # difference, then we bail out of the method.
-        diff = self._diff_dicts(exist, new)
+        diff = utils.diff_dicts(exist, new)
         if not diff:
             self.log.debug('Bucket policy matches')
             raise gen.Return(True)
@@ -759,7 +743,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         # Now sort through the existing Lifecycle configuration and the one
         # that we've built locally. If there are any differences, we're going
         # to push an all new config.
-        diff = self._diff_dicts(
+        diff = utils.diff_dicts(
             json.loads(jsonpickle.encode(existing)),
             json.loads(jsonpickle.encode(new)))
 

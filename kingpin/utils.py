@@ -20,12 +20,14 @@ Common package for utility functions.
 """
 
 from logging import handlers
+import difflib
 import datetime
 import demjson
 import functools
 import importlib
 import logging
 import os
+import pprint
 import re
 import sys
 import yaml
@@ -435,3 +437,33 @@ def create_repeating_log(logger, message, handle=None, **kwargs):
 def clear_repeating_log(handle):
     """Stops the timeout function from being called."""
     ioloop.IOLoop.current().remove_timeout(handle.timeout_id)
+
+
+def diff_dicts(dict1, dict2):
+    """Compares two dicts and returns the difference as a string,
+    if there is any.
+
+    Sorts two dicts (including sorting of the lists!!) and then diffs them.
+    This will ignore string types ('unicode' vs 'string').
+
+    args:
+        dict1: First dict
+        dict2: Second dict
+
+    returns:
+        A diff string if there's any difference, otherwise None.
+    """
+    dict1 = order_dict(dict1)
+    dict2 = order_dict(dict2)
+
+    if dict1 == dict2:
+        return
+
+    dict1 = pprint.pformat(dict1).splitlines()
+    dict2 = pprint.pformat(dict2).splitlines()
+
+    # Remove unicode identifiers.
+    dict1 = map(lambda line: line.replace('u\'', '\''), dict1)
+    dict2 = map(lambda line: line.replace('u\'', '\''), dict2)
+
+    return '\n'.join(difflib.unified_diff(dict1, dict2, n=2))

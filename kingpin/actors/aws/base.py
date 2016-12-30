@@ -32,10 +32,8 @@ _Note, these can be skipped only if you have a .aws/credentials file in place._
   Your AWS secret
 """
 
-import difflib
 import json
 import logging
-import pprint
 import urllib
 import re
 
@@ -308,35 +306,6 @@ class AWSBaseActor(base.BaseActor):
                                                        (policy, e))
 
         return p_doc
-
-    def _diff_dicts(self, dict1, dict2):
-        """Compares two dicts and returns the difference as a string,
-        if there is any.
-
-        Sorts two dicts (including sorting of the lists!!) and then diffs them.
-        This will ignore string types ('unicode' vs 'string').
-
-        args:
-            dict1: First dict
-            dict2: Second dict
-
-        returns:
-            A diff string if there's any difference, otherwise None.
-        """
-        dict1 = utils.order_dict(dict1)
-        dict2 = utils.order_dict(dict2)
-
-        if dict1 == dict2:
-            return
-
-        dict1 = pprint.pformat(dict1).splitlines()
-        dict2 = pprint.pformat(dict2).splitlines()
-
-        # Remove unicode identifiers.
-        dict1 = map(lambda line: line.replace('u\'', '\''), dict1)
-        dict2 = map(lambda line: line.replace('u\'', '\''), dict2)
-
-        return '\n'.join(difflib.unified_diff(dict1, dict2, n=2))
 
 
 class EnsurableAWSBaseActor(AWSBaseActor, base.EnsurableBaseActor):

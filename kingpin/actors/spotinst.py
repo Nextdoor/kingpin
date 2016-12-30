@@ -371,11 +371,28 @@ class ElastiGroup(SpotinstBase):
 
     @gen.coroutine
     def _validate_group(self):
+        """Basic Schema validation of the Elastigroup config.
+
+        This endpoint is not documented, but it performs the most basic schema
+        validation of the supplied ElastiGroup config. It cannot verify that
+        instances will truly launch, but it can help catch obvious errors.
+
+        It does require authentication, which is sad.
+        """
         yield self._client.aws.ec2.validate_group.http_post(
             group=self._config['group'])
 
     @gen.coroutine
     def _precache(self):
+        """Pre-populate a bunch of data.
+
+        Searches for the list of ElastiGroups and stores the existing
+        configuration for an ElastiGroup if it matches the name of the one
+        we're managing here.
+
+        Attempts light schema-validation of the desired ElastiGroup config to
+        try to catch errors early in the Dry run.
+        """
         self._group = yield self._get_group()
         yield self._validate_group()
 
@@ -390,7 +407,7 @@ class ElastiGroup(SpotinstBase):
     @dry('Would have created ElastiGroup')
     def _set_state(self):
         self.log.info('Creating ElastiGroup %s' % self.option('name'))
-        resp = yield self._client.aws.ec2.create_group.http_post(
+        yield self._client.aws.ec2.create_group.http_post(
             group=self._config['group'])
 
     @gen.coroutine
