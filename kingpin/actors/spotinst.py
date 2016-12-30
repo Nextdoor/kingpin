@@ -14,7 +14,7 @@
 
 """
 :mod:`kingpin.actors.spotinst`
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Spotinst package allows you to create, manage and destroy Spotinst
 ElastiGroups.
@@ -34,6 +34,7 @@ https://spotinst.atlassian.net/wiki/display/API/API+Semantics
 """
 
 import base64
+import copy
 import logging
 import os
 import json
@@ -187,7 +188,15 @@ class ElastiGroupSchema(SchemaCompareBase):
 
     """Light validation against the Spotinst ElastiGroup schema.
 
+    For full description of the JSON data format, please see:
     https://spotinst.atlassian.net/wiki/display/API/Create+Group#CreateGroup-JF
+
+    This schema handles the following validation cases:
+
+    * Only allow a single `SubnetID` for each `availabilityZone` object.
+    * Disallow `t2|i2|hc1` instance types for the `spot` instance section.
+    * Ensure that the `scaling.up` and `scaling.down` arrays are either `null`
+      or contain at least **1** record.
     """
     SCHEMA = {
         'type': 'object',
@@ -200,6 +209,19 @@ class ElastiGroupSchema(SchemaCompareBase):
                     'compute': {
                         'type': 'object',
                         'properties': {
+                            'availabilityZones': {
+                                'type': 'array',
+                                'uniqueItems': True,
+                                'items': {
+                                    'type': 'object',
+                                    'required': ['name', 'subnetId'],
+                                    'additionalProperties': False,
+                                    'properties': {
+                                        'name': {'type': 'string'},
+                                        'subnetId': {'type': 'string'}
+                                    }
+                                }
+                            },
                             'instanceTypes': {
                                 'type': 'object',
                                 'properties': {
@@ -215,6 +237,20 @@ class ElastiGroupSchema(SchemaCompareBase):
                                     }
                                 }
                             }
+                        }
+                    },
+                    'scaling': {
+                        'type': 'object',
+                        'additionalProperties': False,
+                        'properties': {
+                            'up': {
+                                'type': ['null', 'array'],
+                                'minItems': 1
+                            },
+                            'down': {
+                                'type': ['null', 'array'],
+                                'minItems': 1
+                            },
                         }
                     }
                 }
@@ -249,6 +285,35 @@ class ElastiGroup(SpotinstBase):
 
     """Manages an ElastiGroup in Spotinst.
 
+    `Spotinst ElastiGroups
+    <https://spotinst.com/products/workload-management/elastigroup/>`_ act as
+    smarter EC2 AutoScalingGroups that scale up and down leveraging Amazon Spot
+    instances wherever possible. These ElastiGroups are completely configurable
+    through a `JSON Blob
+    <https://spotinst.atlassian.net/wiki/display/API/Create+Group>`_.
+
+    For a fully functional example JSON config, see :download:`this one
+    <../examples/test/spotinst.elastigroup/unittest.json>`. You can also write
+    your files in YAML if you prefer -- Kingpin will handle the conversion.
+
+    **UserData Startup Script**
+
+    The Spotinst API wants the instances UserData script to be supplied as
+    a Base64-encoded string -- which you can do if you wish. However, there is
+    no need, as Kingpin will automatically convert your plain-text script into
+    a Base64 blob for you behind the scenes.
+
+    **Known Limitations**
+
+    * At this time, this actor only makes changes to ElastiGroups or
+      creates/deletes them. It does not trigger rolling changes, or wait until
+      instances have launched or terminated before returning.
+
+    * The Spotinst API does not allow you to change an ElastiGroup scaling
+      'unit' (ie, CPU Count or Instance Count). You can also not change an
+      ElastiGroup's basic platform (ie, VPC Linux vs Non VPC Linux). We warn
+      about this on each change.
+
     **Options**
 
     :name:
@@ -259,6 +324,30 @@ class ElastiGroup(SpotinstBase):
       Path to the ElastiGroup configuration blob (JSON or YAML) file.
       :ref:`token_replacement` can be used inside of your configuration files
       allowing environment variables to replace `%VAR%` strings.
+
+      This file will be checked against a light-schema defined in
+      :py:class:`ElastiGroupSchema` before any authentication is required. The
+      file will be further validated against the Spotinst API during the DRY
+      run, but this requires authentication.
+
+    **Examples**
+
+    .. code-block:: json
+
+      { "actor": "spotinst.ElastiGroup",
+        "options": {
+          "name": "my-group",
+          "config": "./group_config.json",
+        }
+      }
+
+    **Dry Mode**
+
+    Will discover the current state of the ElastiGroup (*present*, *absent*),
+    and whether or not the current configuration is different than the desired
+    configuration. Will also validate the desired configuration against the
+    SpostInst API to give you a heads up about any potential failures up
+    front.
     """
 
     all_options = {
@@ -273,7 +362,12 @@ class ElastiGroup(SpotinstBase):
 
     def __init__(self, *args, **kwargs):
         super(ElastiGroup, self).__init__(*args, **kwargs)
+
+        # Parse the user-supplied ElastiGroup config, swap in any tokens, etc.
         self._config = self._parse_group_config()
+
+        # Filld in later by self._precache()
+        self._group = None
 
     def _parse_group_config(self):
         """Parses the ElastiGroup config and replaces tokens.
@@ -303,7 +397,8 @@ class ElastiGroup(SpotinstBase):
         # The userData portion of the body data needs to be Base64 encoded if
         # its not already. We will try to decode whatever is there, and if it
         # fails, we assume its raw text and we encode it.
-        orig_data = parsed['group']['compute']['launchSpecification']['userData']
+        orig_data = (parsed['group']['compute']
+                     ['launchSpecification']['userData'])
         try:
             base64.b64decode(orig_data)
         except TypeError:
@@ -367,7 +462,7 @@ class ElastiGroup(SpotinstBase):
 
         match = matching[0]
         self.log.debug('Found ElastiGroup %s' % match['id'])
-        raise gen.Return(match)
+        raise gen.Return({'group': match})
 
     @gen.coroutine
     def _validate_group(self):
@@ -404,16 +499,81 @@ class ElastiGroup(SpotinstBase):
         raise gen.Return('absent')
 
     @gen.coroutine
-    @dry('Would have created ElastiGroup')
     def _set_state(self):
+        if self.option('state') == 'absent' and self._group:
+            yield self._delete_group(id=self._group['group']['id'])
+        elif self.option('state') == 'present':
+            yield self._create_group()
+
+    @gen.coroutine
+    @dry('Would have created ElastiGroup')
+    def _create_group(self):
         self.log.info('Creating ElastiGroup %s' % self.option('name'))
         yield self._client.aws.ec2.create_group.http_post(
             group=self._config['group'])
 
     @gen.coroutine
-    def _get_config(self):
-        raise gen.Return()
+    @dry('Would have deleted ElastiGroup {id}')
+    def _delete_group(self, id):
+        self.log.info('Deleting ElastiGroup %s' % id)
+        yield self._client.aws.ec2.delete_group(id=id).http_delete()
 
     @gen.coroutine
+    def _compare_config(self):
+        # For the purpose of comparing the two configuration dicts, we need to
+        # modify them (below).. so first lets copy them so we don't modify the
+        # originals.
+        new = copy.deepcopy(self._config)
+        existing = copy.deepcopy(self._group)
+
+        # Strip out some of the Spotinst generated and managed fields that
+        # should never end up in either our new or existing configs.
+        for field in ('id', 'createdAt', 'updatedAt'):
+            new['group'].pop(field, None)
+            existing['group'].pop(field, None)
+
+        # We only allow a user to supply a single subnetId for each AZ (this is
+        # handled by the ElastiGroupSchema). Spotinst returns back though both
+        # the original setting, as well as a list of subnetIds. We purge that
+        # from our comparison here.
+        for az in existing['group']['compute']['availabilityZones']:
+            az.pop('subnetIds', None)
+
+        diff = utils.diff_dicts(existing, new)
+
+        if diff:
+            self.log.warning('Group configurations do not match')
+            for line in diff.split('\n'):
+                self.log.info('Diff: %s' % line)
+            return False
+
+        return True
+
+    @gen.coroutine
+    def _get_config(self):
+        """Not really used, but a stub for correctness"""
+        raise gen.Return(self._group)
+
+    @gen.coroutine
+    @dry('Would have updated ElastiGroup config')
     def _set_config(self):
-        raise gen.Return()
+        group_id = self._group['group']['id']
+        self.log.info('Updating ElastiGroup %s' % group_id)
+
+        # There are certain fields that simply cannot be updated -- strip them
+        # out. We have a warning up in the above _compare_config() section that
+        # will tell the user about this in a dry run.
+        if 'capacity' in self._config['group']:
+            self.log.warning(
+                'Note: Ignoring the group[capacity][unit] setting.')
+            self._config['group']['capacity'].pop('unit', None)
+        if 'compute' in self._config['group']:
+            self.log.warning(
+                'Note: Ignoring the group[compute][unit] setting.')
+            self._config['group']['compute'].pop('product', None)
+
+        # Now do the update and capture the results. Once we have them, we'll
+        # store the updated group configuration.
+        ret = yield self._client.aws.ec2.update_group(id=group_id).http_put(
+            group=self._config['group'])
+        self._group = ret['response']['items'][0]

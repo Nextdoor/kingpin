@@ -1,3 +1,4 @@
+import copy
 import mock
 import logging
 import json
@@ -143,8 +144,8 @@ class TestElastiGroup(testing.AsyncTestCase):
 
     def test_parse_group_config(self):
         self.assertEquals(
-            self.actor._config['group']['compute']['availabilityZones'][0]['name'],
-            'us-test-1a')
+            (self.actor._config['group']['compute']
+             ['availabilityZones'][0]['name']), 'us-test-1a')
         self.assertEquals(
             self.actor._config['group']['name'], 'unittest')
 
@@ -173,7 +174,8 @@ class TestElastiGroup(testing.AsyncTestCase):
 
         self.assertEquals(
             'IyEvYmluL2Jhc2gKZWNobyBEb25l',
-            self.actor._config['group']['compute']['launchSpecification']['userData'])
+            (self.actor._config['group']['compute']
+             ['launchSpecification']['userData']))
 
     @testing.gen_test
     def test_list_groups(self):
@@ -206,7 +208,7 @@ class TestElastiGroup(testing.AsyncTestCase):
         self.actor._list_groups = mock_tornado([matching_group])
 
         ret = yield self.actor._get_group()
-        self.assertEquals(ret, matching_group)
+        self.assertEquals(ret, {'group': matching_group})
 
     @testing.gen_test
     def test_get_group_too_many_results(self):
@@ -248,6 +250,17 @@ class TestElastiGroup(testing.AsyncTestCase):
         self.assertEquals(fake_group, self.actor._group)
 
     @testing.gen_test
+    def test_validate_group(self):
+        fake_ret = {'ok': True}
+        mock_client = mock.MagicMock()
+        mock_client.http_post.return_value = tornado_value(fake_ret)
+        self.actor._client.aws.ec2.validate_group = mock_client
+
+        yield self.actor._validate_group()
+        mock_client.http_post.assert_called_with(
+            group=self.actor._config['group'])
+
+    @testing.gen_test
     def test_get_state(self):
         self.actor._group = True
         ret = yield self.actor._get_state()
@@ -258,3 +271,93 @@ class TestElastiGroup(testing.AsyncTestCase):
         self.actor._group = None
         ret = yield self.actor._get_state()
         self.assertEquals('absent', ret)
+
+    @testing.gen_test
+    def test_set_state_present(self):
+        fake_ret = {'ok': True}
+        mock_client = mock.MagicMock()
+        mock_client.http_post.return_value = tornado_value(fake_ret)
+        self.actor._client.aws.ec2.create_group = mock_client
+
+        yield self.actor._set_state()
+        mock_client.http_post.assert_called_with(
+            group=self.actor._config['group'])
+
+    @testing.gen_test
+    def test_set_state_absent(self):
+        # First, lets copy the desired configuration blob. The first test,
+        # we'll copy the blob and we'll ensure that they are the same.
+        self.actor._group = copy.deepcopy(self.actor._config)
+
+        # Insert some fake data that would normally have been returned in the
+        # included blob from Spotinst.
+        self.actor._group['group']['id'] = 'sig-1234123'
+        self.actor._group['group']['createdAt'] = 'timestamp'
+        self.actor._group['group']['updatedAt'] = 'timestamp'
+
+        fake_ret = {'ok': True}
+        self.actor._options['state'] = 'absent'
+        mock_client = mock.MagicMock()
+        mock_client.http_delete.return_value = tornado_value(fake_ret)
+        self.actor._client.aws.ec2.delete_group.return_value = mock_client
+
+        yield self.actor._set_state()
+        mock_client.http_delete.assert_called_with()
+
+    @testing.gen_test
+    def test_compare_config(self):
+        # First, lets copy the desired configuration blob. The first test,
+        # we'll copy the blob and we'll ensure that they are the same.
+        self.actor._group = copy.deepcopy(self.actor._config)
+
+        # Insert some fake data that would normally have been returned in the
+        # included blob from Spotinst.
+        self.actor._group['group']['id'] = 'sig-1234123'
+        self.actor._group['group']['createdAt'] = 'timestamp'
+        self.actor._group['group']['updatedAt'] = 'timestamp'
+
+        # This should return True because the configs are identical..
+        ret = yield self.actor._compare_config()
+        self.assertEquals(True, ret)
+
+        # Now, lets modify the ElastiGroup config a bit.. the diff should
+        # return false.
+        self.actor._group['group']['description'] = 'new description'
+        ret = yield self.actor._compare_config()
+        self.assertEquals(False, ret)
+
+    @testing.gen_test
+    def test_get_config(self):
+        self.actor._group = 1
+        ret = yield self.actor._get_config()
+        self.assertEquals(1, ret)
+
+    @testing.gen_test
+    def test_set_config(self):
+        # First, lets copy the desired configuration blob. The first test,
+        # we'll copy the blob and we'll ensure that they are the same.
+        self.actor._group = copy.deepcopy(self.actor._config)
+
+        # Insert some fake data that would normally have been returned in the
+        # included blob from Spotinst.
+        self.actor._group['group']['id'] = 'sig-1234123'
+        self.actor._group['group']['createdAt'] = 'timestamp'
+        self.actor._group['group']['updatedAt'] = 'timestamp'
+
+        # Mock out the update_group call..
+        fake_ret = {
+            'response': {
+                'items': [
+                    {'group': 'object'}
+                ]
+            }
+        }
+        mock_client = mock.MagicMock()
+        mock_client.http_put.return_value = tornado_value(fake_ret)
+        self.actor._client.aws.ec2.update_group.return_value = mock_client
+
+        yield self.actor._set_config()
+
+        mock_client.http_put.assert_called_with(
+            group=self.actor._config['group'])
+        self.assertEquals(self.actor._group, {'group': 'object'})

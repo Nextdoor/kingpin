@@ -1,10 +1,11 @@
 {
   "group": {
     "name": "will_be_replaced",
+    "description": "asd f",
     "capacity": {
       "minimum": 1,
       "maximum": 4,
-      "target": 2,
+      "target": 1,
       "unit": "weight"
     },
     "strategy": {
@@ -25,7 +26,7 @@
       "availabilityZones": [
         {
           "name": "%ZONE%",
-          "subnetIds": [ "%SUBNET%" ]
+          "subnetId": "%SUBNET%"
         }
       ],
       "product": "Linux/UNIX (Amazon VPC)",
@@ -46,8 +47,8 @@
       "elasticIps": null
     },
     "scaling": {
-      "up": [ ],
-      "down": [ ]
+      "up": null,
+      "down": null
     },
     "scheduling": {
       "tasks": null

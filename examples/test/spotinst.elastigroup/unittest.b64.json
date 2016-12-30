@@ -25,7 +25,7 @@
       "availabilityZones": [
         {
           "name": "%ZONE%",
-          "subnetIds": [ "%SUBNET%" ]
+          "subnetId": "%SUBNET%"
         }
       ],
       "product": "Linux/UNIX (Amazon VPC)",
@@ -46,8 +46,8 @@
       "elasticIps": null
     },
     "scaling": {
-      "up": [ ],
-      "down": [ ]
+      "up": null,
+      "down": null
     },
     "scheduling": {
       "tasks": null

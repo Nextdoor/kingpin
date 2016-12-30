@@ -8,5 +8,8 @@ Documentation
 
 ElastiGroup
 ^^^^^^^^^^^
+.. autoclass:: kingpin.actors.spotinst.ElastiGroupSchema
+   :noindex:
+
 .. autoclass:: kingpin.actors.spotinst.ElastiGroup
    :noindex:
