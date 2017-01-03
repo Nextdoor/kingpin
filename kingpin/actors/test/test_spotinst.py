@@ -138,7 +138,10 @@ class TestElastiGroup(testing.AsyncTestCase):
 
         self.actor = spotinst.ElastiGroup(
             'unittest',
-            {'name': 'unittest', 'config': file},
+            {'name': 'unittest',
+             'config': file,
+             'wait_on_create': True,
+             'wait_on_roll': True},
             init_tokens=init_tokens)
         self.actor._client = mock.Mock()
 
@@ -286,6 +289,14 @@ class TestElastiGroup(testing.AsyncTestCase):
         mock_client.http_post.return_value = tornado_value(fake_ret)
         self.actor._client.aws.ec2.create_group = mock_client
 
+        # Mock out the _precache method which is called again after the
+        # create_group API call is made.
+        self.actor._precache = mock_tornado(None)
+
+        # Mock out the call to our wait_until_stable() call since thats not in
+        # the scope of this test.
+        self.actor._wait_until_stable = mock_tornado(None)
+
         yield self.actor._set_state()
         mock_client.http_post.assert_called_with(
             group=self.actor._config['group'])
@@ -334,6 +345,16 @@ class TestElastiGroup(testing.AsyncTestCase):
         self.assertEquals(False, ret)
 
     @testing.gen_test
+    def test_compare_config_not_existing(self):
+        # Pretend that the group doesn't exist at all in Spotinst
+        self.actor._group = None
+
+        # This should return True because the config simply doesnt exist in
+        # Spotinst. The _set_state() method will create it during a real run.
+        ret = yield self.actor._compare_config()
+        self.assertEquals(True, ret)
+
+    @testing.gen_test
     def test_get_config(self):
         self.actor._group = 1
         ret = yield self.actor._get_config()
@@ -368,3 +389,52 @@ class TestElastiGroup(testing.AsyncTestCase):
         mock_client.http_put.assert_called_with(
             group=self.actor._config['group'])
         self.assertEquals(self.actor._group, {'group': 'object'})
+
+    @testing.gen_test
+    def test_wait_until_stable(self):
+        # First, lets copy the desired configuration blob. The first test,
+        # we'll copy the blob and we'll ensure that they are the same.
+        self.actor._group = copy.deepcopy(self.actor._config)
+
+        # Insert some fake data that would normally have been returned in the
+        # included blob from Spotinst.
+        self.actor._group['group']['id'] = 'sig-1234123'
+        self.actor._group['group']['createdAt'] = 'timestamp'
+        self.actor._group['group']['updatedAt'] = 'timestamp'
+
+        # Mock out what a pending vs fulfilled instance looks like
+        pending = {
+            'spotInstanceRequestId': 'sir-n8688grq',
+            'instanceId': None,
+            'instanceType': 't1.micro',
+            'product': 'Linux/UNIX (Amazon VPC)',
+            'availabilityZone': 'us-west-2a',
+            'createdAt': '2017-01-03T22:30:56.000Z',
+            'status': 'pending-evaluation'
+        }
+        fullfilled = {
+            'spotInstanceRequestId': 'sir-n8688grq',
+            'instanceId': 'i-abcdefg',
+            'instanceType': 't1.micro',
+            'product': 'Linux/UNIX (Amazon VPC)',
+            'availabilityZone': 'us-west-2a',
+            'createdAt': '2017-01-03T22:30:56.000Z',
+            'status': 'fullfilled'
+        }
+
+        # Create a mock for the group_status API call that returns different
+        # results on the 3rd time its called. The first two times, the
+        # instances will be in a pending-evaluation state, the third call they
+        # will be in a fullfilled state.
+        group_status_mock = mock.MagicMock('group_status')
+        self.actor._client.aws.ec2.group_status().http_get = group_status_mock
+        self.actor._client.aws.ec2.group_status().http_get.side_effect = [
+            tornado_value({'response': {'items': [pending, pending]}}),
+            tornado_value({'response': {'items': [pending, pending]}}),
+            tornado_value({'response': {'items': [fullfilled, fullfilled]}}),
+        ]
+
+        # Now make the call
+        yield self.actor._wait_until_stable(delay=0.01)
+        group_status_mock.assert_has_calls([mock.call(), mock.call(),
+                                            mock.call()])

@@ -7,7 +7,6 @@ import os
 from tornado import testing
 
 from kingpin.actors import spotinst
-from kingpin.actors import exceptions
 
 UUID = uuid.uuid4().hex
 

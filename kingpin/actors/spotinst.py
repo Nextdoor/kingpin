@@ -89,7 +89,7 @@ class SpotinstAPI(api.RestConsumer):
                                 'http_methods': {'delete': {}}
                             },
                             'group_status': {
-                                'path': 'aws/ec2/group/%id%',
+                                'path': 'aws/ec2/group/%id%/status',
                                 'http_methods': {'get': {}}
                             },
                             'validate_group': {
@@ -330,6 +330,17 @@ class ElastiGroup(SpotinstBase):
       file will be further validated against the Spotinst API during the DRY
       run, but this requires authentication.
 
+    :wait_on_create:
+      If set to `True`, Kingpin will loop until the ElastiGroup has fully
+      launched -- this only applies if the group is being created from scratch.
+      On updates, see the `wait_on_roll` setting below.
+      Defaults to `False`.
+
+    :wait_on_roll:
+      If set to `True`, Kingpin will loop until the rollout of any changes has
+      completed. This can take a long time, depending on your rollout settings.
+      Defaults to `False`.
+
     **Examples**
 
     .. code-block:: json
@@ -354,9 +365,13 @@ class ElastiGroup(SpotinstBase):
         'name': (
             str, REQUIRED, 'Name of the ElastiGroup to manage'),
         'config': (
-            str, None, 'Name of the file with the ElastiGroup config')
+            str, None, 'Name of the file with the ElastiGroup config'),
+        'wait_on_create': (
+            bool, False, 'Wait for the ElastiGroup to startup and stabalize'),
+        'wait_on_roll': (
+            bool, False, 'Wait on any changes to roll out to the nodes'),
     }
-    unmanaged_options = ['name']
+    unmanaged_options = ['name', 'wait_on_roll', 'wait_on_create']
 
     desc = 'ElastiGroup {name}'
 
@@ -505,19 +520,36 @@ class ElastiGroup(SpotinstBase):
         elif self.option('state') == 'present':
             yield self._create_group()
 
+            # You'd think that we could store the returned group config from
+            # Spotinst .. but it turns out that the data returned in the
+            # create_group call above is not the same as what we've uploaded.
+            # Instead, we have to re-call the self._precache() method to make
+            # sure that we get an updated group config.
+            # self._group = {'group': ret['response']['items'][0]}
+            yield self._precache()
+
+            # Optionally, wait until the nodes have booted up before returning.
+            if self.option('wait_on_create'):
+                yield self._wait_until_stable()
+
     @gen.coroutine
     @dry('Would have created ElastiGroup')
     def _create_group(self):
         self.log.info('Creating ElastiGroup %s' % self.option('name'))
-        ret = yield self._client.aws.ec2.create_group.http_post(
+        yield self._client.aws.ec2.create_group.http_post(
             group=self._config['group'])
-        self._group = {'group': ret['response']['items'][0]}
 
     @gen.coroutine
     @dry('Would have deleted ElastiGroup {id}')
     def _delete_group(self, id):
         self.log.info('Deleting ElastiGroup %s' % id)
         yield self._client.aws.ec2.delete_group(id=id).http_delete()
+
+    @gen.coroutine
+    def _get_group_status(self, id):
+        self.log.debug('Getting ElastiGroup %s status...' % id)
+        ret = yield self._client.aws.ec2.group_status(id=id).http_get()
+        raise gen.Return(ret)
 
     @gen.coroutine
     def _compare_config(self):
@@ -527,20 +559,24 @@ class ElastiGroup(SpotinstBase):
         new = copy.deepcopy(self._config)
         existing = copy.deepcopy(self._group)
 
+        # If existing is none, then return .. there is no point in diffing the
+        # config if the group doesn't exist! Note, this really only happens in
+        # a dry run where we're creating the group because the group
+        if existing is None:
+            raise gen.Return(True)
+
         # Strip out some of the Spotinst generated and managed fields that
         # should never end up in either our new or existing configs.
         for field in ('id', 'createdAt', 'updatedAt'):
             for g in (new, existing):
-                if g is not None:
-                    g['group'].pop(field, None)
+                g['group'].pop(field, None)
 
         # We only allow a user to supply a single subnetId for each AZ (this is
         # handled by the ElastiGroupSchema). Spotinst returns back though both
         # the original setting, as well as a list of subnetIds. We purge that
         # from our comparison here.
-        if existing is not None:
-            for az in existing['group']['compute']['availabilityZones']:
-                az.pop('subnetIds', None)
+        for az in existing['group']['compute']['availabilityZones']:
+            az.pop('subnetIds', None)
 
         diff = utils.diff_dicts(existing, new)
 
@@ -580,3 +616,38 @@ class ElastiGroup(SpotinstBase):
         ret = yield self._client.aws.ec2.update_group(id=group_id).http_put(
             group=self._config['group'])
         self._group = ret['response']['items'][0]
+
+    @gen.coroutine
+    @dry('Would have waited for ElastiGroup changes to become active')
+    def _wait_until_stable(self, delay=3):
+        """Poll and wait until an ElastiGroup has stabalized.
+
+        Either upon creation, or when a rolling change has been requested, this
+        method will loop until the ElastiGroup has stabalized and all instances
+        that are pending creation have been created.
+        """
+        group_id = self._group['group']['id']
+
+        repeating_log = utils.create_repeating_log(
+            self.log.info,
+            'Waiting for ElastiGroup to become stable',
+            seconds=30)
+
+        while True:
+            response = yield self._get_group_status(group_id)
+
+            # Find any nodes that are waiting for spot instance requests to be
+            # fulfilled.
+            pending = [i for i in response['response']['items']
+                       if i['status'] == 'pending-evaluation']
+            fulfilled = [i['instanceId'] for i in response['response']['items']
+                         if i['status'] == 'fulfilled']
+
+            if len(pending) < 1:
+                self.log.info('All instance requests fulfilled: %s' %
+                              ', '.join(fulfilled))
+                break
+
+            yield gen.sleep(delay)
+
+        utils.clear_repeating_log(repeating_log)
