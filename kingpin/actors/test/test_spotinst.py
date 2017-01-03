@@ -274,7 +274,14 @@ class TestElastiGroup(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_set_state_present(self):
-        fake_ret = {'ok': True}
+        fake_ret = {
+            'ok': True,
+            'response': {
+                'items': [
+                    {'desc': 'new group'}
+                ]
+            }
+        }
         mock_client = mock.MagicMock()
         mock_client.http_post.return_value = tornado_value(fake_ret)
         self.actor._client.aws.ec2.create_group = mock_client

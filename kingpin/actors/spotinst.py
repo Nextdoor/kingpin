@@ -509,8 +509,9 @@ class ElastiGroup(SpotinstBase):
     @dry('Would have created ElastiGroup')
     def _create_group(self):
         self.log.info('Creating ElastiGroup %s' % self.option('name'))
-        yield self._client.aws.ec2.create_group.http_post(
+        ret = yield self._client.aws.ec2.create_group.http_post(
             group=self._config['group'])
+        self._group = {'group': ret['response']['items'][0]}
 
     @gen.coroutine
     @dry('Would have deleted ElastiGroup {id}')
@@ -529,15 +530,17 @@ class ElastiGroup(SpotinstBase):
         # Strip out some of the Spotinst generated and managed fields that
         # should never end up in either our new or existing configs.
         for field in ('id', 'createdAt', 'updatedAt'):
-            new['group'].pop(field, None)
-            existing['group'].pop(field, None)
+            for g in (new, existing):
+                if g is not None:
+                    g['group'].pop(field, None)
 
         # We only allow a user to supply a single subnetId for each AZ (this is
         # handled by the ElastiGroupSchema). Spotinst returns back though both
         # the original setting, as well as a list of subnetIds. We purge that
         # from our comparison here.
-        for az in existing['group']['compute']['availabilityZones']:
-            az.pop('subnetIds', None)
+        if existing is not None:
+            for az in existing['group']['compute']['availabilityZones']:
+                az.pop('subnetIds', None)
 
         diff = utils.diff_dicts(existing, new)
 
