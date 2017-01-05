@@ -95,7 +95,15 @@ class SpotinstAPI(api.RestConsumer):
                             'validate_group': {
                                 'path': 'aws/ec2/group/validation',
                                 'http_methods': {'post': {}}
-                            }
+                            },
+                            'roll': {
+                                'path': 'aws/ec2/group/%id%/roll?limit=50',
+                                'http_methods': {'put': {}, 'get': {}}
+                            },
+                            'roll_status': {
+                                'path': 'aws/ec2/group/%id%/roll/%roll_id%',
+                                'http_methods': {'get': {}}
+                            },
                         }
                     }
                 }
@@ -303,6 +311,13 @@ class ElastiGroup(SpotinstBase):
     no need, as Kingpin will automatically convert your plain-text script into
     a Base64 blob for you behind the scenes.
 
+    **Rolling out Group Changes**
+
+    We will trigger the "roll group" API if the `roll_on_change` parameter is
+    set to `True` after any change to an ElastiGroup. It is difficult to know
+    which changes may or may not require a replacement of your existing hosts,
+    so we leave this up to the user to decide on the behavior.
+
     **Known Limitations**
 
     * At this time, this actor only makes changes to ElastiGroups or
@@ -319,6 +334,19 @@ class ElastiGroup(SpotinstBase):
     :name:
       The desired name of the ElastiGroup. Note that this will override
       whatever value is inside your configuration JSON/YAML blob.
+
+    :roll_on_change:
+      Whether or not to forcefully roll out changes to the ElastiGroup. If
+      `True`, we will issue a 'roll call' to SpotInst and trigger all of the
+      instances to be replaced. Defaults to `False`.
+
+    :roll_batch_size:
+      Indicates in percentage the amount of instances should be replaced in
+      each batch. Defaults to `20`.
+
+    :roll_grace_period:
+      Indicates in seconds the timeout to wait until instance become healthy in
+      the ELB. Defaults to `600`.
 
     :config:
       Path to the ElastiGroup configuration blob (JSON or YAML) file.
@@ -366,17 +394,39 @@ class ElastiGroup(SpotinstBase):
             str, REQUIRED, 'Name of the ElastiGroup to manage'),
         'config': (
             str, None, 'Name of the file with the ElastiGroup config'),
+        'roll_on_change': (
+            bool, False,
+            ('Roll out new instances upon any config change.')),
+        'roll_batch_size': (
+            (str, int), 20,
+            ('Indicates in percentage the amount of instances should be'
+             'replaced in each batch.')),
+        'roll_grace_period': (
+            (str, int), 600,
+            ('Indicates in seconds the timeout to wait until instance become'
+             'healthy in the ELB.')),
         'wait_on_create': (
             bool, False, 'Wait for the ElastiGroup to startup and stabalize'),
         'wait_on_roll': (
             bool, False, 'Wait on any changes to roll out to the nodes'),
     }
-    unmanaged_options = ['name', 'wait_on_roll', 'wait_on_create']
+    unmanaged_options = ['name', 'wait_on_roll', 'wait_on_create',
+                         'roll_on_change', 'roll_batch_size',
+                         'roll_grace_period']
 
     desc = 'ElastiGroup {name}'
 
     def __init__(self, *args, **kwargs):
         super(ElastiGroup, self).__init__(*args, **kwargs)
+
+        # Quickly make sure that the roll_batch_size and roll_grace_period are
+        # integers...
+        for key in ('roll_batch_size', 'roll_grace_period'):
+            try:
+                self._options[key] = int(self._options[key])
+            except ValueError:
+                raise exceptions.InvalidOptions(
+                    '%s (%s) must be an integer' % (key, self._options[key]))
 
         # Parse the user-supplied ElastiGroup config, swap in any tokens, etc.
         self._config = self._parse_group_config()
@@ -430,6 +480,25 @@ class ElastiGroup(SpotinstBase):
         return parsed
 
     @gen.coroutine
+    def _precache(self):
+        """Pre-populate a bunch of data.
+
+        Searches for the list of ElastiGroups and stores the existing
+        configuration for an ElastiGroup if it matches the name of the one
+        we're managing here.
+
+        Attempts light schema-validation of the desired ElastiGroup config to
+        try to catch errors early in the Dry run.
+        """
+        # Check if the desired ElastiGroup already exists or not -- if it does,
+        # store its configuration here for comparison purposes.
+        self._group = yield self._get_group()
+
+        # Validate the desired ElastiGroup configuration against the
+        # schema-checker... light validation, but useful.
+        yield self._validate_group()
+
+    @gen.coroutine
     def _list_groups(self):
         """Returns a list of all ElastiGroups in your Spotinst acct.
 
@@ -447,8 +516,6 @@ class ElastiGroup(SpotinstBase):
         If the group is missing, it returns None. Used by the self._precache()
         method to determine whether or not the desired ElastiGroup already
         exists or not, and what its configuration looks like.
-
-        *Note: Depends on self._precache() being run*
 
         Returns:
           A dictionary with the ElastiGroup configuration returned by Spotinst
@@ -473,6 +540,7 @@ class ElastiGroup(SpotinstBase):
                 % self.option('name'))
 
         if len(matching) < 1:
+            self.log.debug('Did not find an existing ElastiGroup')
             raise gen.Return(None)
 
         match = matching[0]
@@ -488,26 +556,25 @@ class ElastiGroup(SpotinstBase):
         instances will truly launch, but it can help catch obvious errors.
 
         It does require authentication, which is sad.
+
+        Raises:
+            SpotinstException: If any known Spotinst style error comes back.
         """
         yield self._client.aws.ec2.validate_group.http_post(
             group=self._config['group'])
 
     @gen.coroutine
-    def _precache(self):
-        """Pre-populate a bunch of data.
-
-        Searches for the list of ElastiGroups and stores the existing
-        configuration for an ElastiGroup if it matches the name of the one
-        we're managing here.
-
-        Attempts light schema-validation of the desired ElastiGroup config to
-        try to catch errors early in the Dry run.
-        """
-        self._group = yield self._get_group()
-        yield self._validate_group()
-
-    @gen.coroutine
     def _get_state(self):
+        """Validates whether or not a matching ElastiGroup already exists.
+
+        Depends on the self._precache() method having been called. If it has,
+        then self._group should be populated if the group exists, or None if it
+        doesn't.
+
+        Returns:
+            present: If the group exists
+            absent: If not
+        """
         if self._group:
             raise gen.Return('present')
 
@@ -515,6 +582,13 @@ class ElastiGroup(SpotinstBase):
 
     @gen.coroutine
     def _set_state(self):
+        """Creates or Deletes the ElastiGroup
+
+        If the desired state is absent adn the group exists, we trigger a
+        delete_group call. If the desired state is present and the group does
+        not exist, we trigger a group create call. In any other situation, we
+        do nothing because the desired and current states match.
+        """
         if self.option('state') == 'absent' and self._group:
             yield self._delete_group(id=self._group['group']['id'])
         elif self.option('state') == 'present':
@@ -526,7 +600,7 @@ class ElastiGroup(SpotinstBase):
             # Instead, we have to re-call the self._precache() method to make
             # sure that we get an updated group config.
             # self._group = {'group': ret['response']['items'][0]}
-            yield self._precache()
+            self._group = yield self._get_group()
 
             # Optionally, wait until the nodes have booted up before returning.
             if self.option('wait_on_create'):
@@ -552,7 +626,57 @@ class ElastiGroup(SpotinstBase):
         raise gen.Return(ret)
 
     @gen.coroutine
+    def _get_config(self):
+        """Not really used, but a stub for correctness"""
+        raise gen.Return(self._group)
+
+    @gen.coroutine
+    @dry('Would have updated ElastiGroup config')
+    def _set_config(self):
+        group_id = self._group['group']['id']
+        self.log.info('Updating ElastiGroup %s' % group_id)
+
+        # There are certain fields that simply cannot be updated -- strip them
+        # out. We have a warning up in the above _compare_config() section that
+        # will tell the user about this in a dry run.
+        if 'capacity' in self._config['group']:
+            self.log.warning(
+                'Note: Ignoring the group[capacity][unit] setting.')
+            self._config['group']['capacity'].pop('unit', None)
+        if 'compute' in self._config['group']:
+            self.log.warning(
+                'Note: Ignoring the group[compute][unit] setting.')
+            self._config['group']['compute'].pop('product', None)
+
+        # Now do the update and capture the results. Once we have them, we'll
+        # store the updated group configuration.
+        ret = yield self._client.aws.ec2.update_group(id=group_id).http_put(
+            group=self._config['group'])
+        self._group = {'group': ret['response']['items'][0]}
+
+        # If we're supposed to roll the group on any config changes, begin now
+        if self.option('roll_on_change'):
+            yield self._roll_group()
+
+    @gen.coroutine
     def _compare_config(self):
+        """Smart-ish comparison of Spotinst config to our own.
+
+        This method is called by the EnsurableBaseClass to compare the desired
+        (local) config with the existing (remote) config of the ElastiGroup.
+        A simple == comparison will not work because there are additional
+        fields returned by the Spotinst API (id, createdAt, updatedAt, and
+        more) that will never be in the desired configuration object.
+
+        This method makes copies of the configuration objects, strips out the
+        fields that we cannot compare against, and then diffs. If a diff is
+        detected, it logs out the diff for the end user, and then returns
+        False.
+
+        Returns:
+            True: the configs match
+            False: the configs do not match
+        """
         # For the purpose of comparing the two configuration dicts, we need to
         # modify them (below).. so first lets copy them so we don't modify the
         # originals.
@@ -589,45 +713,83 @@ class ElastiGroup(SpotinstBase):
         return True
 
     @gen.coroutine
-    def _get_config(self):
-        """Not really used, but a stub for correctness"""
-        raise gen.Return(self._group)
+    @dry('Would have rolled the ElastiGroup..')
+    def _roll_group(self, delay=30):
+        """Triggers an ElastiGroup rolling operation and waits for completion.
 
-    @gen.coroutine
-    @dry('Would have updated ElastiGroup config')
-    def _set_config(self):
-        group_id = self._group['group']['id']
-        self.log.info('Updating ElastiGroup %s' % group_id)
-
-        # There are certain fields that simply cannot be updated -- strip them
-        # out. We have a warning up in the above _compare_config() section that
-        # will tell the user about this in a dry run.
-        if 'capacity' in self._config['group']:
-            self.log.warning(
-                'Note: Ignoring the group[capacity][unit] setting.')
-            self._config['group']['capacity'].pop('unit', None)
-        if 'compute' in self._config['group']:
-            self.log.warning(
-                'Note: Ignoring the group[compute][unit] setting.')
-            self._config['group']['compute'].pop('product', None)
-
-        # Now do the update and capture the results. Once we have them, we'll
-        # store the updated group configuration.
-        ret = yield self._client.aws.ec2.update_group(id=group_id).http_put(
-            group=self._config['group'])
-        self._group = ret['response']['items'][0]
-
-    @gen.coroutine
-    @dry('Would have waited for ElastiGroup changes to become active')
-    def _wait_until_stable(self, delay=3):
-        """Poll and wait until an ElastiGroup has stabalized.
-
-        Either upon creation, or when a rolling change has been requested, this
-        method will loop until the ElastiGroup has stabalized and all instances
-        that are pending creation have been created.
+        Sends a signal to Spotinst to "roll" (replace) the nodes in the
+        ElastiGroup based on the new configuration. This operation takes a
+        while based on the `roll_batch_size` and `roll_grace_period` options.
+        Depending on the `wait_on_roll` option, this method will wait until the
+        roll has completed before returning.
         """
         group_id = self._group['group']['id']
 
+        # You are not allowed to have two rolls happening at the same time --
+        # so if there is already a roll in progress, we need to wait before we
+        # issue another one. This is a requirement regardless of whether the
+        # user has asked us to 'wait_on_roll' or not, because we'll get an
+        # exception back from the API if we try to issue a roll call during an
+        # existing roll operation.
+        yield self._wait_until_roll_complete(delay)
+
+        # Now, try to do the roll...
+        self.log.info('Triggering an ElastiGroup roll')
+        yield self._client.aws.ec2.roll(id=group_id).http_put(
+            batchSizePercentage=self.option('roll_batch_size'),
+            gracePeriod=self.option('roll_grace_period'))
+
+        # Now, if the user wants us to wait, we will wait.
+        if self.option('wait_on_roll'):
+            yield self._wait_until_roll_complete(delay)
+
+    @gen.coroutine
+    @dry('Would have waited for ElastiGroup changes to become active')
+    def _wait_until_roll_complete(self, delay):
+        """Poll and wait until an ElastiGroup roll is complete.
+        """
+        group_id = self._group['group']['id']
+
+        # Note: We do not use the repeating_log because we only call this API
+        # every 30s or so. Rolling out group changes is almost guaranteed to be
+        # a very slow process, so there is no need to make frequent API calls
+        # to constantly check the status of the rollout. Instead, we make calls
+        # infrequently and thus we are able to simply log out the status after
+        # each call.
+        self.log.info('Checking if any ElastiGroup rolls are in progress..')
+        while True:
+            response = yield self._client.aws.ec2.roll(id=group_id).http_get()
+
+            in_progress = [r for r in response['response']['items']
+                           if r['status'] != 'finished']
+
+            if len(in_progress) < 1:
+                break
+
+            status = in_progress[0]['status']
+            unit = in_progress[0]['progress']['unit']
+            progress = in_progress[0]['progress']['value']
+
+            self.log.info('Group roll is %s %s complete (%s)' % (progress,
+                                                                 unit, status))
+
+            yield gen.sleep(delay)
+
+    @gen.coroutine
+    @dry('Would have waited for all ElastiGroup nodes to launch')
+    def _wait_until_stable(self, delay=3):
+        """Poll and wait until an ElastiGroup has stabalized.
+
+        Upon group creation, most of the instances will be in a "biding" state.
+        This method watches the list of instances and waits until they are all
+        in the 'fulfilled' state.
+        """
+        group_id = self._group['group']['id']
+
+        # We use the repeating_log to let the user know we're still monitoring
+        # things, while not  flooding them every time we make an API call. We
+        # give them a message every 30s, but make an API call every 3 seconds
+        # to check the status.
         repeating_log = utils.create_repeating_log(
             self.log.info,
             'Waiting for ElastiGroup to become stable',

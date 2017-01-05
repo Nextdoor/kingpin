@@ -44,12 +44,13 @@ class IntegrationSpotinstElastiGroup(testing.AsyncTestCase):
                 'name': self.group_name,
                 'state': 'present',
                 'config': self.config,
+                'wait_on_create': True,
             })
         res = yield actor.execute()
         self.assertEquals(res, None)
 
-    @attr('spotinst', 'integration', 'dry')
-    @testing.gen_test(timeout=60)
+    @attr('spotinst', 'integration')
+    @testing.gen_test(timeout=300)
     def integration_01b_create_elastigroup(self):
         actor = spotinst.ElastiGroup(
             dry=False,
@@ -58,7 +59,50 @@ class IntegrationSpotinstElastiGroup(testing.AsyncTestCase):
                 'name': self.group_name,
                 'state': 'present',
                 'config': self.config,
+                'wait_on_create': True,
             })
+        res = yield actor.execute()
+        self.assertEquals(res, None)
+
+    @attr('spotinst', 'integration', 'dry')
+    @testing.gen_test(timeout=60)
+    def integration_02a_update_elastigroup_dry(self):
+        actor = spotinst.ElastiGroup(
+            dry=True,
+            init_tokens=os.environ,
+            options={
+                'name': self.group_name,
+                'state': 'present',
+                'config': self.config,
+                'wait_on_create': True,
+                'roll_on_change': True,
+                'roll_batch_size': 99,
+                'roll_grace_period': 60,
+            })
+
+        # Patch the group description to trigger an update
+        actor._config['group']['description'] = UUID
+        res = yield actor.execute()
+        self.assertEquals(res, None)
+
+    @attr('spotinst', 'integration')
+    @testing.gen_test(timeout=1800)
+    def integration_02b_update_elastigroup(self):
+        actor = spotinst.ElastiGroup(
+            dry=False,
+            init_tokens=os.environ,
+            options={
+                'name': self.group_name,
+                'state': 'present',
+                'config': self.config,
+                'roll_on_change': True,
+                'wait_on_roll': True,
+                'roll_batch_size': 99,
+                'roll_grace_period': 60,
+            })
+
+        # Patch the group description to trigger an update
+        actor._config['group']['description'] = UUID
         res = yield actor.execute()
         self.assertEquals(res, None)
 
