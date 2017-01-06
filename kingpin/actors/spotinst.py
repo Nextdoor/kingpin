@@ -196,6 +196,8 @@ class SpotinstRestClient(api.RestClient):
         }
     }
 
+    JSON_BODY = True
+
 
 class ElastiGroupSchema(SchemaCompareBase):
 

@@ -5,7 +5,7 @@
 tornado>=4.1
 
 # Our custom rest client
-tornado_rest_client>=0.0.3
+tornado_rest_client>=0.0.4
 
 # Used to make synchronous tasks asynchronous
 futures
