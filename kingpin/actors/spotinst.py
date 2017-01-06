@@ -65,14 +65,18 @@ class SpotinstAPI(api.RestConsumer):
     CONFIG = {
         'attrs': {
             'aws': {
+                'new': True,
                 'attrs': {
                     'ec2': {
+                        'new': True,
                         'attrs': {
                             'list_groups': {
+                                'new': True,
                                 'path': 'aws/ec2/group',
                                 'http_methods': {'get': {}}
                             },
                             'create_group': {
+                                'new': True,
                                 'path': 'aws/ec2/group',
                                 'http_methods': {'post': {}}
                             },
@@ -93,6 +97,7 @@ class SpotinstAPI(api.RestConsumer):
                                 'http_methods': {'get': {}}
                             },
                             'validate_group': {
+                                'new': True,
                                 'path': 'aws/ec2/group/validation',
                                 'http_methods': {'post': {}}
                             },
