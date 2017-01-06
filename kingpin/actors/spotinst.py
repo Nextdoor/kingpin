@@ -202,7 +202,7 @@ class ElastiGroupSchema(SchemaCompareBase):
     This schema handles the following validation cases:
 
     * Only allow a single `SubnetID` for each `availabilityZone` object.
-    * Disallow `t2|i2|hc1` instance types for the `spot` instance section.
+    * Disallow `t2|hc1` instance types for the `spot` instance section.
     * Ensure that the `scaling.up` and `scaling.down` arrays are either `null`
       or contain at least **1** record.
     """
@@ -239,7 +239,7 @@ class ElastiGroupSchema(SchemaCompareBase):
                                         'items': {
                                             'type': 'string',
                                             'not': {
-                                                'pattern': '^t2|i2|hc1'
+                                                'pattern': '^t2|hc1'
                                             }
                                         }
                                     }

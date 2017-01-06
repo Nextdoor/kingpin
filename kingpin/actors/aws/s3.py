@@ -822,7 +822,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         exist = yield self._get_tags()
 
-        diff = self._diff_dicts(exist, new)
+        diff = utils.diff_dicts(exist, new)
         if not diff:
             self.log.debug('Bucket tags match')
             raise gen.Return(True)
