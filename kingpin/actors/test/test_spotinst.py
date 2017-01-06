@@ -169,24 +169,6 @@ class TestElastiGroup(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor._parse_group_config()
 
-    def test_parse_group_with_b64_data(self):
-        file = 'examples/test/spotinst.elastigroup/unittest.b64.json'
-        init_tokens = {
-            'SECGRP': 'sg-123123',
-            'ZONE': 'us-test-1a',
-            'SUBNET': 'sn-123123'
-        }
-        self.actor = spotinst.ElastiGroup(
-            'unittest',
-            {'name': 'unittest', 'config': file},
-            init_tokens=init_tokens)
-        self.actor._client = mock.Mock()
-
-        self.assertEquals(
-            'IyEvYmluL2Jhc2gKZWNobyBEb25l',
-            (self.actor._config['group']['compute']
-             ['launchSpecification']['userData']))
-
     @testing.gen_test
     def test_list_groups(self):
         list_of_groups = {

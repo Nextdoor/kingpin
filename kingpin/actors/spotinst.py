@@ -471,11 +471,8 @@ class ElastiGroup(SpotinstBase):
         # fails, we assume its raw text and we encode it.
         orig_data = (parsed['group']['compute']
                      ['launchSpecification']['userData'])
-        try:
-            base64.b64decode(orig_data)
-        except TypeError:
-            new = base64.b64encode(orig_data)
-            parsed['group']['compute']['launchSpecification']['userData'] = new
+        new = base64.b64encode(orig_data)
+        parsed['group']['compute']['launchSpecification']['userData'] = new
 
         # Ensure that the name of the ElastiGroup in the config file matches
         # the name that was supplied to the actor -- or overwrite it.
@@ -701,6 +698,13 @@ class ElastiGroup(SpotinstBase):
         for field in ('id', 'createdAt', 'updatedAt'):
             for g in (new, existing):
                 g['group'].pop(field, None)
+
+        # Decode both of the userData fields so we can actually see the
+        # userdata differences.
+        for config in (new, existing):
+            config['group']['compute']['launchSpecification']['userData'] = (
+                base64.b64decode(config['group']['compute']
+                                 ['launchSpecification']['userData']))
 
         # We only allow a user to supply a single subnetId for each AZ (this is
         # handled by the ElastiGroupSchema). Spotinst returns back though both
