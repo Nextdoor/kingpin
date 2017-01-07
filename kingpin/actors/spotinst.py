@@ -814,7 +814,8 @@ class ElastiGroup(SpotinstBase):
             pending = [i for i in response['response']['items']
                        if i['status'] == 'pending-evaluation']
             fulfilled = [i['instanceId'] for i in response['response']['items']
-                         if i['status'] == 'fulfilled']
+                         if i['status'] == 'fulfilled' and i['instanceId'] is
+                         not None]
 
             if len(pending) < 1:
                 self.log.info('All instance requests fulfilled: %s' %
