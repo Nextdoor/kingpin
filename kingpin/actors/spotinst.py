@@ -342,6 +342,22 @@ class ElastiGroup(SpotinstBase):
       The desired name of the ElastiGroup. Note that this will override
       whatever value is inside your configuration JSON/YAML blob.
 
+    :config:
+      Path to the ElastiGroup configuration blob (JSON or YAML) file.
+      :ref:`token_replacement` can be used inside of your configuration files
+      allowing environment variables to replace `%VAR%` strings.
+
+      This file will be checked against a light-schema defined in
+      :py:class:`ElastiGroupSchema` before any authentication is required. The
+      file will be further validated against the Spotinst API during the DRY
+      run, but this requires authentication.
+
+    :tokens:
+      A dict of key/value pairs that can be used to swap in variables into a
+      common ElastiGroup template. These are added to (and override) the
+      Environment variables that Kingpin already uses for variables swapping
+      (as described in the :ref:`token_replacement` section.
+
     :roll_on_change:
       Whether or not to forcefully roll out changes to the ElastiGroup. If
       `True`, we will issue a 'roll call' to SpotInst and trigger all of the
@@ -354,16 +370,6 @@ class ElastiGroup(SpotinstBase):
     :roll_grace_period:
       Indicates in seconds the timeout to wait until instance become healthy in
       the ELB. Defaults to `600`.
-
-    :config:
-      Path to the ElastiGroup configuration blob (JSON or YAML) file.
-      :ref:`token_replacement` can be used inside of your configuration files
-      allowing environment variables to replace `%VAR%` strings.
-
-      This file will be checked against a light-schema defined in
-      :py:class:`ElastiGroupSchema` before any authentication is required. The
-      file will be further validated against the Spotinst API during the DRY
-      run, but this requires authentication.
 
     :wait_on_create:
       If set to `True`, Kingpin will loop until the ElastiGroup has fully
@@ -401,6 +407,9 @@ class ElastiGroup(SpotinstBase):
             str, REQUIRED, 'Name of the ElastiGroup to manage'),
         'config': (
             str, None, 'Name of the file with the ElastiGroup config'),
+        'tokens': (
+            dict, {}, ('A flat dictionary of Key/Value pairs that can be '
+                       'swapped into the ElastiGroup template.')),
         'roll_on_change': (
             bool, False,
             ('Roll out new instances upon any config change.')),
@@ -419,7 +428,7 @@ class ElastiGroup(SpotinstBase):
     }
     unmanaged_options = ['name', 'wait_on_roll', 'wait_on_create',
                          'roll_on_change', 'roll_batch_size',
-                         'roll_grace_period']
+                         'roll_grace_period', 'tokens']
 
     desc = 'ElastiGroup {name}'
 
@@ -459,9 +468,14 @@ class ElastiGroup(SpotinstBase):
 
         self.log.debug('Parsing and validating %s' % config)
 
+        # Join the init_tokens the class was instantiated with and the explicit
+        # tokens that the user supplied.
+        tokens = dict(self._init_tokens)
+        tokens.update(self.option('tokens'))
+
         try:
             parsed = utils.convert_script_to_dict(
-                script_file=config, tokens=self._init_tokens)
+                script_file=config, tokens=tokens)
         except (kingpin_exceptions.InvalidScript, LookupError) as e:
             raise exceptions.InvalidOptions(
                 'Error parsing %s: %s' % (config, e))
@@ -695,7 +709,7 @@ class ElastiGroup(SpotinstBase):
 
         # Strip out some of the Spotinst generated and managed fields that
         # should never end up in either our new or existing configs.
-        for field in ('id', 'createdAt', 'updatedAt'):
+        for field in ('id', 'createdAt', 'updatedAt', 'userData'):
             for g in (new, existing):
                 g['group'].pop(field, None)
 
