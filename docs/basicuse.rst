@@ -291,6 +291,8 @@ The first ``misc.Sleep`` actor will fail, but only warn (``warn_on_failure=True`
 about the failure. The parent ``group.Sync`` actor will continue on and allow the
 second ``misc.Sleep`` actor to continue.
 
+.. _token_replacement:
+
 Token-replacement
 '''''''''''''''''
 

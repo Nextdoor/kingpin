@@ -759,7 +759,7 @@ class Stack(CloudFormationBaseActor):
 
         # Compare the two templates. If they differ at all, log it out for the
         # user and flip the needs_update bit.
-        diff = self._diff_dicts(existing, new)
+        diff = utils.diff_dicts(existing, new)
         if diff:
             self.log.warning('Stack templates do not match.')
             for line in diff.split('\n'):
@@ -770,7 +770,7 @@ class Stack(CloudFormationBaseActor):
 
         # Get and compare the parameters we have vs the ones in CF. If they're
         # different, plan to do an update!
-        diff = self._diff_dicts(
+        diff = utils.diff_dicts(
             stack.get('Parameters', {}),
             self._parameters)
         if diff:

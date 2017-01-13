@@ -273,3 +273,11 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
         yield gen.moment
         yield gen.moment
         self.assertEquals(logger.info.call_count, 4)
+
+    @testing.gen_test
+    def test_diff_dicts(self):
+        p1 = {'a': 'a', 'b': 'b'}
+        p2 = {'a': 'a', 'c': 'c'}
+
+        self.assertEquals(None, utils.diff_dicts(p1, p1))
+        self.assertNotEquals(None, utils.diff_dicts(p1, p2))
