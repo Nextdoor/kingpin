@@ -249,7 +249,7 @@ class ECSBaseActor(base.AWSBaseActor):
         revision = task_definition['revision']
 
         task_definition_name = '{}:{}'.format(family, revision)
-        self.log.info('Task definition {} registered'.format(
+        self.log.info('Task definition {} registered.'.format(
             task_definition_name))
         raise gen.Return(task_definition_name)
 
@@ -262,7 +262,7 @@ class ECSBaseActor(base.AWSBaseActor):
             task_definition_name: Task Definition name or arn to deregister.
         """
         self.log.info(
-            'Deregistering task definition {}'.format(task_definition_name))
+            'Deregistering task definition {}.'.format(task_definition_name))
         yield self.thread(
             self.ecs_conn.deregister_task_definition,
             taskDefinition=task_definition_name)
@@ -281,7 +281,7 @@ class ECSBaseActor(base.AWSBaseActor):
         i = 0
         page_iterator = paginator.paginate(**kwargs)
         for page in page_iterator:
-            self.log.info('Parsing page {} of results'.format(i))
+            self.log.info('Parsing page {} of results.'.format(i))
             i += 1
             task_definitions += page['taskDefinitionArns']
 
@@ -298,7 +298,7 @@ class ECSBaseActor(base.AWSBaseActor):
         Returns:
             Task Definition description dict.
         """
-        self.log.info('Describing task definition {}'.format(
+        self.log.info('Describing task definition {}.'.format(
             task_definition_name))
         task_definition = yield self.thread(
             self.ecs_conn.describe_task_definition,
@@ -326,7 +326,7 @@ class ECSBaseActor(base.AWSBaseActor):
         """
         self.log.info(
             'Listing task definitions '
-            'with status {} and family prefix {}'.format(
+            'with status {} and family prefix {}.'.format(
                 status, family_prefix))
         task_definitions = yield self.thread(
             self._read_list_task_definitions_paginator,
@@ -984,7 +984,7 @@ class Service(ECSBaseActor):
         if is_new_task_definition:
             yield self._wait_for_deployment_update(service_name,
                                                    task_definition_name)
-        self.log.info('Finished updating service')
+        self.log.info('Finished updating service.')
         raise gen.Return(task_definition_name)
 
     @gen.coroutine
@@ -997,11 +997,11 @@ class Service(ECSBaseActor):
             existing_service: result of _describe_service on the given
                 service name.
         """
-        task_definition_name = self._arn_to_name(
-            existing_service['taskDefinition'])
         self.log.info('Shutting down all current tasks in %s.' % service_name)
-        yield self._update_service(service_name, existing_service,
-                                   override={'desiredCount': 0})
+        task_definition_name = yield self._update_service(
+            service_name,
+            existing_service,
+            override={'desiredCount': 0})
         yield self._wait_for_service_update(service_name, task_definition_name)
         self.log.info('Service {} stopped successfully.'.format(service_name))
 
@@ -1038,19 +1038,19 @@ class Service(ECSBaseActor):
             for task_definition_name in task_definition_names:
                 yield self._deregister_task_definition(task_definition_name)
 
-    def _is_task_in_deployment(self, primary_deployment, task_definition_name):
+    def _is_task_in_deployment(self, deployment, task_definition_name):
         """Checks whether the given task definition is in the deployment.
         This is useful for checking that we're looking at the right deployment.
 
         Args:
-            primary_deployment: Deployment to check.
+            deployment: Deployment to check.
             task_definition_name: Task Definition string to look for.
 
         Returns:
             A boolean, true if the deployment has the task definition.
         """
         return task_definition_name == self._arn_to_name(
-            primary_deployment['taskDefinition'])
+            deployment['taskDefinition'])
 
     def _check_immutable_field_errors(self, old_params, new_params,
                                       immutable_fields):
@@ -1137,13 +1137,13 @@ class Service(ECSBaseActor):
         if not primary_deployment:
             # There should always be one 'PRIMARY' deployment returned.
             raise exceptions.RecoverableActorFailure(
-                'No primary deployment')
+                'No primary deployment.')
 
         # Verify that the primary deployment has the correct task definition.
         if not self._is_task_in_deployment(
                 primary_deployment, task_definition_name):
             raise exceptions.RecoverableActorFailure(
-                'Primary deployment was for {}, not {}'.format(
+                'Primary deployment was for {}, not {}.'.format(
                     self._arn_to_name(primary_deployment['taskDefinition']),
                     task_definition_name))
 
