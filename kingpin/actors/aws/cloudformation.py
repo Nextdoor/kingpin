@@ -157,6 +157,25 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2')
     }
 
+    def _discover_noecho_params(self, template_body):
+        """Scans a CF template for NoEcho parameters.
+
+        Searches through a CloudFormation stack template body for any
+        parameters that are defined with the NoEcho flag. If there are any,
+        returns a list of those parameter names.
+
+        Args:
+            template_body: (Str) CloudFormation Template Body
+
+        Returns:
+            A list of parameters that have NoEcho set to True
+        """
+        template = json.loads(template_body)
+        stack_params = template.get('Parameters', {})
+        noecho_params = [k for k in stack_params if
+                         stack_params[k].get('NoEcho', False) is True]
+        return noecho_params
+
     def _get_template_body(self, template):
         """Reads in a local template file and returns the contents.
 
@@ -610,6 +629,18 @@ class Stack(CloudFormationBaseActor):
       * Ensure that the Stack is present or absent.
       * Monitor and update the stack Template and Parameters as necessary.
 
+    **NoEcho Parameters**
+
+    If your CF stack takes a Password as a paremter or any other value thats
+    secret and you set `NoEcho: True` on that parameter, Kingpin will be unable
+    to diff it and compare whether or not the desired setting matches whats in
+    Amazon. A warning will be thrown, and the rest of the actor will continue
+    to operate as normal.
+
+    If any other difference triggers a Stack Update, the desired value for the
+    parameter with `NoEcho: True` will be pushed in addition to all of the
+    other stack parameters.
+
     **Options**
 
     :name:
@@ -713,6 +744,14 @@ class Stack(CloudFormationBaseActor):
         self._template_body, self._template_url = self._get_template_body(
             self.option('template'))
 
+        # Discover whether or not there are any NoEcho parameters embedded in
+        # the stack. If there are, record them locally and throw a warning to
+        # the user about it.
+        self._noecho_params = self._discover_noecho_params(self._template_body)
+        for p in self._noecho_params:
+            self.log.warning('Parameter "%s" has NoEcho set to True. '
+                             'Will not use in parameter comparison.' % p)
+
     @gen.coroutine
     def _update_stack(self, stack):
         self.log.info('Verifying that stack is in desired state')
@@ -770,15 +809,9 @@ class Stack(CloudFormationBaseActor):
 
         # Get and compare the parameters we have vs the ones in CF. If they're
         # different, plan to do an update!
-        diff = utils.diff_dicts(
-            stack.get('Parameters', {}),
-            self._parameters)
-        if diff:
-            self.log.warning('Stack parameters do not match.')
-            for line in diff.split('\n'):
-                self.log.info('Diff: %s' % line)
-
-            # Plan to make a change set!
+        if self._diff_params_safely(
+                stack.get('Parameters', {}),
+                self._parameters):
             needs_update = True
 
         # If needs_update isn't set, then the templates are the same and we can
@@ -809,6 +842,46 @@ class Stack(CloudFormationBaseActor):
                               ChangeSetName=change_set_req['Id'])
 
         self.log.info('Done updating template')
+
+    def _diff_params_safely(self, remote, local):
+        """Safely diffs the CloudFormation parameters.
+
+        Does a comparison of the locally supplied parameters, and the remotely
+        discovered (already set) CloudFormation parameters. When they are
+        different, shows a clean diff and returns False.
+
+        Takes into account NoEcho parameters which cannot be diff'd, so should
+        not be included in the output (likely because they are passwords).
+
+        Args:
+            Remote: A list of objects, each having a ParameterKey and
+            ParameterValue.
+            Local: A list of objects, each having a ParameterKey and
+            ParameterValue.
+
+        Returns:
+            Boolean
+        """
+        # If there are any NoEcho parameters, we can't diff them .. Amazon
+        # returns them as *****'s and we're unable to compare them. Also, we
+        # wouldn't want to print these out in our logs because they're almost
+        # certainly passwords. Therefore, we should simply skip them in the
+        # diff.
+        for p in self._noecho_params:
+            self.log.debug(
+                'Removing "%s" from parameters before comparison.' % p)
+            remote = [pair for pair in remote if pair['ParameterKey'] != p]
+            local = [pair for pair in local if pair['ParameterKey'] != p]
+
+        diff = utils.diff_dicts(remote, local)
+        if diff:
+            self.log.warning('Stack parameters do not match.')
+            for line in diff.split('\n'):
+                self.log.info('Diff: %s' % line)
+
+            return True
+
+        return False
 
     @gen.coroutine
     def _create_change_set(self, stack, uuid=uuid.uuid4().hex):

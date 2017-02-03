@@ -59,6 +59,12 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             'unittest', {'region': 'us-east-1'})
         self.actor.cf3_conn = mock.MagicMock(name='cf3_conn')
 
+    def test_discover_noecho_params(self):
+        file = 'examples/test/aws.cloudformation/cf.integration.json'
+        (body, url) = self.actor._get_template_body(file)
+        ret = self.actor._discover_noecho_params(body)
+        self.assertEquals(ret, ['BucketPassword'])
+
     def test_get_template_body(self):
         file = 'examples/test/aws.cloudformation/cf.unittest.json'
         url = 'http://foobar.json'
@@ -551,6 +557,42 @@ class TestStack(testing.AsyncTestCase):
                 }
             })
         self.actor.cf3_conn = mock.MagicMock(name='cf3_conn')
+
+    def test_diff_params_safely(self):
+        self.actor = cloudformation.Stack(
+            options={
+                'name': 'unit-test-cf',
+                'state': 'present',
+                'region': 'us-west-2',
+                'template':
+                    'examples/test/aws.cloudformation/cf.integration.json',
+                'parameters': {
+                    'BucketName': 'name',
+                    'BucketPassword': 'test_password',
+                    'Metadata': '1.0'
+                }
+            })
+
+        # Pretend that the parameters are the same (BucketName and Metadata),
+        # and the BucketPassword came back with stars. We should still return
+        # False to indicate that the parameters are the same.
+        remote = [
+            {'ParameterKey': 'BucketName', 'ParameterValue': 'name'},
+            {'ParameterKey': 'BucketPassword', 'ParameterValue': '***'},
+            {'ParameterKey': 'Metadata', 'ParameterValue': '1.0'}
+        ]
+        ret = self.actor._diff_params_safely(remote, self.actor._parameters)
+        self.assertEquals(False, ret)
+
+        # Now pretend that the Metadata is different ... Should return True
+        # indicating that the lists are different.
+        remote = [
+            {'ParameterKey': 'BucketName', 'ParameterValue': 'name'},
+            {'ParameterKey': 'BucketPassword', 'ParameterValue': '***'},
+            {'ParameterKey': 'Metadata', 'ParameterValue': '2.0'}
+        ]
+        ret = self.actor._diff_params_safely(remote, self.actor._parameters)
+        self.assertEquals(True, ret)
 
     @testing.gen_test
     def test_update_stack_in_failed_state(self):

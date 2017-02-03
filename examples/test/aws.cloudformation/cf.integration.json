@@ -1,15 +1,20 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
   "Description": "Stupid-simple CloudFormation template for Kingpin Integration Testing.",
-  "Parameters" : { "BucketName": { "Type": "String" } },
+  "Parameters" : {
+    "BucketName": { "Type": "String" },
+    "BucketPassword": { "Type": "String", "NoEcho": true },
+    "Metadata": { "Type": "String" }
+  },
   "Conditions": {},
   "Resources" : {
 
     "IntegrationTestBucket": {
       "Type" : "AWS::S3::Bucket",
+      "Metadata": { "Test": { "Ref": "Metadata" } },
       "Properties" : {
         "BucketName" : { "Ref": "BucketName" },
-        "Tags" : [ { "Key": "Kingpin", "Value": { "Ref": "BucketName" } } ]
+        "Tags" : [{ "Key": "Kingpin", "Value": { "Ref": "BucketName" } }]
       }
     }
 
