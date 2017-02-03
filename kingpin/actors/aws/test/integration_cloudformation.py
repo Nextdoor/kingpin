@@ -54,6 +54,8 @@ class IntegrationCreate(testing.AsyncTestCase):
                  'examples/test/aws.cloudformation/cf.integration.json',
              'parameters': {
                  'BucketName': self.bucket_name,
+                 'BucketPassword': UUID,
+                 'Metadata': UUID,
              }})
 
         done = yield actor.execute()
@@ -70,6 +72,8 @@ class IntegrationCreate(testing.AsyncTestCase):
                  'examples/test/aws.cloudformation/cf.integration.json',
              'parameters': {
                  'BucketName': self.bucket_name,
+                 'BucketPassword': UUID,
+                 'Metadata': UUID,
              }})
 
         with self.assertRaises(cloudformation.StackAlreadyExists):
@@ -125,7 +129,10 @@ class IntegrationStack(testing.AsyncTestCase):
                 'template':
                     'examples/test/aws.cloudformation/cf.integration.json',
                 'parameters': {
-                    'BucketName': self.bucket_name}})
+                    'BucketName': self.bucket_name,
+                    'BucketPassword': UUID,
+                    'Metadata': UUID
+                }})
 
         done = yield actor.execute()
         self.assertEquals(done, None)
@@ -141,7 +148,33 @@ class IntegrationStack(testing.AsyncTestCase):
                 'template':
                     'examples/test/aws.cloudformation/cf.integration.json',
                 'parameters': {
-                    'BucketName': self.bucket_name}})
+                    'BucketName': self.bucket_name,
+                    'BucketPassword': UUID,
+                    'Metadata': UUID
+                }})
+
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=600)
+    def integration_01c_changing_password_should_be_a_noop(self):
+        #  This should pretty much do nothing.. if it did trigger a ChangeSet,
+        #  we would actually fail because we're issuing a ChangeSet where no
+        #  resources are actually modified. Thus, if this succeeds, we know
+        #  that no stack change was made.
+        actor = cloudformation.Stack(
+            options={
+                'region': self.region,
+                'state': 'present',
+                'name': self.bucket_name,
+                'template':
+                    'examples/test/aws.cloudformation/cf.integration.json',
+                'parameters': {
+                    'BucketName': self.bucket_name,
+                    'BucketPassword': 'test',
+                    'Metadata': UUID
+                }})
 
         done = yield actor.execute()
         self.assertEquals(done, None)
@@ -157,7 +190,10 @@ class IntegrationStack(testing.AsyncTestCase):
                 'template':
                     'examples/test/aws.cloudformation/cf.integration.json',
                 'parameters': {
-                    'BucketName': '%s-updated' % self.bucket_name}})
+                    'BucketName': '%s-updated' % self.bucket_name,
+                    'BucketPassword': UUID,
+                    'Metadata': UUID
+                }})
 
         done = yield actor.execute()
         self.assertEquals(done, None)
@@ -173,7 +209,10 @@ class IntegrationStack(testing.AsyncTestCase):
                 'template':
                     'examples/test/aws.cloudformation/cf.integration.json',
                 'parameters': {
-                    'BucketName': '%s-updated' % self.bucket_name}})
+                    'BucketName': '%s-updated' % self.bucket_name,
+                    'BucketPassword': UUID,
+                    'Metadata': UUID
+                }})
 
         done = yield actor.execute()
         self.assertEquals(done, None)
@@ -189,7 +228,10 @@ class IntegrationStack(testing.AsyncTestCase):
                 'template':
                     'examples/test/aws.cloudformation/cf.integration.json',
                 'parameters': {
-                    'BucketName': '%s-updated' % self.bucket_name}})
+                    'BucketName': '%s-updated' % self.bucket_name,
+                    'BucketPassword': UUID,
+                    'Metadata': UUID
+                }})
 
         done = yield actor.execute()
         self.assertEquals(done, None)
@@ -205,7 +247,10 @@ class IntegrationStack(testing.AsyncTestCase):
                 'template':
                     'examples/test/aws.cloudformation/cf.integration.json',
                 'parameters': {
-                    'BucketName': '%s-updated' % self.bucket_name}})
+                    'BucketName': '%s-updated' % self.bucket_name,
+                    'BucketPassword': UUID,
+                    'Metadata': UUID
+                }})
 
         done = yield actor.execute()
         self.assertEquals(done, None)
