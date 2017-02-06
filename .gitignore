@@ -6,5 +6,6 @@
 .coverage
 .venv
 .build
+build/
 docs/.ropeproject
 .DS_Store
