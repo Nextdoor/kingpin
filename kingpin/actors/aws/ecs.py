@@ -336,13 +336,15 @@ class ECSBaseActor(base.AWSBaseActor):
         raise gen.Return(task_definitions)
 
     @staticmethod
-    def _load_task_definition(task_definition_file, tokens):
-        """Loads and verifies a task definition template file, and interpolates
-        tokens.
+    def _load_task_definition(task_definition_file, tokens, default_tokens={}):
+        """Loads and verifies a task definition template file, interpolates
+        tokens, and optionally default tokens which may contain environment 
+        variables.
 
         Args:
             task_definition_file: task definition file to load, or None.
             tokens: dict of key/value pairs to interpolate into the file.
+            default_tokens: dict of default key/value pairs to merge with tokens
 
         Returns:
             Resulting task definition dict or
@@ -350,8 +352,12 @@ class ECSBaseActor(base.AWSBaseActor):
         """
         if not task_definition_file:
             return None
+
+        merged_tokens = default_tokens.copy()
+        merged_tokens.update(tokens)
+
         task_definition = utils.convert_script_to_dict(
-            task_definition_file, tokens)
+            task_definition_file, merged_tokens)
 
         try:
             jsonschema.validate(task_definition,
@@ -488,7 +494,8 @@ class RunTask(ECSBaseActor):
         super(RunTask, self).__init__(*args, **kwargs)
         self.task_definition = self._load_task_definition(
             self.option('task_definition'),
-            self.option('tokens'))
+            self.option('tokens'),
+            self._init_tokens)
 
     @gen.coroutine
     @dry('Would run task {0}')
@@ -786,7 +793,8 @@ class Service(ECSBaseActor):
         super(Service, self).__init__(*args, **kwargs)
         self.task_definition = self._load_task_definition(
             self.option('task_definition'),
-            self.option('tokens'))
+            self.option('tokens'),
+            self._init_tokens)
         self.service_definition = self._load_service_definition(
             self.option('service_definition'),
             self.option('tokens'))
