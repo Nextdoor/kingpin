@@ -338,13 +338,14 @@ class ECSBaseActor(base.AWSBaseActor):
     @staticmethod
     def _load_task_definition(task_definition_file, tokens, default_tokens={}):
         """Loads and verifies a task definition template file, interpolates
-        tokens, and optionally default tokens which may contain environment 
+        tokens, and optionally default tokens which may contain environment
         variables.
 
         Args:
             task_definition_file: task definition file to load, or None.
             tokens: dict of key/value pairs to interpolate into the file.
-            default_tokens: dict of default key/value pairs to merge with tokens
+            default_tokens: dict of default key/value pairs to merge
+                with tokens
 
         Returns:
             Resulting task definition dict or
