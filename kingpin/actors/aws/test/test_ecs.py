@@ -311,11 +311,22 @@ class TestLoadServiceDefinition(testing.AsyncTestCase):
         with mock.patch('kingpin.utils.convert_script_to_dict',
                         return_value=service_definition) as utils_convert_mock:
             service_definition_file = 'file'
-            tokens = {'token': 'value'}
+
+            init_tokens = {
+                'env_token': 'env_value',
+                'default_token': 'default_value'}
+            tokens = {
+                'token': 'value',
+                'default_token': 'override_value'}
+            final_tokens = {
+                'token': 'value',
+                'default_token': 'override_value',
+                'env_token': 'env_value'}
+
             self.actor._load_service_definition(service_definition_file,
-                                                tokens)
+                                                tokens, init_tokens)
             utils_convert_mock.assert_called_with(
-                service_definition_file, tokens)
+                service_definition_file, final_tokens)
 
 
 class TestRegisterTask(testing.AsyncTestCase):

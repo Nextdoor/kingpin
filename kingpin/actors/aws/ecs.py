@@ -369,14 +369,19 @@ class ECSBaseActor(base.AWSBaseActor):
         return task_definition
 
     @staticmethod
-    def _load_service_definition(service_definition_file, tokens):
-        """Loads and verifies a service definition template file, and interpolates
-        tokens. The service definition template file can be None.
+    def _load_service_definition(
+            service_definition_file, tokens, default_tokens={}):
+        """Loads and verifies a service definition template file, and
+        interpolates tokens. and optionally default tokens which may contain
+        environment variables. The service definition template file
+        can be None.
 
         Args:
             service_definition_file: service definition file to load.
                 If None or an empty string, this returns only defaults.
             tokens: dict of key/value pairs to interpolate into the file.
+            default_tokens: dict of default key/value pairs to merge
+                with tokens
 
         Returns:
             Resulting service definition dict.
@@ -384,8 +389,11 @@ class ECSBaseActor(base.AWSBaseActor):
         if not service_definition_file:
             service_definition = {}
         else:
+            final_tokens = default_tokens.copy()
+            final_tokens.update(tokens)
+
             service_definition = utils.convert_script_to_dict(
-                service_definition_file, tokens)
+                service_definition_file, final_tokens)
             try:
                 jsonschema.validate(service_definition,
                                     SERVICE_DEFINITION_SCHEMA)
@@ -805,7 +813,8 @@ class Service(ECSBaseActor):
             self._init_tokens)
         self.service_definition = self._load_service_definition(
             self.option('service_definition'),
-            self.option('tokens'))
+            self.option('tokens'),
+            self._init_tokens)
 
     @gen.coroutine
     def _describe_service(self, service_name):
