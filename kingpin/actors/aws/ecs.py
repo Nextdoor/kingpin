@@ -354,6 +354,7 @@ class ECSBaseActor(base.AWSBaseActor):
         if not task_definition_file:
             return None
 
+        # Defined Kingpin tokens will override environment variables.
         final_tokens = default_tokens.copy()
         final_tokens.update(tokens)
 
@@ -445,10 +446,13 @@ class RunTask(ECSBaseActor):
       String of path to the Task Definition file template.
       Must be a local file path.
       Tokens to be interpolated must be of the form %VAR%.
+      Tokens can come in the form of options or environment variables.
 
     :tokens:
       A dictionary of key/value pairs used to fill in the tokens for the
-      Task Definition template. Default: {}.
+      Task Definition template.
+      These will override environment variables which can be used as tokens.
+      Default: {}.
 
     :count:
       How many tasks to run. Default: 1.
@@ -698,6 +702,7 @@ class Service(ECSBaseActor):
       String of path to the Task Definition file template.
       Must be a local file path.
       Tokens to be interpolated must be of the form %VAR%.
+      Tokens can come in the form of options or environment variables.
       Default: None.
 
     :service_definition:
@@ -717,7 +722,9 @@ class Service(ECSBaseActor):
 
     :tokens:
       A dictionary of key/value pairs used to fill in the tokens for the
-      Task and Service Definition template. Default: {}.
+      Task and Service Definition template.
+      These will override environment variables which can be used as tokens.
+      Default: {}.
 
     :count:
       How many instances of the service to deploy.
