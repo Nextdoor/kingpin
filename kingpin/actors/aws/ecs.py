@@ -354,11 +354,11 @@ class ECSBaseActor(base.AWSBaseActor):
         if not task_definition_file:
             return None
 
-        merged_tokens = default_tokens.copy()
-        merged_tokens.update(tokens)
+        final_tokens = default_tokens.copy()
+        final_tokens.update(tokens)
 
         task_definition = utils.convert_script_to_dict(
-            task_definition_file, merged_tokens)
+            task_definition_file, final_tokens)
 
         try:
             jsonschema.validate(task_definition,

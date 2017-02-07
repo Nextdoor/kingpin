@@ -148,9 +148,22 @@ class TestLoadTaskDefinition(testing.AsyncTestCase):
         with mock.patch('kingpin.utils.convert_script_to_dict',
                         return_value=task_definition) as utils_convert_mock:
             task_definition_file = 'file'
-            tokens = {'token': 'value'}
-            self.actor._load_task_definition(task_definition_file, tokens)
-            utils_convert_mock.assert_called_with(task_definition_file, tokens)
+
+            init_tokens = {
+                'env_token': 'env_value',
+                'default_token': 'default_value'}
+            tokens = {
+                'token': 'value',
+                'default_token': 'override_value'}
+            final_tokens = {
+                'token': 'value',
+                'default_token': 'override_value',
+                'env_token': 'env_value'}
+
+            self.actor._load_task_definition(
+                task_definition_file, tokens, init_tokens)
+            utils_convert_mock.assert_called_with(
+                task_definition_file, final_tokens)
 
 
 class TestDeregisterTaskDefinition(testing.AsyncTestCase):
