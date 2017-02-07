@@ -336,13 +336,16 @@ class ECSBaseActor(base.AWSBaseActor):
         raise gen.Return(task_definitions)
 
     @staticmethod
-    def _load_task_definition(task_definition_file, tokens):
-        """Loads and verifies a task definition template file, and interpolates
-        tokens.
+    def _load_task_definition(task_definition_file, tokens, default_tokens={}):
+        """Loads and verifies a task definition template file, interpolates
+        tokens, and optionally default tokens which may contain environment
+        variables.
 
         Args:
             task_definition_file: task definition file to load, or None.
             tokens: dict of key/value pairs to interpolate into the file.
+            default_tokens: dict of default key/value pairs to merge
+                with tokens
 
         Returns:
             Resulting task definition dict or
@@ -350,8 +353,13 @@ class ECSBaseActor(base.AWSBaseActor):
         """
         if not task_definition_file:
             return None
+
+        # Defined Kingpin tokens will override environment variables.
+        final_tokens = default_tokens.copy()
+        final_tokens.update(tokens)
+
         task_definition = utils.convert_script_to_dict(
-            task_definition_file, tokens)
+            task_definition_file, final_tokens)
 
         try:
             jsonschema.validate(task_definition,
@@ -361,14 +369,19 @@ class ECSBaseActor(base.AWSBaseActor):
         return task_definition
 
     @staticmethod
-    def _load_service_definition(service_definition_file, tokens):
-        """Loads and verifies a service definition template file, and interpolates
-        tokens. The service definition template file can be None.
+    def _load_service_definition(
+            service_definition_file, tokens, default_tokens={}):
+        """Loads and verifies a service definition template file, and
+        interpolates tokens. and optionally default tokens which may contain
+        environment variables. The service definition template file
+        can be None.
 
         Args:
             service_definition_file: service definition file to load.
                 If None or an empty string, this returns only defaults.
             tokens: dict of key/value pairs to interpolate into the file.
+            default_tokens: dict of default key/value pairs to merge
+                with tokens
 
         Returns:
             Resulting service definition dict.
@@ -376,8 +389,11 @@ class ECSBaseActor(base.AWSBaseActor):
         if not service_definition_file:
             service_definition = {}
         else:
+            final_tokens = default_tokens.copy()
+            final_tokens.update(tokens)
+
             service_definition = utils.convert_script_to_dict(
-                service_definition_file, tokens)
+                service_definition_file, final_tokens)
             try:
                 jsonschema.validate(service_definition,
                                     SERVICE_DEFINITION_SCHEMA)
@@ -438,10 +454,13 @@ class RunTask(ECSBaseActor):
       String of path to the Task Definition file template.
       Must be a local file path.
       Tokens to be interpolated must be of the form %VAR%.
+      Tokens can come in the form of options or environment variables.
 
     :tokens:
       A dictionary of key/value pairs used to fill in the tokens for the
-      Task Definition template. Default: {}.
+      Task Definition template.
+      These will override environment variables which can be used as tokens.
+      Default: {}.
 
     :count:
       How many tasks to run. Default: 1.
@@ -488,7 +507,8 @@ class RunTask(ECSBaseActor):
         super(RunTask, self).__init__(*args, **kwargs)
         self.task_definition = self._load_task_definition(
             self.option('task_definition'),
-            self.option('tokens'))
+            self.option('tokens'),
+            self._init_tokens)
 
     @gen.coroutine
     @dry('Would run task {0}')
@@ -690,6 +710,7 @@ class Service(ECSBaseActor):
       String of path to the Task Definition file template.
       Must be a local file path.
       Tokens to be interpolated must be of the form %VAR%.
+      Tokens can come in the form of options or environment variables.
       Default: None.
 
     :service_definition:
@@ -709,7 +730,9 @@ class Service(ECSBaseActor):
 
     :tokens:
       A dictionary of key/value pairs used to fill in the tokens for the
-      Task and Service Definition template. Default: {}.
+      Task and Service Definition template.
+      These will override environment variables which can be used as tokens.
+      Default: {}.
 
     :count:
       How many instances of the service to deploy.
@@ -786,10 +809,12 @@ class Service(ECSBaseActor):
         super(Service, self).__init__(*args, **kwargs)
         self.task_definition = self._load_task_definition(
             self.option('task_definition'),
-            self.option('tokens'))
+            self.option('tokens'),
+            self._init_tokens)
         self.service_definition = self._load_service_definition(
             self.option('service_definition'),
-            self.option('tokens'))
+            self.option('tokens'),
+            self._init_tokens)
 
     @gen.coroutine
     def _describe_service(self, service_name):
