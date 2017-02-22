@@ -874,20 +874,28 @@ class Service(ECSBaseActor):
         """
         repeating_log = utils.create_repeating_log(
             self.log.info,
-            'Waiting for primary deployment to be updated...', seconds=30)
+            'Waiting for primary deployment to be updated to %s '
+            'for service with name %s...' % (task_definition_name,
+                                             service_name),
+            seconds=30)
 
         while True:
             try:
                 service = yield self._describe_service(service_name)
-            except ServiceNotFound:
+            except ServiceNotFound as e:
+                self.log.info('Service Not Found: %s' % e.message)
                 yield gen.sleep(2)
                 continue
 
             primary_deployment = self._get_primary_deployment(service)
-            if primary_deployment and self._is_task_in_deployment(
-                    primary_deployment, task_definition_name):
-                self.log.info('Primary deployment updated.')
-                break
+            if primary_deployment:
+                self.log.info('Primary deployment is %s.' %
+                              self._arn_to_name(
+                                  primary_deployment['taskDefinition']))
+                if self._is_task_in_deployment(
+                        primary_deployment, task_definition_name):
+                    self.log.info('Primary deployment updated.')
+                    break
             yield gen.sleep(2)
 
         utils.clear_repeating_log(repeating_log)
