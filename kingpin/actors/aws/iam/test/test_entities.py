@@ -1,11 +1,15 @@
+from future import standard_library
+standard_library.install_aliases()
 import logging
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import json
+import mock
+
+import six.moves
 
 from boto.exception import BotoServerError
 from tornado import testing
 from tornado import gen
-import mock
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings
@@ -27,7 +31,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(entities)
+        six.moves.reload_module(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
@@ -182,7 +186,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         self.actor._delete_entity_policy.assert_has_calls([
             mock.call('test', 'Policy1'),
             mock.call('test', 'Policy2'),
-        ])
+        ], any_order=True)
 
     @testing.gen_test
     def test_ensure_inline_policies_updated(self):
@@ -426,7 +430,7 @@ class TestUser(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(entities)
+        six.moves.reload_module(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
@@ -478,7 +482,8 @@ class TestUser(testing.AsyncTestCase):
             mock.call('test', 'ng1')])
         self.actor._remove_user_from_group.assert_has_calls([
             mock.call('test', 'test-group-1'),
-            mock.call('test', 'test-group-2')])
+            mock.call('test', 'test-group-2')],
+            any_order=True)
         self.actor._add_user_to_group.reset_mock()
         self.actor._remove_user_from_group.reset_mock()
 
@@ -486,7 +491,10 @@ class TestUser(testing.AsyncTestCase):
     def test_ensure_groups_with_exceptions(self):
         # Create mocks for the add/remove user group methods
         self.actor._add_user_to_group = mock.MagicMock()
-        self.actor._add_user_to_group.side_effect = [tornado_value(None)]
+        self.actor._add_user_to_group.side_effect = [
+            tornado_value(None),
+            tornado_value(None),
+        ]
         self.actor._remove_user_from_group = mock.MagicMock()
         self.actor._remove_user_from_group.side_effect = [tornado_value(None)]
 
@@ -499,7 +507,7 @@ class TestUser(testing.AsyncTestCase):
         self.actor._add_user_to_group.assert_has_calls([
             mock.call('test', 'ng1'),
             mock.call('test', 'ng2')
-        ])
+        ], any_order=True)
         self.assertFalse(self.actor._remove_user_from_group.called)
 
         # Some other error happens? raise it!
@@ -597,7 +605,7 @@ class TestGroup(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(entities)
+        six.moves.reload_module(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
@@ -717,7 +725,7 @@ class TestRole(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(entities)
+        six.moves.reload_module(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
@@ -756,7 +764,7 @@ class TestRole(testing.AsyncTestCase):
                            "Principal": {"Service": "lambda.amazonaws.com"},
                            "Action": "sts:AssumeRole"}]}
 
-        lambda_string = urllib.pathname2url(json.dumps(request))
+        lambda_string = urllib.request.pathname2url(json.dumps(request))
         fake_entity = {'assume_role_policy_document': lambda_string}
         self.actor._get_entity = mock.MagicMock()
         self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
@@ -772,7 +780,7 @@ class TestRole(testing.AsyncTestCase):
             "Statement": [{"Effect": "Allow",
                            "Principal": {"Service": "ec2.amazonaws.com"},
                            "Action": "sts:AssumeRole"}]}
-        ec2_string = urllib.pathname2url(json.dumps(request))
+        ec2_string = urllib.request.pathname2url(json.dumps(request))
         fake_entity = {'assume_role_policy_document': ec2_string}
         self.actor._get_entity = mock.MagicMock()
         self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
@@ -791,7 +799,7 @@ class TestRole(testing.AsyncTestCase):
             "Statement": [{"Effect": "Allow",
                            "Principal": {"Service": "ec2.amazonaws.com"},
                            "Action": "sts:AssumeRole"}]}
-        ec2_string = urllib.pathname2url(json.dumps(request))
+        ec2_string = urllib.request.pathname2url(json.dumps(request))
         fake_entity = {'assume_role_policy_document': ec2_string}
         self.actor._get_entity = mock.MagicMock()
         self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
@@ -843,7 +851,7 @@ class TestInstanceProfile(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(entities)
+        six.moves.reload_module(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
@@ -954,7 +962,8 @@ class TestInstanceProfile(testing.AsyncTestCase):
         self.actor._add_role = mock.MagicMock()
         self.actor._add_role.side_effect = [tornado_value(None)]
         self.actor._remove_role = mock.MagicMock()
-        self.actor._remove_role.side_effect = [tornado_value(None)]
+        self.actor._remove_role.side_effect = [tornado_value(None),
+                                               tornado_value(None)]
 
         yield self.actor._ensure_role('test', 'new-test-role')
         self.actor.iam_conn.get_instance_profile.assert_called_with('test')

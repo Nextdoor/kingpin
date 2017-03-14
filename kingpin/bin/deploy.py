@@ -13,6 +13,7 @@
 #
 # Copyright 2014 Nextdoor.com, Inc
 """CLI Script Runner for Kingpin."""
+from __future__ import print_function
 
 import argparse
 import json

@@ -31,13 +31,11 @@ class TestSlackBase(testing.AsyncTestCase):
             slack_client_tokens,
             {'token': 'Unittest'})
 
+    @mock.patch.object(slack, 'TOKEN', None)
     def test_init_missing_creds(self):
         # Un-set the token now and make sure the init fails
-        slack.TOKEN = None
         with self.assertRaises(exceptions.InvalidCredentials):
             slack.SlackBase('Unit Test Action', {})
-        # Reload the slack library to re-get the token
-        reload(slack)
 
     def test_check_results_with_ok_results(self):
         actor = slack.SlackBase('Unit test action', {})

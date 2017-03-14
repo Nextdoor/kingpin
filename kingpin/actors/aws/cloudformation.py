@@ -226,7 +226,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             try:
                 yield self.thread(self.cf3_conn.validate_template, **cfg)
             except ClientError as e:
-                raise InvalidTemplate(e.message)
+                raise InvalidTemplate(str(e))
 
         if url is not None:
             cfg = {'TemplateURL': url}
@@ -234,7 +234,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             try:
                 yield self.thread(self.cf3_conn.validate_template, **cfg)
             except ClientError as e:
-                raise InvalidTemplate(e.message)
+                raise InvalidTemplate(str(e))
 
     def _create_parameters(self, parameters):
         """Converts a simple Key/Value dict into Amazon CF Parameters.
@@ -283,7 +283,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             stacks = yield self.thread(self.cf3_conn.describe_stacks,
                                        StackName=stack)
         except ClientError as e:
-            if 'does not exist' in e.message:
+            if 'does not exist' in str(e):
                 raise gen.Return(None)
 
             raise CloudFormationError(e)
@@ -400,7 +400,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             ret = yield self.thread(
                 self.cf3_conn.delete_stack, StackName=stack)
         except ClientError as e:
-            raise CloudFormationError(e.message)
+            raise CloudFormationError(str(e))
 
         req_id = ret['ResponseMetadata']['RequestId']
         self.log.info('Stack delete requested: %s' % req_id)
@@ -438,7 +438,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 Capabilities=self.option('capabilities'),
                 **cfg)
         except ClientError as e:
-            raise CloudFormationError(e.message)
+            raise CloudFormationError(str(e))
 
         # Now wait until the stack creation has finished. If the creation
         # fails, get the logs from Amazon for the user.

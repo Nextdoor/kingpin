@@ -16,7 +16,6 @@ import jsonschema
 
 from kingpin.actors import exceptions
 
-
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
 

@@ -65,7 +65,7 @@ class TestRetry(testing.AsyncTestCase):
         class TestException(Exception):
             pass
 
-        class FailingClass():
+        class FailingClass(object):
             """Test class that is intended for @_retry decorator"""
 
             _EXCEPTIONS = {
@@ -95,7 +95,7 @@ class TestRetry(testing.AsyncTestCase):
         class TestException(Exception):
             pass
 
-        class FailingClass():
+        class FailingClass(object):
             """Test class that is intended for @_retry decorator"""
 
             _EXCEPTIONS = {

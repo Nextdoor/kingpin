@@ -1,7 +1,11 @@
-import StringIO
+from future import standard_library
+standard_library.install_aliases()
 import logging
 import os
 import time
+
+import six.moves
+from six.moves import StringIO
 
 from tornado import gen
 from tornado import testing
@@ -115,15 +119,15 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(type(ret), dict)
 
     def test_convert_script_to_dict_bad_name(self):
-        instance = StringIO.StringIO()  # Empty buffer will fail demjson.
-        instance.__repr__ = lambda: 'Somefile.HAHA'
+        instance = StringIO()  # Empty buffer will fail demjson.
+        instance.name = 'Somefile.HAHA'
 
         with self.assertRaises(exceptions.InvalidScriptName):
             utils.convert_script_to_dict(instance, {})
 
     def test_convert_script_to_dict_junk(self):
-        instance = StringIO.StringIO()
-        instance.__repr__ = lambda: 'Somefile.json'
+        instance = StringIO()
+        instance.name = 'Somefile.json'
 
         with self.assertRaises(exceptions.InvalidScript):
             utils.convert_script_to_dict(instance, {})
@@ -131,17 +135,30 @@ class TestUtils(unittest.TestCase):
         with self.assertRaises(exceptions.InvalidScript):
             utils.convert_script_to_dict('junk data', {})
 
-        instance = StringIO.StringIO()
-        instance.__repr__ = lambda: 'Somefile.yaml'
+        instance = StringIO()
+        instance.name = 'Somefile.yaml'
         instance.write('---bad-yaml')
 
         with self.assertRaises(exceptions.InvalidScript):
             utils.convert_script_to_dict(instance, {})
 
+    def test_convert_script_to_dict_nameless_string_io(self):
+        """ Just reports invalid script name """
+        instance = StringIO()
+
+        with self.assertRaisesRegexp(exceptions.InvalidScriptName, r'Invalid file extension'):
+            utils.convert_script_to_dict(instance, {})
+
+    def test_convert_empty_yaml_file(self):
+        instance = StringIO()
+        instance.name = 'Somefile.yaml'
+        with self.assertRaisesRegexp(exceptions.InvalidScript, r'Invalid YAML'):
+            utils.convert_script_to_dict(instance, {})
+
     def test_exception_logger(self):
         patch = mock.patch.object(utils.logging, 'getLogger')
         with patch as logger:
-            reload(utils)
+            six.moves.reload_module(utils)
 
             @utils.exception_logger
             def raises_exc():

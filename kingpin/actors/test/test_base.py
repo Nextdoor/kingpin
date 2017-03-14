@@ -1,22 +1,25 @@
 """Tests for the actors.base package."""
 from __future__ import absolute_import
-import StringIO
+from future import standard_library
+standard_library.install_aliases()
 import json
 import os
 import logging
+import mock
 import time
+
+from six.moves import StringIO
 
 from tornado import gen
 from tornado import httpclient
 from tornado import ioloop
 from tornado import simple_httpclient
 from tornado import testing
-import mock
 
 # Unusual placement -- but we override the environment
 # so that we can test that the urllib debugger works
 #
-# We used to reload(base) this in the test, but that causes
+# We used to six.moves.reload_module(base) this in the test, but that causes
 # unpredictable super() behavior:
 #
 #  http://thomas-cokelaer.info/blog/2011/09/382/
@@ -370,9 +373,11 @@ class TestBaseActor(testing.AsyncTestCase):
         self.assertEquals(res, None)
 
     def test_fill_in_contexts_desc(self):
-        base.BaseActor.all_options = {
+        patch = mock.patch.object(base.BaseActor, 'all_options', {
             'test_opt': (str, REQUIRED, 'Test option')
-        }
+        })
+        patch.start()
+        self.addCleanup(patch.stop)
 
         self.actor = base.BaseActor(
             desc='Unit Test Action - {NAME}',
@@ -400,9 +405,6 @@ class TestBaseActor(testing.AsyncTestCase):
                 options={'test_opt': 'Foo bar'},
                 condition='{NAME}',
                 init_context={})
-
-        # Reset the all options so we dont break other tests
-        base.BaseActor.all_options = {}
 
 
 class TestEnsurableBaseActor(testing.AsyncTestCase):
@@ -497,7 +499,7 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=StringIO(response_body))
 
         with mock.patch.object(self.actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
@@ -510,7 +512,7 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
         response_body = "Something bad happened"
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=StringIO(response_body))
 
         with mock.patch.object(self.actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
@@ -525,7 +527,7 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=StringIO(response_body))
 
         with mock.patch.object(self.actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()

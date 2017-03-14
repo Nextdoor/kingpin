@@ -9,3 +9,4 @@
 build/
 docs/.ropeproject
 .DS_Store
+build

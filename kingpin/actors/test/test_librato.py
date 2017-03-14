@@ -1,8 +1,11 @@
 """Tests for the actors.librato package"""
 
+from future import standard_library
+standard_library.install_aliases()
 import json
 import mock
-import StringIO
+
+from six.moves import StringIO
 
 from tornado import gen
 from tornado import httpclient
@@ -127,7 +130,7 @@ class TestLibratoAnnotation(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=StringIO(response_body))
 
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
@@ -148,7 +151,7 @@ class TestLibratoAnnotation(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=StringIO(response_body))
 
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()

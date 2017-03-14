@@ -1,8 +1,10 @@
 import logging
+import mock
+
+import six.moves
 
 from boto.exception import BotoServerError
 from tornado import testing
-import mock
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings
@@ -18,7 +20,7 @@ class TestUploadCert(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(certs)
+        six.moves.reload_module(certs)
 
     @testing.gen_test
     def test_execute(self):
@@ -74,7 +76,7 @@ class TestDeleteCert(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(certs)
+        six.moves.reload_module(certs)
 
     @testing.gen_test(timeout=60)
     def test_delete_cert_dry(self):

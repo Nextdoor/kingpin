@@ -37,6 +37,8 @@ import collections
 import logging
 import os
 
+import six
+
 from tornado import gen
 import mock
 
@@ -221,7 +223,7 @@ class RightScaleBaseActor(base.BaseActor):
             res: The resource object itself
             tags: A list of strings, or a single string as a tag.
         """
-        if isinstance(tags, basestring):
+        if isinstance(tags, six.string_types):
             tags = [tags]
 
         if not res.href:

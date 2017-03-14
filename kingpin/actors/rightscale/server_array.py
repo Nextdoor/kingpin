@@ -1241,7 +1241,7 @@ class Execute(ServerArrayBaseActor):
         inputs = self.option('inputs')
         issues = False
         types = ('text', 'ignore', 'env', 'cred', 'key', 'array')
-        for key, value in inputs.items():
+        for key, value in list(inputs.items()):
             if value.split(':')[0] not in types:
                 issues = True
                 self.log.error('Value for %s needs to begin with %s'

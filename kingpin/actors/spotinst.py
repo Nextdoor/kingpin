@@ -483,7 +483,7 @@ class ElastiGroup(SpotinstBase):
         # fails, we assume its raw text and we encode it.
         orig_data = (parsed['group']['compute']
                      ['launchSpecification']['userData'])
-        new = base64.b64encode(orig_data)
+        new = base64.b64encode(orig_data.encode('ascii'))
         parsed['group']['compute']['launchSpecification']['userData'] = new
 
         # Ensure that the name of the ElastiGroup in the config file matches

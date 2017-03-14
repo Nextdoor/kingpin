@@ -26,9 +26,9 @@ class IntegrationRollbarDeploy(testing.AsyncTestCase):
 
     @attr('rollbar', 'integration')
     @testing.gen_test(timeout=60)
+    @mock.patch.dict(rollbar, {'TOKEN': None})
     def integration_test_1a_init_without_environment_creds(self):
-        # Un-set the token now and make sure the init fails
-        rollbar.TOKEN = None
+        # Make sure the init fails
         with self.assertRaises(exceptions.InvalidCredentials):
             rollbar.Deploy(
                 'Unit Test Action',
@@ -36,9 +36,6 @@ class IntegrationRollbarDeploy(testing.AsyncTestCase):
                  'revision': version.__version__,
                  'local_username': 'Kingpin Integration Testing',
                  'comment': 'Integration Tests Are Good, MmmKay'})
-
-        # Reload the rollbar package so it gets our environment variable back.
-        reload(rollbar)
 
     @attr('rollbar', 'integration', 'dry')
     @testing.gen_test(timeout=60)

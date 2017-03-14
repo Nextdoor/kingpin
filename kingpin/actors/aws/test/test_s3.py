@@ -1,8 +1,10 @@
 import logging
+import mock
+
+import six.moves
 
 from botocore.exceptions import ClientError
 from tornado import testing
-import mock
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import s3 as s3_actor
@@ -18,7 +20,7 @@ class TestBucket(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(s3_actor)
+        six.moves.reload_module(s3_actor)
 
         self.actor = s3_actor.Bucket(
             options={

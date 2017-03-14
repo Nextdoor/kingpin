@@ -1,10 +1,12 @@
 import logging
+import mock
+
+import six.moves
 
 from boto.exception import NoAuthHandlerFound
 from boto.exception import BotoServerError
 from boto import utils
 from tornado import testing
-import mock
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
@@ -20,7 +22,7 @@ class TestBase(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(base)
+        six.moves.reload_module(base)
 
     @mock.patch('boto.iam.connection.IAMConnection')
     def test_missing_auth(self, mock_iam):

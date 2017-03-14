@@ -92,10 +92,10 @@ class TestSpotinstException(testing.AsyncTestCase):
         source_exc = httpclient.HTTPError(
             400, '400 Bad Request', fake_resp_body)
         fake_exc = spotinst.SpotinstException(source_exc)
-        self.assertEquals(
-            ('Spotinst Request ID (fake_id) GET /fake: '
-             '{u\'something\': u\'else\'}'),
-            str(fake_exc))
+        self.assertRegexpMatches(
+            str(fake_exc),
+            (r"Spotinst Request ID \(fake_id\) GET /fake: "
+              "{u?'something': u?'else'}"))
 
 
 class TestSpotinstBase(testing.AsyncTestCase):

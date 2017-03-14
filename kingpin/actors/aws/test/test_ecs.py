@@ -1,6 +1,10 @@
+from builtins import str as unicode
+
 import datetime
 import logging
 import mock
+
+import six.moves
 
 from boto3.exceptions import Boto3Error
 from tornado import gen
@@ -17,7 +21,7 @@ log = logging.getLogger(__name__)
 class TestECSBaseActor(testing.AsyncTestCase):
     def setUp(self):
         super(TestECSBaseActor, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
 
     @testing.gen_test
     def test_int_count(self):
@@ -47,7 +51,7 @@ class TestHandleFailures(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestHandleFailures, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
         self.actor = ecs_actor.ECSBaseActor()
 
     @testing.gen_test
@@ -78,7 +82,7 @@ class TestLoadTaskDefinition(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestLoadTaskDefinition, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
         self.actor = ecs_actor.ECSBaseActor()
 
     @testing.gen_test
@@ -170,7 +174,7 @@ class TestDeregisterTaskDefinition(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestDeregisterTaskDefinition, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
         self.actor = ecs_actor.ECSBaseActor()
         self.actor.ecs_conn = mock.Mock()
 
@@ -186,7 +190,7 @@ class TestDescribeTaskDefinition(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestDescribeTaskDefinition, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
         self.actor = ecs_actor.ECSBaseActor()
         self.actor.ecs_conn = mock.Mock()
 
@@ -209,7 +213,7 @@ class TestListTaskDefinitions(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestListTaskDefinitions, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
         self.actor = ecs_actor.ECSBaseActor()
         self.actor.ecs_conn = mock.Mock()
 
@@ -259,7 +263,7 @@ class TestLoadServiceDefinition(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestLoadServiceDefinition, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
         self.actor = ecs_actor.ECSBaseActor()
 
     @testing.gen_test
@@ -333,7 +337,7 @@ class TestRegisterTask(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestRegisterTask, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
 
         self.actor = _mock_task_actor()
         self.actor.ecs_conn = mock.Mock()
@@ -382,7 +386,7 @@ class TestTaskRun(testing.AsyncTestCase):
         gen.sleep = helper.mock_tornado()
 
     def tearDown(self):
-        reload(gen)
+        six.moves.reload_module(gen)
 
     def test_ok_minimal(self):
         self._test(
@@ -455,7 +459,7 @@ class TestTaskWait(testing.AsyncTestCase):
         gen.sleep = helper.mock_tornado()
 
     def tearDown(self):
-        reload(gen)
+        six.moves.reload_module(gen)
 
     @testing.gen_test
     def test_return_for_empty(self):
@@ -497,7 +501,7 @@ class TestTaskDone(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestTaskDone, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
 
         self.actor = _mock_task_actor()
         self.actor.ecs_conn = mock.Mock()
@@ -508,7 +512,7 @@ class TestTaskDone(testing.AsyncTestCase):
         self.actor._get_containers_from_tasks = mock.Mock()
 
     def tearDown(self):
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
 
     @testing.gen_test
     def test_one_stopped_container(self):
@@ -696,7 +700,7 @@ class TestDescribeService(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestDescribeService, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
         self.actor = _mock_service_actor()
         self.actor.ecs_conn = mock.Mock()
         self.actor._handle_failures = mock.Mock()
@@ -784,13 +788,13 @@ class TestWaitForDeploymentUpdate(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestWaitForDeploymentUpdate, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
         self.actor = _mock_service_actor()
         self.actor.ecs_conn = mock.Mock()
         gen.sleep = helper.mock_tornado()
 
     def tearDown(self):
-        reload(gen)
+        six.moves.reload_module(gen)
 
     @testing.gen_test
     def test_slow_update(self):
@@ -823,7 +827,7 @@ class TestIsTaskDefinitionDifferent(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestIsTaskDefinitionDifferent, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
         self.actor = _mock_service_actor()
         self.actor.ecs_conn = mock.Mock()
 
@@ -1125,7 +1129,7 @@ class TestEnsureServicePresent(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestEnsureServicePresent, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
         self.actor = _mock_service_actor()
         self.actor.ecs_conn = mock.Mock()
         self.actor._create_service = helper.mock_tornado()
@@ -1222,7 +1226,7 @@ class TestEnsureServiceAbsent(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestEnsureServiceAbsent, self).setUp()
-        reload(ecs_actor)
+        six.moves.reload_module(ecs_actor)
         self.actor = _mock_service_actor()
         self.actor.ecs_conn = mock.Mock()
         self.actor._delete_service = helper.mock_tornado()
@@ -1253,7 +1257,7 @@ class TestWaitForServiceUpdate(testing.AsyncTestCase):
         self.service_name = 'service_name'
 
     def tearDown(self):
-        reload(gen)
+        six.moves.reload_module(gen)
 
     @testing.gen_test
     def test_instant_success(self):
@@ -1714,7 +1718,7 @@ class TestGetSortedNewLogEvents(testing.AsyncTestCase):
 
 def _mock_task_actor():
     settings.ECS_RETRY_ATTEMPTS = 0
-    reload(ecs_actor)
+    six.moves.reload_module(ecs_actor)
     base_actor = 'kingpin.actors.aws.ecs.ECSBaseActor'
     load_task_definition = base_actor + '._load_task_definition'
     with mock.patch(load_task_definition):
@@ -1727,7 +1731,7 @@ def _mock_task_actor():
 
 def _mock_service_actor():
     settings.ECS_RETRY_ATTEMPTS = 0
-    reload(ecs_actor)
+    six.moves.reload_module(ecs_actor)
     base_actor = 'kingpin.actors.aws.ecs.ECSBaseActor'
     load_task_definition = base_actor + '._load_task_definition'
     load_service_definition = base_actor + '._load_service_definition'

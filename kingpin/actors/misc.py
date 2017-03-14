@@ -27,10 +27,18 @@ dedicated packages. Things like sleep timers, loggers, etc.
   headers/cookies/etc. are exposed*
 """
 
-import StringIO
+from future import standard_library
+standard_library.install_aliases()
 import json
 import logging
-import urllib
+import urllib.request, urllib.parse, urllib.error
+
+import six
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 from tornado import gen
 from tornado import httpclient
@@ -212,7 +220,7 @@ class Macro(base.BaseActor):
                 raise exceptions.UnrecoverableActorFailure(e)
             finally:
                 client.close()
-            buf = StringIO.StringIO()
+            buf = StringIO()
             # Set buffer representation for debug printing.
             buf.__repr__ = lambda: (
                 'In-memory file from: %s' % self.option('macro'))
@@ -314,7 +322,7 @@ class Sleep(base.BaseActor):
 
         sleep = self.option('sleep')
 
-        if isinstance(sleep, basestring):
+        if isinstance(sleep, six.string_types):
             sleep = float(sleep)
 
         if not self._dry:
@@ -394,7 +402,7 @@ class GenericHTTP(base.HTTPBaseActor):
             datajson = json.dumps(self.option('data-json'))
 
         escaped_post = (
-            urllib.urlencode(self.option('data')) or
+            urllib.parse.urlencode(self.option('data')) or
             datajson or None)
 
         try:
@@ -404,4 +412,4 @@ class GenericHTTP(base.HTTPBaseActor):
                               auth_password=self.option('password'))
         except httpclient.HTTPError as e:
             if e.code == 401:
-                raise exceptions.InvalidCredentials(e.message)
+                raise exceptions.InvalidCredentials(str(e))

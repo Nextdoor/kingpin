@@ -25,9 +25,11 @@ execute a code deployment.
   Rollbar API Token
 """
 
+from future import standard_library
+standard_library.install_aliases()
 import logging
 import os
-import urllib
+import urllib.request, urllib.parse, urllib.error
 
 from tornado import gen
 from tornado import httpclient
@@ -216,7 +218,7 @@ class Deploy(RollbarBase):
             'comment': self.option('comment')
         })
 
-        escaped_post = urllib.urlencode(args)
+        escaped_post = urllib.parse.urlencode(args)
         res = yield self._fetch_wrapper(API_DEPLOY_PATH, post=escaped_post)
         raise gen.Return(res)
 

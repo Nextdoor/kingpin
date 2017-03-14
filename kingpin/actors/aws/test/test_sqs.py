@@ -1,9 +1,11 @@
 import logging
+import mock
+
+import six.moves
 
 from tornado import testing
 import boto.sqs.connection
 import boto.sqs.queue
-import mock
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings
@@ -20,7 +22,7 @@ class SQSTestCase(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(sqs)
+        six.moves.reload_module(sqs)
 
     @mock.patch.object(boto.sqs.connection, 'SQSConnection')
     def run(self, result, sqsc):
@@ -134,14 +136,14 @@ class TestDeleteSQSQueueActor(SQSTestCase):
         self.sqs_conn().get_all_queues = mock.Mock(return_value=[])
         # Should fail even in dry run, if idempotent flag is not there.
         settings.SQS_RETRY_DELAY = 0
-        reload(sqs)
+        six.moves.reload_module(sqs)
         with self.assertRaises(sqs.QueueNotFound):
             yield actor.execute()
 
     @testing.gen_test
     def test_execute_with_failure(self):
         settings.SQS_RETRY_DELAY = 0
-        reload(sqs)
+        six.moves.reload_module(sqs)
         actor = sqs.Delete('Unit Test Action',
                            {'name': 'non-existent-queue',
                             'region': 'us-west-2'})
@@ -152,7 +154,7 @@ class TestDeleteSQSQueueActor(SQSTestCase):
     @testing.gen_test
     def test_execute_idempotent(self):
         settings.SQS_RETRY_DELAY = 0
-        reload(sqs)
+        six.moves.reload_module(sqs)
         actor = sqs.Delete('Unit Test Action',
                            {'name': 'non-existent-queue',
                             'region': 'us-west-2',

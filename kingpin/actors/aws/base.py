@@ -32,9 +32,11 @@ _Note, these can be skipped only if you have a .aws/credentials file in place._
   Your AWS secret
 """
 
+from future import standard_library
+standard_library.install_aliases()
 import json
 import logging
-import urllib
+import urllib.parse
 import re
 
 from boto import exception as boto_exception
@@ -203,7 +205,7 @@ class AWSBaseActor(base.BaseActor):
                 msg = 'Access credentials have expired'
                 raise exceptions.InvalidCredentials(msg)
 
-            msg = '%s: %s' % (e.error_code, e.message)
+            msg = '%s: %s' % (e.error_code, e)
             if e.status == 403:
                 raise exceptions.InvalidCredentials(msg)
 
@@ -233,7 +235,7 @@ class AWSBaseActor(base.BaseActor):
             elbs = yield self.thread(self.elb_conn.get_all_load_balancers,
                                      load_balancer_names=name)
         except boto_exception.BotoServerError as e:
-            msg = '%s: %s' % (e.error_code, e.message)
+            msg = '%s: %s' % (e.error_code, e)
             log.error('Received exception: %s' % msg)
 
             if e.status == 400:
@@ -274,7 +276,7 @@ class AWSBaseActor(base.BaseActor):
         args:
             policy: The policy string returned by Boto
         """
-        return json.loads(urllib.unquote(policy))
+        return json.loads(urllib.parse.unquote(policy))
 
     def _parse_policy_json(self, policy):
         """Parse a single JSON file into an Amazon policy.

@@ -530,9 +530,9 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
     @gen.coroutine
     def _set_images(self):
         to_add = [href for href in self.desired_images.keys()
-                  if href not in self.images.keys()]
+                  if href not in list(self.images.keys())]
         to_delete = [href for href in self.images.keys()
-                     if href not in self.desired_images.keys()]
+                     if href not in list(self.desired_images.keys())]
 
         tasks = []
         for href in to_add:
@@ -636,7 +636,7 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
             # If we got nothing back (empty list, or None), throw an exception
             if raw is None or not raw:
                 raise exceptions.InvalidOptions(
-                    'Ubable to find RightScript: %s' % config['right_script'])
+                    'Unable to find RightScript: %s' % config['right_script'])
 
             # If only one item is returned, and the user didn't explicitly set
             # the revision number, then we pick one for them. If they _did_
@@ -763,7 +763,7 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
                                 if self.desired_images[key]['default'] is
                                 True][0]
         except IndexError:
-            default_mci_href = self.desired_images.keys()[0]
+            default_mci_href = list(self.desired_images.keys())[0]
 
         # Compare the desired vs current default_multi_cloud_image_href. This
         # comparison is quick and doesn't require any API calls, so we do it

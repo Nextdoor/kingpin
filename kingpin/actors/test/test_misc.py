@@ -1,13 +1,16 @@
 import logging
+import mock
+
+import six.moves
 
 from tornado import httpclient
 from tornado import testing
-import mock
 
 from kingpin import exceptions as kingpin_exceptions
 from kingpin.actors import exceptions
 from kingpin.actors import misc
 from kingpin.actors.test.helper import mock_tornado
+
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +29,7 @@ class TestMacro(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestMacro, self).setUp()
-        reload(misc)
+        six.moves.reload_module(misc)
 
     def test_init(self):
         misc.Macro._check_macro = mock.Mock()
@@ -111,7 +114,8 @@ class TestMacro(testing.AsyncTestCase):
         misc.Macro._get_config_from_script.return_value = {}
         misc.Macro._check_schema = mock.Mock()
         with mock.patch('kingpin.actors.utils.get_actor'):
-            with mock.patch.object(httpclient.HTTPClient, 'fetch'):
+            with mock.patch('tornado.httpclient.HTTPClient') as client:
+                client.return_value.fetch.return_value.body = 'the body'
                 misc.Macro('Unit Test', {'macro': 'http://test.json',
                                          'tokens': {}})
 

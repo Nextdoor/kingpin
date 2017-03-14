@@ -19,6 +19,8 @@
 Common package for utility functions.
 """
 
+from future import standard_library
+standard_library.install_aliases()
 from logging import handlers
 import difflib
 import datetime
@@ -29,17 +31,25 @@ import logging
 import os
 import pprint
 import re
+import six
 import sys
 import yaml
 import time
 
 from tornado import gen
 from tornado import ioloop
-import httplib
+import http.client
 import rainbow_logging_handler
 
 from kingpin import exceptions
 
+from six.moves import StringIO
+
+if sys.version_info > (3, 0):  # pragma: no cover
+    import io
+    FILE_BASE_TYPE = io.IOBase
+else:  # pragma: no cover
+    FILE_BASE_TYPE = (file, StringIO)
 
 __author__ = 'Matt Wise (matt@nextdoor.com)'
 
@@ -164,7 +174,7 @@ def super_httplib_debug_logging():
     Returns:
         Requests 'logger' object (mainly for unit testing)
     """
-    httplib.HTTPConnection.debuglevel = 1
+    http.client.HTTPConnection.debuglevel = 1
     requests_log = logging.getLogger("requests.packages.urllib3")
     requests_log.propagate = True
     requests_log.setLevel(logging.DEBUG)
@@ -271,11 +281,11 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
     # First things first, swap out all instances of %<str>% with any matching
     # token variables found. If no items are in the hash (none, empty hash,
     # etc), then skip this.
-    allowed_types = (str, unicode, bool, int, float)
+    allowed_types = six.string_types + six.integer_types + (float,)
     if tokens:
-        for k, v in tokens.iteritems():
+        for k, v in tokens.items():
 
-            if type(v) not in allowed_types:
+            if not isinstance(v, allowed_types):
                 log.warning('Token %s=%s is not in allowed types: %s' % (
                     k, v, allowed_types))
                 continue
@@ -323,12 +333,11 @@ def convert_script_to_dict(script_file, tokens):
         kingpin.exceptions.InvalidScript
     """
 
-    filename = ''
     try:
-        if type(script_file) in (str, unicode):
+        if isinstance(script_file, six.string_types):
             filename = script_file
             instance = open(script_file)
-        elif type(script_file) is file:
+        elif isinstance(script_file, FILE_BASE_TYPE) and hasattr(script_file, 'name'):
             filename = script_file.name
             instance = script_file
         else:
@@ -463,7 +472,7 @@ def diff_dicts(dict1, dict2):
     dict2 = pprint.pformat(dict2).splitlines()
 
     # Remove unicode identifiers.
-    dict1 = map(lambda line: line.replace('u\'', '\''), dict1)
-    dict2 = map(lambda line: line.replace('u\'', '\''), dict2)
+    dict1 = [line.replace('u\'', '\'') for line in dict1]
+    dict2 = [line.replace('u\'', '\'') for line in dict2]
 
     return '\n'.join(difflib.unified_diff(dict1, dict2, n=2))

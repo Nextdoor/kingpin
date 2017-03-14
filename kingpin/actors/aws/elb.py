@@ -576,8 +576,7 @@ class DeregisterInstance(base.AWSBaseActor):
         elbs_with_members = []
 
         for instance in instances:
-            elbs = filter(lambda lb: instance in [i.id for i in lb.instances],
-                          all_elbs)
+            elbs = [lb for lb in all_elbs if instance in [i.id for i in lb.instances]]
             self.log.debug('%s is a member of %s' % (instance, elbs))
             elbs_with_members.extend(elbs)
 

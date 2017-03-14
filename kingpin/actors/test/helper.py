@@ -1,3 +1,5 @@
+from unittest import util as unittest_util
+
 from tornado import gen
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
@@ -21,3 +23,18 @@ def mock_tornado(value=None, exc=None):
 def tornado_value(value=None):
     """Convers whatever is passed in to a tornado value."""
     raise gen.Return(value)
+
+
+class InAnyOrder(object):
+    """ An order-independent matcher for enumerables. """
+    def __init__(self, items):
+        self._items = items
+
+    def __eq__(self, other):
+        return not unittest_util._count_diff_all_purpose(self._items, other)
+
+    def __ne__(self, other):
+        return not(self == other)
+
+    def __repr__(self):
+        return '<IN ANY ORDER: %s>' % self._items

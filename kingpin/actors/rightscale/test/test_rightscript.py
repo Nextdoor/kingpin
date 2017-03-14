@@ -162,12 +162,12 @@ class TestRightScript(testing.AsyncTestCase):
             update.return_value = helper.tornado_value(self.actor.script)
             yield self.actor._update_params()
             self.assertTrue(self.actor.changed)
-            update.assert_has_calls([mock.call(
+            update.assert_called_once_with(
                 self.actor.script,
-                [('right_script[source]', 'echo script1\n'),
-                 ('right_script[packages]', u'curl'),
-                 ('right_script[description]', u'test description'),
-                 ('right_script[name]', u'test-name')])])
+                helper.InAnyOrder([('right_script[source]', 'echo script1\n'),
+                                   ('right_script[packages]', u'curl'),
+                                   ('right_script[description]', u'test description'),
+                                   ('right_script[name]', u'test-name')]))
 
     @testing.gen_test
     def test_commit(self):

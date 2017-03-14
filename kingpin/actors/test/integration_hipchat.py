@@ -25,19 +25,16 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
 
     @attr('hipchat', 'integration')
     @testing.gen_test(timeout=60)
+    @mock.patch.dict(hipchat, {'TOKEN': None})
     def integration_test_init_without_environment_creds(self):
         message = 'Unit test message'
         room = 'Operations'
 
-        # Un-set the token now and make sure the init fails
-        hipchat.TOKEN = None
+        # Make sure the init fails
         with self.assertRaises(exceptions.InvalidCredentials):
             hipchat.Message(
                 'Unit Test Action',
                 {'message': message, 'room': room}, dry=True)
-
-        # Reload the hipchat library to re-get the token
-        reload(hipchat)
 
     @attr('hipchat', 'integration')
     @testing.gen_test(timeout=60)
@@ -79,19 +76,16 @@ class IntegrationHipchatTopic(testing.AsyncTestCase):
 
     @attr('hipchat', 'integration')
     @testing.gen_test(timeout=60)
+    @mock.patch.dict(hipchat, {'TOKEN': None})
     def integration_test_init_without_environment_creds(self):
         topic = 'Unit test topic'
         room = 'Operations'
 
-        # Un-set the token now and make sure the init fails
-        hipchat.TOKEN = None
+        # Make sure the init fails
         with self.assertRaises(exceptions.InvalidCredentials):
             hipchat.Topic(
                 'Unit Test Action',
                 {'topic': topic, 'room': room}, dry=True)
-
-        # Reload the hipchat library to re-get the token
-        reload(hipchat)
 
     @attr('hipchat', 'integration')
     @testing.gen_test(timeout=60)

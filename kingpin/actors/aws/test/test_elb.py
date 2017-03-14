@@ -1,8 +1,10 @@
 import logging
+import mock
+
+import six.moves
 
 from boto.exception import BotoServerError
 from tornado import testing
-import mock
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -20,7 +22,7 @@ class TestRegisterInstance(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(elb_actor)
+        six.moves.reload_module(elb_actor)
 
     @testing.gen_test
     def test_add(self):
@@ -118,7 +120,7 @@ class TestDeregisterInstance(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(elb_actor)
+        six.moves.reload_module(elb_actor)
 
     @testing.gen_test
     def test_remove(self):
@@ -262,7 +264,7 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(elb_actor)
+        six.moves.reload_module(elb_actor)
 
     @testing.gen_test
     def test_execute(self):
@@ -371,7 +373,7 @@ class TestSetCert(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(elb_actor)
+        six.moves.reload_module(elb_actor)
 
     @testing.gen_test
     def test_check_access(self):

@@ -1,14 +1,17 @@
 import datetime
 import logging
 import json
+import mock
+
+import six.moves
 
 from botocore.exceptions import ClientError
 from tornado import testing
-import mock
 
 from kingpin.actors.aws import settings
 from kingpin.actors.aws import cloudformation
 from kingpin.actors.test.helper import tornado_value
+
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +56,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(cloudformation)
+        six.moves.reload_module(cloudformation)
 
         self.actor = cloudformation.CloudFormationBaseActor(
             'unittest', {'region': 'us-east-1'})
@@ -353,7 +356,7 @@ class TestCreate(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(cloudformation)
+        six.moves.reload_module(cloudformation)
 
     @testing.gen_test
     def test_create_stack_file(self):
@@ -498,7 +501,7 @@ class TestDelete(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(cloudformation)
+        six.moves.reload_module(cloudformation)
 
     @testing.gen_test
     def test_execute(self):
@@ -543,7 +546,7 @@ class TestStack(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(cloudformation)
+        six.moves.reload_module(cloudformation)
 
         self.actor = cloudformation.Stack(
             options={

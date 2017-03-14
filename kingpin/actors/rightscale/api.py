@@ -50,8 +50,15 @@ from datetime import datetime
 from os import path
 import functools
 import logging
+import sys
 
 from retrying import retry as sync_retry
+
+# Hack because python-rightscale hasn't been ported to python3 yet
+if sys.version_info >= (3, 0):   # pragma: no cover
+    import configparser
+    sys.modules['ConfigParser'] = configparser
+
 from rightscale import util as rightscale_util
 from tornado import concurrent
 from tornado import gen
@@ -210,9 +217,7 @@ class RightScale(object):
         found_cookbooks = self._client.cookbooks.index(
             params={'filter[]': ['name==%s' % cookbook],
                     'view': 'extended'})
-        found_recipes = filter(
-            lambda r: r.soul['metadata']['recipes'].get(name),
-            found_cookbooks)
+        found_recipes = [r for r in found_cookbooks if r.soul['metadata']['recipes'].get(name)]
 
         if not found_recipes:
             log.debug('Recipe matching "%s" could not be found.' % name)

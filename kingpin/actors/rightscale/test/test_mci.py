@@ -1,6 +1,8 @@
 import logging
 import mock
 
+import six
+
 from tornado import testing
 
 from kingpin.actors import exceptions
@@ -77,7 +79,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             helper.tornado_value(self.clouda_instance_mock),
         ]
         ret = yield self.actor._get_mci_setting_def(self._images[0])
-        self.assertEquals(ret, self.clouda_href_tuples)
+        six.assertCountEqual(self, ret, self.clouda_href_tuples)
 
     @testing.gen_test
     def test_get_mci_setting_def_no_user_data(self):
@@ -89,7 +91,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             helper.tornado_value(self.cloudb_instance_mock),
         ]
         ret = yield self.actor._get_mci_setting_def(self._images[1])
-        self.assertEquals(ret, self.cloudb_href_tuples)
+        six.assertCountEqual(self, ret, self.cloudb_href_tuples)
 
     @testing.gen_test
     def test_get_mci_setting_def_exc_in_cloud_call(self):
@@ -431,10 +433,14 @@ class TestMCIActor(testing.AsyncTestCase):
             helper.tornado_value(None)
         ]
         self.client_mock.update.side_effect = [
-            helper.tornado_value(None)
+            helper.tornado_value(None),
+            helper.tornado_value(None),
         ]
         self.client_mock.destroy_resource.side_effect = [
-            helper.tornado_value(None)
+            helper.tornado_value(None),
+            helper.tornado_value(None),
+            helper.tornado_value(None),
+            helper.tornado_value(None),
         ]
 
         # mci_setting_a looks like the desired clouda settings, but has the
@@ -470,6 +476,7 @@ class TestMCIActor(testing.AsyncTestCase):
         self.actor._get_mci_setting_def = mock.MagicMock(name='get_mci_set')
         self.actor._get_mci_setting_def.side_effect = [
             helper.tornado_value(self.clouda_href_tuples),
+            helper.tornado_value(self.cloudb_href_tuples),
             helper.tornado_value(self.cloudb_href_tuples),
         ]
 

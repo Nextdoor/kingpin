@@ -1,4 +1,5 @@
 # General App Requirements
+future
 
 # 4.1+ is required for the @gen.with_timeout decorator.
 # http://tornado.readthedocs.org/en/latest/gen.html#tornado.gen.with_timeout
@@ -8,7 +9,7 @@ tornado>=4.1
 tornado_rest_client>=0.0.4
 
 # Used to make synchronous tasks asynchronous
-futures
+# futures
 
 # Used to parse out the JSON and validate its format.
 simplejson

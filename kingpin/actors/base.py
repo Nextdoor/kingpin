@@ -32,6 +32,7 @@ any live changes. It is up to the developer of the Actor to define what
 """
 
 import inspect
+from past.types import basestring
 import json
 import logging
 import os
@@ -232,7 +233,7 @@ class BaseActor(object):
             if isinstance(value, basestring):
                 value = str(value)
 
-            # If the expected_type has an attribute 'valid', then verify that
+            # If the expected_type has an attribute 'validate', then verify that
             # the option passed in is one of those valid options.
             if hasattr(expected_type, 'validate'):
                 try:
@@ -606,7 +607,7 @@ class EnsurableBaseActor(BaseActor):
         super(EnsurableBaseActor, self).__init__(*args, **kwargs)
 
         # Generate a list of options that will be ensured ...
-        self._ensurable_options = self.all_options.keys()
+        self._ensurable_options = list(self.all_options.keys())
         for option in self.unmanaged_options:
             self._ensurable_options.remove(option)
 
@@ -765,10 +766,10 @@ class HTTPBaseActor(BaseActor):
         """
 
         # Remove keys from the arguments where the value is None
-        args = dict((k, v) for k, v in args.iteritems() if v)
+        args = dict((k, v) for k, v in args.items() if v)
 
         # Convert all Bool values to lowercase strings
-        for key, value in args.iteritems():
+        for key, value in args.items():
             if type(value) is bool:
                 args[key] = str(value).lower()
 

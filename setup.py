@@ -13,8 +13,8 @@
 # limitations under the License.
 
 import os
-import sys
 import shutil
+import sys
 
 from distutils.command.clean import clean
 from distutils.command.sdist import sdist
@@ -148,6 +148,14 @@ class SourceDistHook(sdist):
         os.unlink('version.rst')
 
 
+if sys.version_info >= (3, 0):
+    install_requires = ()
+    tests_require = ()
+else:
+    install_requires = ('futures',)
+    tests_require = ('functools32',)
+
+
 setup(
     name=PACKAGE,
     version=__version__,
@@ -161,11 +169,12 @@ setup(
     keywords='apache',
     packages=find_packages(),
     test_suite='nose.collector',
-    tests_require=open('%s/requirements.test.txt' % DIR).readlines(),
+    tests_require=list(tests_require) + open('%s/requirements.test.txt' % DIR).readlines(),
     setup_requires=[],
-    install_requires=open('%s/requirements.txt' % DIR).readlines(),
+    install_requires=list(install_requires) + open('%s/requirements.txt' % DIR).readlines(),
     dependency_links=[
-        'https://github.com/diranged/python-rightscale-1/tarball/nextdoor#egg=python-rightscale-0.1.7'
+        'https://github.com/diranged/python-rightscale-1/tarball/nextdoor#egg=python-rightscale-0.1.7',
+        'https://github.com/ashanbrown/tornado_rest_client/tarball/python3#egg=tornado-rest-client-0.0.4'
     ],
     entry_points={
         'console_scripts': [
