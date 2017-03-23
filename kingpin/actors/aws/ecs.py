@@ -744,6 +744,11 @@ class Service(ECSBaseActor):
       Not used when state is 'absent'.
       Default: True.
 
+    :use_existing_count:
+      Whether to use the existing service's count when updating
+      instead of the specified count.
+      Default: True.
+
     :deregister_task_definitions:
       Whether to deregister related Task Definitions.
       Only used when state is 'absent'.
@@ -799,6 +804,10 @@ class Service(ECSBaseActor):
         'wait': (bool, True,
                  'Whether to wait for the services to deploy. '
                  "Not used when state is 'absent'."),
+        'use_existing_count': (
+            bool, True,
+            "Whether to use the existing service's count when updating "
+            'instead of the specified count.'),
         'deregister_task_definitions': (
             bool, True,
             'Whether to deregister related Task Definitions. '
@@ -977,8 +986,7 @@ class Service(ECSBaseActor):
         update_parameters = dict(
             cluster=self.option('cluster'),
             service=service_name,
-            deploymentConfiguration=deployment_configuration,
-            desiredCount=self.option('count'))
+            deploymentConfiguration=deployment_configuration)
 
         old_task_definition_name = self._arn_to_name(
             existing_service['taskDefinition'])
@@ -1288,8 +1296,11 @@ class Service(ECSBaseActor):
                 old_params=existing_service,
                 new_params=self.service_definition,
                 immutable_fields=['loadBalancers', 'role'])
-            task_definition_name = yield self._update_service(service_name,
-                                                              existing_service)
+            override = None
+            if not self.option('use_existing_count'):
+                override = {'desiredCount': self.option('count')}
+            task_definition_name = yield self._update_service(
+                service_name, existing_service, override=override)
         else:
             task_definition_name = yield self._create_service(service_name)
 
