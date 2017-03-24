@@ -1035,13 +1035,11 @@ class TestUpdateService(testing.AsyncTestCase):
         expected = ({
                     'cluster': self.actor.option('cluster'),
                     'service': service_name,
-                    'desiredCount': self.actor.option('count'),
                     'deploymentConfiguration': configuration
                     },)
         self.assertEqual(call_args, expected)
 
         self.actor._options['cluster'] = 'cluster'
-        self.actor._options['count'] = 5
         yield self.actor._update_service(
             service_name=service_name,
             existing_service={'taskDefinition': 'arn/family:2'})
@@ -1049,7 +1047,6 @@ class TestUpdateService(testing.AsyncTestCase):
         expected = ({
                     'cluster': self.actor.option('cluster'),
                     'service': service_name,
-                    'desiredCount': self.actor.option('count'),
                     'deploymentConfiguration': configuration
                     },)
         self.assertEqual(call_args, expected)
@@ -1076,7 +1073,6 @@ class TestUpdateService(testing.AsyncTestCase):
                     'cluster': self.actor.option('cluster'),
                     'service': service_name,
                     'taskDefinition': 'arn/family:1',
-                    'desiredCount': self.actor.option('count'),
                     'deploymentConfiguration': configuration
                     },)
         self.assertEqual(call_args, expected)
@@ -1210,6 +1206,16 @@ class TestEnsureServicePresent(testing.AsyncTestCase):
         self.assertEqual(self.actor._create_service._call_count, 0)
         self.assertEqual(self.actor._update_service._call_count, 1)
         self.assertEqual(self.actor._wait_for_service_update._call_count, 0)
+
+    @testing.gen_test
+    def test_not_use_existing_count(self):
+        self.actor._options['use_existing_count'] = False
+        yield self.actor._ensure_service_present(
+            service_name=self.service_name,
+            existing_service={'status': 'ACTIVE'})
+        self.assertEqual(self.actor._create_service._call_count, 0)
+        self.assertEqual(self.actor._update_service._call_count, 1)
+        self.assertEqual(self.actor._wait_for_service_update._call_count, 1)
 
 
 class TestEnsureServiceAbsent(testing.AsyncTestCase):

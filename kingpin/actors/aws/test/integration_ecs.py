@@ -176,6 +176,7 @@ class IntegrationECS(testing.AsyncTestCase):
                  'cluster': self.cluster,
                  'task_definition': definition,
                  'service_name': '%s_%s' % (name, '03'),
+                 'use_existing_count': False,
                  'count': 1})
         yield actor.execute()
 
@@ -190,6 +191,7 @@ class IntegrationECS(testing.AsyncTestCase):
                  'cluster': self.cluster,
                  'task_definition': definition,
                  'service_name': '%s_%s' % (name, '03'),
+                 'use_existing_count': False,
                  'count': 2})
         yield actor.execute()
 
@@ -232,6 +234,7 @@ class IntegrationECS(testing.AsyncTestCase):
                  'cluster': self.cluster,
                  'task_definition': definition,
                  'service_name': '%s_%s' % (name, '04'),
+                 'use_existing_count': False,
                  'count': 0})
         yield actor.execute()
 
