@@ -1,3 +1,28 @@
+## Version 0.4.1
+ * #435: Pass Kingpin ECS actor ENV vars to task definition ([@diranged])
+ * #434: SYSTEMS-957: Support NoEcho Parameters in CloudFormation stacks. ([@diranged])
+ * #433: ECS: Fix a race condition in stop service ([@swaggy])
+ * #432: New Actor: spottinst.ElastiGroup ([@diranged])
+ * #431: Compare S3 bucket tags with some intelligence. ([@diranged])
+ * #429: Quiet down a logging statement ([@diranged])
+ * #428: Strip out unicode characters in diff_dicts. ([@swaggy])
+ * #427: Bugfix on S3 Bucket Tag comparison. ([@mikhail])
+ * #426: Add CAPABILITY_NAMED_IAM to the enumeration of capabilities parameters. ([@sabw8217])
+ * #424: Missed adding the self._bucket_exists check to \_get_policy(). ([@diranged])
+ * #423: Bugfixes around creation of new S3 buckets. ([@diranged])
+ * #422: Convert the aws.s3.Bucket actor to use Boto3 ([@diranged])
+ * #412: Bugfix -- handling a single alertspec on a template was broken ([@diranged])
+ * #411: Bugfix: Make sure we set self.changed=True after updating the runnabl… ([@diranged])
+ * #410: Fix the RightScale ServerTemplate/Alert integration tests.. ([@diranged])
+ * #409: Delete .base.py.swo ([@diranged])
+ * #407: Bugfix - threshold must be a string. ([@diranged])
+ * #402: Create a new AlertSpecBase ensurable base actor for managing RightScale AlertSpecs ([@diranged])
+ * #393: Bugfix -- we couldn't create S3 buckets in anything other than the default region. ([@diranged])
+ * #391: Bugfix -- if no cloudformation parameters, thats fine. ([@diranged])
+ * #389: Remove bogus testing log line that was left there accidentally. ([@diranged])
+ * #385: Add ecs service actor. ([@swaggy])
+ * #383: New Actor: rightscale.ServerTemplate ([@diranged])
+
 ## Version 0.4.0
  * #372: Bugfix -- Ensure the appropriate kwargs are used for the dry decorator. ([@diranged])
  * #371: Bugfix -- pass the right parameters to configure_lifecycle() ([@diranged])
@@ -190,4 +215,6 @@
 [@diranged]: https://github.com/diranged
 [@mikhail]: https://github.com/mikhail
 [@cmclaughlin]: https://github.com/cmclaughlin
-[@niallo]: @https://github.com/niallo
+[@niallo]: https://github.com/niallo
+[@sabw8217]: https://github.com/sabw8217
+[@swaggy]: https://github.com/swaggy
