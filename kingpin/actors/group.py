@@ -81,6 +81,9 @@ class BaseGroupActor(base.BaseActor):
           See `Token-replacement <basicuse.html#token-replacement>` for more
           info.
         """
+
+        # Use *this* classes default_timeout instead of the BaseActor's timeout
+        kwargs['timeout'] = kwargs.get('timeout', self.default_timeout)
         super(BaseGroupActor, self).__init__(*args, **kwargs)
 
         # DEPRECATE IN v0.5.0
