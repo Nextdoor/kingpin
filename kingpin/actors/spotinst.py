@@ -198,6 +198,8 @@ class SpotinstRestClient(api.RestClient):
 
     JSON_BODY = True
 
+    TIMEOUT = 60
+
 
 class ElastiGroupSchema(SchemaCompareBase):
 
