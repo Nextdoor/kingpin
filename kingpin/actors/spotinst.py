@@ -721,7 +721,7 @@ class ElastiGroup(SpotinstBase):
         # used at initial creation of the Elastigroup. After that, the number
         # changes as Spotinst scales.
         for g in (new, existing):
-            g['compute'].pop('target', None)
+            g['group']['compute'].pop('target', None)
 
         # Decode both of the userData fields so we can actually see the
         # userdata differences.
