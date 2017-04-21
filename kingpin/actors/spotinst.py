@@ -329,10 +329,6 @@ class ElastiGroup(SpotinstBase):
 
     **Known Limitations**
 
-    * At this time, this actor only makes changes to ElastiGroups or
-      creates/deletes them. It does not trigger rolling changes, or wait until
-      instances have launched or terminated before returning.
-
     * The Spotinst API does not allow you to change an ElastiGroup scaling
       'unit' (ie, CPU Count or Instance Count). You can also not change an
       ElastiGroup's basic platform (ie, VPC Linux vs Non VPC Linux). We warn
