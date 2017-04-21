@@ -518,6 +518,15 @@ class ElastiGroup(SpotinstBase):
         # schema-checker... light validation, but useful.
         yield self._validate_group()
 
+        # Note - we don't manage the ElastiGroup target size. If the group
+        # exists and has a target size set, we override the user-supplied
+        # target number with the value returned to us by Spotinst.
+        if self._group and 'compute' in self._group:
+            target = self._group['compute']['target']
+            self.log.info('Using the Spotinst supplied [compute][target]'
+                          ' value: %s' % target)
+            self._config['group']['compute']['target'] = target
+
     @gen.coroutine
     def _list_groups(self):
         """Returns a list of all ElastiGroups in your Spotinst acct.

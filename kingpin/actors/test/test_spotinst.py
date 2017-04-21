@@ -234,12 +234,22 @@ class TestElastiGroup(testing.AsyncTestCase):
     def test_precache(self):
         fake_group = {
             'name': 'unittest',
-            'id': 'bogus'
+            'id': 'bogus',
+            'compute': {
+                'target': 128
+            }
         }
         self.actor._get_group = mock_tornado(fake_group)
         self.actor._validate_group = mock_tornado(None)
         yield self.actor._precache()
+
+        # First make sure we stored the group
         self.assertEquals(fake_group, self.actor._group)
+
+        # Second, make sure we overwrote the user config's [compute][target]
+        # setting with the spotinst value
+        self.assertEquals(self.actor._config['group']['compute']['target'],
+                          128)
 
     @testing.gen_test
     def test_validate_group(self):
