@@ -329,6 +329,10 @@ class ElastiGroup(SpotinstBase):
 
     **Known Limitations**
 
+    * At this time, this actor only makes changes to ElastiGroups or
+      creates/deletes them. It does not trigger rolling changes, or wait until
+      instances have launched or terminated before returning.
+
     * The Spotinst API does not allow you to change an ElastiGroup scaling
       'unit' (ie, CPU Count or Instance Count). You can also not change an
       ElastiGroup's basic platform (ie, VPC Linux vs Non VPC Linux). We warn
@@ -655,16 +659,10 @@ class ElastiGroup(SpotinstBase):
         # There are certain fields that simply cannot be updated -- strip them
         # out. We have a warning up in the above _compare_config() section that
         # will tell the user about this in a dry run.
-        #
-        # Note: The 'target' setting can be updated, but most elastigroups are
-        # using auto-scaling of some form, so the target number changes
-        # regularl. Whats most important is the min/max.
         if 'capacity' in self._config['group']:
-            for ignore in ('unit', 'target'):
-                self.log.warning(
-                    'Note: Ignoring the group[capacity][%s] setting.' % ignore)
-                self._config['group']['capacity'].pop(ignore, None)
-
+            self.log.warning(
+                'Note: Ignoring the group[capacity][unit] setting.')
+            self._config['group']['capacity'].pop('unit', None)
         if 'compute' in self._config['group']:
             self.log.warning(
                 'Note: Ignoring the group[compute][unit] setting.')
@@ -716,12 +714,6 @@ class ElastiGroup(SpotinstBase):
         for field in ('id', 'createdAt', 'updatedAt', 'userData'):
             for g in (new, existing):
                 g['group'].pop(field, None)
-
-        # Strip out the 'target' compute unit setting as well -- this is only
-        # used at initial creation of the Elastigroup. After that, the number
-        # changes as Spotinst scales.
-        for g in (new, existing):
-            g['compute'].pop('target', None)
 
         # Decode both of the userData fields so we can actually see the
         # userdata differences.
