@@ -517,11 +517,11 @@ class ElastiGroup(SpotinstBase):
         # Note - we don't manage the ElastiGroup target size. If the group
         # exists and has a target size set, we override the user-supplied
         # target number with the value returned to us by Spotinst.
-        if self._group and 'compute' in self._group:
-            target = self._group['compute']['target']
-            self.log.info('Using the Spotinst supplied [compute][target]'
+        if self._group and 'capacity' in self._group['group']:
+            target = self._group['group']['capacity']['target']
+            self.log.info('Using the Spotinst supplied [capacity][target]'
                           ' value: %s' % target)
-            self._config['group']['compute']['target'] = target
+            self._config['group']['capacity']['target'] = target
 
     @gen.coroutine
     def _list_groups(self):
@@ -670,7 +670,7 @@ class ElastiGroup(SpotinstBase):
             self._config['group']['capacity'].pop('unit', None)
         if 'compute' in self._config['group']:
             self.log.warning(
-                'Note: Ignoring the group[compute][unit] setting.')
+                'Note: Ignoring the group[compute][product] setting.')
             self._config['group']['compute'].pop('product', None)
 
         # Now do the update and capture the results. Once we have them, we'll
