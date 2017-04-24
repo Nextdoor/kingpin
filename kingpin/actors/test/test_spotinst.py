@@ -235,8 +235,10 @@ class TestElastiGroup(testing.AsyncTestCase):
         fake_group = {
             'name': 'unittest',
             'id': 'bogus',
-            'compute': {
-                'target': 128
+            'group': {
+                'capacity': {
+                    'target': 128
+                }
             }
         }
         self.actor._get_group = mock_tornado(fake_group)
@@ -246,9 +248,9 @@ class TestElastiGroup(testing.AsyncTestCase):
         # First make sure we stored the group
         self.assertEquals(fake_group, self.actor._group)
 
-        # Second, make sure we overwrote the user config's [compute][target]
+        # Second, make sure we overwrote the user config's [capacity][target]
         # setting with the spotinst value
-        self.assertEquals(self.actor._config['group']['compute']['target'],
+        self.assertEquals(self.actor._config['group']['capacity']['target'],
                           128)
 
     @testing.gen_test
