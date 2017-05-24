@@ -158,7 +158,7 @@ class IntegrationStack(testing.AsyncTestCase):
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
-    def integration_01c_changing_password_should_be_a_noop(self):
+    def integration_02_changing_password_should_be_a_noop(self):
         #  This should pretty much do nothing.. if it did trigger a ChangeSet,
         #  we would actually fail because we're issuing a ChangeSet where no
         #  resources are actually modified. Thus, if this succeeds, we know
@@ -181,7 +181,27 @@ class IntegrationStack(testing.AsyncTestCase):
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
-    def integration_02a_update_bucket_name(self):
+    def integration_03_update_by_overriding_default(self):
+        actor = cloudformation.Stack(
+            options={
+                'region': self.region,
+                'state': 'present',
+                'name': self.bucket_name,
+                'template':
+                    'examples/test/aws.cloudformation/cf.integration.json',
+                'parameters': {
+                    'BucketName': self.bucket_name,
+                    'BucketPassword': UUID,
+                    'DefaultParam': 'OverriddenValue',
+                    'Metadata': UUID
+                }})
+
+        done = yield actor.execute()
+        self.assertEquals(done, None)
+
+    @attr('aws', 'integration')
+    @testing.gen_test(timeout=600)
+    def integration_04a_update_bucket_name(self):
         actor = cloudformation.Stack(
             options={
                 'region': self.region,
@@ -200,7 +220,7 @@ class IntegrationStack(testing.AsyncTestCase):
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
-    def integration_02a_update_bucket_name_second_time_should_work(self):
+    def integration_04b_update_bucket_name_second_time_should_work(self):
         actor = cloudformation.Stack(
             options={
                 'region': self.region,
@@ -219,7 +239,7 @@ class IntegrationStack(testing.AsyncTestCase):
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
-    def integration_03a_delete_stack(self):
+    def integration_05a_delete_stack(self):
         actor = cloudformation.Stack(
             options={
                 'region': self.region,
@@ -238,7 +258,7 @@ class IntegrationStack(testing.AsyncTestCase):
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
-    def integration_03b_ensure_stack_absent(self):
+    def integration_05b_ensure_stack_absent(self):
         actor = cloudformation.Stack(
             options={
                 'region': self.region,
