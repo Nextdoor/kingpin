@@ -4,6 +4,7 @@
   "Parameters" : {
     "BucketName": { "Type": "String" },
     "BucketPassword": { "Type": "String", "NoEcho": true },
+    "DefaultParam": { "Type": "String", "Default": "DefaultValue" },
     "Metadata": { "Type": "String" }
   },
   "Conditions": {},
@@ -14,7 +15,10 @@
       "Metadata": { "Test": { "Ref": "Metadata" } },
       "Properties" : {
         "BucketName" : { "Ref": "BucketName" },
-        "Tags" : [{ "Key": "Kingpin", "Value": { "Ref": "BucketName" } }]
+        "Tags" : [
+          { "Key": "DefaultParam", "Value": { "Ref": "DefaultParam" } },
+          { "Key": "Kingpin", "Value": { "Ref": "BucketName" } }
+        ]
       }
     }
 

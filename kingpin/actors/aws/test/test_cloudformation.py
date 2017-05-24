@@ -573,12 +573,16 @@ class TestStack(testing.AsyncTestCase):
                 }
             })
 
-        # Pretend that the parameters are the same (BucketName and Metadata),
-        # and the BucketPassword came back with stars. We should still return
-        # False to indicate that the parameters are the same.
+        # Pretend that the parameters are the same
+        # (BucketName, DefaultParam, and Metadata), and the BucketPassword
+        # came back with stars.
+        # We should still return False to indicate that the parameters
+        # are the same.
         remote = [
             {'ParameterKey': 'BucketName', 'ParameterValue': 'name'},
             {'ParameterKey': 'BucketPassword', 'ParameterValue': '***'},
+            {'ParameterKey': 'DefaultParam',
+             'ParameterValue': 'DefaultValue'},
             {'ParameterKey': 'Metadata', 'ParameterValue': '1.0'}
         ]
         ret = self.actor._diff_params_safely(remote, self.actor._parameters)
@@ -590,6 +594,36 @@ class TestStack(testing.AsyncTestCase):
             {'ParameterKey': 'BucketName', 'ParameterValue': 'name'},
             {'ParameterKey': 'BucketPassword', 'ParameterValue': '***'},
             {'ParameterKey': 'Metadata', 'ParameterValue': '2.0'}
+        ]
+        ret = self.actor._diff_params_safely(remote, self.actor._parameters)
+        self.assertEquals(True, ret)
+
+        # Now try updating the parameter with a default and
+        # pretend the remote had a different value. Should return True.
+        self.actor._options['parameters']['DefaultParam'] = 'NewValue'
+        self.actor._parameters = self.actor._create_parameters(
+            self.actor._options['parameters'])
+        remote = [
+            {'ParameterKey': 'BucketName', 'ParameterValue': 'name'},
+            {'ParameterKey': 'BucketPassword', 'ParameterValue': '***'},
+            {'ParameterKey': 'Metadata', 'ParameterValue': '2.0'},
+            {'ParameterKey': 'DefaultParam',
+             'ParameterValue': 'EntirelyDifferentValue'},
+        ]
+        ret = self.actor._diff_params_safely(remote, self.actor._parameters)
+        self.assertEquals(True, ret)
+
+        # Now try updating the parameter with a default and
+        # pretend the remote had the default value. Should still return True.
+        self.actor._options['parameters']['DefaultParam'] = 'AnotherNewValue'
+        self.actor._parameters = self.actor._create_parameters(
+            self.actor._options['parameters'])
+        remote = [
+            {'ParameterKey': 'BucketName', 'ParameterValue': 'name'},
+            {'ParameterKey': 'BucketPassword', 'ParameterValue': '***'},
+            {'ParameterKey': 'Metadata', 'ParameterValue': '2.0'},
+            {'ParameterKey': 'DefaultParam',
+             'ParameterValue': 'DefaultValue'},
         ]
         ret = self.actor._diff_params_safely(remote, self.actor._parameters)
         self.assertEquals(True, ret)

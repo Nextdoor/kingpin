@@ -176,6 +176,27 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                          stack_params[k].get('NoEcho', False) is True]
         return noecho_params
 
+    def _discover_default_params(self, template_body):
+        """Scans a CF template for Default parameters.
+
+        Searches through a CloudFormation stack template body for any
+        parameters that are defined with the Default flag. If there are any,
+        returns a dict of those parameter names mapped to their default values.
+
+        Args:
+            template_body: (Str) CloudFormation Template Body
+
+        Returns:
+            A dict of parameters with defaults mapped to their default values
+        """
+        template = json.loads(template_body)
+        stack_params = template.get('Parameters', {})
+        default_params = {
+            k: stack_params[k]['Default'] for k in stack_params if
+            stack_params[k].get('Default', None) is not None
+        }
+        return default_params
+
     def _get_template_body(self, template):
         """Reads in a local template file and returns the contents.
 
@@ -255,7 +276,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             parameters: A dict of key/values
 
         Returns:
-            A dict like above
+            A list like above
         """
 
         new_params = [
@@ -542,7 +563,7 @@ class Create(CloudFormationBaseActor):
         """Initialize our object variables."""
         super(Create, self).__init__(*args, **kwargs)
 
-        # Convert our supplied parameters into a properly formatted dict
+        # Convert our supplied parameters into a properly formatted list.
         self._parameters = self._create_parameters(self.option('parameters'))
 
         # Check if the supplied CF template is a local file. If it is, read it
@@ -629,9 +650,14 @@ class Stack(CloudFormationBaseActor):
       * Ensure that the Stack is present or absent.
       * Monitor and update the stack Template and Parameters as necessary.
 
+    **Default Parameters**
+
+    If your CF stack defines parameters with defaults, Kingpin will use the
+    defaults unless the parameters are explicitly specified.
+
     **NoEcho Parameters**
 
-    If your CF stack takes a Password as a paremter or any other value thats
+    If your CF stack takes a Password as a parameter or any other value thats
     secret and you set `NoEcho: True` on that parameter, Kingpin will be unable
     to diff it and compare whether or not the desired setting matches whats in
     Amazon. A warning will be thrown, and the rest of the actor will continue
@@ -736,13 +762,20 @@ class Stack(CloudFormationBaseActor):
         """Initialize our object variables."""
         super(Stack, self).__init__(*args, **kwargs)
 
-        # Convert our supplied parameters into a properly formatted dict
-        self._parameters = self._create_parameters(self.option('parameters'))
-
         # Check if the supplied CF template is a local file. If it is, read it
         # into memory.
         self._template_body, self._template_url = self._get_template_body(
             self.option('template'))
+
+        # Find any Default parameters embedded in the stack.
+        _default_params = self._discover_default_params(
+            self._template_body)
+
+        # Convert Default parameters and our supplied parameters into a
+        # properly formatted list.
+        # Defaults will be overridden by supplied parameters.
+        self._parameters = self._create_parameters(
+            dict(_default_params, **self.option('parameters')))
 
         # Discover whether or not there are any NoEcho parameters embedded in
         # the stack. If there are, record them locally and throw a warning to
