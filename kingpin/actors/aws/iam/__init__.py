@@ -28,6 +28,9 @@
 .. autoclass:: InstanceProfile
    :noindex:
 
+.. autoclass:: Policy
+   :noindex:
+
 .. autoclass:: UploadCert
    :noindex:
 
@@ -40,6 +43,7 @@ import logging
 # Bring in our sub class actors into the iam namespace
 from kingpin.actors.aws.iam.certs import UploadCert, DeleteCert
 from kingpin.actors.aws.iam.entities import User, Group, Role, InstanceProfile
+from kingpin.actors.aws.iam.entities import Policy
 
 log = logging.getLogger(__name__)
 
@@ -50,5 +54,6 @@ User
 Group
 Role
 InstanceProfile
+Policy
 UploadCert
 DeleteCert

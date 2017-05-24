@@ -1034,3 +1034,143 @@ class TestInstanceProfile(testing.AsyncTestCase):
         yield self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
         self.assertFalse(self.actor._ensure_role.called)
+
+
+class TestPolicy(testing.AsyncTestCase):
+
+    def setUp(self):
+        super(TestPolicy, self).setUp()
+        settings.AWS_ACCESS_KEY_ID = 'unit-test'
+        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
+        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        reload(entities)
+
+        # Create our actor object with some basics... then mock out the IAM
+        # connections..
+        self.actor = entities.Policy(
+            'Unit Test',
+            {'name': 'test',
+             'state': 'present',
+             'policy': 'examples/aws.iam.policy/readonly.json',
+             'users': 'bob',
+             'groups': ['engineers'],
+             'roles': []
+             })
+
+        iam_mock = mock.Mock(name='iam_mock')
+        self.actor.iam_conn = iam_mock
+
+        self.actor.create_entity = iam_mock.create_policy
+        self.actor.delete_entity = iam_mock.delete_policy
+        self.actor.get_all_entities = iam_mock.list_policies
+
+    @testing.gen_test
+    def test_create_entity(self):
+        # Pretend it worked...
+        entity = {
+            'create_policy_response': {
+                'create_policy_result': {'policy': {'arn': 'fake_arn'}}
+            }
+        }
+        self.actor.iam_conn.create_policy.return_value = entity
+        yield self.actor._create_entity('test')
+        self.assertTrue(self.actor.iam_conn.create_policy.called)
+
+    @testing.gen_test
+    def test_create_entity_invalid_policy(self):
+        self.actor.iam_conn.create_policy.side_effect = BotoServerError(
+            400, 'Invalid policy')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._create_entity('test')
+
+    @testing.gen_test
+    def test_create_entity_already_exists(self):
+        self.actor.iam_conn.create_policy.side_effect = BotoServerError(
+            409, 'User already exists')
+        yield self.actor._create_entity('test')
+        self.assertTrue(self.actor.iam_conn.create_policy.called)
+
+    @testing.gen_test
+    def test_create_entity_missing_document(self):
+        self.actor.policy = None
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._create_entity('test')
+
+    @testing.gen_test
+    def test_create_entity_other_exception(self):
+        self.actor.iam_conn.create_policy.side_effect = BotoServerError(
+            500, 'Yikes!')
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._create_entity('test')
+
+    @testing.gen_test
+    def test_create_entity_dry(self):
+        # Make sure we did not call the create function!
+        self.actor._dry = True
+        yield self.actor._create_entity('test')
+        self.assertFalse(self.actor.iam_conn.create_policy.called)
+
+    @testing.gen_test
+    def test_delete_entity_not_exists(self):
+        self.actor._get_entity = mock.MagicMock(name='_get_entity')
+        self.actor._get_entity.side_effect = [tornado_value(None)]
+
+        yield self.actor._delete_entity('test')
+
+        self.actor._get_entity.assert_called_once_with('test')
+        self.assertFalse(self.actor.iam_conn.delete_policy.called)
+
+    @testing.gen_test
+    def test_delete_entity(self):
+        entity = {'arn': 'fake_arn'}
+        self.actor._get_entity = mock.MagicMock(name='_get_entity')
+        self.actor._get_entity.side_effect = [tornado_value(entity)]
+
+        self.actor.iam_conn.delete_policy.return_value = None
+
+        yield self.actor._delete_entity('test')
+
+        self.actor._get_entity.assert_called_once_with('test')
+        self.actor.iam_conn.delete_policy.assert_has_calls(
+            [mock.call('fake_arn')])
+
+    @testing.gen_test
+    def test_delete_entity_dry(self):
+        entity = {'arn': 'fake_arn'}
+        self.actor._dry = True
+        self.actor._get_entity = mock.MagicMock(name='_get_entity')
+        self.actor._get_entity.side_effect = [tornado_value(entity)]
+
+        self.actor.iam_conn.delete_policy.return_value = None
+
+        yield self.actor._delete_entity('test')
+
+        self.actor._get_entity.assert_called_once_with('test')
+        self.assertFalse(self.actor.iam_conn.delete_policy.called)
+
+    @testing.gen_test
+    def test_delete_entity_raises_404(self):
+        entity = {'arn': 'fake_arn'}
+        self.actor._get_entity = mock.MagicMock(name='_get_entity')
+        self.actor._get_entity.side_effect = [tornado_value(entity)]
+
+        self.actor.iam_conn.delete_policy.side_effect = BotoServerError(
+            404, 'Does not exist')
+
+        yield self.actor._delete_entity('test')
+
+        self.actor._get_entity.assert_called_once_with('test')
+        self.actor.iam_conn.delete_policy.assert_has_calls(
+            [mock.call('fake_arn')])
+
+    @testing.gen_test
+    def test_delete_entity_raises_500(self):
+        entity = {'arn': 'fake_arn'}
+        self.actor._get_entity = mock.MagicMock(name='_get_entity')
+        self.actor._get_entity.side_effect = [tornado_value(entity)]
+
+        self.actor.iam_conn.delete_policy.side_effect = BotoServerError(
+            500, 'Yikes!')
+
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._delete_entity('test')

@@ -79,6 +79,7 @@ class EntityBaseActor(base.IAMBaseActor):
         # The "text name" of the entity type. This is either:
         #  user, group, role, instance_profile
         self.entity_name = 'base'
+        self.entity_name_plural = 'bases'
 
         self.create_entity = None
         self.delete_entity = None
@@ -344,9 +345,9 @@ class EntityBaseActor(base.IAMBaseActor):
 
         # Now search for the entity
         entity = [entity for entity in
-                  entities['list_%ss_response' % self.entity_name]
-                          ['list_%ss_result' % self.entity_name]
-                          ['%ss' % self.entity_name] if
+                  entities['list_%s_response' % self.entity_name_plural]
+                          ['list_%s_result' % self.entity_name_plural]
+                          ['%s' % self.entity_name_plural] if
                   entity['%s_name' % self.entity_name] == name]
 
         # If there aren't any entities, return None.
@@ -560,6 +561,7 @@ class User(EntityBaseActor):
         super(User, self).__init__(*args, **kwargs)
 
         self.entity_name = 'user'
+        self.entity_name_plural = 'users'
         self.create_entity = self.iam_conn.create_user
         self.delete_entity = self.iam_conn.delete_user
         self.delete_entity_policy = self.iam_conn.delete_user_policy
@@ -697,6 +699,7 @@ class Group(EntityBaseActor):
         super(Group, self).__init__(*args, **kwargs)
 
         self.entity_name = 'group'
+        self.entity_name_plural = 'groups'
         self.create_entity = self.iam_conn.create_group
         self.delete_entity = self.iam_conn.delete_group
         self.delete_entity_policy = self.iam_conn.delete_group_policy
@@ -852,6 +855,7 @@ class Role(EntityBaseActor):
         super(Role, self).__init__(*args, **kwargs)
 
         self.entity_name = 'role'
+        self.entity_name_plural = 'roles'
         self.create_entity = self.iam_conn.create_role
         self.delete_entity = self.iam_conn.delete_role
         self.delete_entity_policy = self.iam_conn.delete_role_policy
@@ -977,12 +981,13 @@ class InstanceProfile(EntityBaseActor):
         'role': (str, None, 'Name of an IAM Role to assign')
     }
 
-    desc = "InstanceProfile {name}"
+    desc = "IAM Instance Profile {name}"
 
     def __init__(self, *args, **kwargs):
         super(InstanceProfile, self).__init__(*args, **kwargs)
 
         self.entity_name = 'instance_profile'
+        self.entity_name_plural = 'instance_profiles'
         self.create_entity = self.iam_conn.create_instance_profile
         self.delete_entity = self.iam_conn.delete_instance_profile
         self.get_all_entities = self.iam_conn.list_instance_profiles
@@ -1078,3 +1083,469 @@ class InstanceProfile(EntityBaseActor):
 
         if role is not None:
             yield self._ensure_role(name, role)
+
+
+class Policy(EntityBaseActor):
+
+    """Manages an IAM Policy.
+
+    This actor manages the state of an IAM Attachable Policy. These are
+    policies that are re-used by many groups, users, roles, etc.
+
+    Customer Managed Policy Capabilities:
+      * Ensure policy is present or not
+      * Ensure the contents of the Policy Document
+      * Assign the policy to specific Users, Groups, Roles
+
+    Amazon Managed Policy Capabilities:
+      * Assign the policy to specific Users, Groups, Roles
+
+    **Options**
+
+    :name:
+      (str) Name of the Role to manage
+
+    :force:
+      (bool) Forcefully delete the group (explicitly purging all group
+      memberships).
+      Default: false
+
+    :state:
+      (str) Present or Absent. Default: "present"
+
+    :users:
+      (list, str) List of IAM Users (by name) that should be attached to this
+      policy. Default: None
+
+    :groups:
+      (list, str) List of IAM Groups (by name) that should be attached to this
+      policy. Default: None
+
+    :roles:
+      (list, str) List of IAM Roles (by name) that should be attached to this
+      policy. Default: None
+
+    :policy:
+      (str) Policy Document JSON file. Default: None
+
+    **Example**
+
+    .. code-block:: json
+
+       { "actor": "aws.iam.Policy",
+         "options": {
+           "name": "ECS-Admins",
+           "state": "present",
+           "policy": "ecs-admin.json",
+           "users": "bob",
+           "groups": [ "engineering" ],
+           "roles": [],
+         }
+       }
+
+    **Dry run**
+
+    Will let you know if the policy exists or not, and what changes it would
+    make to the profile.
+    """
+
+    all_options = {
+        'name': (str, REQUIRED, 'The name of the policy.'),
+        'force': (bool, False, 'Forcefully delete the group.'),
+        'state': (STATE, 'present',
+                  'Desired state of the group: present/absent'),
+        'policy': (str, None, 'Path to the JSON Policy Document'),
+        'users': ((str, list), None, 'List of IAM Users to attach'),
+        'groups': ((str, list), None, 'List of IAM Groups to attach'),
+        'roles': ((str, list), None, 'List of IAM Roles to attach')
+    }
+
+    desc = "IAM Policy: {name}"
+
+    def __init__(self, *args, **kwargs):
+        super(Policy, self).__init__(*args, **kwargs)
+
+        self.entity_name = 'policy'
+        self.entity_name_plural = 'policies'
+        self.create_entity = self.iam_conn.create_policy
+        self.delete_entity = self.iam_conn.delete_policy
+        self.get_all_entities = self.iam_conn.list_policies
+
+        # Parse the supplied policy doc
+        self.policy = None
+        if self.option('policy') is not None:
+            self.policy = self._parse_policy_json(self.option('policy'))
+
+    @gen.coroutine
+    def _create_entity(self, name):
+        """Creates an IAM Policy.
+
+        Overrides the default create_entity method so that we can create an IAM
+        Policy with the appropriate Policy Document.
+
+        args:
+            name: The IAM Entity Name
+        """
+        if not self.policy:
+            raise exceptions.RecoverableActorFailure(
+                'Cannot create a Policy without a Policy Document')
+
+        if self._dry:
+            self.log.warning('Would create %s %s' % (self.entity_name, name))
+            raise gen.Return()
+
+        try:
+            ret = yield self.thread(self.create_entity, name,
+                                    json.dumps(self.policy))
+        except BotoServerError as e:
+            if e.status == 400:
+                raise exceptions.RecoverableActorFailure(
+                    'Invalid Policy Document: %s' % e.message)
+
+            if e.status != 409:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
+            self.log.warning(
+                '%s %s already exists, skipping creation.' %
+                (self.entity_name, name))
+            raise gen.Return()
+
+        self.log.error(ret)
+
+        arn = (ret['create_%s_response' % self.entity_name]
+                  ['create_%s_result' % self.entity_name]
+                  [self.entity_name]['arn'])
+        self.log.info('%s %s created' % (self.entity_name, arn))
+
+    @gen.coroutine
+    def _delete_entity(self, name):
+        """Deletes and IAM Policy.
+
+        Overrides the default delete_entity method so that we can delete IAM
+        Policies -- which behave differently than Users/Groups/Roles.
+
+        args:
+            name: The IAM Policy Name
+        """
+        # Get the policy entity first. We are going to need the
+        # 'default_version_id' key to compare our current policy with whats in
+        # Amazon.
+        entity = yield self._get_entity(name)
+
+        # If the policy object doesnt exist, we just bail here.. likely
+        # we're in a dry run and the policy is being created. If so, when
+        # its created it will have the new policy document applied!
+        if not entity:
+            raise gen.Return()
+
+        if self._dry:
+            self.log.warning('Would delete %s %s' % (self.entity_name, name))
+            raise gen.Return()
+
+        try:
+            yield self.thread(self.delete_entity, entity['arn'])
+            self.log.info('Policy %s deleted' % entity['arn'])
+        except BotoServerError as e:
+            if e.status != 404:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
+            self.log.warning('Policy %s doesn\'t exist' % name)
+
+    @gen.coroutine
+    def _ensure_policy(self, name):
+        # Get the policy entity first. We are going to need the
+        # 'default_version_id' key to compare our current policy with whats in
+        # Amazon.
+        entity = yield self._get_entity(name)
+
+        # If the policy object doesnt exist, we just bail here.. likely
+        # we're in a dry run and the policy is being created. If so, when
+        # its created it will have the new policy document applied!
+        if not entity:
+            raise gen.Return()
+
+        # Now get the default policy document associated with the entity and
+        # parse the response into a predictable and ordered dict that we can
+        # compare.
+        raw = yield self.thread(
+            self.iam_conn.get_policy_version,
+            entity['arn'], entity['default_version_id'])
+        entity_policy = self._policy_doc_to_dict(
+            raw['get_policy_version_response']
+               ['get_policy_version_result']
+               ['policy_version']
+               ['document'])
+
+        # Diff the two policies -- does ours differ from Amazons? If not, we're
+        # done here!
+        diff = self._diff_policy_json(entity_policy, self.policy)
+        if not diff:
+            self.log.debug('Policy document is in sync.')
+            raise gen.Return()
+
+        # Policies can only have up to 5 versions -- one thats active. We purge
+        # all inactive policy versions if there are any.
+        raw = yield self.thread(
+            self.iam_conn.list_policy_versions, entity['arn'])
+        versions = [version['version_id'] for version in
+                    raw['list_policy_versions_response']
+                       ['list_policy_versions_result']
+                       ['versions']
+                    if version['is_default_version'] == 'false']
+
+        # Now, purge all of these inactive versions
+        tasks = []
+        for v in versions:
+            if self._dry:
+                self.log.info('Would have deleted inactive policy %s '
+                              'version %s' % (entity['arn'], v))
+                continue
+
+            self.log.info('Deleting inactive policy %s version %s' %
+                          (entity['arn'], v))
+            tasks.append(self.thread(
+                self.iam_conn.delete_policy_version, entity['arn'], v))
+        yield tasks
+
+        # Let the user know whats different about the two policies. If we're in
+        # dry mode, we bail at this point.
+        self.log.info('Policy %s Doc differs from Amazons' % name)
+        if self._dry:
+            self.log.info('Would have updated the policy:')
+            for line in diff.split('\n'):
+                self.log.info('Diff: %s' % line)
+            raise gen.Return()
+
+    @gen.coroutine
+    def _get_policy_entities(self, name):
+        """Get a list of all entities attached to the policy.
+
+        Returns a tuple of lists of the users, groups and roles attached to the
+        supplied policy. Also includes the policy entity itself, for easy
+        access to the ARN.
+
+        args:
+            name: The Policy name
+
+        returns:
+            (<entity dict>, [list of users], [list of groups], [list of roles])
+        """
+        # Get the policy entity first. We are going to need the
+        # 'default_version_id' key to compare our current policy with whats in
+        # Amazon.
+        entity = yield self._get_entity(name)
+
+        # If the policy object doesnt exist, we just bail here.. likely
+        # we're in a dry run and the policy is being created. If so, when
+        # its created it will have the new policy document applied!
+        if not entity:
+            raise gen.Return((None, [], [], []))
+
+        # Get the list of entities (groups, users, roles) attached to this
+        # policy. If none, return.
+        try:
+            raw = yield self.thread(self.iam_conn.list_entities_for_policy,
+                                    entity['arn'])
+            entities = (raw['list_entities_for_policy_response']
+                           ['list_entities_for_policy_result'])
+        except BotoServerError as e:
+            # If we get a 400 back, either there are no entities attached, or
+            # the policy simply doesnt exist.
+            if e.status == 400:
+                raise gen.Return()
+
+            # Otherwise, raise an exception because something bad happened
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected API error occurred: %s' % e)
+
+        # Pull out the users, groups and roles attached to the policy
+        users = [user['user_name'] for user in entities['policy_users']]
+        groups = [group['user_name'] for group in entities['policy_groups']]
+        roles = [role['user_name'] for role in entities['policy_roles']]
+
+        raise gen.Return((entity, users, groups, roles))
+
+    @gen.coroutine
+    def _purge_policy_entities(self, name, force):
+        """Forcefully purge all attached entities from the policy.
+
+        This is used only if the policy has attached entities, is being
+        deleted, and the 'purge' option was set.
+
+        args:
+          name: the policy name
+          force: boolean whether or not to actually force the removal
+        """
+        (entity, users, groups, roles) = yield self._get_policy_entities(name)
+
+        # Determine if there are any attached entities
+        if (len(users) + len(groups) + len(roles)) > 1:
+            self.log.debug('No entities attached to %s' % name)
+            raise gen.Return()
+
+        # Begin an empty task list that we'll dump detatchment tasks into
+        tasks = []
+
+        # For users, groups and roles, if there are any, lets detach them
+        if not force:
+            if users:
+                self.log.info('Attached users: %s' % ', '.join(users))
+            if groups:
+                self.log.info('Attached groups: %s' % ', '.join(groups))
+            if roles:
+                self.log.info('Attached roles: %s' % ', '.join(roles))
+            self.log.warning(('Will not be able to delete this policy '
+                              'Use the `force` option to purge all '
+                              'attached entities.'))
+            raise gen.Return()
+
+        # Generate all the tasks for detachment
+        for user in users:
+            tasks.append(self._detach_entity_policy(
+                         user, entity['arn'], 'user'))
+        for group in groups:
+            tasks.append(self._detach_entity_policy(
+                         group, entity['arn'], 'group'))
+        for role in roles:
+            tasks.append(self._detach_entity_policy(
+                role, entity['arn'], 'role'))
+
+        # Wait until detachment is completed
+        yield tasks
+
+    @gen.coroutine
+    def _ensure_policy_entities(self, policy, desired_entities,
+                                existing_entities, entity_type):
+        """Ensure that the Policy has certain attached entities.
+
+        If we are managing a particular type of entity attachment (user, group,
+        role), then this method will ensure that the appropriate attachments
+        are there, and detach the ones that shouldn't be. If the
+        desired_entities is None, then we do not manage them at all.
+
+        Note: we don't do any entity/attachment state gathering in this method
+        because it would be called many times, and we can get all that data
+        with a single API call to Amazon.
+
+        args:
+            policy: The Entity Policy object -- what comes back from
+            self._get_entity()
+            desired_entities: A list of desired attached entities by name
+            existing_entities: The currently attached entities
+            entity_type: The entity type string (user, role, group)
+        """
+        # Desired entities is None? Then we don't manage them at all -- no
+        # purging, no adding.
+        if desired_entities is None:
+            raise gen.Return()
+
+        # If we were passed in a string (a single entity), turn it into a list
+        if isinstance(desired_entities, basestring):
+            desired_entities = [desired_entities]
+
+        # If we were passed in a Nonetype policy entity object, then that means
+        # the policy doesn't exist. Use a fake name at this point, because we
+        # must be in a Dry run.
+        if policy is None:
+            policy = {'arn': self.option('name')}
+
+        to_attach = set(desired_entities) - set(existing_entities)
+        to_detach = set(existing_entities) - set(desired_entities)
+
+        tasks = []
+        for entity in to_attach:
+            tasks.append(self._attach_entity_policy(
+                entity, policy['arn'], entity_type))
+
+        for entity in to_detach:
+            tasks.append(self._detach_entity_policy(
+                entity, policy['arn'], entity_type))
+
+        yield tasks
+
+    @gen.coroutine
+    def _attach_entity_policy(self, name, policy, entity_type):
+        """Calls the policy attach method.
+
+        There are three attachment methods - one for users, groups and roles.
+
+        args:
+            name: The name of the Instance Profile we're managing
+            policy: The policy ARN we're attaching to
+            entity_type: String name of the entity type (user, group, role)
+        """
+        if self._dry:
+            self.log.warning('Would attach %s %s to %s' %
+                             (entity_type, name, policy))
+            raise gen.Return()
+
+        method = eval('self.iam_conn.attach_%s_policy' % entity_type)
+
+        try:
+            self.log.info('Attaching %s %s to %s' %
+                          (entity_type, name, policy))
+            yield self.thread(method, policy, name)
+        except BotoServerError as e:
+            raise exceptions.RecoverableActorFailure(
+                'An unexpected API error occurred: %s' % e)
+
+    @gen.coroutine
+    def _detach_entity_policy(self, name, policy, entity_type):
+        """Calls the policy detach method.
+
+        There are three detachment methods - one for users, groups and roles.
+
+        args:
+            name: The name of the Instance Profile we're managing
+            policy: The policy ARN we're detaching from
+            entity_type: String name of the entity type (user, group, role)
+        """
+        if self._dry:
+            self.log.warning('Would detach %s %s from %s' %
+                             (entity_type, name, policy))
+            raise gen.Return()
+
+        method = eval('self.iam_conn.detach_%s_policy' % entity_type)
+
+        try:
+            self.log.info('Detaching %s %s from %s' %
+                          (entity_type, name, policy))
+            yield self.thread(method, policy, name)
+        except BotoServerError as e:
+            if e.status != 404:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
+
+    @gen.coroutine
+    def _execute(self):
+        name = self.option('name')
+        state = self.option('state')
+        force = self.option('force')
+        users = self.option('users')
+        groups = self.option('groups')
+        roles = self.option('roles')
+
+        # If ensure is absent, ensure that nothing is attached to this policy
+        if state == 'absent':
+            yield self._purge_policy_entities(name, force)
+
+        # Ok now ensure that the policy either exists, or doesnt. If its
+        # absent, then bail out of the method at this point.
+        yield self._ensure_entity(name, state)
+        if state == 'absent':
+            raise gen.Return()
+
+        # Ensure the policy document of the policy actually matches
+        yield self._ensure_policy(name)
+
+        # Get the current attached users, groups, roles, etc.
+        (entity, attached_users, attached_groups, attached_roles) = (
+            yield self._get_policy_entities(name))
+
+        # Next, for each one, make appropriate changes
+        yield self._ensure_policy_entities(
+            entity, users, attached_users, 'user')
+        yield self._ensure_policy_entities(
+            entity, groups, attached_groups, 'group')
+        yield self._ensure_policy_entities(
+            entity, roles, attached_roles, 'role')
