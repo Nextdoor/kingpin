@@ -530,8 +530,10 @@ class ElastiGroup(SpotinstBase):
         Returns:
             [List of JSON ElastiGroup objects]
         """
-        resp = yield self._client.aws.ec2.list_groups.http_get()
-        raise gen.Return(resp['response']['items'])
+        raw = yield self._client.aws.ec2.list_groups.http_get()
+        resp = raw.get('response', {})
+        items = resp.get('items', [])
+        raise gen.Return(items)
 
     @gen.coroutine
     def _get_group(self):
