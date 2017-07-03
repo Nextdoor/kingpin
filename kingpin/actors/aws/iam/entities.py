@@ -42,6 +42,11 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 # do this.
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
+# The maximum number of items returned to us in a get_all_*/list_* api call.
+# Defaults to 100, but setting to 1000 to reduce the number of API calls we
+# make.
+MAX_ITEMS = 1000
+
 
 class EntityBaseActor(base.IAMBaseActor):
 
@@ -335,34 +340,44 @@ class EntityBaseActor(base.IAMBaseActor):
         """
         self.log.debug('Searching for %s %s' % (self.entity_name, name))
 
-        # Get a list of all of our entities.
-        try:
-            entities = yield self.thread(self.get_all_entities)
-        except BotoServerError as e:
-            raise exceptions.RecoverableActorFailure(
-                'An unexpected API error occurred: %s' % e)
+        # Get a list of all of the entities - return 100 results at a time, and
+        # paginate the results.
+        is_truncated = True
+        marker = None
+        while is_truncated:
+            # Get the list back - if the marker has been set, then we pass it
+            # in and we start from where the last results told us we should.
+            try:
+                response = yield self.thread(
+                    self.get_all_entities, max_items=MAX_ITEMS, marker=marker)
+            except BotoServerError as e:
+                raise exceptions.RecoverableActorFailure(
+                    'An unexpected API error occurred: %s' % e)
 
-        # Now search for the entity
-        entity = [entity for entity in
-                  entities['list_%ss_response' % self.entity_name]
-                          ['list_%ss_result' % self.entity_name]
-                          ['%ss' % self.entity_name] if
-                  entity['%s_name' % self.entity_name] == name]
+            # Get the result object from the response...
+            result = (
+                response['list_%ss_response' % self.entity_name]
+                        ['list_%ss_result' % self.entity_name])
+
+            # If the results indicate they were truncated, they'll include
+            # a 'marker'. Setting these two variables will cause this to
+            # loop again, in the event that we don't find the response in
+            # the first set of results.
+            is_truncated = self.str2bool(result.get('is_truncated', False))
+            marker = result.get('marker', None)
+
+            # Check our result for the entity.. if its there, great.
+            # Otherwise, we'll move on.
+            entity = [entity for entity in result['%ss' % self.entity_name]
+                      if entity['%s_name' % self.entity_name] == name]
+
+            if len(entity) > 0:
+                self.log.debug(
+                    'Found %s %s' % (self.entity_name, entity[0]['arn']))
+                raise gen.Return(entity[0])
 
         # If there aren't any entities, return None.
-        if not entity:
-            raise gen.Return()
-
-        # If there is more than one entities, something went really wrong.
-        # Raise an exception.
-        if len(entity) > 1:
-            raise exceptions.RecoverableActorFailure(
-                'More than one %s found matching %s! Am I crazy?!' %
-                (self.entity_name, name))
-
-        # Finally, return the result!
-        self.log.debug('Found %s %s' % (self.entity_name, entity[0]['arn']))
-        raise gen.Return(entity[0])
+        raise gen.Return()
 
     @gen.coroutine
     def _ensure_entity(self, name, state):
