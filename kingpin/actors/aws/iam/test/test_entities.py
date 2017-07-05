@@ -272,16 +272,6 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         self.actor.iam_conn.get_all_bases.reset_mock()
         self.assertEquals(ret, None)
 
-        # Next, lets return TOO MANY matching entities. This is bad.
-        self.actor.iam_conn.get_all_bases.return_value = {
-            'list_bases_response': {
-                'list_bases_result': {
-                    'bases': [matching_entity, matching_entity]}}}
-        with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._get_entity('test')
-        self.assertTrue(self.actor.iam_conn.get_all_bases.called)
-        self.actor.iam_conn.get_all_bases.reset_mock()
-
         # Finally, lets return one matching and a non matching entity
         self.actor.iam_conn.get_all_bases.return_value = {
             'list_bases_response': {
