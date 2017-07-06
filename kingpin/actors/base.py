@@ -135,11 +135,8 @@ class BaseActor(object):
             timeout: (Str/Int/Float) Timeout in seconds for the actor.
         """
         self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
-        self._options = options
-        self._desc = desc
         self._dry = dry
         self._warn_on_failure = warn_on_failure
-        self._condition = condition
         self._init_context = init_context
         self._init_tokens = init_tokens
 
@@ -147,10 +144,16 @@ class BaseActor(object):
         if timeout is None:
             self._timeout = self.default_timeout
 
+        # Fill the context into the description, condition, and options.
+        actor = self._type.replace('kingpin.actors.','')
+        act = {'actor': actor, 'desc': desc, 'condition': condition, 'options': options}
         # strict about this -- but in the future, when we have a
         # runtime_context object, we may loosen this restriction).
-        self._fill_in_contexts(context=self._init_context,
-                               strict=self.strict_init_context)
+        updated_act = self._fill_in_contexts(act, context=self._init_context,
+                                             strict=self.strict_init_context)
+        self._desc = updated_act['desc']
+        self._condition = updated_act['condition']
+        self._options = updated_act['options']
 
         self._setup_log()
         self._setup_defaults()
@@ -373,25 +376,30 @@ class BaseActor(object):
             self._condition, check))
         return check
 
-    def _fill_in_contexts(self, context={}, strict=True):
-        """Parses self._options and updates it with the supplied context.
+    def _fill_in_contexts(self, act, context={}, strict=True):
+        """Parses the act and updates it with the supplied context.
 
-        Parses the objects self._options dict (by converting it into a JSON
-        string, substituting, and then turning it back into a dict) and the
-        self._desc string and replaces any {KEY}s with the valoues from the
-        context dict that was supplied.
+        Recursively parses the description, condition, and options in the act
+        and substitues in context tokens. Does not substitute for the options in
+        any group actors which define a context.
 
         Args:
+            act: The act into which to fill context tokens.
+            context: Dictionary of context tokens.
             strict: bool whether or not to allow missing context keys to be
                     skipped over.
+
+        Returns:
+            An act updated with context tokens.
 
         Raises:
             exceptions.InvalidOptions
         """
+        updated_act = act.copy()
         # Inject contexts into Description
         try:
-            self._desc = utils.populate_with_tokens(
-                str(self),
+            updated_act['desc'] = utils.populate_with_tokens(
+                act.get('desc', ''),
                 context,
                 self.left_context_separator,
                 self.right_context_separator,
@@ -402,8 +410,8 @@ class BaseActor(object):
 
         # Inject contexts into condition
         try:
-            self._condition = utils.populate_with_tokens(
-                str(self._condition),
+            updated_act['condition'] = utils.populate_with_tokens(
+                act.get('condition', ''),
                 context,
                 self.left_context_separator,
                 self.right_context_separator,
@@ -412,26 +420,55 @@ class BaseActor(object):
             msg = 'Context for condition failed: %s' % e
             raise exceptions.InvalidOptions(msg)
 
-        # Convert our self._options dict into a string for fast parsing
-        options_string = json.dumps(self._options)
+        # Inject contexts into options, skipping over any sub-actors which
+        # declare more context tokens.
+        if act['actor'].startswith('group.'):
+            options = act['options']
+            if 'contexts' in options:
+                # Inject contexts into the group's context.
+                # Stop substituting tokens after here, since this actor will
+                # define other context tokens.
+                try:
+                    options['contexts'] = utils.populate_with_tokens(
+                        options['contexts'],
+                        context,
+                        self.left_context_separator,
+                        self.right_context_separator,
+                        strict=strict)
+                except LookupError as e:
+                    msg = 'Context for group contexts failed: %s' % e
+                    raise exceptions.InvalidOptions(msg)
+            else:
+                # Recursively inject contexts into each of the sub-acts.
+                for act in options['acts']:
+                    act.update(self._fill_in_contexts(act,
+                                                      context=context,
+                                                      strict=strict))
+            updated_act['options'] = options
+        else:
+            # Only group actors can define sub-actors, therefore it is safe to
+            # substitue for all context tokens from this point forward.
+            # Convert our options dict into a string for fast parsing.
+            options_string = json.dumps(options)
 
-        # Generate a new string with the values parsed out. At this point, if
-        # any value is un-matched, an exception is raised and execution fails.
-        # This stops execution during a dry run, before any live changes are
-        # made.
-        try:
-            new_options_string = utils.populate_with_tokens(
-                options_string,
-                context,
-                self.left_context_separator,
-                self.right_context_separator,
-                strict=strict)
-        except LookupError as e:
-            msg = 'Context for options failed: %s' % e
-            raise exceptions.InvalidOptions(msg)
+            # Generate a new string with the values parsed out. At this point, if
+            # any value is un-matched, an exception is raised and execution fails.
+            # This stops execution during a dry run, before any live changes are
+            # made.
+            try:
+                new_options_string = utils.populate_with_tokens(
+                    options_string,
+                    context,
+                    self.left_context_separator,
+                    self.right_context_separator,
+                    strict=strict)
+            except LookupError as e:
+                msg = 'Context for options failed: %s' % e
+                raise exceptions.InvalidOptions(msg)
 
-        # Finally, convert the string back into a dict and store it.
-        self._options = json.loads(new_options_string)
+            updated_act['options'] = json.loads(new_options_string)
+
+        return updated_act
 
     def get_orgchart(self, parent=''):
         """Construct organizational chart describing this actor.
