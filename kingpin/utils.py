@@ -267,6 +267,7 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
         string='foo %ME% %bar%'
         populate_with_tokens(string, os.environ)  # 'foo biz %bar%'
     """
+
     # First things first, swap out all instances of %<str>% with any matching
     # token variables found. If no items are in the hash (none, empty hash,
     # etc), then skip this.
