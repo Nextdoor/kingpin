@@ -146,7 +146,8 @@ class BaseActor(object):
 
         # Fill the context into the description, condition, and options.
         actor = self._type.replace('kingpin.actors.','')
-        act = {'actor': actor, 'desc': desc, 'condition': condition, 'options': options}
+        act = {'actor': actor, 'condition': condition, 'options': options}
+        if desc: act['desc'] = desc
         # strict about this -- but in the future, when we have a
         # runtime_context object, we may loosen this restriction).
         updated_act = self._fill_in_contexts(act, context=self._init_context,
@@ -411,7 +412,7 @@ class BaseActor(object):
         # Inject contexts into condition
         try:
             updated_act['condition'] = utils.populate_with_tokens(
-                act.get('condition', ''),
+                str(act.get('condition', '')),
                 context,
                 self.left_context_separator,
                 self.right_context_separator,
@@ -449,7 +450,7 @@ class BaseActor(object):
             # Only group actors can define sub-actors, therefore it is safe to
             # substitue for all context tokens from this point forward.
             # Convert our options dict into a string for fast parsing.
-            options_string = json.dumps(options)
+            options_string = json.dumps(act['options'])
 
             # Generate a new string with the values parsed out. At this point, if
             # any value is un-matched, an exception is raised and execution fails.
