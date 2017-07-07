@@ -294,6 +294,7 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
     # If we aren't strict, we return...
     if not strict:
         return string
+
     # If we are strict, we check if we missed anything. If we did, raise an
     # exception.
     missed_tokens = list(set(re.findall(r'%s[\w]+%s' %
