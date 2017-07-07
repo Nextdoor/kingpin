@@ -382,13 +382,13 @@ class BaseActor(object):
         """Parses the act and updates it with the supplied context.
 
         Recursively parses the description, condition, and options in the
-        act and substitues in context tokens. Does not substitute for the
+        act and substitutes in context tokens. Does not substitute for the
         options in any group actors which define a context.
 
         Args:
             act: The act into which to fill context tokens.
             context: Dictionary of context tokens.
-            strict: bool whether or not to allow missing context keys to be
+            strict: Bool whether or not to allow missing context keys to be
                     skipped over.
 
         Returns:
@@ -398,7 +398,7 @@ class BaseActor(object):
             exceptions.InvalidOptions
         """
         updated_act = act.copy()
-        # Inject contexts into Description
+        # Inject contexts into the description.
         try:
             updated_act['desc'] = utils.populate_with_tokens(
                 act.get('desc', ''),
@@ -410,7 +410,7 @@ class BaseActor(object):
             msg = 'Context for description failed: %s' % e
             raise exceptions.InvalidOptions(msg)
 
-        # Inject contexts into condition
+        # Inject contexts into the condition.
         try:
             updated_act['condition'] = utils.populate_with_tokens(
                 str(act.get('condition', '')),
@@ -422,7 +422,7 @@ class BaseActor(object):
             msg = 'Context for condition failed: %s' % e
             raise exceptions.InvalidOptions(msg)
 
-        # Inject contexts into options, skipping over any sub-actors which
+        # Inject contexts into the options, skipping over any sub-actors which
         # declare more context tokens.
         if act['actor'].startswith('group.'):
             options = act['options']
