@@ -191,6 +191,13 @@ class TestBaseGroupActor(TestGroupActorBaseClass):
         ret = actor._build_action_group({'TEST': 'CONTEXT'})
         self.assertEquals(ret[0]._init_context, {'TEST': 'CONTEXT'})
 
+    def test_fill_in_contexts_invalid_context(self):
+        with self.assertRaises(exceptions.InvalidOptions):
+            group.BaseGroupActor(
+                desc='Unit Test Action',
+                options={'contexts': '{BAR}.foo', 'acts': []},
+                init_context={})
+
     @testing.gen_test
     def test_execute_success(self):
         actor = group.BaseGroupActor('Unit Test Action', {'acts': []})
