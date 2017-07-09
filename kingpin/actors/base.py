@@ -31,6 +31,7 @@ any live changes. It is up to the developer of the Actor to define what
 'dry' mode looks like for that particular action.
 """
 
+import collections
 import inspect
 import json
 import logging
@@ -113,6 +114,9 @@ class BaseActor(object):
     # second 'global runtime context object'.
     strict_init_context = True
 
+    # The expected format for acts, used when parsing for context tokens.
+    Act = collections.namedtuple('Act', 'actor desc condition options')
+
     def __init__(self, desc=None, options={}, dry=False, warn_on_failure=False,
                  condition=True, init_context={}, init_tokens={},
                  timeout=None):
@@ -146,16 +150,13 @@ class BaseActor(object):
 
         # Fill the context into the description, condition, and options.
         actor = self._type.replace('kingpin.actors.', '')
-        act = {'actor': actor, 'condition': condition, 'options': options}
-        if desc:
-            act['desc'] = desc
-        # strict about this -- but in the future, when we have a
-        # runtime_context object, we may loosen this restriction).
-        updated_act = self._fill_in_contexts(act, context=self._init_context,
-                                             strict=self.strict_init_context)
-        self._desc = updated_act['desc']
-        self._condition = updated_act['condition']
-        self._options = updated_act['options']
+        act = Act(actor=actor, desc=desc, condition=str(condition), options=options)
+        updated_act = self._fill_contexts_in_act(act,
+                                                 context=self._init_context,
+                                                 strict=self.strict_init_context)
+        self._desc = updated_act.desc
+        self._condition = updated_act.condition
+        self._options = updated_act.options
 
         self._setup_log()
         self._setup_defaults()
@@ -378,102 +379,86 @@ class BaseActor(object):
             self._condition, check))
         return check
 
-    def _fill_in_contexts(self, act, context={}, strict=True):
-        """Parses the act and updates it with the supplied context.
+    def _fill_contexts_in_string(self, string, context, strict):
+        """Fills all context tokens in the given string.
+
+        Args:
+            string: A string into which to fill context tokens.
+            context: Dictionary of context tokens.
+            strict: Bool whether or not to allow missing context keys to be
+                    skipped over.
+
+        Raises:
+            exceptions.InvalidOptions
+        """
+        if not string:
+            return None
+        try:
+            return utils.populate_with_tokens(
+                string,
+                context,
+                self.left_context_separator,
+                self.right_context_separator,
+                strict=strict)
+        except LookupError as e:
+            msg = 'Filling context failed: %s' % e
+            raise exceptions.InvalidOptions(msg)
+
+    def _fill_contexts_in_act(self, act, context={}, strict=True):
+        """Parses the Act and updates it with the supplied context.
 
         Recursively parses the description, condition, and options in the
         act and substitutes in context tokens. Does not substitute for the
         options in any group actors which define a context.
 
         Args:
-            act: The act into which to fill context tokens.
+            act: An Act into which to fill context tokens.
             context: Dictionary of context tokens.
             strict: Bool whether or not to allow missing context keys to be
                     skipped over.
 
         Returns:
-            An act updated with context tokens.
+            An Act updated with context tokens.
 
         Raises:
             exceptions.InvalidOptions
         """
-        updated_act = act.copy()
         # Inject contexts into the description.
-        try:
-            updated_act['desc'] = utils.populate_with_tokens(
-                act.get('desc', ''),
-                context,
-                self.left_context_separator,
-                self.right_context_separator,
-                strict=strict)
-        except LookupError as e:
-            msg = 'Context for description failed: %s' % e
-            raise exceptions.InvalidOptions(msg)
+        updated_desc = self._fill_contexts_in_string(act.desc, context, strict)
 
         # Inject contexts into the condition.
-        try:
-            updated_act['condition'] = utils.populate_with_tokens(
-                str(act.get('condition', '')),
-                context,
-                self.left_context_separator,
-                self.right_context_separator,
-                strict=strict)
-        except LookupError as e:
-            msg = 'Context for condition failed: %s' % e
-            raise exceptions.InvalidOptions(msg)
+        updated_condition = self._fill_contexts_in_string(act.condition, context, strict)
 
-        # Inject contexts into the options, skipping over any sub-actors which
-        # declare more context tokens.
+        # Inject contexts into the options, skipping over any group sub-actors
+        # which declare more context tokens.
         if act['actor'].startswith('group.'):
-            options = act['options']
-            if 'contexts' in options:
+            updated_options = act['options'].copy()
+            if 'contexts' in updated_options:
                 # Inject contexts into the group's context.
                 # Stop substituting tokens after here, since this actor will
                 # define other context tokens.
-                try:
-                    contexts_string = json.dumps(options['contexts'])
-                    updated_contexts_string = utils.populate_with_tokens(
-                        contexts_string,
-                        context,
-                        self.left_context_separator,
-                        self.right_context_separator,
-                        strict=strict)
-                    options['contexts'] = json.loads(updated_contexts_string)
-                except LookupError as e:
-                    msg = 'Context for group contexts failed: %s' % e
-                    raise exceptions.InvalidOptions(msg)
+                contexts_string = json.dumps(updated_options['contexts'])
+                updated_contexts_string = self._fill_contexts_in_string(contexts_string,
+                                                             context, strict)
+                updated_options['contexts'] = json.loads(updated_contexts_string)
             else:
                 # Recursively inject contexts into each of the sub-acts.
-                for act in options['acts']:
-                    act.update(self._fill_in_contexts(act,
+                for act in updated_options['acts']:
+                    act.update(self._fill_contexts_in_act(act,
                                                       context=context,
                                                       strict=strict))
-            updated_act['options'] = options
         else:
             # Only group actors can define sub-actors, therefore it is safe to
             # substitute for all context tokens from this point forward.
             # Therefore, convert our options dict into a string for faster
             # parsing.
             options_string = json.dumps(act['options'])
+            updated_options_string = self._fill_contexts_in_string(options_string,
+                                                         context, strict)
+            updated_options = json.loads(new_options_string)
 
-            # Generate a new string with the values parsed out. At this point,
-            # if any value is un-matched, an exception is raised and execution
-            # fails. This stops execution during a dry run, before any live
-            # changes are made.
-            try:
-                new_options_string = utils.populate_with_tokens(
-                    options_string,
-                    context,
-                    self.left_context_separator,
-                    self.right_context_separator,
-                    strict=strict)
-            except LookupError as e:
-                msg = 'Context for options failed: %s' % e
-                raise exceptions.InvalidOptions(msg)
-
-            updated_act['options'] = json.loads(new_options_string)
-
-        return updated_act
+        return Act(actor=actor, desc=updated_desc, condition=updated_condition,
+            options=updated_options)
 
     def get_orgchart(self, parent=''):
         """Construct organizational chart describing this actor.
