@@ -115,7 +115,9 @@ class BaseActor(object):
     strict_init_context = True
 
     # The expected format for acts, used when parsing for context tokens.
-    Act = collections.namedtuple('Act', 'actor desc condition options')
+    # defaults: desc=None, condition='True'
+    Act = collections.namedtuple('Act', 'actor options desc condition')
+    Act.__new__.__defaults__ = (None, 'True')
 
     def __init__(self, desc=None, options={}, dry=False, warn_on_failure=False,
                  condition=True, init_context={}, init_tokens={},
@@ -150,10 +152,10 @@ class BaseActor(object):
 
         # Fill the context into the description, condition, and options.
         actor = self._type.replace('kingpin.actors.', '')
-        act = Act(actor=actor, desc=desc, condition=str(condition), options=options)
-        updated_act = self._fill_contexts_in_act(act,
-                                                 context=self._init_context,
-                                                 strict=self.strict_init_context)
+        act = self.Act(actor=actor, desc=desc, condition=str(condition),
+                       options=options)
+        updated_act = self._fill_contexts_in_act(
+            act, context=self._init_context, strict=self.strict_init_context)
         self._desc = updated_act.desc
         self._condition = updated_act.condition
         self._options = updated_act.options
@@ -427,38 +429,40 @@ class BaseActor(object):
         updated_desc = self._fill_contexts_in_string(act.desc, context, strict)
 
         # Inject contexts into the condition.
-        updated_condition = self._fill_contexts_in_string(act.condition, context, strict)
+        updated_condition = self._fill_contexts_in_string(act.condition,
+                                                          context, strict)
 
         # Inject contexts into the options, skipping over any group sub-actors
         # which declare more context tokens.
-        if act['actor'].startswith('group.'):
-            updated_options = act['options'].copy()
+        if act.actor.startswith('group.'):
+            updated_options = act.options.copy()
             if 'contexts' in updated_options:
                 # Inject contexts into the group's context.
                 # Stop substituting tokens after here, since this actor will
                 # define other context tokens.
                 contexts_string = json.dumps(updated_options['contexts'])
-                updated_contexts_string = self._fill_contexts_in_string(contexts_string,
-                                                             context, strict)
-                updated_options['contexts'] = json.loads(updated_contexts_string)
+                updated_contexts_string = self._fill_contexts_in_string(
+                    contexts_string, context, strict)
+                updated_options['contexts'] = json.loads(
+                    updated_contexts_string)
             else:
                 # Recursively inject contexts into each of the sub-acts.
-                for act in updated_options['acts']:
-                    act.update(self._fill_contexts_in_act(act,
-                                                      context=context,
-                                                      strict=strict))
+                for group_act in updated_options['acts']:
+                    updated_group_act = self._fill_contexts_in_act(
+                        self.Act(**group_act), context=context, strict=strict)
+                    group_act.update(updated_group_act._asdict())
         else:
             # Only group actors can define sub-actors, therefore it is safe to
             # substitute for all context tokens from this point forward.
             # Therefore, convert our options dict into a string for faster
             # parsing.
-            options_string = json.dumps(act['options'])
-            updated_options_string = self._fill_contexts_in_string(options_string,
-                                                         context, strict)
-            updated_options = json.loads(new_options_string)
+            options_string = json.dumps(act.options)
+            updated_options_string = self._fill_contexts_in_string(
+                options_string, context, strict)
+            updated_options = json.loads(updated_options_string)
 
-        return Act(actor=actor, desc=updated_desc, condition=updated_condition,
-            options=updated_options)
+        return self.Act(actor=act.actor, desc=updated_desc,
+                        condition=updated_condition, options=updated_options)
 
     def get_orgchart(self, parent=''):
         """Construct organizational chart describing this actor.
