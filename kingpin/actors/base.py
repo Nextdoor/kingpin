@@ -43,9 +43,10 @@ from tornado import gen
 from tornado import httpclient
 from tornado import httputil
 
+from kingpin import actors
 from kingpin import utils
 from kingpin.actors import exceptions
-from kingpin.actors.utils import timer
+from kingpin.actors.utils import timer, get_actor_class
 from kingpin.constants import REQUIRED, STATE
 
 log = logging.getLogger(__name__)
@@ -151,8 +152,7 @@ class BaseActor(object):
             self._timeout = self.default_timeout
 
         # Fill the context into the description, condition, and options.
-        actor = self._type.replace('kingpin.actors.', '')
-        act = self.Act(actor=actor, desc=desc, condition=str(condition),
+        act = self.Act(actor=self._type, desc=desc, condition=str(condition),
                        options=options)
         updated_act = self._fill_contexts_in_act(
             act, context=self._init_context, strict=self.strict_init_context)
@@ -434,7 +434,7 @@ class BaseActor(object):
 
         # Inject contexts into the options, skipping over any group sub-actors
         # which declare more context tokens.
-        if act.actor.startswith('group.'):
+        if actors.group == sys.modules[get_actor_class(act.actor).__module__]:
             updated_options = act.options.copy()
             if 'contexts' in updated_options:
                 # Inject contexts into the group's context.
