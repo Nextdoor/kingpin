@@ -369,7 +369,7 @@ class TestBaseActor(testing.AsyncTestCase):
         res = yield self.actor.execute()
         self.assertEquals(res, None)
 
-    def test_fill_in_contexts_desc(self):
+    def test_fill_contexts_in_act_desc(self):
         base.BaseActor.all_options = {
             'test_opt': (str, REQUIRED, 'Test option')
         }
