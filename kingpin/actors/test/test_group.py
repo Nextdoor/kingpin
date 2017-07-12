@@ -226,6 +226,75 @@ class TestBaseGroupActor(TestGroupActorBaseClass):
         ret = yield actor._execute()
         self.assertEquals(ret, None)
 
+    @testing.gen_test
+    def test_build_actions_with_context_token(self):
+        output_act = {
+            'desc': 'Value is "BAR"',
+            'actor': 'kingpin.actors.test.test_group.TestActor',
+            'options': {'value': '{FOO}'}
+        }
+        group_actor = group.Sync(
+            'Unit Test Action',
+            {'contexts': [{'FOO': 'BAR'}],
+             'acts': [output_act]})
+        output_act_options = group_actor._actions[0]._options
+        self.assertEquals(output_act_options['value'], 'BAR')
+
+    @testing.gen_test
+    def test_build_actions_with_context_token_hierarchy(self):
+        # Define multiple levels of contexts and verify that they all are
+        # correctly filled in.
+        output_act = {
+            'desc': 'Value is "OUTER INNER DEFAULT"',
+            'actor': 'kingpin.actors.test.test_group.TestActor',
+            'options': {
+                'value': '{OUTER_VAR} {INNER_VAR} {DEFAULT_VAR|WRONG_DEFAULT}'
+            }
+        }
+        inner_actor = {
+            'desc': 'Inner Unit Test Actor',
+            'actor': 'group.Sync',
+            'options': {
+                'contexts': [{
+                    'INNER_VAR': 'INNER',
+                    'DEFAULT_VAR': 'DEFAULT'}],
+                'acts': [output_act]
+            }
+        }
+        outer_actor = group.Sync(
+            'Outer Unit Test Actor',
+            {'contexts': [{'OUTER_VAR': 'OUTER'}],
+             'acts': [inner_actor]})
+
+        output_act_options = outer_actor._actions[0]._actions[0]._options
+        self.assertEquals(output_act_options['value'], 'OUTER INNER DEFAULT')
+
+    @testing.gen_test
+    def test_build_actions_with_context_token_redefinition(self):
+        # Redefine a context token and verify it is set to the innermost value.
+        output_act = {
+            'desc': 'Value is "WORLD"',
+            'actor': 'kingpin.actors.test.test_group.TestActor',
+            'options': {
+                'value': '{HELLO}'
+            }
+        }
+        inner_actor = {
+            'desc': 'Inner Unit Test Actor',
+            'actor': 'group.Sync',
+            'options': {
+                'contexts': [{'HELLO': 'WORLD'}],
+                'acts': [output_act]
+            }
+        }
+        outer_actor = group.Sync(
+            'Outer Unit Test Actor',
+            {'contexts': [{'HELLO': 'GOODBYE'}],
+             'acts': [inner_actor]})
+
+        output_act_options = outer_actor._actions[0]._actions[0]._options
+        self.assertEquals(output_act_options['value'], 'WORLD')
+
 
 class TestSyncGroupActor(TestGroupActorBaseClass):
 

@@ -434,7 +434,9 @@ class BaseActor(object):
 
         # Inject contexts into the options, skipping over any group sub-actors
         # which declare more context tokens.
-        if actors.group == sys.modules[get_actor_class(act.actor).__module__]:
+        actor_module = sys.modules[get_actor_class(act.actor).__module__]
+        actor_is_group = (actor_module == actors.group)
+        if actor_is_group:
             updated_options = act.options.copy()
             if 'contexts' in updated_options:
                 # Inject contexts into the group's context.
