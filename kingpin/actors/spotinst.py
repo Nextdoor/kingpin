@@ -257,7 +257,7 @@ class ElastiGroupSchema(SchemaCompareBase):
                         }
                     },
                     'scaling': {
-                        'type': 'object',
+                        'type': ['object', 'null'],
                         'additionalProperties': False,
                         'properties': {
                             'up': {
