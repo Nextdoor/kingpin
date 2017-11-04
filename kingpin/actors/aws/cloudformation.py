@@ -444,10 +444,14 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         # Create the stack, and get its ID.
         self.log.info('Creating stack %s' % stack)
 
+        cfg = dict()
         if self._template_body:
-            cfg = {'TemplateBody': self._template_body}
+            cfg['TemplateBody'] = self._template_body
         else:
-            cfg = {'TemplateURL': self._template_url}
+            cfg['TemplateURL'] = self._template_url
+
+        if self.option('role_arn'):
+            cfg['RoleARN'] = self.option('role_arn')
 
         try:
             stack = yield self.thread(
@@ -549,6 +553,8 @@ class Create(CloudFormationBaseActor):
         'parameters': (ParametersConfig, {}, 'Parameters passed into the CF '
                                              'template execution'),
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
+        'role_arn': (str, None,
+                     'The Amazon IAM Role to use when executing the stack'),
         'template': (str, REQUIRED,
                      'Path to the AWS CloudFormation File. http(s)://, '
                      'file:///, absolute or relative file paths.'),
@@ -748,6 +754,8 @@ class Stack(CloudFormationBaseActor):
         'parameters': (ParametersConfig, {}, 'Parameters passed into the CF '
                                              'template execution'),
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
+        'role_arn': (str, None,
+                     'The Amazon IAM Role to use when executing the stack'),
         'template': (str, REQUIRED,
                      'Path to the AWS CloudFormation File. http(s)://, '
                      'file:///, absolute or relative file paths.'),
@@ -937,6 +945,9 @@ class Stack(CloudFormationBaseActor):
             'Parameters': self._parameters,
             'UsePreviousTemplate': False,
         }
+
+        if self.option('role_arn'):
+            change_opts['RoleARN'] = self.option('role_arn')
 
         if self._template_body:
             change_opts['TemplateBody'] = self._template_body

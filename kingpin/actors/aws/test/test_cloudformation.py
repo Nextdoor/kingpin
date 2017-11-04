@@ -371,6 +371,30 @@ class TestCreate(testing.AsyncTestCase):
         self.assertEquals(ret, 'arn:123')
 
     @testing.gen_test
+    def test_create_stack_file_with_role(self):
+        stack = 'examples/test/aws.cloudformation/cf.integration.json'
+        actor = cloudformation.Create(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2',
+             'role_arn': 'test_role_arn',
+             'template': stack})
+        actor._wait_until_state = mock.MagicMock(name='_wait_until_state')
+        actor._wait_until_state.side_effect = [tornado_value(None)]
+        actor.cf3_conn.create_stack = mock.MagicMock(name='create_stack_mock')
+        actor.cf3_conn.create_stack.return_value = {'StackId': 'arn:123'}
+        ret = yield actor._create_stack(stack='test')
+        self.assertEquals(ret, 'arn:123')
+        actor.cf3_conn.create_stack.assert_called_with(
+            TemplateBody=mock.ANY,
+            Parameters=[],
+            RoleARN=u'test_role_arn',
+            TimeoutInMinutes=60,
+            Capabilities=[],
+            StackName='test',
+            OnFailure='DELETE')
+
+    @testing.gen_test
     def test_create_stack_url(self):
         actor = cloudformation.Create(
             'Unit Test Action',
@@ -769,6 +793,26 @@ class TestStack(testing.AsyncTestCase):
             [mock.call(
                 StackName='arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x',
                 TemplateBody='{"blank": "json"}',
+                Capabilities=[],
+                ChangeSetName='kingpin-uuid',
+                Parameters=[
+                    {'ParameterValue': 'value1', 'ParameterKey': 'key1'}
+                ],
+                UsePreviousTemplate=False,
+            )])
+
+    @testing.gen_test
+    def test_create_change_set_body_with_role(self):
+        self.actor.cf3_conn.create_change_set.return_value = {'Id': 'abcd'}
+        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
+        self.actor._options['role_arn'] = 'test_role_arn'
+        ret = yield self.actor._create_change_set(fake_stack, 'uuid')
+        self.assertEquals(ret, {'Id': 'abcd'})
+        self.actor.cf3_conn.create_change_set.assert_has_calls(
+            [mock.call(
+                StackName='arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x',
+                TemplateBody='{"blank": "json"}',
+                RoleARN='test_role_arn',
                 Capabilities=[],
                 ChangeSetName='kingpin-uuid',
                 Parameters=[
