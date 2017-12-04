@@ -31,6 +31,11 @@ https://spotinst.atlassian.net/wiki/display/API/API+Semantics
 :SPOINST_TOKEN:
   SpotInst API Token generated at
   https://console.spotinst.com/#/settings/tokens
+
+:SPOTINST_ACCOUNT_ID:
+  SpotInst API Account ID - used optionally when you have multiple accounts
+  under a single Organization. This can also be set on a per-actor basis.
+  http://docs.spotinst.com/#page:api-semantic,header:header-organizations-with-a-single-account
 """
 
 import base64
@@ -57,6 +62,7 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 DEBUG = os.getenv('SPOTINST_DEBUG', False)
 TOKEN = os.getenv('SPOTINST_TOKEN', None)
+ACCOUNT_ID = os.getenv('SPOTINST_ACCOUNT_ID', None)
 
 
 class SpotinstAPI(api.RestConsumer):
@@ -177,7 +183,7 @@ class InvalidConfig(SpotinstException):
     """Thrown when an invalid request was supplied to Spotinst"""
 
 
-class SpotinstRestClient(api.RestClient):
+class SpotinstRestClient(api.SimpleTokenRestClient):
 
     EXCEPTIONS = {
         httpclient.HTTPError: {
@@ -290,11 +296,20 @@ class SpotinstBase(base.EnsurableBaseActor):
         if not DEBUG:
             logging.getLogger('tornado_rest_client.api').setLevel('INFO')
 
+        # Figure out our account ID and set it.. Or this will end up falling
+        # back to None if neither are set.
+        account_id = self._options.get('account_id', ACCOUNT_ID)
+        tokens = {}
+        if account_id:
+            tokens = {'accountId': account_id}
+
         rest_client = SpotinstRestClient(
             headers={
                 'Authorization': 'Bearer %s' % TOKEN,
                 'Content-Type': 'application/json',
-            })
+            },
+            tokens=tokens)
+
         self._client = SpotinstAPI(client=rest_client)
 
 
@@ -339,6 +354,10 @@ class ElastiGroup(SpotinstBase):
     :name:
       The desired name of the ElastiGroup. Note that this will override
       whatever value is inside your configuration JSON/YAML blob.
+
+    :account_id:
+      The SpotInst Account ID that the action is taking place in - this
+      overrides the SPOTINST_ACCOUNT_ID environment variable (if its set).
 
     :config:
       Path to the ElastiGroup configuration blob (JSON or YAML) file.
@@ -403,6 +422,8 @@ class ElastiGroup(SpotinstBase):
     all_options = {
         'name': (
             str, REQUIRED, 'Name of the ElastiGroup to manage'),
+        'account_id': (
+            str, None, 'SpotInst Account ID'),
         'config': (
             str, None, 'Name of the file with the ElastiGroup config'),
         'tokens': (
@@ -424,8 +445,8 @@ class ElastiGroup(SpotinstBase):
         'wait_on_roll': (
             bool, False, 'Wait on any changes to roll out to the nodes'),
     }
-    unmanaged_options = ['name', 'wait_on_roll', 'wait_on_create',
-                         'roll_on_change', 'roll_batch_size',
+    unmanaged_options = ['name', 'account_id', 'wait_on_roll',
+                         'wait_on_create', 'roll_on_change', 'roll_batch_size',
                          'roll_grace_period', 'tokens']
 
     desc = 'ElastiGroup {name}'

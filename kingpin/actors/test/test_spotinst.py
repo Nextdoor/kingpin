@@ -119,6 +119,17 @@ class TestSpotinstBase(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidCredentials):
             spotinst.SpotinstBase('Unit Test Action', {})
 
+    def test_init_with_account_id(self):
+        spotinst.ACCOUNT_ID = 'act-123456'
+        base = spotinst.SpotinstBase('Unit Test Action', {})
+        self.assertEquals(base._client._client._tokens['accountId'],
+                          'act-123456')
+
+    def test_init_without_account_id(self):
+        spotinst.ACCOUNT_ID = None
+        base = spotinst.SpotinstBase('Unit Test Action', {})
+        self.assertEquals(base._client._client._tokens, {})
+
 
 class TestElastiGroup(testing.AsyncTestCase):
 
