@@ -118,12 +118,26 @@ class OnFailureConfig(StringCompareBase):
     """Validates the On Failure option.
 
     The `on_failure` option can take one of the following settings:
-      `DO_NOTHING`, `ROLLBACK`, `DELETE`
+    `DO_NOTHING`, `ROLLBACK`, `DELETE`
 
     This option is applied at stack _creation_ time!
     """
 
     valid = ('DO_NOTHING', 'ROLLBACK', 'DELETE')
+
+
+class TerminationProtectionConfig(StringCompareBase):
+
+    """Validates the TerminationProtectionConfig option.
+
+    The `enable_termination_protection` option can take one of the following
+    settings:
+    `None`, `False`, `True`
+
+    `None` means on Stack Updates no changes will be applied.
+    """
+
+    valid = (None, True, False)
 
 
 # CloudFormation has over a dozen different 'stack states'... but for the
@@ -461,6 +475,8 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 OnFailure=self.option('on_failure'),
                 TimeoutInMinutes=self.option('timeout_in_minutes'),
                 Capabilities=self.option('capabilities'),
+                EnableTerminationProtection=self.option(
+                    'enable_termination_protection'),
                 **cfg)
         except ClientError as e:
             raise CloudFormationError(e.message)
@@ -561,6 +577,9 @@ class Create(CloudFormationBaseActor):
         'timeout_in_minutes': (int, 60,
                                'The amount of time that can pass before the '
                                'stack status becomes CREATE_FAILED'),
+        'enable_termination_protection': (TerminationProtectionConfig, False,
+                                          'Whether termination protection is  '
+                                          'enabled for the stack.')
     }
 
     desc = "Creating CloudFormation Stack {name}"
@@ -762,6 +781,9 @@ class Stack(CloudFormationBaseActor):
         'timeout_in_minutes': (int, 60,
                                'The amount of time that can pass before the '
                                'stack status becomes CREATE_FAILED'),
+        'enable_termination_protection': (TerminationProtectionConfig, None,
+                                          'Whether termination protection is  '
+                                          'enabled for the stack.')
     }
 
     desc = 'CloudFormation Stack {name}'
@@ -807,6 +829,10 @@ class Stack(CloudFormationBaseActor):
             yield self._delete_stack(stack=stack['StackId'])
             yield self._create_stack(stack=stack['StackName'])
             raise gen.Return()
+
+        # Compare the live and new EnableTerminationProtection parameter and
+        # update it if it is different.
+        yield self._ensure_termination_protection(stack)
 
         # Pull down the live stack template and compare it to the one we have
         # locally.
@@ -1069,6 +1095,45 @@ class Stack(CloudFormationBaseActor):
             change_set_name, 'ExecutionStatus', 'EXECUTE_COMPLETE')
         yield self._wait_until_state(change_set['StackId'],
                                      (COMPLETE + FAILED + DELETED))
+
+    @gen.coroutine
+    def _ensure_termination_protection(self, stack):
+        """Ensures that the EnableTerminationProtection is set to the desired
+           setting (either True or False).
+
+        Checks to to see if the actor is managing EnableTerminationProtection,
+        and if it is, it updates EnableTerminationProtection if the defined
+        value is different from the existing one.
+
+        args:
+            stack: Boto3 Stack dict
+        """
+        existing = stack['EnableTerminationProtection']
+        new = self.option('enable_termination_protection')
+
+        if new is None or existing == new:
+            raise gen.Return()
+
+        yield self._update_termination_protection(stack, new)
+
+    @gen.coroutine
+    @dry('Would have updated EnableTerminationProtection')
+    def _update_termination_protection(self, stack, new):
+        """Updates the EnableTerminationProtection to the new setting.
+
+        args:
+            stack: Boto3 Stack dict
+            new: boolean of updated value for EnableTerminationProtection
+        """
+        self.log.info('Updating EnableTerminationProtection to %s' % str(new))
+
+        try:
+            yield self.thread(
+                self.cf3_conn.update_termination_protection,
+                StackName=stack['StackName'],
+                EnableTerminationProtection=new)
+        except ClientError as e:
+            raise StackFailed(e)
 
     @gen.coroutine
     def _ensure_stack(self):
