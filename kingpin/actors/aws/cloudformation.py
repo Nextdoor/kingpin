@@ -132,12 +132,13 @@ class TerminationProtectionConfig(StringCompareBase):
 
     The `enable_termination_protection` option can take one of the following
     settings:
-    `None`, `False`, `True`
+    `'UNCHANGED'`, `False`, `True`
 
-    `None` means on Stack Updates no changes will be applied.
+    `UNCHANGED` means on Create Stack it will default to False, however on
+     Ensure Stack no changes will be applied.
     """
 
-    valid = (None, True, False)
+    valid = ('UNCHANGED', True, False)
 
 
 # CloudFormation has over a dozen different 'stack states'... but for the
@@ -467,6 +468,11 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         if self.option('role_arn'):
             cfg['RoleARN'] = self.option('role_arn')
 
+        enable_termination_protection = self.option(
+            'enable_termination_protection')
+        if enable_termination_protection == 'UNCHANGED':
+            enable_termination_protection = False
+
         try:
             stack = yield self.thread(
                 self.cf3_conn.create_stack,
@@ -475,8 +481,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 OnFailure=self.option('on_failure'),
                 TimeoutInMinutes=self.option('timeout_in_minutes'),
                 Capabilities=self.option('capabilities'),
-                EnableTerminationProtection=self.option(
-                    'enable_termination_protection'),
+                EnableTerminationProtection=enable_termination_protection,
                 **cfg)
         except ClientError as e:
             raise CloudFormationError(e.message)
@@ -585,8 +590,9 @@ class Create(CloudFormationBaseActor):
         'timeout_in_minutes': (int, 60,
                                'The amount of time that can pass before the '
                                'stack status becomes CREATE_FAILED'),
-        'enable_termination_protection': (TerminationProtectionConfig, False,
-                                          'Whether termination protection is  '
+        'enable_termination_protection': (TerminationProtectionConfig,
+                                          'UNCHANGED',
+                                          'Whether termination protection is '
                                           'enabled for the stack.')
     }
 
@@ -797,8 +803,9 @@ class Stack(CloudFormationBaseActor):
         'timeout_in_minutes': (int, 60,
                                'The amount of time that can pass before the '
                                'stack status becomes CREATE_FAILED'),
-        'enable_termination_protection': (TerminationProtectionConfig, None,
-                                          'Whether termination protection is  '
+        'enable_termination_protection': (TerminationProtectionConfig,
+                                          'UNCHANGED',
+                                          'Whether termination protection is '
                                           'enabled for the stack.')
     }
 
@@ -1127,7 +1134,7 @@ class Stack(CloudFormationBaseActor):
         existing = stack['EnableTerminationProtection']
         new = self.option('enable_termination_protection')
 
-        if new is None or existing == new:
+        if new == 'UNCHANGED' or existing == new:
             raise gen.Return()
 
         yield self._update_termination_protection(stack, new)
