@@ -524,7 +524,10 @@ class Create(CloudFormationBaseActor):
       CloudFormation template.
 
     :region:
-      AWS region (or zone) string, like 'us-west-2'
+      AWS region (or zone) string, like 'us-west-2'.
+
+    :role_arn:
+      The Amazon IAM Role to use when executing the stack.
 
     :template:
       String of path to CloudFormation template. Can either be in the form of a
@@ -534,6 +537,9 @@ class Create(CloudFormationBaseActor):
     :timeout_in_minutes:
       The amount of time that can pass before the stack status becomes
       CREATE_FAILED.
+
+    :enable_termination_protection:
+      Whether termination protection is enabled for the stack.
 
     **Examples**
 
@@ -548,8 +554,10 @@ class Create(CloudFormationBaseActor):
              "test_param": "%TEST_PARAM_NAME%",
            },
            "region": "us-west-1",
+           "role_arn": "arn:aws:iam::123456789012:role/DeployRole",
            "template": "/examples/cloudformation_test.json",
            "timeout_in_minutes": 45,
+           "enable_termination_protection": true,
          }
        }
 
@@ -722,7 +730,10 @@ class Stack(CloudFormationBaseActor):
       CloudFormation template.
 
     :region:
-      AWS region (or zone) string, like 'us-west-2'
+      AWS region (or zone) string, like 'us-west-2'.
+
+    :role_arn:
+      The Amazon IAM Role to use when executing the stack.
 
     :template:
       String of path to CloudFormation template. Can either be in the form of a
@@ -732,6 +743,9 @@ class Stack(CloudFormationBaseActor):
     :timeout_in_minutes:
       The amount of time that can pass before the stack status becomes
       CREATE_FAILED.
+
+    :enable_termination_protection:
+      Whether termination protection is enabled for the stack.
 
     **Examples**
 
@@ -747,8 +761,10 @@ class Stack(CloudFormationBaseActor):
              "test_param": "%TEST_PARAM_NAME%",
            },
            "region": "us-west-1",
+           "role_arn": "arn:aws:iam::123456789012:role/DeployRole",
            "template": "/examples/cloudformation_test.json",
            "timeout_in_minutes": 45,
+           "enable_termination_protection": true,
          }
        }
 
