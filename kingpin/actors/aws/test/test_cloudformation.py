@@ -21,7 +21,6 @@ def create_fake_stack(name, status):
         'CreationTime': datetime.datetime.now(),
         'StackName': name,
         'StackStatus': status,
-        'EnableTerminationProtection': False,
         'Parameters': [
             {'ParameterKey': 'key1', 'ParameterValue': 'value1'}
         ],
@@ -388,7 +387,6 @@ class TestCreate(testing.AsyncTestCase):
         self.assertEquals(ret, 'arn:123')
         actor.cf3_conn.create_stack.assert_called_with(
             TemplateBody=mock.ANY,
-            EnableTerminationProtection=False,
             Parameters=[],
             RoleARN=u'test_role_arn',
             TimeoutInMinutes=60,
@@ -676,98 +674,6 @@ class TestStack(testing.AsyncTestCase):
         self.actor._ensure_template.return_value = tornado_value(None)
         yield self.actor._update_stack(fake_stack)
         self.actor._ensure_template.assert_called_with(fake_stack)
-
-    @testing.gen_test
-    def test_update_stack_ensure_termination_protection_default_to_true(self):
-        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
-        self.actor._options['enable_termination_protection'] = True
-
-        self.actor._update_termination_protection = mock.MagicMock(
-            name='_update_termination_protection')
-        self.actor._update_termination_protection.return_value = tornado_value(
-            None)
-
-        self.actor._ensure_template = mock.MagicMock(name='_ensure_stack')
-        self.actor._ensure_template.return_value = tornado_value(None)
-
-        yield self.actor._update_stack(fake_stack)
-        self.actor._update_termination_protection.assert_called_with(
-            fake_stack, True)
-
-    @testing.gen_test
-    def test_update_stack_ensure_termination_protection_true_to_false(self):
-        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
-        fake_stack['EnableTerminationProtection'] = True
-        self.actor._options['enable_termination_protection'] = False
-
-        self.actor._update_termination_protection = mock.MagicMock(
-            name='_update_termination_protection')
-        self.actor._update_termination_protection.return_value = tornado_value(
-            None)
-
-        self.actor._ensure_template = mock.MagicMock(name='_ensure_stack')
-        self.actor._ensure_template.return_value = tornado_value(None)
-
-        yield self.actor._update_stack(fake_stack)
-        self.actor._update_termination_protection.assert_called_with(
-            fake_stack, False)
-
-    @testing.gen_test
-    def test_update_stack_ensure_termination_protection_true_to_true(self):
-        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
-        fake_stack['EnableTerminationProtection'] = True
-        self.actor._options['enable_termination_protection'] = True
-
-        self.actor._update_termination_protection = mock.MagicMock(
-            name='_update_termination_protection')
-        self.actor._update_termination_protection.return_value = tornado_value(
-            None)
-
-        self.actor._ensure_template = mock.MagicMock(name='_ensure_stack')
-        self.actor._ensure_template.return_value = tornado_value(None)
-
-        yield self.actor._update_stack(fake_stack)
-        self.assertFalse(self.actor._update_termination_protection.called)
-
-    @testing.gen_test
-    def test_update_stack_update_termination_protection(self):
-        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
-        self.actor._options['enable_termination_protection'] = True
-
-        self.actor.cf3_conn.update_termination_protection.return_value = (
-            tornado_value(None))
-
-        self.actor._ensure_template = mock.MagicMock(name='_ensure_stack')
-        self.actor._ensure_template.return_value = tornado_value(None)
-
-        yield self.actor._update_stack(fake_stack)
-        self.actor.cf3_conn.update_termination_protection.assert_has_calls(
-            [mock.call(
-                StackName='fake',
-                EnableTerminationProtection=True
-            )])
-
-    @testing.gen_test
-    def test_update_stack_update_termination_protection_error(self):
-        fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
-        self.actor._options['enable_termination_protection'] = True
-
-        fake_update = {
-            'ResponseMetadata': {
-                'HTTPStatusCode': 400,
-                'RequestId': 'dfc1a12c-22c1-11e6-80b1-8fd4cf167f54'
-            },
-            'Error': {
-                'Message': 'Template format error: JSON not well-formed',
-                'Code': 'ValidationError',
-                'Type': 'Sender'
-            }
-        }
-
-        self.actor.cf3_conn.update_termination_protection.side_effect = (
-            ClientError(fake_update, 'FakeOperation'))
-        with self.assertRaises(cloudformation.StackFailed):
-            yield self.actor._update_stack(fake_stack)
 
     @testing.gen_test
     def test_ensure_template_with_url_quietly_exits(self):
