@@ -126,6 +126,14 @@ class RightScript(base.EnsurableRightScaleBaseActor):
                 'description': self.option('description'),
                 'name': self.option('name'),
                 'packages': self.option('packages'),
+
+                # Passing in right_script[source] is required at creation time
+                # .. but we can't pass in large scripts this way. Instead, we
+                # pass in bogus text here, and rely on set_source() to properly
+                # update the source with a special API endpoint. This value is
+                # stripped out of any update_params() calls, so its only used
+                # at creation time.
+                'source': 'bogus'
             })
 
     def _read_source(self):
@@ -222,8 +230,9 @@ class RightScript(base.EnsurableRightScaleBaseActor):
     @dry('Would have updated the RightScript parameters')
     def _update_params(self):
         self.log.info('Updating RightScript parameters...')
-        self.script = yield self._client.update(
-            self.script, self._desired_params)
+        params = [t for t in self._desired_params if
+                  t[0] != 'right_script[source]']
+        self.script = yield self._client.update(self.script, params)
         self.changed = True
 
     @gen.coroutine
