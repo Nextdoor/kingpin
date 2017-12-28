@@ -284,6 +284,20 @@ class TestRightScale(testing.AsyncTestCase):
         self.assertEquals(ret, 'test')
 
     @testing.gen_test
+    def test_update_with_string_and_sub_resource(self):
+        # Create a mock and the params we're going to pass in
+        sa_mock = mock.MagicMock()
+        sa_mock.test_res.update.return_value = True
+        sa_mock.self.show.return_value = 'test'
+        params = 'some_string'
+
+        ret = yield self.client.update(sa_mock, params,
+                                       sub_resource='test_res')
+        sa_mock.test_res.update.assert_called_once_with(data=params)
+
+        self.assertEquals(ret, 'test')
+
+    @testing.gen_test
     def test_get_server_array_inputs(self):
         array = mock.Mock()
         ret = yield self.client.get_server_array_inputs(array)

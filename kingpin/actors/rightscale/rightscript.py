@@ -126,7 +126,6 @@ class RightScript(base.EnsurableRightScaleBaseActor):
                 'description': self.option('description'),
                 'name': self.option('name'),
                 'packages': self.option('packages'),
-                'source': self._desired_source,
             })
 
     def _read_source(self):
@@ -228,9 +227,14 @@ class RightScript(base.EnsurableRightScaleBaseActor):
         self.changed = True
 
     @gen.coroutine
+    @dry('Would have updated the RightScale Source')
     def _set_source(self):
-        self.log.warning('Source does not match')
-        yield self._update_params()
+        self.log.info('Updating RightScript source...')
+        self.script = yield self._client.update(
+            self.script,
+            self._desired_source,
+            sub_resource='source')
+        self.changed = True
 
     @gen.coroutine
     def _get_source(self):

@@ -1,5 +1,8 @@
 # General App Requirements
 
+# Py3 Compat
+six
+
 # 4.1+ is required for the @gen.with_timeout decorator.
 # http://tornado.readthedocs.org/en/latest/gen.html#tornado.gen.with_timeout
 tornado>=4.1
