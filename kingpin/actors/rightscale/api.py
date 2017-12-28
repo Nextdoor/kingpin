@@ -48,6 +48,7 @@ translation.
 
 from datetime import datetime
 from os import path
+from six import string_types
 import functools
 import logging
 
@@ -438,7 +439,7 @@ class RightScale(object):
     @concurrent.run_on_executor
     @rightscale_error_logger
     @utils.exception_logger
-    def update(self, resource, params):
+    def update(self, resource, params, sub_resource='self'):
         """Updates a RightScale resource with the supplied parameters.
 
         Valid parameters can be found at the following URL:
@@ -452,13 +453,23 @@ class RightScale(object):
             resource: rightscale.Resource object to update.
             params: The parameters to update. eg:
                 { 'server_array[name]': 'new name' }
+            sub_resource: Optionally, rather than calling resource.self.update,
+                you can pass in a sub_resource and it will call
+                resource.<sub_resource>.update. Useful for updating things like
+                RightScripts that have special URL endpoints for updates.
 
         Returns:
             <updated rightscale array object>
         """
 
         log.debug('Resource: %s' % resource)
-        resource.self.update(params=params)
+        r = getattr(resource, sub_resource)
+
+        if isinstance(params, string_types):
+            r.update(data=params)
+        else:
+            r.update(params=params)
+
         updated_resource = resource.self.show()
         return updated_resource
 

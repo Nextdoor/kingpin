@@ -120,11 +120,17 @@ class TestRightScript(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_set_source(self):
-        self.actor._update_params = mock.MagicMock()
-        self.actor._update_params.side_effect = [
-            helper.tornado_value(None)]
-        yield self.actor._set_source()
-        self.assertTrue(self.actor._update_params.called)
+        self.actor.script = mock.MagicMock(name='script')
+        with mock.patch.object(self.actor._client,
+                               'update') as update:
+            update.return_value = helper.tornado_value(self.actor.script)
+            yield self.actor._set_source()
+            self.assertTrue(self.actor.changed)
+            update.assert_has_calls([
+                mock.call(
+                    self.actor.script,
+                    'echo script1\n',
+                    sub_resource='source')])
 
     @testing.gen_test
     def test_set_description(self):
@@ -164,8 +170,7 @@ class TestRightScript(testing.AsyncTestCase):
             self.assertTrue(self.actor.changed)
             update.assert_has_calls([mock.call(
                 self.actor.script,
-                [('right_script[source]', 'echo script1\n'),
-                 ('right_script[packages]', u'curl'),
+                [('right_script[packages]', u'curl'),
                  ('right_script[description]', u'test description'),
                  ('right_script[name]', u'test-name')])])
 
