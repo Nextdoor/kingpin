@@ -370,7 +370,7 @@ class ECSBaseActor(base.AWSBaseActor):
 
     @staticmethod
     def _load_service_definition(
-            service_definition_file, tokens, default_tokens={}):
+            service_definition_file, tokens, default_tokens=None):
         """Loads and verifies a service definition template file, and
         interpolates tokens. and optionally default tokens which may contain
         environment variables. The service definition template file
@@ -386,6 +386,8 @@ class ECSBaseActor(base.AWSBaseActor):
         Returns:
             Resulting service definition dict.
         """
+        if default_tokens is None:
+            default_tokens = {}
         if not service_definition_file:
             service_definition = {}
         else:
@@ -401,11 +403,6 @@ class ECSBaseActor(base.AWSBaseActor):
             except jsonschema.exceptions.ValidationError as e:
                 raise exceptions.InvalidOptions(e)
 
-        # Set default values.
-        service_definition.setdefault(
-            'loadBalancers', [])
-        service_definition.setdefault(
-            'deploymentConfiguration', {})
         return service_definition
 
     @staticmethod
@@ -719,7 +716,6 @@ class Service(ECSBaseActor):
       Tokens to be interpolated must be of the form %VAR%.
       Implicit fields - do not include these:
       'serviceName', 'taskDefinition', 'desiredCount', 'clientToken'
-      Allowed fields: 'loadBalancers', 'role', 'deploymentConfiguration'
       Default: None.
 
     :service_name:
@@ -787,8 +783,7 @@ class Service(ECSBaseActor):
              'Must be a local file path. '
              'Tokens to be interpolated must be of the form %VAR%. '
              'Implicit fields - do not include these: '
-             "'serviceName', 'taskDefinition', 'desiredCount', 'clientToken' "
-             "Used for: 'loadBalancers', 'role', 'deploymentConfiguration'"),
+             "'serviceName', 'taskDefinition', 'desiredCount', 'clientToken'"),
         'service_name':
             (str, None,
              'Service name to use. If not specified, this will use '
@@ -981,12 +976,13 @@ class Service(ECSBaseActor):
         Returns:
             Task Definition string that was updated or registered.
         """
-        deployment_configuration = self.service_definition[
-            'deploymentConfiguration']
         update_parameters = dict(
             cluster=self.option('cluster'),
             service=service_name,
-            deploymentConfiguration=deployment_configuration)
+            **self.service_definition)
+
+        update_parameters.pop('loadBalancers', None)
+        update_parameters.pop('role', None)
 
         old_task_definition_name = self._arn_to_name(
             existing_service['taskDefinition'])

@@ -300,12 +300,10 @@ class TestLoadServiceDefinition(testing.AsyncTestCase):
     @testing.gen_test
     def test_default(self):
         result = self.actor._load_service_definition(None, {})
-        self.assertEqual(result['loadBalancers'], [])
-        self.assertEqual(result['deploymentConfiguration'], {})
+        self.assertEqual(result, {})
 
         result = self.actor._load_service_definition('', {})
-        self.assertEqual(result['loadBalancers'], [])
-        self.assertEqual(result['deploymentConfiguration'], {})
+        self.assertEqual(result, {})
 
     def _test(self, service_definition):
         with mock.patch('kingpin.utils.convert_script_to_dict',
@@ -1026,7 +1024,9 @@ class TestUpdateService(testing.AsyncTestCase):
         self.actor._is_task_definition_different = helper.mock_tornado(False)
         self.actor.service_definition = {
             'deploymentConfiguration': configuration,
-            'extra': 'not included'}
+            'loadBalancers': 'loadBalancers',
+            'role': 'role',
+            'extra': 'included'}
 
         yield self.actor._update_service(
             service_name=service_name,
@@ -1035,7 +1035,8 @@ class TestUpdateService(testing.AsyncTestCase):
         expected = ({
                     'cluster': self.actor.option('cluster'),
                     'service': service_name,
-                    'deploymentConfiguration': configuration
+                    'deploymentConfiguration': configuration,
+                    'extra': 'included'
                     },)
         self.assertEqual(call_args, expected)
 
@@ -1047,7 +1048,8 @@ class TestUpdateService(testing.AsyncTestCase):
         expected = ({
                     'cluster': self.actor.option('cluster'),
                     'service': service_name,
-                    'deploymentConfiguration': configuration
+                    'deploymentConfiguration': configuration,
+                    'extra': 'included',
                     },)
         self.assertEqual(call_args, expected)
         self.assertEqual(self.actor._register_task._call_count, 2)
@@ -1063,7 +1065,7 @@ class TestUpdateService(testing.AsyncTestCase):
         self.actor._wait_for_deployment_update = helper.mock_tornado()
         self.actor.service_definition = {
             'deploymentConfiguration': configuration,
-            'extra': 'not included'}
+            'extra': 'included'}
 
         yield self.actor._update_service(
             service_name=service_name,
@@ -1073,7 +1075,8 @@ class TestUpdateService(testing.AsyncTestCase):
                     'cluster': self.actor.option('cluster'),
                     'service': service_name,
                     'taskDefinition': 'arn/family:1',
-                    'deploymentConfiguration': configuration
+                    'deploymentConfiguration': configuration,
+                    'extra': 'included'
                     },)
         self.assertEqual(call_args, expected)
 
@@ -1087,7 +1090,7 @@ class TestUpdateService(testing.AsyncTestCase):
         self.actor._is_task_definition_different = helper.mock_tornado(False)
         self.actor.service_definition = {
             'deploymentConfiguration': configuration,
-            'extra': 'not included'}
+            'extra': 'included'}
 
         yield self.actor._update_service(
             service_name=service_name,
@@ -1098,7 +1101,8 @@ class TestUpdateService(testing.AsyncTestCase):
                     'cluster': self.actor.option('cluster'),
                     'service': service_name,
                     'desiredCount': 5,
-                    'deploymentConfiguration': configuration
+                    'deploymentConfiguration': configuration,
+                    'extra': 'included'
                     },)
         self.assertEqual(call_args, expected)
 
