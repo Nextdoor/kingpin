@@ -403,6 +403,18 @@ class ECSBaseActor(base.AWSBaseActor):
             except jsonschema.exceptions.ValidationError as e:
                 raise exceptions.InvalidOptions(e)
 
+        # Set default values.
+        service_definition.setdefault(
+            'deploymentConfiguration', {})
+        service_definition.setdefault(
+            'launchType', 'EC2')
+        service_definition.setdefault(
+            'loadBalancers', [])
+        service_definition.setdefault(
+            'placementConstraints', [])
+        service_definition.setdefault(
+            'placementStrategy', [])
+
         return service_definition
 
     @staticmethod
@@ -981,8 +993,9 @@ class Service(ECSBaseActor):
             service=service_name,
             **self.service_definition)
 
-        update_parameters.pop('loadBalancers', None)
-        update_parameters.pop('role', None)
+        # Remove any fields that aren't allowed on update.
+        for immutable_field in self._immutable_fields():
+            update_parameters.pop(immutable_field, None)
 
         old_task_definition_name = self._arn_to_name(
             existing_service['taskDefinition'])
@@ -1129,6 +1142,14 @@ class Service(ECSBaseActor):
             raise exceptions.RecoverableActorFailure(
                 'Immutable fields cannot be updated. '
                 'A new service must be created.')
+
+    def _immutable_fields(self):
+        """
+        Return: List of all fields that ECS doesn't allow mutation on.
+        """
+        return [
+            'loadBalancers', 'launchType', 'role',
+            'placementConstraints', 'placementStrategy']
 
     @gen.coroutine
     @dry('Would wait for service to update its state successfully')
@@ -1291,7 +1312,7 @@ class Service(ECSBaseActor):
             self._check_immutable_field_errors(
                 old_params=existing_service,
                 new_params=self.service_definition,
-                immutable_fields=['loadBalancers', 'role'])
+                immutable_fields=self._immutable_fields())
             override = None
             if not self.option('use_existing_count'):
                 override = {'desiredCount': self.option('count')}
