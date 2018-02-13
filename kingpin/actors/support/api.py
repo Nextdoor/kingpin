@@ -10,7 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Copyright 2014 Nextdoor.com, Inc
+# Copyright 2018 Nextdoor.com, Inc
 """
 This package provides a quick way of creating custom API clients for JSON-based
 REST APIs. The majority of the work is in the creation of a _CONFIG dictionary
