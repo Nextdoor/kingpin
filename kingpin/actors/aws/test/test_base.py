@@ -38,7 +38,7 @@ TARGET_GROUP_RESPONSE = {
         'Port': 80,
         'Protocol': 'HTTP',
         'TargetGroupArn':
-            'arn:aws:elasticloadbalancing:us-east-1:123:targetgroup/unittest/123',
+            'arn:aws:elb:us-east-1:123:targetgroup/unittest/123',
         'TargetGroupName': 'kingpin-integration-test',
         'UnhealthyThresholdCount': 2,
         'VpcId': 'vpc-123'
@@ -144,7 +144,7 @@ class TestBase(testing.AsyncTestCase):
         target = yield actor._find_target_group('123')
         self.assertEquals(
             target,
-            'arn:aws:elasticloadbalancing:us-east-1:123:targetgroup/unittest/123')
+            'arn:aws:elb:us-east-1:123:targetgroup/unittest/123')
         c_mock.describe_target_groups.assert_called_with(
             Names=['123'])
 

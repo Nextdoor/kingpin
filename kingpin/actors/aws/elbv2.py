@@ -206,6 +206,7 @@ class DeregisterInstance(base.AWSBaseActor):
         if type(instances) is not list:
             instances = [instances]
 
-        self.log.info(('Removing the following instances from the target group: '
-                       '%s' % ', '.join(instances)))
+        self.log.info(
+            ('Removing the following instances from the target group: '
+             '%s' % ', '.join(instances)))
         yield self._remove(arn, instances)

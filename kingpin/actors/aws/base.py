@@ -257,10 +257,10 @@ class AWSBaseActor(base.BaseActor):
 
     @gen.coroutine
     def _find_target_group(self, arn):
-        """Returns an ALB Target Group with the matching name.
+        """Returns an ELBv2 Target Group with the matching name.
 
         Args:
-            name: String-name of the Target  Group to search for
+            name: String-name of the Target Group to search for
 
         Returns:
             A single Target Group reference object
