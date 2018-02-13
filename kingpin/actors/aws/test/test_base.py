@@ -4,6 +4,7 @@ from boto.exception import NoAuthHandlerFound
 from boto.exception import BotoServerError
 from boto import utils
 from tornado import testing
+import botocore.exceptions
 import mock
 
 from kingpin.actors import exceptions
@@ -11,6 +12,38 @@ from kingpin.actors.aws import base
 from kingpin.actors.aws import settings
 
 log = logging.getLogger(__name__)
+
+# STATIC VALUES FOR TESTS
+TARGET_GROUP_RESPONSE = {
+    'ResponseMetadata': {
+        'HTTPHeaders': {
+            'content-length': '1228',
+            'content-type': 'text/xml',
+            'date': 'Tue, 13 Feb 2018 17:50:56 GMT',
+            'x-amzn-requestid': '123-123-123-123-123'
+        },
+        'HTTPStatusCode': 200,
+        'RequestId': '123-123-123-123-123',
+        'RetryAttempts': 0
+    },
+    'TargetGroups': [{
+        'HealthCheckIntervalSeconds': 30,
+        'HealthCheckPath': '/',
+        'HealthCheckPort': 'traffic-port',
+        'HealthCheckProtocol': 'HTTP',
+        'HealthCheckTimeoutSeconds': 5,
+        'HealthyThresholdCount': 5,
+        'LoadBalancerArns': [],
+        'Matcher': {'HttpCode': '200'},
+        'Port': 80,
+        'Protocol': 'HTTP',
+        'TargetGroupArn':
+            'arn:aws:elasticloadbalancing:us-east-1:123:targetgroup/unittest/123',
+        'TargetGroupName': 'kingpin-integration-test',
+        'UnhealthyThresholdCount': 2,
+        'VpcId': 'vpc-123'
+    }]
+}
 
 
 class TestBase(testing.AsyncTestCase):
@@ -100,6 +133,47 @@ class TestBase(testing.AsyncTestCase):
             401, 'SomeOtherError')
         with self.assertRaises(BotoServerError):
             yield actor._find_elb('')
+
+    @testing.gen_test
+    def test_find_target_group(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        c_mock = mock.Mock()
+        c_mock.describe_target_groups.return_value = TARGET_GROUP_RESPONSE
+        actor.elbv2_conn = c_mock
+
+        target = yield actor._find_target_group('123')
+        self.assertEquals(
+            target,
+            'arn:aws:elasticloadbalancing:us-east-1:123:targetgroup/unittest/123')
+        c_mock.describe_target_groups.assert_called_with(
+            Names=['123'])
+
+    @testing.gen_test
+    def test_find_target_group_too_many_results(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        c_mock = mock.Mock()
+        resp = TARGET_GROUP_RESPONSE.copy()
+        resp['TargetGroups'] = [
+            TARGET_GROUP_RESPONSE['TargetGroups'][0],
+            TARGET_GROUP_RESPONSE['TargetGroups'][0],
+            TARGET_GROUP_RESPONSE['TargetGroups'][0],
+        ]
+        c_mock.describe_target_groups.return_value = resp
+        actor.elbv2_conn = c_mock
+
+        with self.assertRaises(base.ELBNotFound):
+            yield actor._find_target_group('123')
+
+    @testing.gen_test
+    def test_find_target_group_exception_error(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        c_mock = mock.Mock()
+        exc = botocore.exceptions.ClientError({'Error': {}}, 'Test')
+        c_mock.describe_target_groups.side_effect = exc
+        actor.elbv2_conn = c_mock
+
+        with self.assertRaises(exceptions.UnrecoverableActorFailure):
+            yield actor._find_target_group('123')
 
     @testing.gen_test
     def test_get_meta_data(self):
