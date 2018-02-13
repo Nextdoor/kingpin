@@ -37,10 +37,10 @@ import logging
 import urllib
 import re
 
-from botocore import exceptions as botocore_exceptions
 from boto import exception as boto_exception
 from boto import utils as boto_utils
 from boto3 import exceptions as boto3_exceptions
+from botocore import exceptions as botocore_exceptions
 from retrying import retry
 from tornado import concurrent
 from tornado import gen

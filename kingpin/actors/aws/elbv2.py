@@ -10,11 +10,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Copyright 2014 Nextdoor.com, Inc
+# Copyright 2018 Nextdoor.com, Inc
 
 """
 :mod:`kingpin.actors.aws.elbv2`
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 """
 
 import logging
@@ -22,7 +22,6 @@ import logging
 from tornado import concurrent
 from tornado import gen
 
-from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
 from kingpin.actors.utils import dry
