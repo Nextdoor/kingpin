@@ -29,6 +29,10 @@ Elastic Load Balancing (ELB)
    :members:
    :exclude-members: CertNotFound, p2f, ELBBaseActor
 
+.. automodule:: kingpin.actors.aws.elbv2
+   :noindex:
+   :members:
+
 Identity and Access Management (IAM)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. automodule:: kingpin.actors.aws.iam
