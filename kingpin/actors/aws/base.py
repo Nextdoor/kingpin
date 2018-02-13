@@ -159,6 +159,11 @@ class AWSBaseActor(base.BaseActor):
             region,
             aws_access_key_id=key,
             aws_secret_access_key=secret)
+        self.elbv2_conn = boto3.client(
+            'elbv2',
+            region_name=region,
+            aws_access_key_id=key,
+            aws_secret_access_key=secret)
         self.cf3_conn = boto3.client(
             'cloudformation',
             region_name=region,
