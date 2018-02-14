@@ -10,7 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Copyright 2014 Nextdoor.com, Inc
+# Copyright 2018 Nextdoor.com, Inc
 
 """
 :mod:`kingpin.actors.aws.elb`
@@ -369,12 +369,12 @@ class SetCert(ELBBaseActor):
 
 class RegisterInstance(base.AWSBaseActor):
 
-    """Add an EC2 instance to a load balancer.
+    """Add an EC2 instance to a load balancer or target group.
 
     **Options**
 
     :elb:
-      (str) Name of the ELB
+      (str) Name of the ELB or the Target Group ARN
 
     :instances:
       (str, list) Instance id, or list of ids. Default "self" id.
@@ -397,6 +397,16 @@ class RegisterInstance(base.AWSBaseActor):
            "region": "us-east-1",
          }
        }
+
+    .. code-block:: yaml
+
+       ---
+       actor: aws.elb.RegisterInstance
+       desc: Run RegisterInstance
+       options:
+         elb: prod-loadbalancer
+         instances: i-123456
+         region: us-east-1
 
     **Dry run**
 
@@ -489,6 +499,16 @@ class DeregisterInstance(base.AWSBaseActor):
            "region": "us-west-2"
          }
        }
+
+    .. code-block:: yaml
+
+       ---
+       actor: aws.elb.DeregisterInstance
+       desc: Run DeregisterInstance
+       options:
+         elb: prod-loadbalancer
+         instances: i-123456
+         region: us-east-1
 
     Extremely simple way to remove the local instance running this code from
     all ELBs its been joined to:

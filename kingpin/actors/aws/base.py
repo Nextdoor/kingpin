@@ -10,7 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Copyright 2014 Nextdoor.com, Inc
+# Copyright 2018 Nextdoor.com, Inc
 
 """
 :mod:`kingpin.actors.aws.base`
@@ -40,6 +40,7 @@ import re
 from boto import exception as boto_exception
 from boto import utils as boto_utils
 from boto3 import exceptions as boto3_exceptions
+from botocore import exceptions as botocore_exceptions
 from retrying import retry
 from tornado import concurrent
 from tornado import gen
@@ -159,6 +160,11 @@ class AWSBaseActor(base.BaseActor):
             region,
             aws_access_key_id=key,
             aws_secret_access_key=secret)
+        self.elbv2_conn = boto3.client(
+            'elbv2',
+            region_name=region,
+            aws_access_key_id=key,
+            aws_secret_access_key=secret)
         self.cf3_conn = boto3.client(
             'cloudformation',
             region_name=region,
@@ -248,6 +254,36 @@ class AWSBaseActor(base.BaseActor):
                               % (len(elbs), elbs))
 
         raise gen.Return(elbs[0])
+
+    @gen.coroutine
+    def _find_target_group(self, arn):
+        """Returns an ELBv2 Target Group with the matching name.
+
+        Args:
+            name: String-name of the Target Group to search for
+
+        Returns:
+            A single Target Group reference object
+
+        Raises:
+            ELBNotFound
+        """
+        self.log.info('Searching for Target Group "%s"' % arn)
+
+        try:
+            trgts = yield self.thread(self.elbv2_conn.describe_target_groups,
+                                      Names=[arn])
+        except botocore_exceptions.ClientError as e:
+            raise exceptions.UnrecoverableActorFailure(e.message)
+
+        arns = [t['TargetGroupArn'] for t in trgts['TargetGroups']]
+
+        if len(arns) != 1:
+            raise ELBNotFound(
+                'Expected to find exactly 1 Target Group. Found %s: %s'
+                % (len(arns), arns))
+
+        raise gen.Return(arns[0])
 
     @concurrent.run_on_executor
     @retry(**aws_settings.RETRYING_SETTINGS)
