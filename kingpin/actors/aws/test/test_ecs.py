@@ -1578,6 +1578,12 @@ class TestCheckImmutableFieldErrors(testing.AsyncTestCase):
                    immutable=[], expected_error_count=0)
 
     @testing.gen_test
+    def test_not_set_but_different(self):
+        self._test(old={'a': 1, 'b': [1, 2, 3]},
+                   new={'a': None, 'b': []},
+                   immutable=['a', 'b'], expected_error_count=0)
+
+    @testing.gen_test
     def test_different_no_immutable(self):
         self._test(old={'a': 1},
                    new={'b': 1},
@@ -1681,6 +1687,8 @@ class TestGetSortedNewLogEvents(testing.AsyncTestCase):
         self.assertEqual(events, [])
 
     def test_timestamp_filtering(self):
+                    # If the supplied fields are an empty list, treat them also
+                    # as an null field and move on.
         events_after = [{
             'id': 0,
             'message': 'message1',
