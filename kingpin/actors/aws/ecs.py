@@ -701,7 +701,11 @@ SERVICE_DEFINITION_SCHEMA = {
 class Service(ECSBaseActor):
     """Register and run a service on ECS.
 
-    This actor will loop indefinitely until the task is complete.
+    This actor will loop indefinitely until the task is complete. If any
+    Service parameters are not supplied, then Amazon supplies the defaults and
+    manages them. If these are immutable in Amazon, then you cannot change them
+    in the ECS Service Definition down in a future update, and Kingpin will
+    error out.
 
     If the service already exists, it is upgraded.
 
@@ -1128,6 +1132,16 @@ class Service(ECSBaseActor):
         for immutable_field_name in immutable_fields:
             new_field = new_params.get(immutable_field_name)
             old_field = old_params.get(immutable_field_name)
+
+            # If the newly supplied fields are None, then they aren't defined
+            # in the service definition at all. Its OK to ignore them.
+            if new_field is None:
+                continue
+
+            # If the supplied fields are an empty list, treat them also as an
+            # null field and move on.
+            if isinstance(new_field, list) and len(new_field) == 0:
+                continue
 
             if new_field != old_field:
                 has_error = True
