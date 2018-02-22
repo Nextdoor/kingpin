@@ -53,6 +53,7 @@ TASK_DEFINITION_SCHEMA = {
     'required': ['family', 'containerDefinitions'],
     'properties': {
         'family': {'type': 'string'},
+        'networkMode': {'type': 'string'},
         'containerDefinitions': {
             'type': 'array',
             'items': {
