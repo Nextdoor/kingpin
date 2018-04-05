@@ -404,18 +404,6 @@ class ECSBaseActor(base.AWSBaseActor):
             except jsonschema.exceptions.ValidationError as e:
                 raise exceptions.InvalidOptions(e)
 
-        # Set default values.
-        service_definition.setdefault(
-            'deploymentConfiguration', {})
-        service_definition.setdefault(
-            'launchType', 'EC2')
-        service_definition.setdefault(
-            'loadBalancers', [])
-        service_definition.setdefault(
-            'placementConstraints', [])
-        service_definition.setdefault(
-            'placementStrategy', [])
-
         return service_definition
 
     @staticmethod
@@ -1134,7 +1122,7 @@ class Service(ECSBaseActor):
             old_field = old_params.get(immutable_field_name)
 
             # If the newly supplied fields are None, then they aren't defined
-            # in the service definition at all. Its OK to ignore them.
+            # in the service definition at all. It's OK to ignore them.
             if new_field is None:
                 continue
 
