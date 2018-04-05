@@ -300,18 +300,10 @@ class TestLoadServiceDefinition(testing.AsyncTestCase):
     @testing.gen_test
     def test_default(self):
         result = self.actor._load_service_definition(None, {})
-        self.assertEqual(result['deploymentConfiguration'], {})
-        self.assertEqual(result['launchType'], 'EC2')
-        self.assertEqual(result['loadBalancers'], [])
-        self.assertEqual(result['placementConstraints'], [])
-        self.assertEqual(result['placementStrategy'], [])
+        self.assertEqual(result, {})
 
         result = self.actor._load_service_definition('', {})
-        self.assertEqual(result['deploymentConfiguration'], {})
-        self.assertEqual(result['launchType'], 'EC2')
-        self.assertEqual(result['loadBalancers'], [])
-        self.assertEqual(result['placementConstraints'], [])
-        self.assertEqual(result['placementStrategy'], [])
+        self.assertEqual(result, {})
 
     def _test(self, service_definition):
         with mock.patch('kingpin.utils.convert_script_to_dict',
