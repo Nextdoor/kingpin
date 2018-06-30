@@ -56,6 +56,7 @@ from kingpin import utils
 from kingpin import exceptions as kingpin_exceptions
 from kingpin.actors import base
 from kingpin.actors import exceptions
+from kingpin.actors.aws import api_call_queue
 from kingpin.actors.aws import settings as aws_settings
 
 log = logging.getLogger(__name__)
@@ -64,24 +65,22 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
+NAMED_API_CALL_QUEUES = {}
+
 
 class ELBNotFound(exceptions.RecoverableActorFailure):
-
     """Raised when an ELB is not found"""
 
 
 class InvalidMetaData(exceptions.UnrecoverableActorFailure):
-
     """Raised when fetching AWS metadata."""
 
 
 class InvalidPolicy(exceptions.RecoverableActorFailure):
-
     """Raised when Amazon indicates that policy JSON is invalid."""
 
 
 class AWSBaseActor(base.BaseActor):
-
     # Get references to existing objects that are used by the
     # tornado.concurrent.run_on_executor() decorator.
     ioloop = ioloop.IOLoop.current()
@@ -183,17 +182,16 @@ class AWSBaseActor(base.BaseActor):
     @concurrent.run_on_executor
     @retry(**aws_settings.RETRYING_SETTINGS)
     @utils.exception_logger
-    def thread(self, function, *args, **kwargs):
-        """Execute `function` in a concurrent thread.
+    def api_call(self, api_function, *args, **kwargs):
+        """Execute `api_function` in a concurrent thread.
 
         Example:
             >>> zones = yield thread(ec2_conn.get_all_zones)
-
         This allows execution of any function in a thread without having
         to write a wrapper method that is decorated with run_on_executor()
         """
         try:
-            return function(*args, **kwargs)
+            return api_function(*args, **kwargs)
         except boto_exception.BotoServerError as e:
             # If we're using temporary IAM credentials, when those expire we
             # can get back a blank 400 from Amazon. This is confusing, but it
@@ -204,7 +202,7 @@ class AWSBaseActor(base.BaseActor):
             # if you're using short-term creds (say from SAML auth'd logins),
             # then this fails and Boto returns a blank 400.
             if (e.status == 400 and
-                e.reason == 'Bad Request' and
+                    e.reason == 'Bad Request' and
                     e.error_code is None):
                 msg = 'Access credentials have expired'
                 raise exceptions.InvalidCredentials(msg)
@@ -217,6 +215,36 @@ class AWSBaseActor(base.BaseActor):
         except boto3_exceptions.Boto3Error as e:
             raise exceptions.RecoverableActorFailure(
                 'Boto3 had a failure: %s' % e)
+
+    @gen.coroutine
+    @utils.exception_logger
+    def api_call_with_queueing(self, api_function,
+                               queue_name, *args, **kwargs):
+        """
+        Execute `api_function` in a serialized queue.
+
+        Concurrent calls to this function are serialized into a queue.
+        When any api function hits rate throttling, it backs up exponentially.
+
+        The retry loop will always have a pause between sequential calls,
+        and the delay between the calls will increase as
+        recoverable api failures happen.
+
+        The API function is assumed to be a syncronous function.
+        It will be run on a concurrent thread using run_on_executor.
+
+        The queue_identifier argument specifies which queue to use.
+        If the queue doesn't exist, it will be created.
+
+        Example:
+            >>> zones = yield api_call_with_queueing(ec2_conn.get_all_zones)
+        """
+        if queue_name not in NAMED_API_CALL_QUEUES:
+            NAMED_API_CALL_QUEUES[queue_name] = (
+                api_call_queue.ApiCallQueue())
+        queue = NAMED_API_CALL_QUEUES[queue_name]
+        result = yield queue.call(api_function, *args, **kwargs)
+        raise gen.Return(result)
 
     @gen.coroutine
     def _find_elb(self, name):
@@ -236,8 +264,8 @@ class AWSBaseActor(base.BaseActor):
         self.log.info('Searching for ELB "%s"' % name)
 
         try:
-            elbs = yield self.thread(self.elb_conn.get_all_load_balancers,
-                                     load_balancer_names=name)
+            elbs = yield self.api_call(self.elb_conn.get_all_load_balancers,
+                                       load_balancer_names=name)
         except boto_exception.BotoServerError as e:
             msg = '%s: %s' % (e.error_code, e.message)
             log.error('Received exception: %s' % msg)
@@ -271,8 +299,8 @@ class AWSBaseActor(base.BaseActor):
         self.log.info('Searching for Target Group "%s"' % arn)
 
         try:
-            trgts = yield self.thread(self.elbv2_conn.describe_target_groups,
-                                      Names=[arn])
+            trgts = yield self.api_call(self.elbv2_conn.describe_target_groups,
+                                        Names=[arn])
         except botocore_exceptions.ClientError as e:
             raise exceptions.UnrecoverableActorFailure(e.message)
 
@@ -285,8 +313,7 @@ class AWSBaseActor(base.BaseActor):
 
         raise gen.Return(arns[0])
 
-    @concurrent.run_on_executor
-    @retry(**aws_settings.RETRYING_SETTINGS)
+    @gen.coroutine
     def _get_meta_data(self, key):
         """Get AWS meta data for current instance.
 
@@ -294,7 +321,8 @@ class AWSBaseActor(base.BaseActor):
         ec2-instance-metadata.html
         """
 
-        meta = boto_utils.get_instance_metadata(timeout=1, num_retries=2)
+        meta = yield self.api_call(boto_utils.get_instance_metadata,
+                                   timeout=1, num_retries=2)
         if not meta:
             raise InvalidMetaData('No metadata available. Not AWS instance?')
 
@@ -302,7 +330,7 @@ class AWSBaseActor(base.BaseActor):
         if not data:
             raise InvalidMetaData('Metadata for key `%s` is not available')
 
-        return data
+        raise gen.Return(data)
 
     def _policy_doc_to_dict(self, policy):
         """Converts a Boto UUEncoded Policy document to a Dict.

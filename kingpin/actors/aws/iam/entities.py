@@ -182,7 +182,7 @@ class EntityBaseActor(base.IAMBaseActor):
         policy_names = []
         try:
             self.log.debug('Searching for any inline policies for %s' % name)
-            ret = yield self.thread(self.get_all_entity_policies, name)
+            ret = yield self.api_call(self.get_all_entity_policies, name)
             policy_names = (ret['list_%s_policies_response' % self.entity_name]
                                ['list_%s_policies_result' % self.entity_name]
                                ['policy_names'])
@@ -202,7 +202,7 @@ class EntityBaseActor(base.IAMBaseActor):
         tasks = []
         for p_name in policy_names:
             tasks.append((p_name,
-                         self.thread(self.get_entity_policy, name, p_name)))
+                          self.api_call(self.get_entity_policy, name, p_name)))
 
         # Now that we've fired off all the calls, we walk through each yielded
         # result, parse the returned policy, and append it to our policies
@@ -293,7 +293,7 @@ class EntityBaseActor(base.IAMBaseActor):
         self.log.info('Deleting policy %s from %s %s' %
                       (policy_name, self.entity_name, name))
         try:
-            ret = yield self.thread(
+            ret = yield self.api_call(
                 self.delete_entity_policy, name, policy_name)
             self.log.debug('Policy %s deleted: %s' % (policy_name, ret))
         except BotoServerError as e:
@@ -318,7 +318,7 @@ class EntityBaseActor(base.IAMBaseActor):
         self.log.info('Pushing policy %s to %s %s' %
                       (policy_name, self.entity_name, name))
         try:
-            ret = yield self.thread(
+            ret = yield self.api_call(
                 self.put_entity_policy,
                 name,
                 policy_name,
@@ -348,7 +348,7 @@ class EntityBaseActor(base.IAMBaseActor):
             # Get the list back - if the marker has been set, then we pass it
             # in and we start from where the last results told us we should.
             try:
-                response = yield self.thread(
+                response = yield self.api_call(
                     self.get_all_entities, max_items=MAX_ITEMS, marker=marker)
             except BotoServerError as e:
                 raise exceptions.RecoverableActorFailure(
@@ -419,7 +419,7 @@ class EntityBaseActor(base.IAMBaseActor):
             raise gen.Return()
 
         try:
-            ret = yield self.thread(
+            ret = yield self.api_call(
                 self.create_entity, name)
         except BotoServerError as e:
             if e.status != 409:
@@ -458,7 +458,7 @@ class EntityBaseActor(base.IAMBaseActor):
             yield tasks
 
             # Now delete the entity
-            yield self.thread(self.delete_entity, name)
+            yield self.api_call(self.delete_entity, name)
             self.log.info('%s %s deleted' % (self.entity_name, name))
         except BotoServerError as e:
             if e.status != 404:
@@ -480,7 +480,7 @@ class EntityBaseActor(base.IAMBaseActor):
 
         try:
             self.log.info('Adding %s to %s' % (name, group))
-            yield self.thread(self.iam_conn.add_user_to_group, group, name)
+            yield self.api_call(self.iam_conn.add_user_to_group, group, name)
         except BotoServerError as e:
             raise exceptions.RecoverableActorFailure(
                 'An unexpected API error occurred: %s' % e)
@@ -499,8 +499,8 @@ class EntityBaseActor(base.IAMBaseActor):
 
         try:
             self.log.info('Removing %s from %s' % (name, group))
-            yield self.thread(self.iam_conn.remove_user_from_group,
-                              group, name)
+            yield self.api_call(self.iam_conn.remove_user_from_group,
+                                group, name)
         except BotoServerError as e:
             raise exceptions.RecoverableActorFailure(
                 'An unexpected API error occurred: %s' % e)
@@ -599,7 +599,7 @@ class User(EntityBaseActor):
 
         current_groups = set()
         try:
-            res = yield self.thread(self.iam_conn.get_groups_for_user, name)
+            res = yield self.api_call(self.iam_conn.get_groups_for_user, name)
             current_groups = {g['group_name'] for g in
                               res['list_groups_for_user_response']
                                  ['list_groups_for_user_result']
@@ -735,7 +735,7 @@ class Group(EntityBaseActor):
         """
         users = []
         try:
-            raw = yield self.thread(self.iam_conn.get_group, name)
+            raw = yield self.api_call(self.iam_conn.get_group, name)
             users = [user['user_name'] for user in
                      raw['get_group_response']['get_group_result']['users']]
         except BotoServerError as e:
@@ -922,7 +922,7 @@ class Role(EntityBaseActor):
             raise gen.Return()
 
         self.log.info('Updating the Assume Role Policy Document')
-        yield self.thread(
+        yield self.api_call(
             self.iam_conn.update_assume_role_policy, name, json.dumps(new))
 
     @gen.coroutine
@@ -1016,8 +1016,8 @@ class InstanceProfile(EntityBaseActor):
 
         try:
             self.log.info('Adding role %s to %s' % (role, name))
-            yield self.thread(self.iam_conn.add_role_to_instance_profile,
-                              name, role)
+            yield self.api_call(self.iam_conn.add_role_to_instance_profile,
+                                name, role)
         except BotoServerError as e:
             if e.status != 409:
                 raise exceptions.RecoverableActorFailure(
@@ -1037,8 +1037,8 @@ class InstanceProfile(EntityBaseActor):
 
         try:
             self.log.info('Removing role %s from %s' % (role, name))
-            yield self.thread(self.iam_conn.remove_role_from_instance_profile,
-                              name, role)
+            yield self.api_call(self.iam_conn.remove_role_from_instance_profile,
+                                name, role)
         except BotoServerError as e:
             if e.status != 404:
                 raise exceptions.RecoverableActorFailure(
@@ -1056,7 +1056,7 @@ class InstanceProfile(EntityBaseActor):
         """
         existing = None
         try:
-            raw = yield self.thread(self.iam_conn.get_instance_profile, name)
+            raw = yield self.api_call(self.iam_conn.get_instance_profile, name)
             existing = (raw['get_instance_profile_response']
                            ['get_instance_profile_result']
                            ['instance_profile']

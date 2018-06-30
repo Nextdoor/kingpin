@@ -92,7 +92,7 @@ class UploadCert(base.IAMBaseActor):
     @gen.coroutine
     def _upload(self, cert_name, cert_body, private_key, cert_chain, path):
         """Create a new server certificate in AWS IAM."""
-        yield self.thread(
+        yield self.api_call(
             self.iam_conn.upload_server_cert,
             cert_name=cert_name,
             cert_body=cert_body,
@@ -164,7 +164,7 @@ class DeleteCert(base.IAMBaseActor):
 
         self.log.debug('Searching for cert "%s"...' % name)
         try:
-            yield self.thread(self.iam_conn.get_server_certificate, name)
+            yield self.api_call(self.iam_conn.get_server_certificate, name)
         except BotoServerError as e:
             raise exceptions.UnrecoverableActorFailure(
                 'Could not find cert %s. Reason: %s' % (name, e))
@@ -172,7 +172,7 @@ class DeleteCert(base.IAMBaseActor):
     @gen.coroutine
     def _delete(self, cert_name):
         """Delete a server certificate in AWS IAM."""
-        yield self.thread(self.iam_conn.delete_server_cert, cert_name)
+        yield self.api_call(self.iam_conn.delete_server_cert, cert_name)
 
     @gen.coroutine
     def _execute(self):

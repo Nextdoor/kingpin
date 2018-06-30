@@ -168,7 +168,7 @@ class TestBase(testing.AsyncTestCase):
     def test_find_target_group_exception_error(self):
         actor = base.AWSBaseActor('Unit Test Action', {})
         c_mock = mock.Mock()
-        exc = botocore.exceptions.ClientError({'Error': {}}, 'Test')
+        exc = botocore.exceptions.ClientError({'Error': {'Code': ''}}, 'Test')
         c_mock.describe_target_groups.side_effect = exc
         actor.elbv2_conn = c_mock
 

@@ -260,7 +260,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             cfg = {'TemplateBody': body}
             self.log.info('Validating template with AWS...')
             try:
-                yield self.thread(self.cf3_conn.validate_template, **cfg)
+                yield self.api_call(self.cf3_conn.validate_template, **cfg)
             except ClientError as e:
                 raise InvalidTemplate(e.message)
 
@@ -268,7 +268,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             cfg = {'TemplateURL': url}
             self.log.info('Validating template (%s) with AWS...' % url)
             try:
-                yield self.thread(self.cf3_conn.validate_template, **cfg)
+                yield self.api_call(self.cf3_conn.validate_template, **cfg)
             except ClientError as e:
                 raise InvalidTemplate(e.message)
 
@@ -316,8 +316,10 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             <Stack Dict> or <None>
         """
         try:
-            stacks = yield self.thread(self.cf3_conn.describe_stacks,
-                                       StackName=stack)
+            stacks = yield self.api_call_with_queueing(
+                self.cf3_conn.describe_stacks,
+                queue_name='describe_stacks',
+                StackName=stack)
         except ClientError as e:
             if 'does not exist' in e.message:
                 raise gen.Return(None)
@@ -334,8 +336,8 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             stack: Stack name or stack ID
         """
         try:
-            ret = yield self.thread(self.cf3_conn.get_template,
-                                    StackName=stack)
+            ret = yield self.api_call(self.cf3_conn.get_template,
+                                      StackName=stack)
         except ClientError as e:
             raise CloudFormationError(e)
 
@@ -400,7 +402,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             [<list of human readable strings>]
         """
         try:
-            raw = yield self.thread(
+            raw = yield self.api_call(
                 self.cf3_conn.describe_stack_events, StackName=stack)
         except ClientError:
             raise gen.Return([])
@@ -433,7 +435,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
         self.log.info('Deleting stack')
         try:
-            ret = yield self.thread(
+            ret = yield self.api_call(
                 self.cf3_conn.delete_stack, StackName=stack)
         except ClientError as e:
             raise CloudFormationError(e.message)
@@ -474,7 +476,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             enable_termination_protection = False
 
         try:
-            stack = yield self.thread(
+            stack = yield self.api_call(
                 self.cf3_conn.create_stack,
                 StackName=stack,
                 Parameters=self._parameters,
@@ -503,7 +505,6 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
 
 class Create(CloudFormationBaseActor):
-
     """Creates a CloudFormation stack.
 
     Creates a CloudFormation stack from scratch and waits until the stack is
@@ -638,7 +639,6 @@ class Create(CloudFormationBaseActor):
 
 
 class Delete(CloudFormationBaseActor):
-
     """Deletes a CloudFormation stack
 
     **Options**
@@ -680,7 +680,6 @@ class Delete(CloudFormationBaseActor):
 
 
 class Stack(CloudFormationBaseActor):
-
     """Manages the state of a CloudFormation stack.
 
     This actor can manage the following aspects of a CloudFormation stack in
@@ -928,8 +927,8 @@ class Stack(CloudFormationBaseActor):
         # cruft. THis isn't necessary in the real run, because the changeset
         # cannot be deleted once its been applied.
         if self._dry:
-            yield self.thread(self.cf3_conn.delete_change_set,
-                              ChangeSetName=change_set_req['Id'])
+            yield self.api_call(self.cf3_conn.delete_change_set,
+                                ChangeSetName=change_set_req['Id'])
 
         self.log.info('Done updating template')
 
@@ -1005,8 +1004,9 @@ class Stack(CloudFormationBaseActor):
 
         self.log.info('Generating a stack Change Set...')
         try:
-            change_set_req = yield self.thread(self.cf3_conn.create_change_set,
-                                               **change_opts)
+            change_set_req = yield self.api_call(
+                self.cf3_conn.create_change_set,
+                **change_opts)
         except ClientError as e:
             raise CloudFormationError(e)
 
@@ -1036,7 +1036,7 @@ class Stack(CloudFormationBaseActor):
                       (change_set_name, desired_state))
         while True:
             try:
-                change = yield self.thread(
+                change = yield self.api_call(
                     self.cf3_conn.describe_change_set,
                     ChangeSetName=change_set_name)
             except ClientError as e:
@@ -1109,8 +1109,8 @@ class Stack(CloudFormationBaseActor):
         """
         self.log.info('Executing change set %s' % change_set_name)
         try:
-            yield self.thread(self.cf3_conn.execute_change_set,
-                              ChangeSetName=change_set_name)
+            yield self.api_call(self.cf3_conn.execute_change_set,
+                                ChangeSetName=change_set_name)
         except ClientError as e:
             raise StackFailed(e)
 
@@ -1151,7 +1151,7 @@ class Stack(CloudFormationBaseActor):
         self.log.info('Updating EnableTerminationProtection to %s' % str(new))
 
         try:
-            yield self.thread(
+            yield self.api_call(
                 self.cf3_conn.update_termination_protection,
                 StackName=stack['StackName'],
                 EnableTerminationProtection=new)
