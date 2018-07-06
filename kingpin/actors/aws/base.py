@@ -192,7 +192,7 @@ class AWSBaseActor(base.BaseActor):
         """
         try:
             return api_function(*args, **kwargs)
-        except (boto_exception.BotoServerError, boto3_exceptions.Boto3Error):
+        except (boto_exception.BotoServerError, boto3_exceptions.Boto3Error) as e:
             raise self._wrap_boto_exception(e)
 
     @gen.coroutine
@@ -225,7 +225,7 @@ class AWSBaseActor(base.BaseActor):
         queue = NAMED_API_CALL_QUEUES[queue_name]
         try:
             result = yield queue.call(api_function, *args, **kwargs)
-        except (boto_exception.BotoServerError, boto3_exceptions.Boto3Error):
+        except (boto_exception.BotoServerError, boto3_exceptions.Boto3Error) as e:
             raise self._wrap_boto_exception(e)
         else:
             raise gen.Return(result)
