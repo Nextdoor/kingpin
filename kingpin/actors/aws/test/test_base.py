@@ -93,6 +93,32 @@ class TestBase(testing.AsyncTestCase):
             yield actor._find_elb('')
 
     @testing.gen_test
+    def test_api_call_queue_400(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        actor.elb_conn = mock.Mock()
+        actor.elb_conn.get_all_load_balancers = mock.MagicMock()
+        exc = BotoServerError(400, 'Bad Request')
+        actor.elb_conn.get_all_load_balancers.side_effect = exc
+
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield actor.api_call_with_queueing(
+                actor.elb_conn.get_all_load_balancers,
+                queue_name='get_all_load_balancers')
+
+    @testing.gen_test
+    def test_api_call_queue_403(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        actor.elb_conn = mock.Mock()
+        actor.elb_conn.get_all_load_balancers = mock.MagicMock()
+        exc = BotoServerError(403, 'The security token')
+        actor.elb_conn.get_all_load_balancers.side_effect = exc
+
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield actor.api_call_with_queueing(
+                actor.elb_conn.get_all_load_balancers,
+                queue_name='get_all_load_balancers')
+
+    @testing.gen_test
     def test_find_elb(self):
         actor = base.AWSBaseActor('Unit Test Action', {})
         actor.elb_conn = mock.Mock()

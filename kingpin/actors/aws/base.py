@@ -209,7 +209,7 @@ class AWSBaseActor(base.BaseActor):
         and the delay between the calls will increase as
         recoverable api failures happen.
 
-        The API function is assumed to be a synchronous function.
+        The api function is assumed to be a synchronous function.
         It will be run on a concurrent thread using run_on_executor.
 
         The queue_identifier argument specifies which queue to use.

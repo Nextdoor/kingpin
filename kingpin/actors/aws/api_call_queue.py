@@ -87,7 +87,7 @@ class ApiCallQueue:
             result_queue, api_function, args, kwargs = yield self._queue.get()
             try:
                 result = yield self._call(api_function, *args, **kwargs)
-            except BaseException as e:
+            except Exception as e:
                 result = e
             yield result_queue.put(result)
             yield gen.sleep(self.delay)
