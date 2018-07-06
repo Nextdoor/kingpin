@@ -1037,8 +1037,9 @@ class InstanceProfile(EntityBaseActor):
 
         try:
             self.log.info('Removing role %s from %s' % (role, name))
-            yield self.api_call(self.iam_conn.remove_role_from_instance_profile,
-                                name, role)
+            yield self.api_call(
+                self.iam_conn.remove_role_from_instance_profile,
+                name, role)
         except BotoServerError as e:
             if e.status != 404:
                 raise exceptions.RecoverableActorFailure(

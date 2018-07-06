@@ -192,29 +192,8 @@ class AWSBaseActor(base.BaseActor):
         """
         try:
             return api_function(*args, **kwargs)
-        except boto_exception.BotoServerError as e:
-            # If we're using temporary IAM credentials, when those expire we
-            # can get back a blank 400 from Amazon. This is confusing, but it
-            # happens because of https://github.com/boto/boto/issues/898. In
-            # most cases, these temporary IAM creds can be re-loaded by
-            # reaching out to the AWS API (for example, if we're using an IAM
-            # Instance Profile role), so thats what Boto tries to do. However,
-            # if you're using short-term creds (say from SAML auth'd logins),
-            # then this fails and Boto returns a blank 400.
-            if (e.status == 400 and
-                    e.reason == 'Bad Request' and
-                    e.error_code is None):
-                msg = 'Access credentials have expired'
-                raise exceptions.InvalidCredentials(msg)
-
-            msg = '%s: %s' % (e.error_code, e.message)
-            if e.status == 403:
-                raise exceptions.InvalidCredentials(msg)
-
-            raise
-        except boto3_exceptions.Boto3Error as e:
-            raise exceptions.RecoverableActorFailure(
-                'Boto3 had a failure: %s' % e)
+        except Exception as e:
+            raise self._wrap_boto_exception(e)
 
     @gen.coroutine
     @utils.exception_logger
@@ -230,7 +209,7 @@ class AWSBaseActor(base.BaseActor):
         and the delay between the calls will increase as
         recoverable api failures happen.
 
-        The API function is assumed to be a syncronous function.
+        The API function is assumed to be a synchronous function.
         It will be run on a concurrent thread using run_on_executor.
 
         The queue_identifier argument specifies which queue to use.
@@ -243,8 +222,36 @@ class AWSBaseActor(base.BaseActor):
             NAMED_API_CALL_QUEUES[queue_name] = (
                 api_call_queue.ApiCallQueue())
         queue = NAMED_API_CALL_QUEUES[queue_name]
-        result = yield queue.call(api_function, *args, **kwargs)
-        raise gen.Return(result)
+        try:
+            result = yield queue.call(api_function, *args, **kwargs)
+        except Exception as e:
+            raise self._wrap_boto_exception(e)
+        else:
+            raise gen.Return(result)
+
+    def _wrap_boto_exception(self, e):
+        if isinstance(e, boto_exception.BotoServerError):
+            # If we're using temporary IAM credentials, when those expire we
+            # can get back a blank 400 from Amazon. This is confusing, but it
+            # happens because of https://github.com/boto/boto/issues/898. In
+            # most cases, these temporary IAM creds can be re-loaded by
+            # reaching out to the AWS API (for example, if we're using an IAM
+            # Instance Profile role), so thats what Boto tries to do. However,
+            # if you're using short-term creds (say from SAML auth'd logins),
+            # then this fails and Boto returns a blank 400.
+            if (e.status == 400 and
+                    e.reason == 'Bad Request' and
+                    e.error_code is None):
+                msg = 'Access credentials have expired'
+                return exceptions.InvalidCredentials(msg)
+
+            msg = '%s: %s' % (e.error_code, e.message)
+            if e.status == 403:
+                return exceptions.InvalidCredentials(msg)
+        elif isinstance(e, boto3_exceptions.Boto3Error):
+            return exceptions.RecoverableActorFailure(
+                'Boto3 had a failure: %s' % e)
+        return e
 
     @gen.coroutine
     def _find_elb(self, name):

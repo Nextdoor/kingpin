@@ -5,8 +5,6 @@ from tornado import gen
 from tornado import queues
 from tornado import ioloop
 
-from kingpin.actors import exceptions
-
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
@@ -58,8 +56,7 @@ class ApiCallQueue:
             except BaseException as e:
                 result = e
             yield result_queue.put(result)
-            if self.delay > 0:
-                yield gen.sleep(self.delay)
+            yield gen.sleep(self.delay)
 
     @gen.coroutine
     def _call(self, api_function, *args, **kwargs):
@@ -74,38 +71,17 @@ class ApiCallQueue:
                 if e.error_code in self.boto2_throttle_strings:
                     self.increase_delay()
                     yield gen.sleep(self.delay)
-                    continue
-
-                # If we're using temporary IAM credentials, when those expire
-                # we can get back a blank 400 from Amazon. This is confusing,
-                # but it happens because of
-                # https://github.com/boto/boto/issues/898.
-                # In most cases, these temporary IAM creds can be re-loaded by
-                # reaching out to the AWS API (for example, if we're using an
-                # IAM Instance Profile role), so thats what Boto tries to do.
-                # However, if you're using short-term creds (say from SAML
-                # auth'd logins), then this fails and Boto returns a blank
-                # 400.
-                if (e.status == 400 and
-                        e.reason == 'Bad Request' and
-                        e.error_code is None):
-                    msg = 'Access credentials have expired'
-                    e = exceptions.InvalidCredentials(msg)
-                elif e.status == 403:
-                    msg = '%s: %s' % (e.error_code, e.message)
-                    e = exceptions.InvalidCredentials(msg)
-
-                self.decrease_delay()
-                raise e
+                else:
+                    self.decrease_delay()
+                    raise e
             except botocore_exceptions.ClientError as e:
                 # Boto3 exception.
                 if e.response['Error']['Code'] == 'Throttling':
                     self.increase_delay()
                     yield gen.sleep(self.delay)
-                    continue
-
-                self.decrease_delay()
-                raise e
+                else:
+                    self.decrease_delay()
+                    raise e
 
     def decrease_delay(self):
         if self.delay == 0:

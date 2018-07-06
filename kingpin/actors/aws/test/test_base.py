@@ -71,7 +71,7 @@ class TestBase(testing.AsyncTestCase):
         self.assertEquals(actor.ec2_conn.region.name, 'us-west-1')
 
     @testing.gen_test
-    def test_thread_400(self):
+    def test_api_call_400(self):
         actor = base.AWSBaseActor('Unit Test Action', {})
         actor.elb_conn = mock.Mock()
         actor.elb_conn.get_all_load_balancers = mock.MagicMock()
@@ -82,7 +82,7 @@ class TestBase(testing.AsyncTestCase):
             yield actor._find_elb('')
 
     @testing.gen_test
-    def test_thread_403(self):
+    def test_api_call_403(self):
         actor = base.AWSBaseActor('Unit Test Action', {})
         actor.elb_conn = mock.Mock()
         actor.elb_conn.get_all_load_balancers = mock.MagicMock()
