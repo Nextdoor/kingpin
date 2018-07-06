@@ -192,7 +192,7 @@ class AWSBaseActor(base.BaseActor):
         """
         try:
             return api_function(*args, **kwargs)
-        except Exception as e:
+        except (boto_exception.BotoServerError, boto3_exceptions.Boto3Error):
             raise self._wrap_boto_exception(e)
 
     @gen.coroutine
@@ -216,7 +216,8 @@ class AWSBaseActor(base.BaseActor):
         If the queue doesn't exist, it will be created.
 
         Example:
-            >>> zones = yield api_call_with_queueing(ec2_conn.get_all_zones)
+            >>> zones = yield api_call_with_queueing(
+            >>>     ec2_conn.get_all_zones, queue_name='get_all_zones')
         """
         if queue_name not in NAMED_API_CALL_QUEUES:
             NAMED_API_CALL_QUEUES[queue_name] = (
@@ -224,7 +225,7 @@ class AWSBaseActor(base.BaseActor):
         queue = NAMED_API_CALL_QUEUES[queue_name]
         try:
             result = yield queue.call(api_function, *args, **kwargs)
-        except Exception as e:
+        except (boto_exception.BotoServerError, boto3_exceptions.Boto3Error):
             raise self._wrap_boto_exception(e)
         else:
             raise gen.Return(result)
