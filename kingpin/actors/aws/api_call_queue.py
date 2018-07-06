@@ -80,7 +80,8 @@ class ApiCallQueue:
         Reads the api functions to call from the internal queue
         along with their individual result queues.
         Calls the api function.
-        That result queue is used to pass back the result or exception from the call.
+        That result queue is used to pass back the result
+        or exception from the call.
         This sleeps between API calls based on `delay`.
         """
         while True:
