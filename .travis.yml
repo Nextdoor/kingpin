@@ -19,7 +19,7 @@ deploy:
       tags: true
       python: '2.7'
       all_branches: true
-      condition: $TRAVIS_TAG =~ ^(v[0-9]+.[0-9]+.[0-9]+[a-z]?)|pre_release$
+      condition: $TRAVIS_TAG =~ ^(v[0-9]+.[0-9]+.[0-9]+[a-z]?)|pre_release|test$
       repo: Nextdoor/kingpin
   - provider: pypi
     user: nextdoor
