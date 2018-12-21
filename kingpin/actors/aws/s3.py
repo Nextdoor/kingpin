@@ -866,7 +866,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             raise gen.Return(None)
 
         try:
-            raw = yield self.thread(
+            raw = yield self.api_call(
                 self.s3_conn.get_public_access_block,
                 Bucket=self.option('name'))
         except ClientError as e:
@@ -889,7 +889,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     @dry('Would have deleted the existing public access block configuration')
     def _delete_public_access_block_configuration(self):
         self.log.info('Deleting the existing public access block configuration.')
-        yield self.thread(
+        yield self.api_call(
             self.s3_conn.delete_public_access_block,
             Bucket=self.option('name'))
 
@@ -901,7 +901,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         self.log.info('Updating the Bucket Public Access Block Configuration')
         try:
-            yield self.thread(
+            yield self.api_call(
                 self.s3_conn.put_public_access_block,
                 Bucket=self.option('name'),
                 PublicAccessBlockConfiguration=self.access_block)
