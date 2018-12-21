@@ -38,7 +38,7 @@ boto>=2.32.1
 
 # kingpin.actors.aws.ecs
 # kingpin.actors.aws.cloudformation
-boto3>=1.3.1
+boto3>=1.9.46
 
 # Used to turn snake_case into CamelCase
 inflection
