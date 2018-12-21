@@ -84,7 +84,7 @@ class SQSBaseActor(base.AWSBaseActor):
         Returns:
             Array of matched queues, even if empty.
         """
-        queues = yield self.thread(self.sqs_conn.get_all_queues)
+        queues = yield self.api_call(self.sqs_conn.get_all_queues)
         match_queues = [q for q in queues if re.search(pattern, q.name)]
         raise gen.Return(match_queues)
 
@@ -139,7 +139,7 @@ class Create(SQSBaseActor):
         """
         if not self._dry:
             self.log.info('Creating a new queue: %s' % name)
-            new_queue = yield self.thread(self.sqs_conn.create_queue, name)
+            new_queue = yield self.api_call(self.sqs_conn.create_queue, name)
         else:
             self.log.info('Would create a new queue: %s' % name)
             new_queue = mock.Mock(name=name)
@@ -234,7 +234,7 @@ class Delete(SQSBaseActor):
           QueueDeletionFailed if queue deletion failed.
         """
         self.log.info('Deleting Queue: %s...' % queue.url)
-        ok = yield self.thread(self.sqs_conn.delete_queue, queue)
+        ok = yield self.api_call(self.sqs_conn.delete_queue, queue)
 
         # Raise an exception if the tasks failed
         if not ok:
@@ -335,9 +335,9 @@ class WaitUntilEmpty(SQSBaseActor):
         while True:
             if not self._dry:
                 self.log.debug('Counting %s' % queue.url)
-                visible = yield self.thread(queue.count)
+                visible = yield self.api_call(queue.count)
                 attr = 'ApproximateNumberOfMessagesNotVisible'
-                invisible = yield self.thread(queue.get_attributes, attr)
+                invisible = yield self.api_call(queue.get_attributes, attr)
                 invisible_int = int(invisible[attr])
                 count = visible + invisible_int
             else:

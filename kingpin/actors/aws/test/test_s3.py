@@ -163,7 +163,7 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_delete_bucket_409(self):
         self.actor.s3_conn.delete_bucket.side_effect = ClientError(
-            {'Error': {}}, 'Error')
+            {'Error': {'Code': ''}}, 'Error')
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._delete_bucket()
 
@@ -184,7 +184,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_policy_empty(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_policy.side_effect = ClientError(
-            {'Error': {}}, 'NoSuchBucketPolicy')
+            {'Error': {'Code': ''}}, 'NoSuchBucketPolicy')
         ret = yield self.actor._get_policy()
         self.assertEquals('', ret)
 
@@ -192,7 +192,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_policy_exc(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_policy.side_effect = ClientError(
-            {'Error': {}}, 'SomeOtherError')
+            {'Error': {'Code': ''}}, 'SomeOtherError')
         with self.assertRaises(ClientError):
             yield self.actor._get_policy()
 
@@ -237,7 +237,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_set_policy_malformed_policy(self):
         self.actor.policy = {}
         self.actor.s3_conn.put_bucket_policy.side_effect = ClientError(
-            {'Error': {}}, 'MalformedPolicy')
+            {'Error': {'Code': ''}}, 'MalformedPolicy')
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._set_policy()
 
@@ -248,7 +248,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_set_policy_client_error(self):
         self.actor.policy = {}
         self.actor.s3_conn.put_bucket_policy.side_effect = ClientError(
-            {'Error': {}}, 'Some Other Error')
+            {'Error': {'Code': ''}}, 'Some Other Error')
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._set_policy()
 
@@ -317,7 +317,7 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_set_logging_client_error(self):
         self.actor.s3_conn.put_bucket_logging.side_effect = ClientError(
-            {'Error': {}}, 'Some error')
+            {'Error': {'Code': ''}}, 'Some error')
         with self.assertRaises(s3_actor.InvalidBucketConfig):
             yield self.actor._set_logging()
 
@@ -385,7 +385,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_lifecycle_empty(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_lifecycle.side_effect = ClientError(
-            {'Error': {}}, 'NoSuchLifecycleConfiguration')
+            {'Error': {'Code': ''}}, 'NoSuchLifecycleConfiguration')
         ret = yield self.actor._get_lifecycle()
         self.assertEquals(ret, [])
 
@@ -393,7 +393,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_lifecycle_clienterror(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_lifecycle.side_effect = ClientError(
-            {'Error': {}}, 'SomeOtherError')
+            {'Error': {'Code': ''}}, 'SomeOtherError')
         with self.assertRaises(ClientError):
             yield self.actor._get_lifecycle()
 
@@ -439,7 +439,7 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_set_lifecycle_client_error(self):
         self.actor.s3_conn.put_bucket_lifecycle.side_effect = ClientError(
-            {'Error': {}}, 'Error')
+            {'Error': {'Code': ''}}, 'Error')
         with self.assertRaises(s3_actor.InvalidBucketConfig):
             yield self.actor._set_lifecycle()
 
@@ -481,7 +481,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_tags_empty(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_tagging.side_effect = ClientError(
-            {'Error': {}}, 'NoSuchTagSet')
+            {'Error': {'Code': ''}}, 'NoSuchTagSet')
         ret = yield self.actor._get_tags()
         self.assertEquals(ret, [])
 
@@ -489,7 +489,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_tags_exc(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_tagging.side_effect = ClientError(
-            {'Error': {}}, 'SomeOtherError')
+            {'Error': {'Code': ''}}, 'SomeOtherError')
         with self.assertRaises(ClientError):
             yield self.actor._get_tags()
 

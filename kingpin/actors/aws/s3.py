@@ -464,7 +464,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         # This allows the rest of the getter-methods to know whether or not the
         # bucket exists and not make bogus API calls when the bucket doesn't
         # exist.
-        buckets = yield self.thread(self.s3_conn.list_buckets)
+        buckets = yield self.api_call(self.s3_conn.list_buckets)
         matching = [
             b for b in buckets['Buckets'] if b['Name'] == self.option('name')]
         if len(matching) == 1:
@@ -503,14 +503,14 @@ class Bucket(base.EnsurableAWSBaseActor):
             }
 
         self.log.info('Creating bucket')
-        yield self.thread(self.s3_conn.create_bucket, **params)
+        yield self.api_call(self.s3_conn.create_bucket, **params)
 
     @gen.coroutine
     def _verify_can_delete_bucket(self):
         # Find out if there are any files in the bucket before we go to delete
         # it. We cannot delete a bucket with files in it -- nor do we want to.
         bucket = self.option('name')
-        keys = yield self.thread(self.s3_conn.list_objects, Bucket=bucket)
+        keys = yield self.api_call(self.s3_conn.list_objects, Bucket=bucket)
 
         if 'Contents' not in keys:
             raise gen.Return()
@@ -525,7 +525,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         bucket = self.option('name')
         try:
             self.log.info('Deleting bucket %s' % bucket)
-            yield self.thread(self.s3_conn.delete_bucket, Bucket=bucket)
+            yield self.api_call(self.s3_conn.delete_bucket, Bucket=bucket)
         except ClientError as e:
             raise exceptions.RecoverableActorFailure(
                 'Cannot delete bucket: %s' % e.message)
@@ -536,7 +536,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             raise gen.Return(None)
 
         try:
-            raw = yield self.thread(
+            raw = yield self.api_call(
                 self.s3_conn.get_bucket_policy,
                 Bucket=self.option('name'))
             exist = json.loads(raw['Policy'])
@@ -584,7 +584,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         self.log.debug('Policy doc: %s' % self.policy)
 
         try:
-            yield self.thread(
+            yield self.api_call(
                 self.s3_conn.put_bucket_policy,
                 Bucket=self.option('name'),
                 Policy=json.dumps(self.policy))
@@ -599,7 +599,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     @dry('Would delete bucket policy')
     def _delete_policy(self):
         self.log.info('Deleting bucket policy')
-        yield self.thread(
+        yield self.api_call(
             self.s3_conn.delete_bucket_policy,
             Bucket=self.option('name'))
 
@@ -608,7 +608,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         if not self._bucket_exists:
             raise gen.Return(None)
 
-        data = yield self.thread(
+        data = yield self.api_call(
             self.s3_conn.get_bucket_logging, Bucket=self.option('name'))
 
         if 'LoggingEnabled' not in data:
@@ -648,7 +648,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     @dry('Bucket logging would have been disabled')
     def _disable_logging(self):
         self.log.info('Deleting Bucket logging configuration')
-        yield self.thread(
+        yield self.api_call(
             self.s3_conn.put_bucket_logging,
             Bucket=self.option('name'),
             BucketLoggingStatus={})
@@ -666,7 +666,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         self.log.info('Updating Bucket logging config to %s' % target_str)
 
         try:
-            yield self.thread(
+            yield self.api_call(
                 self.s3_conn.put_bucket_logging,
                 Bucket=self.option('name'),
                 BucketLoggingStatus={
@@ -683,7 +683,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         if not self._bucket_exists:
             raise gen.Return(None)
 
-        existing = yield self.thread(
+        existing = yield self.api_call(
             self.s3_conn.get_bucket_versioning,
             Bucket=self.option('name'))
 
@@ -710,7 +710,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     @dry('Bucket versioning would set to: {0}')
     def _put_versioning(self, state):
         self.log.info('Setting bucket object versioning to: %s' % state)
-        yield self.thread(
+        yield self.api_call(
             self.s3_conn.put_bucket_versioning,
             Bucket=self.option('name'),
             VersioningConfiguration={'Status': state})
@@ -721,7 +721,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             raise gen.Return(None)
 
         try:
-            raw = yield self.thread(
+            raw = yield self.api_call(
                 self.s3_conn.get_bucket_lifecycle,
                 Bucket=self.option('name'))
         except ClientError as e:
@@ -766,7 +766,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     @dry('Would have deleted the existing lifecycle configuration')
     def _delete_lifecycle(self):
         self.log.info('Deleting the existing lifecycle configuration.')
-        yield self.thread(
+        yield self.api_call(
             self.s3_conn.delete_bucket_lifecycle,
             Bucket=self.option('name'))
 
@@ -778,7 +778,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         self.log.info('Updating the Bucket Lifecycle config')
         try:
-            yield self.thread(
+            yield self.api_call(
                 self.s3_conn.put_bucket_lifecycle,
                 Bucket=self.option('name'),
                 LifecycleConfiguration={'Rules': self.lifecycle})
@@ -795,7 +795,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             raise gen.Return(None)
 
         try:
-            raw = yield self.thread(
+            raw = yield self.api_call(
                 self.s3_conn.get_bucket_tagging,
                 Bucket=self.option('name'))
         except ClientError as e:
@@ -844,7 +844,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         tagset = self._snake_to_camel(self.option('tags'))
         self.log.info('Updating the Bucket Tags')
-        yield self.thread(
+        yield self.api_call(
             self.s3_conn.put_bucket_tagging,
             Bucket=self.option('name'),
             Tagging={'TagSet': tagset})
