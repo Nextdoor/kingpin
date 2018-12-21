@@ -432,7 +432,8 @@ class Bucket(base.EnsurableAWSBaseActor):
         'logging': (LoggingConfig, None,
                     'Logging configuration for the bucket'),
         'public_access_block_configuration': (
-            PublicAccessBlockConfig, None, 'Public Access Block Configuration'),
+            PublicAccessBlockConfig, None,
+            'Public Access Block Configuration'),
         'tags': (TaggingConfig, None,
                  'Array of dicts with the key/value tags'),
         'policy': ((str, None), None,
@@ -886,20 +887,20 @@ class Bucket(base.EnsurableAWSBaseActor):
         raise gen.Return()
 
     @gen.coroutine
-    @dry('Would have deleted the existing public access block configuration')
+    @dry('Would have deleted the existing public access block config')
     def _delete_public_access_block_configuration(self):
-        self.log.info('Deleting the existing public access block configuration.')
+        self.log.info('Deleting the existing public access block config.')
         yield self.api_call(
             self.s3_conn.delete_public_access_block,
             Bucket=self.option('name'))
 
     @gen.coroutine
-    @dry('Would have pushed a new public access block configuration')
+    @dry('Would have pushed a new public access block config')
     def _push_public_access_block_configuration(self):
-        self.log.debug('Public Access Block Configuration: %s' %
+        self.log.debug('Public Access Block Config: %s' %
                        jsonpickle.encode(self.access_block))
 
-        self.log.info('Updating the Bucket Public Access Block Configuration')
+        self.log.info('Updating the Bucket Public Access Block Config')
         try:
             yield self.api_call(
                 self.s3_conn.put_public_access_block,
@@ -907,7 +908,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 PublicAccessBlockConfiguration=self.access_block)
         except (ParamValidationError, ClientError) as e:
             raise InvalidBucketConfig(
-                'Invalid Public Access Block Configuration: %s' % e.message)
+                'Invalid Public Access Block Config: %s' % e.message)
 
     @gen.coroutine
     def _compare_public_access_block_configuration(self):
@@ -915,7 +916,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         new = self.access_block
 
         if new is None:
-            self.log.debug('Not managing public access block configuration')
+            self.log.debug('Not managing public access block config')
             raise gen.Return(True)
 
         # Now sort through the existing Lifecycle configuration and the one
