@@ -512,14 +512,14 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_set_public_access_block_configuration_delete(self):
-        self.actor.access_block = []
+        self.actor.access_block = {}
         yield self.actor._set_public_access_block_configuration()
         self.actor.s3_conn.delete_public_access_block.assert_has_calls([
             mock.call(Bucket='test')])
 
     @testing.gen_test
     def test_set_public_access_block_configuration(self):
-        self.actor.access_block = [{'test': 'test'}]
+        self.actor.access_block = {'test': 'test'}
         yield self.actor._set_public_access_block_configuration()
         self.actor.s3_conn.put_public_acces_block.assert_has_calls([
             mock.call(
