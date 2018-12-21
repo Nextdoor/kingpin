@@ -375,6 +375,8 @@ class Bucket(base.EnsurableAWSBaseActor):
       Finally, if None is supplied, Kingpin will ignore the checks entirely on
       this portion of the bucket configuration.
 
+      Default: None
+
     :region:
       AWS region (or zone) name, such as us-east-1 or us-west-2
 
