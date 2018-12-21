@@ -521,10 +521,10 @@ class TestBucket(testing.AsyncTestCase):
     def test_set_public_access_block_configuration(self):
         self.actor.access_block = {'test': 'test'}
         yield self.actor._set_public_access_block_configuration()
-        self.actor.s3_conn.put_public_acces_block.assert_has_calls([
+        self.actor.s3_conn.put_public_access_block.assert_has_calls([
             mock.call(
                 Bucket='test',
-                PublicAccessBlockConfiguratin={'test': 'test'})])
+                PublicAccessBlockConfiguration={'test': 'test'})])
 
     @testing.gen_test
     def test_set_public_access_block_configuration_client_error(self):
