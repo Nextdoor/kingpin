@@ -39,6 +39,12 @@ class TestBucket(testing.AsyncTestCase):
                     'target': 'test_target',
                     'prefix': '/prefix'
                 },
+                'public_access_block_configuration': {
+                    'block_public_acls': True,
+                    'block_public_policy': True,
+                    'ignore_public_acls': True,
+                    'restrict_public_buckets': True,
+                },
                 'versioning': False,
                 'tags': [],
             })
@@ -442,6 +448,90 @@ class TestBucket(testing.AsyncTestCase):
             {'Error': {'Code': ''}}, 'Error')
         with self.assertRaises(s3_actor.InvalidBucketConfig):
             yield self.actor._set_lifecycle()
+
+    @testing.gen_test
+    def test_get_public_access_block_configuration(self):
+        test_cfg = {
+            'BlockPublicAcls': True,
+            'BlockPublicPolicy': True,
+            'IgnorePublicAcls': True,
+            'RestrictPublicBuckets': True
+        }
+
+        self.actor._bucket_exists = True
+        self.actor.s3_conn.get_public_access_block.return_value = {
+            'PublicAccessBlockConfiguration': test_cfg
+        }
+        ret = yield self.actor._get_public_access_block_configuration()
+        self.assertEquals(ret, test_cfg)
+
+    @testing.gen_test
+    def test_get_public_access_block_configuration_no_bucket(self):
+        self.actor._bucket_exists = False
+        ret = yield self.actor._get_public_access_block_configuration()
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
+    def test_get_public_access_block_configuration_empty(self):
+        self.actor._bucket_exists = True
+        self.actor.s3_conn.get_public_access_block.side_effect = ClientError(
+            {'Error': {}}, 'NoSuchPublicAccessBlockConfiguration')
+        ret = yield self.actor._get_public_access_block_configuration()
+        self.assertEquals(ret, [])
+
+    @testing.gen_test
+    def test_get_public_access_block_configuration_clienterror(self):
+        self.actor._bucket_exists = True
+        self.actor.s3_conn.get_public_access_block.side_effect = ClientError(
+            {'Error': {}}, 'SomeOtherError')
+        with self.assertRaises(ClientError):
+            yield self.actor._get_public_access_block_configuration()
+
+    @testing.gen_test
+    def test_compare_public_access_block_configuration(self):
+        self.actor._bucket_exists = True
+        self.actor.access_block = [{'test': 'test'}]
+        self.actor.s3_conn.get_public_access_block.return_value = {
+            'PublicAccessBlockConfiguration': [{'test': 'test'}]}
+        ret = yield self.actor._compare_public_access_block_configuration()
+        self.assertTrue(ret)
+
+    @testing.gen_test
+    def test_compare_public_access_block_configuration_none(self):
+        self.actor.access_block = None
+        ret = yield self.actor._compare_public_access_block_configuration()
+        self.assertTrue(ret)
+
+    @testing.gen_test
+    def test_compare_public_access_block_configuration_diff(self):
+        self.actor.access_block = [{'test1': 'test'}]
+        self.actor.s3_conn.get_public_access_block.return_value = {
+            'Rules': [{'test': 'test'}]}
+        ret = yield self.actor._compare_public_access_block_configuration()
+        self.assertFalse(ret)
+
+    @testing.gen_test
+    def test_set_public_access_block_configuration_delete(self):
+        self.actor.access_block = {}
+        yield self.actor._set_public_access_block_configuration()
+        self.actor.s3_conn.delete_public_access_block.assert_has_calls([
+            mock.call(Bucket='test')])
+
+    @testing.gen_test
+    def test_set_public_access_block_configuration(self):
+        self.actor.access_block = {'test': 'test'}
+        yield self.actor._set_public_access_block_configuration()
+        self.actor.s3_conn.put_public_access_block.assert_has_calls([
+            mock.call(
+                Bucket='test',
+                PublicAccessBlockConfiguration={'test': 'test'})])
+
+    @testing.gen_test
+    def test_set_public_access_block_configuration_client_error(self):
+        self.actor.s3_conn.put_public_access_block.side_effect = ClientError(
+            {'Error': {}}, 'Error')
+        with self.assertRaises(s3_actor.InvalidBucketConfig):
+            yield self.actor._set_public_access_block_configuration()
 
     @testing.gen_test
     def test_get_tags(self):
