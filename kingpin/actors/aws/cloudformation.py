@@ -94,20 +94,16 @@ class ParametersConfig(SchemaCompareBase):
 
 class CapabilitiesConfig(SchemaCompareBase):
 
-    """Validates the Capabilities option.
-
-    The `capability` options currently available are `CAPABILITY_IAM` and
-    `CAPABILITY_NAMED_IAM`, either of which can be used to grant a Stack the
-    capability to create IAM resources. You must use `CAPABILITY_NAMED_IAM` to
-    create IAM resources with custom names.
-    """
+    """Validates the Capabilities option"""
 
     SCHEMA = {
         'type': ['array', 'null'],
         'uniqueItems': True,
         'items': {
             'type': 'string',
-            'enum': ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM']
+            'enum': ['CAPABILITY_IAM',
+                     'CAPABILITY_NAMED_IAM',
+                     'CAPABILITY_AUTO_EXPAND']
         }
     }
     valid = '[ "CAPABILITY_IAM", "CAPABILITY_NAMED_IAM" ]'
