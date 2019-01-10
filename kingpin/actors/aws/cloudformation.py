@@ -333,7 +333,8 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         """
         try:
             ret = yield self.api_call(self.cf3_conn.get_template,
-                                      StackName=stack)
+                                      StackName=stack,
+                                      TemplateStage='Original')
         except ClientError as e:
             raise CloudFormationError(e)
 

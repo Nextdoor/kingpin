@@ -207,7 +207,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         self.actor.cf3_conn.get_template.return_value = fake_stack_template
         ret = yield self.actor._get_stack_template('test')
         self.actor.cf3_conn.get_template.assert_has_calls(
-            [mock.call(StackName='test')])
+            [mock.call(StackName='test', TemplateStage='Original')])
         self.assertEquals(ret, {'Fake': 'Stack'})
 
     @testing.gen_test
