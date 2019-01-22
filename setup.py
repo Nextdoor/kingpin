@@ -163,7 +163,7 @@ setup(
     test_suite='nose.collector',
     tests_require=open('%s/requirements.test.txt' % DIR).readlines(),
     setup_requires=[],
-    #install_requires=open('%s/requirements.txt' % DIR).readlines(),
+    install_requires=open('%s/requirements.txt' % DIR).readlines(),
     dependency_links=[
         'https://github.com/diranged/python-rightscale-1/tarball/nextdoor#egg=python-rightscale-0.1.7'
     ],
