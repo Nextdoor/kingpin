@@ -30,7 +30,7 @@ retrying
 #
 # NOTE: Version specified in the setup.py file
 # NOTE: mock is used inside the rightscale actor
-python-rightscale>=0.1.7
+python-rightscale @ https://github.com/diranged/python-rightscale-1/tarball/nextdoor#egg=python-rightscale-0.1.7
 mock==1.0.1
 
 # kingpin.actors.aws
