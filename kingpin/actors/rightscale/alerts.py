@@ -591,7 +591,7 @@ class AlertSpecBase(base.EnsurableRightScaleBaseActor):
             <dictionary that matches the AlertSpecSchema>
         """
         new = {}
-        desired_keys = AlertSpecSchema.SCHEMA['properties'].keys()
+        desired_keys = list(AlertSpecSchema.SCHEMA['properties'].keys())
         for key in desired_keys:
             if key in spec.soul:
                 new[key] = spec.soul[key]

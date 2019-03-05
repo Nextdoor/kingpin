@@ -2,7 +2,7 @@
 
 import json
 import mock
-import StringIO
+import io
 
 from tornado import gen
 from tornado import httpclient
@@ -57,7 +57,7 @@ class TestRollbarBase(testing.AsyncTestCase):
         actor = rollbar.RollbarBase('Unittest Deploy', {})
         args = actor._build_potential_args(potential_args)
 
-        self.assertEquals(args, expected_args)
+        self.assertEqual(args, expected_args)
 
     @testing.gen_test
     def test_init_without_environment_creds(self):
@@ -75,13 +75,13 @@ class TestRollbarBase(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=io.StringIO(response_body))
 
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._fetch_wrapper('http://fake.com')
-            self.assertEquals(res, response_dict)
+            self.assertEqual(res, response_dict)
 
     @testing.gen_test
     def test_fetch_wrapper_with_401(self):
@@ -165,13 +165,13 @@ class TestRollbarBase(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=io.StringIO(response_body))
 
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._project()
-        self.assertEquals(res, response_dict)
+        self.assertEqual(res, response_dict)
 
 
 class TestDeploy(testing.AsyncTestCase):
@@ -197,7 +197,7 @@ class TestDeploy(testing.AsyncTestCase):
             raise gen.Return('123')
         actor._fetch_wrapper = fake_fetch_wrapper
         res = yield actor._deploy()
-        self.assertEquals(res, '123')
+        self.assertEqual(res, '123')
 
     @testing.gen_test
     def test_deploy_with_rollbar_username(self):
@@ -214,7 +214,7 @@ class TestDeploy(testing.AsyncTestCase):
             raise gen.Return('123')
         actor._fetch_wrapper = fake_fetch_wrapper
         res = yield actor._deploy()
-        self.assertEquals(res, '123')
+        self.assertEqual(res, '123')
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -231,7 +231,7 @@ class TestDeploy(testing.AsyncTestCase):
             raise gen.Return('123')
         actor._project = fake_project
         res = yield actor._execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)
 
     @testing.gen_test
     def test_execute(self):
@@ -248,4 +248,4 @@ class TestDeploy(testing.AsyncTestCase):
             raise gen.Return('123')
         actor._deploy = fake_deploy
         res = yield actor._execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)

@@ -1,4 +1,4 @@
-import StringIO
+import io
 import logging
 import os
 import time
@@ -13,6 +13,7 @@ import requests
 from kingpin import exceptions
 from kingpin import utils
 from kingpin.actors import misc
+import importlib
 
 
 class TestUtils(unittest.TestCase):
@@ -20,53 +21,53 @@ class TestUtils(unittest.TestCase):
     def test_str_to_class(self):
         class_string_name = 'tornado.testing.AsyncTestCase'
         returned_class = utils.str_to_class(class_string_name)
-        self.assertEquals(testing.AsyncTestCase, returned_class)
+        self.assertEqual(testing.AsyncTestCase, returned_class)
 
         class_string_name = 'kingpin.actors.misc.Sleep'
         returned_class = utils.str_to_class(class_string_name)
-        self.assertEquals(misc.Sleep, returned_class)
+        self.assertEqual(misc.Sleep, returned_class)
 
     def test_populate_with_env(self):
         tokens = {'UNIT_TEST': 'FOOBAR'}
         string = 'Unit %UNIT_TEST% Test'
         expect = 'Unit FOOBAR Test'
         result = utils.populate_with_tokens(string, tokens)
-        self.assertEquals(result, expect)
+        self.assertEqual(result, expect)
 
     def test_populate_with_values_not_default(self):
         tokens = {'UNIT_TEST': 'FOOBAR', 'SECOND_UNIT': 'BARBAR'}
         string = 'Unit %UNIT_TEST|DEFAULT% Test %SECOND_UNIT|DEFAULT2%'
         expect = 'Unit FOOBAR Test BARBAR'
         result = utils.populate_with_tokens(string, tokens)
-        self.assertEquals(result, expect)
+        self.assertEqual(result, expect)
 
     def test_populate_with_default(self):
         tokens = {'OTHER': 'TOKEN'}
         string = 'Unit %UNIT_TEST|DEFAULT% Test %SECOND_UNIT|1.2,3;4-5%'
         expect = 'Unit DEFAULT Test 1.2,3;4-5'
         result = utils.populate_with_tokens(string, tokens)
-        self.assertEquals(result, expect)
+        self.assertEqual(result, expect)
 
     def test_populate_with_unicode_env(self):
-        tokens = {'UNIT_TEST': u'FOOBAR'}
+        tokens = {'UNIT_TEST': 'FOOBAR'}
         string = 'Unit %UNIT_TEST% Test'
         expect = 'Unit FOOBAR Test'
         result = utils.populate_with_tokens(string, tokens)
-        self.assertEquals(result, expect)
+        self.assertEqual(result, expect)
 
     def test_populate_with_bool(self):
         tokens = {'UNIT_TEST': True}
         string = 'Unit %UNIT_TEST% Test'
         expect = 'Unit True Test'
         result = utils.populate_with_tokens(string, tokens)
-        self.assertEquals(result, expect)
+        self.assertEqual(result, expect)
 
     def test_populate_with_bogus_data_OK(self):
         tokens = {'UNIT_TEST': {'foobar': 'bat'}}
         string = 'Unit %UNIT_TEST% Test'
         expect = 'Unit %UNIT_TEST% Test'
         result = utils.populate_with_tokens(string, tokens, strict=False)
-        self.assertEquals(result, expect)
+        self.assertEqual(result, expect)
 
     def test_populate_with_env_with_missing_variables(self):
         os.environ['UNIT_TEST'] = 'FOOBAR'
@@ -78,7 +79,7 @@ class TestUtils(unittest.TestCase):
         tokens = {'foo': False}
         string = 'Unit test'
         result = utils.populate_with_tokens(string, tokens)
-        self.assertEquals(result, string)
+        self.assertEqual(result, string)
 
     def test_populate_with_not_strict(self):
         tokens = {'UNIT_TEST': 'FOOBAR'}
@@ -88,7 +89,7 @@ class TestUtils(unittest.TestCase):
             string, tokens,
             left_wrapper='{', right_wrapper='}',
             strict=False)
-        self.assertEquals(result, expect)
+        self.assertEqual(result, expect)
 
     def test_populate_with_escape_strict_fail(self):
         tokens = {'UNIT_TEST': 'FOOBAR'}
@@ -125,7 +126,7 @@ class TestUtils(unittest.TestCase):
         examples = '%s/../../examples' % dirname
         simple = '%s/simple.json' % examples
         ret = utils.convert_script_to_dict(simple, {})
-        self.assertEquals(type(ret), dict)
+        self.assertEqual(type(ret), dict)
 
         # Should work with file instance also
         dirname, filename = os.path.split(os.path.abspath(__file__))
@@ -133,7 +134,7 @@ class TestUtils(unittest.TestCase):
         simple = '%s/simple.json' % examples
         instance = open(simple)
         ret = utils.convert_script_to_dict(instance, {})
-        self.assertEquals(type(ret), dict)
+        self.assertEqual(type(ret), dict)
 
         # Should definitly support YAML as well
         dirname, filename = os.path.split(os.path.abspath(__file__))
@@ -141,17 +142,17 @@ class TestUtils(unittest.TestCase):
         simple = '%s/simple.yaml' % examples
         instance = open(simple)
         ret = utils.convert_script_to_dict(instance, {})
-        self.assertEquals(type(ret), dict)
+        self.assertEqual(type(ret), dict)
 
     def test_convert_script_to_dict_bad_name(self):
-        instance = StringIO.StringIO()  # Empty buffer will fail demjson.
+        instance = io.StringIO()  # Empty buffer will fail demjson.
         instance.__repr__ = lambda: 'Somefile.HAHA'
 
         with self.assertRaises(exceptions.InvalidScriptName):
             utils.convert_script_to_dict(instance, {})
 
     def test_convert_script_to_dict_junk(self):
-        instance = StringIO.StringIO()
+        instance = io.StringIO()
         instance.__repr__ = lambda: 'Somefile.json'
 
         with self.assertRaises(exceptions.InvalidScript):
@@ -160,7 +161,7 @@ class TestUtils(unittest.TestCase):
         with self.assertRaises(exceptions.InvalidScript):
             utils.convert_script_to_dict('junk data', {})
 
-        instance = StringIO.StringIO()
+        instance = io.StringIO()
         instance.__repr__ = lambda: 'Somefile.yaml'
         instance.write('---bad-yaml')
 
@@ -170,7 +171,7 @@ class TestUtils(unittest.TestCase):
     def test_exception_logger(self):
         patch = mock.patch.object(utils.logging, 'getLogger')
         with patch as logger:
-            reload(utils)
+            importlib.reload(utils)
 
             @utils.exception_logger
             def raises_exc():
@@ -179,7 +180,7 @@ class TestUtils(unittest.TestCase):
             with self.assertRaises(Exception):
                 raises_exc()
 
-            self.assertEquals(1, logger().debug.call_count)
+            self.assertEqual(1, logger().debug.call_count)
             logger().debug.assert_called_with(mock.ANY, exc_info=1)
 
 
@@ -197,8 +198,8 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
 
         # Default logger is basic
         logger = utils.setup_root_logger()
-        self.assertEquals(type(logger.handlers[0]), logging.StreamHandler)
-        self.assertEquals(logger.level, logging.WARNING)
+        self.assertEqual(type(logger.handlers[0]), logging.StreamHandler)
+        self.assertEqual(logger.level, logging.WARNING)
 
     def test_setup_root_logger_color(self):
         # Since we're really checking if loggers get created properly,
@@ -209,10 +210,10 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
 
         # Color logger is nifty
         logger = utils.setup_root_logger(color=True)
-        self.assertEquals(
+        self.assertEqual(
             type(logger.handlers[0]),
             rainbow_logging_handler.RainbowLoggingHandler)
-        self.assertEquals(logger.level, logging.WARNING)
+        self.assertEqual(logger.level, logging.WARNING)
 
     def test_setup_root_logger_with_level(self):
         # Since we're really checking if loggers get created properly,
@@ -222,7 +223,7 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
         log.handlers = []
 
         logger = utils.setup_root_logger(level='debug')
-        self.assertEquals(logger.level, logging.DEBUG)
+        self.assertEqual(logger.level, logging.DEBUG)
 
     def test_setup_root_logger_with_syslog(self):
         # Since we're really checking if loggers get created properly,
@@ -232,13 +233,13 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
         log.handlers = []
 
         logger = utils.setup_root_logger(syslog='local0')
-        self.assertEquals(type(logger.handlers[0]),
+        self.assertEqual(type(logger.handlers[0]),
                           logging.handlers.SysLogHandler)
-        self.assertEquals(logger.handlers[0].facility, 'local0')
+        self.assertEqual(logger.handlers[0].facility, 'local0')
 
     def test_super_httplib_debug_logging(self):
         logger = utils.super_httplib_debug_logging()
-        self.assertEquals(10, logger.level)
+        self.assertEqual(10, logger.level)
 
     def test_order_dict(self):
         d1 = {'foo': [1, 2, 3]}
@@ -247,7 +248,7 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
         ordered_d1 = utils.order_dict(d1)
         ordered_d2 = utils.order_dict(d2)
 
-        self.assertEquals(ordered_d1, ordered_d2)
+        self.assertEqual(ordered_d1, ordered_d2)
 
 
 class TestCoroutineHelpers(testing.AsyncTestCase):
@@ -271,7 +272,7 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
             raise gen.Return(True)
 
         ret = yield work()
-        self.assertEquals(ret, True)
+        self.assertEqual(ret, True)
 
     @testing.gen_test
     def testTornadoSleep(self):
@@ -296,17 +297,17 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
         yield gen.moment
 
         utils.clear_repeating_log(logid)
-        self.assertEquals(logger.info.call_count, 4)
+        self.assertEqual(logger.info.call_count, 4)
 
         # Let's make sure that we don't keep looping our log message.
         yield gen.moment
         yield gen.moment
-        self.assertEquals(logger.info.call_count, 4)
+        self.assertEqual(logger.info.call_count, 4)
 
     @testing.gen_test
     def test_diff_dicts(self):
         p1 = {'a': 'a', 'b': 'b'}
         p2 = {'a': 'a', 'c': 'c'}
 
-        self.assertEquals(None, utils.diff_dicts(p1, p1))
-        self.assertNotEquals(None, utils.diff_dicts(p1, p2))
+        self.assertEqual(None, utils.diff_dicts(p1, p1))
+        self.assertNotEqual(None, utils.diff_dicts(p1, p2))

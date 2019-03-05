@@ -1,6 +1,6 @@
 """Tests for the actors.base package."""
-from __future__ import absolute_import
-import StringIO
+
+import io
 import json
 import os
 import logging
@@ -132,12 +132,12 @@ class TestBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_user_defined_desc(self):
-        self.assertEquals('Unit Test Action', str(self.actor))
+        self.assertEqual('Unit Test Action', str(self.actor))
 
     @testing.gen_test
     def test_default_desc(self):
         self.actor._desc = None
-        self.assertEquals('kingpin.actors.base.BaseActor', str(self.actor))
+        self.assertEqual('kingpin.actors.base.BaseActor', str(self.actor))
 
     @testing.gen_test
     def test_timer(self):
@@ -157,7 +157,7 @@ class TestBaseActor(testing.AsyncTestCase):
         for call in self.actor.log.debug.mock_calls:
             if msg in str(call):
                 msg_is_in_calls = True
-        self.assertEquals(msg_is_in_calls, True)
+        self.assertEqual(msg_is_in_calls, True)
 
     @testing.gen_test
     def test_timeout(self):
@@ -197,7 +197,7 @@ class TestBaseActor(testing.AsyncTestCase):
     def test_httplib_debugging(self):
         # Get the logger now and validate that its level was set right
         requests_logger = logging.getLogger('requests.packages.urllib3')
-        self.assertEquals(10, requests_logger.level)
+        self.assertEqual(10, requests_logger.level)
 
     def test_validate_options(self):
         self.actor.all_options = {'test': (str, REQUIRED, '')}
@@ -208,7 +208,7 @@ class TestBaseActor(testing.AsyncTestCase):
         self.actor.all_options = {'test': (str, REQUIRED, '')}
         self.actor._options = {'test': 'b'}
         ret = self.actor._validate_options()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
         self.actor.all_options = {'test': (bool, REQUIRED, '')}
         self.actor._options = {'test': 'junk_text'}
@@ -219,17 +219,17 @@ class TestBaseActor(testing.AsyncTestCase):
                                   'test2': (str, REQUIRED, '')}
         self.actor._options = {'test': 'b', 'test2': 'b'}
         ret = self.actor._validate_options()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
         # The STATE type requires either 'present' or 'absent' to be passed in.
         self.actor.all_options = {'test': (STATE, REQUIRED, '')}
         self.actor._options = {'test': 'present'}
         ret = self.actor._validate_options()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
         self.actor._options = {'test': 'absent'}
         ret = self.actor._validate_options()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor._options = {'test': 'abse'}
@@ -265,7 +265,7 @@ class TestBaseActor(testing.AsyncTestCase):
     def test_option(self):
         self.actor._options['foo'] = 'bar'
         opt = self.actor.option('foo')
-        self.assertEquals(opt, 'bar')
+        self.assertEqual(opt, 'bar')
 
     def test_readfile(self):
         with self.assertRaises(exceptions.InvalidOptions):
@@ -275,27 +275,27 @@ class TestBaseActor(testing.AsyncTestCase):
                                   create=True)
         with open_patcher as mock_open:
             self.actor.readfile('somefile')
-            self.assertEquals(mock_open.call_count, 1)
+            self.assertEqual(mock_open.call_count, 1)
             # using __enter__ here because it's opened as a context manager.
-            self.assertEquals(mock_open().__enter__().read.call_count, 1)
+            self.assertEqual(mock_open().__enter__().read.call_count, 1)
 
     @testing.gen_test
     def test_execute(self):
         res = yield self.actor.execute()
-        self.assertEquals(res, True)
+        self.assertEqual(res, True)
 
     def test_str2bool(self):
-        self.assertEquals(True, self.actor.str2bool('true'))
-        self.assertEquals(True, self.actor.str2bool('junk text'))
-        self.assertEquals(True, self.actor.str2bool('1'))
-        self.assertEquals(True, self.actor.str2bool(True))
-        self.assertEquals(False, self.actor.str2bool('false'))
-        self.assertEquals(False, self.actor.str2bool('0'))
-        self.assertEquals(False, self.actor.str2bool(False))
+        self.assertEqual(True, self.actor.str2bool('true'))
+        self.assertEqual(True, self.actor.str2bool('junk text'))
+        self.assertEqual(True, self.actor.str2bool('1'))
+        self.assertEqual(True, self.actor.str2bool(True))
+        self.assertEqual(False, self.actor.str2bool('false'))
+        self.assertEqual(False, self.actor.str2bool('0'))
+        self.assertEqual(False, self.actor.str2bool(False))
 
     def test_str2bool_strict(self):
-        self.assertEquals(True, self.actor.str2bool('true'))
-        self.assertEquals(False, self.actor.str2bool(False))
+        self.assertEqual(True, self.actor.str2bool('true'))
+        self.assertEqual(False, self.actor.str2bool(False))
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor.str2bool('Junk', strict=True)
 
@@ -312,17 +312,17 @@ class TestBaseActor(testing.AsyncTestCase):
             'False': False,
             'FALSE': False,
         }
-        for value, should_execute in conditions.items():
+        for value, should_execute in list(conditions.items()):
             self.actor._condition = value
             self.actor._execute = mock_tornado()
             yield self.actor.execute()
             str_value = json.dumps(value)
             if should_execute:
-                self.assertEquals(
+                self.assertEqual(
                     self.actor._execute._call_count, 1,
                     'Value `%s` should allow actor execution' % str_value)
             else:
-                self.assertEquals(
+                self.assertEqual(
                     self.actor._execute._call_count, 0,
                     'Value `%s` should not allow actor execution' % str_value)
 
@@ -330,7 +330,7 @@ class TestBaseActor(testing.AsyncTestCase):
     def test_execute_fail(self):
         self.actor._execute = self.false
         res = yield self.actor.execute()
-        self.assertEquals(res, False)
+        self.assertEqual(res, False)
 
     @testing.gen_test
     def test_execute_catches_expected_exception(self):
@@ -367,7 +367,7 @@ class TestBaseActor(testing.AsyncTestCase):
         # Second test, turn on 'warn_on_failure'
         self.actor._warn_on_failure = True
         res = yield self.actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)
 
     def test_fill_in_contexts_desc(self):
         base.BaseActor.all_options = {
@@ -379,8 +379,8 @@ class TestBaseActor(testing.AsyncTestCase):
             options={'test_opt': 'Foo bar'},
             condition='{NAME}',
             init_context={'NAME': 'TEST'})
-        self.assertEquals('Unit Test Action - TEST', self.actor._desc)
-        self.assertEquals('TEST', self.actor._condition)
+        self.assertEqual('Unit Test Action - TEST', self.actor._desc)
+        self.assertEqual('TEST', self.actor._condition)
 
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor = base.BaseActor(
@@ -490,33 +490,33 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_get_http_client(self):
         ret = self.actor._get_http_client()
-        self.assertEquals(simple_httpclient.SimpleAsyncHTTPClient, type(ret))
+        self.assertEqual(simple_httpclient.SimpleAsyncHTTPClient, type(ret))
 
     def test_get_method(self):
-        self.assertEquals('POST', self.actor._get_method('foobar'))
-        self.assertEquals('POST', self.actor._get_method('True'))
-        self.assertEquals('POST', self.actor._get_method(''))
-        self.assertEquals('GET', self.actor._get_method(None))
+        self.assertEqual('POST', self.actor._get_method('foobar'))
+        self.assertEqual('POST', self.actor._get_method('True'))
+        self.assertEqual('POST', self.actor._get_method(''))
+        self.assertEqual('GET', self.actor._get_method(None))
 
     @testing.gen_test
     def test_generate_escaped_url(self):
         result = self.actor._generate_escaped_url('http://unittest',
                                                   {'foo': 'bar'})
-        self.assertEquals('http://unittest?foo=bar', result)
+        self.assertEqual('http://unittest?foo=bar', result)
 
         result = self.actor._generate_escaped_url('http://unittest',
                                                   {'foo': True})
-        self.assertEquals('http://unittest?foo=true', result)
+        self.assertEqual('http://unittest?foo=true', result)
 
         result = self.actor._generate_escaped_url(
             'http://unittest',
             {'foo': 'bar', 'xyz': 'abc'})
-        self.assertEquals('http://unittest?foo=bar&xyz=abc', result)
+        self.assertEqual('http://unittest?foo=bar&xyz=abc', result)
 
         result = self.actor._generate_escaped_url(
             'http://unittest',
             {'foo': 'bar baz', 'xyz': 'abc'})
-        self.assertEquals('http://unittest?foo=bar+baz&xyz=abc', result)
+        self.assertEqual('http://unittest?foo=bar+baz&xyz=abc', result)
 
     @testing.gen_test
     def test_fetch(self):
@@ -525,20 +525,20 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=io.StringIO(response_body))
 
         with mock.patch.object(self.actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
 
             response = yield self.actor._fetch('/')
-            self.assertEquals(response_dict, response)
+            self.assertEqual(response_dict, response)
 
         # Test with completely invalid JSON
         response_body = "Something bad happened"
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=io.StringIO(response_body))
 
         with mock.patch.object(self.actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
@@ -553,7 +553,7 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=io.StringIO(response_body))
 
         with mock.patch.object(self.actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
@@ -561,9 +561,9 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
 
             yield self.actor._fetch('/', auth_username='foo',
                                     auth_password='bar')
-            self.assertEquals(m.return_value.request.auth_username,
+            self.assertEqual(m.return_value.request.auth_username,
                               'foo')
-            self.assertEquals(m.return_value.request.auth_password,
+            self.assertEqual(m.return_value.request.auth_password,
                               'bar')
 
 

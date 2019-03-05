@@ -59,7 +59,7 @@ class IntegrationCreate(testing.AsyncTestCase):
              }})
 
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
@@ -88,7 +88,7 @@ class IntegrationCreate(testing.AsyncTestCase):
              'name': self.bucket_name})
 
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
 
 class IntegrationStack(testing.AsyncTestCase):
@@ -135,7 +135,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 }})
 
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
@@ -154,7 +154,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 }})
 
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
@@ -177,7 +177,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 }})
 
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
@@ -197,7 +197,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 }})
 
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
@@ -216,7 +216,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 }})
 
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
@@ -235,7 +235,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 }})
 
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
@@ -254,7 +254,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 }})
 
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=600)
@@ -273,4 +273,4 @@ class IntegrationStack(testing.AsyncTestCase):
                 }})
 
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)

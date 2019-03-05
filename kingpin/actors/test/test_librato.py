@@ -2,7 +2,7 @@
 
 import json
 import mock
-import StringIO
+import io
 
 from tornado import gen
 from tornado import httpclient
@@ -127,13 +127,13 @@ class TestLibratoAnnotation(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=io.StringIO(response_body))
 
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._execute()
-            self.assertEquals(res, None)
+            self.assertEqual(res, None)
 
     @testing.gen_test
     def test_execute_dry_mode_response(self):
@@ -148,10 +148,10 @@ class TestLibratoAnnotation(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=io.StringIO(response_body))
 
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._execute()
-            self.assertEquals(res, None)
+            self.assertEqual(res, None)

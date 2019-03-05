@@ -77,7 +77,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             helper.tornado_value(self.clouda_instance_mock),
         ]
         ret = yield self.actor._get_mci_setting_def(self._images[0])
-        self.assertEquals(ret, self.clouda_href_tuples)
+        self.assertEqual(ret, self.clouda_href_tuples)
 
     @testing.gen_test
     def test_get_mci_setting_def_no_user_data(self):
@@ -89,7 +89,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             helper.tornado_value(self.cloudb_instance_mock),
         ]
         ret = yield self.actor._get_mci_setting_def(self._images[1])
-        self.assertEquals(ret, self.cloudb_href_tuples)
+        self.assertEqual(ret, self.cloudb_href_tuples)
 
     @testing.gen_test
     def test_get_mci_setting_def_exc_in_cloud_call(self):
@@ -132,7 +132,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             helper.tornado_value(mci)
         ]
         ret = yield self.actor._get_mci('testmci')
-        self.assertEquals(mci, ret)
+        self.assertEqual(mci, ret)
         self.client_mock.find_by_name_and_keys.assert_has_calls([
             mock.call(
                 collection=self.client_mock._client.multi_cloud_images,
@@ -146,7 +146,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             helper.tornado_value([])
         ]
         ret = yield self.actor._get_mci('testmci')
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_get_mci_returns_too_many_things(self):
@@ -173,7 +173,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             ]
         )
 
-        self.assertEquals(mci, ret)
+        self.assertEqual(mci, ret)
 
     @testing.gen_test
     def test_create_mci_dry_returns_mock(self):
@@ -185,7 +185,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             name='testmci',
             params=[])
 
-        self.assertEquals('<mocked MCI testmci>', ret.soul['name'])
+        self.assertEqual('<mocked MCI testmci>', ret.soul['name'])
 
     @testing.gen_test
     def test_create_mci_already_exists(self):
@@ -201,7 +201,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             ]
         )
 
-        self.assertEquals(mci, ret)
+        self.assertEqual(mci, ret)
         self.assertFalse(self.client_mock.create_resource.called)
 
     @testing.gen_test
@@ -214,7 +214,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             helper.tornado_value(None)
         ]
         ret = yield self.actor._delete_mci(name='mci')
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
         self.client_mock.destroy_resource.assert_has_calls([
             mock.call(mci)
         ])
@@ -225,7 +225,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             helper.tornado_value(None)
         ]
         ret = yield self.actor._delete_mci(name='mci')
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
         self.assertFalse(self.client_mock.destroy_resource.called)
 
     @testing.gen_test
@@ -278,7 +278,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
         ]
         ret = yield self.actor._update_description(
             mci=mci, description=desc, params={})
-        self.assertEquals(ret, mci)
+        self.assertEqual(ret, mci)
         self.client_mock.update.assert_has_calls([
             mock.call(mci, {})
         ])
@@ -291,7 +291,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             'instance_type': '/api/clouds/A/instance_types/abc'
         }
         ret = self.actor._diff_setting(mci_setting, self.clouda_href_tuples)
-        self.assertEquals(False, ret)
+        self.assertEqual(False, ret)
 
     def test_diff_setting_are_different(self):
         mci_setting = mock.MagicMock(name='mci_settings_obj')
@@ -301,7 +301,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             'instance_type': '/api/clouds/A/instance_types/123'
         }
         ret = self.actor._diff_setting(mci_setting, self.clouda_href_tuples)
-        self.assertEquals(True, ret)
+        self.assertEqual(True, ret)
 
 
 class TestMCIActor(testing.AsyncTestCase):
@@ -355,7 +355,7 @@ class TestMCIActor(testing.AsyncTestCase):
         self.actor._options['state'] = 'absent'
         self.actor._get_mci = helper.mock_tornado(None)
         ret = yield self.actor._ensure_mci()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_ensure_mci_is_absent_but_is_present(self):
@@ -366,7 +366,7 @@ class TestMCIActor(testing.AsyncTestCase):
         self.actor._delete_mci.side_effect = [helper.tornado_value(None)]
 
         ret = yield self.actor._ensure_mci()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
         self.assertTrue(self.actor._delete_mci.called)
 
     @testing.gen_test
@@ -378,7 +378,7 @@ class TestMCIActor(testing.AsyncTestCase):
         self.actor._create_mci.side_effect = [helper.tornado_value(new_mci)]
 
         ret = yield self.actor._ensure_mci()
-        self.assertEquals(new_mci, ret)
+        self.assertEqual(new_mci, ret)
         self.assertTrue(self.actor._create_mci.called)
 
     @testing.gen_test
@@ -388,7 +388,7 @@ class TestMCIActor(testing.AsyncTestCase):
         self.actor._get_mci = helper.mock_tornado(existing_mci)
 
         ret = yield self.actor._ensure_mci()
-        self.assertEquals(existing_mci, ret)
+        self.assertEqual(existing_mci, ret)
 
     @testing.gen_test
     def test_ensure_description_matches(self):

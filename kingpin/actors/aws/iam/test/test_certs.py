@@ -7,6 +7,7 @@ import mock
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings
 from kingpin.actors.aws.iam import certs
+import importlib
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class TestUploadCert(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(certs)
+        importlib.reload(certs)
 
     @testing.gen_test
     def test_execute(self):
@@ -38,7 +39,7 @@ class TestUploadCert(testing.AsyncTestCase):
         yield actor._execute()
 
         # call count is 1 -- one extra retry due to BotoServerError above.
-        self.assertEquals(actor.iam_conn.upload_server_cert.call_count, 1)
+        self.assertEqual(actor.iam_conn.upload_server_cert.call_count, 1)
         actor.iam_conn.upload_server_cert.assert_called_with(
             path=None,
             private_key=actor.readfile(),
@@ -64,7 +65,7 @@ class TestUploadCert(testing.AsyncTestCase):
         with open_patcher:
             yield actor._execute()
 
-        self.assertEquals(actor.iam_conn.upload_server_cert.call_count, 0)
+        self.assertEqual(actor.iam_conn.upload_server_cert.call_count, 0)
 
 
 class TestDeleteCert(testing.AsyncTestCase):
@@ -74,7 +75,7 @@ class TestDeleteCert(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(certs)
+        importlib.reload(certs)
 
     @testing.gen_test(timeout=60)
     def test_delete_cert_dry(self):
@@ -84,7 +85,7 @@ class TestDeleteCert(testing.AsyncTestCase):
         yield actor.execute()
 
         actor.iam_conn.get_server_certificate.assert_called_with('test')
-        self.assertEquals(actor.iam_conn.get_server_certificate.call_count, 1)
+        self.assertEqual(actor.iam_conn.get_server_certificate.call_count, 1)
 
         err = BotoServerError('400', 'Broken!')
         actor.iam_conn.get_server_certificate.side_effect = err

@@ -1,5 +1,5 @@
 import logging
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import json
 
 from boto.exception import BotoServerError
@@ -10,6 +10,7 @@ import mock
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings
 from kingpin.actors.aws.iam import entities
+import importlib
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(entities)
+        importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
@@ -61,7 +62,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
     def test_generate_policy_name(self):
         name = '/some-?funky*-directory/with.my.policy.json'
         parsed = self.actor._generate_policy_name(name)
-        self.assertEquals(parsed, 'some-funky-directory-with.my.policy')
+        self.assertEqual(parsed, 'some-funky-directory-with.my.policy')
 
     @testing.gen_test
     def test_get_entity_policies(self):
@@ -75,17 +76,17 @@ class TestEntityBaseActor(testing.AsyncTestCase):
             '%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%22%5D%2C%20',
             '%22Effect%22%3A%20%22Allow%22%7D%5D%7D'])
         policy_dict = {
-            u'Version': u'2012-10-17',
-            u'Statement': [
-                {u'Action': [
-                    u's3:Create*',
-                    u's3:Get*',
-                    u's3:Put*',
-                    u's3:List*'],
-                 u'Resource': [
-                    u'arn:aws:s3:::kingpin*/*',
-                    u'arn:aws:s3:::kingpin*'],
-                 u'Effect': u'Allow'}]}
+            'Version': '2012-10-17',
+            'Statement': [
+                {'Action': [
+                    's3:Create*',
+                    's3:Get*',
+                    's3:Put*',
+                    's3:List*'],
+                 'Resource': [
+                    'arn:aws:s3:::kingpin*/*',
+                    'arn:aws:s3:::kingpin*'],
+                 'Effect': 'Allow'}]}
 
         # First test, throw an exception getting the entity policies..
         a = self.actor
@@ -98,14 +99,14 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         a.iam_conn.get_all_base_policies.side_effect = BotoServerError(
             404, 'User does not exist!')
         ret = yield self.actor._get_entity_policies('test')
-        self.assertEquals(ret, {})
+        self.assertEqual(ret, {})
 
         # What if self.get_all_entity_policies raises a TypeError because its
         # set to None (or not set at all)?
         a.iam_conn.get_all_base_policies.side_effect = TypeError(
             'NoneType is not callable')
         ret = yield self.actor._get_entity_policies('test')
-        self.assertEquals(ret, {})
+        self.assertEqual(ret, {})
 
         # Now unset the side effect so we can do a real test
         self.actor.iam_conn.get_all_base_policies.side_effect = None
@@ -132,10 +133,10 @@ class TestEntityBaseActor(testing.AsyncTestCase):
 
         # Finally, make the call and see if we get all the policies
         ret = yield self.actor._get_entity_policies('test')
-        self.assertEquals(len(ret), 3)
-        self.assertEquals(ret['test1'], policy_dict)
-        self.assertEquals(ret['test2'], policy_dict)
-        self.assertEquals(ret['test3'], policy_dict)
+        self.assertEqual(len(ret), 3)
+        self.assertEqual(ret['test1'], policy_dict)
+        self.assertEqual(ret['test2'], policy_dict)
+        self.assertEqual(ret['test3'], policy_dict)
 
         # One final test.. make sure we raise an exception if any of the get
         # entity policy calls fail.
@@ -149,12 +150,12 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         parsed_policy = self.actor.inline_policies[
             'examples-aws.iam.user-s3_example'
         ]
-        self.assertEquals(parsed_policy['Version'], '2012-10-17')
+        self.assertEqual(parsed_policy['Version'], '2012-10-17')
 
     @testing.gen_test
     def test_parse_inline_policies_none(self):
         self.actor._parse_inline_policies(None)
-        self.assertEquals(self.actor.inline_policies, None)
+        self.assertEqual(self.actor.inline_policies, None)
 
     @testing.gen_test
     def test_ensure_inline_policies(self):
@@ -178,7 +179,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         # Ensure that the new policy was pushed, and the old policies were
         # deleted
         yield self.actor._ensure_inline_policies('test')
-        self.assertEquals(1, self.actor._put_entity_policy.call_count)
+        self.assertEqual(1, self.actor._put_entity_policy.call_count)
         self.actor._delete_entity_policy.assert_has_calls([
             mock.call('test', 'Policy1'),
             mock.call('test', 'Policy2'),
@@ -198,7 +199,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         self.actor._put_entity_policy.side_effect = [tornado_value(None)]
 
         yield self.actor._ensure_inline_policies('test')
-        self.assertEquals(1, self.actor._put_entity_policy.call_count)
+        self.assertEqual(1, self.actor._put_entity_policy.call_count)
 
     @testing.gen_test
     def test_delete_entity_policy_dry(self):
@@ -252,15 +253,15 @@ class TestEntityBaseActor(testing.AsyncTestCase):
 
         # Create some valid test user objects...
         matching_entity = {
-            u'path': u'/', u'create_date': u'2016-04-05T22:15:24Z',
-            u'base_name': u'test', u'arn':
-            u'arn:aws:iam::123123123123:base/test', u'base_id':
-            u'AIDAXXCXXXXXXXXXAAC2E'}
+            'path': '/', 'create_date': '2016-04-05T22:15:24Z',
+            'base_name': 'test', 'arn':
+            'arn:aws:iam::123123123123:base/test', 'base_id':
+            'AIDAXXCXXXXXXXXXAAC2E'}
         not_matching_entity = {
-            u'path': u'/', u'create_date': u'2016-04-05T22:15:24Z',
-            u'base_name': u'some-other-base', u'arn':
-            u'arn:aws:iam::123123123123:base/test', u'base_id':
-            u'AIDAXXCXXXXXXXXXAAC2E'}
+            'path': '/', 'create_date': '2016-04-05T22:15:24Z',
+            'base_name': 'some-other-base', 'arn':
+            'arn:aws:iam::123123123123:base/test', 'base_id':
+            'AIDAXXCXXXXXXXXXAAC2E'}
 
         # Now, first test ... no 'matching' entity in the list
         self.actor.iam_conn.get_all_bases.return_value = {
@@ -270,7 +271,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         ret = yield self.actor._get_entity('test')
         self.assertTrue(self.actor.iam_conn.get_all_bases.called)
         self.actor.iam_conn.get_all_bases.reset_mock()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
         # Finally, lets return one matching and a non matching entity
         self.actor.iam_conn.get_all_bases.return_value = {
@@ -280,7 +281,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         ret = yield self.actor._get_entity('test')
         self.assertTrue(self.actor.iam_conn.get_all_bases.called)
         self.actor.iam_conn.get_all_bases.reset_mock()
-        self.assertEquals(ret, matching_entity)
+        self.assertEqual(ret, matching_entity)
 
     @testing.gen_test
     def test_ensure_entity(self):
@@ -416,7 +417,7 @@ class TestUser(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(entities)
+        importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
@@ -587,7 +588,7 @@ class TestGroup(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(entities)
+        importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
@@ -622,7 +623,7 @@ class TestGroup(testing.AsyncTestCase):
         }
         self.actor.iam_conn.get_group.return_value = fake_group
         ret = yield self.actor._get_group_users('test')
-        self.assertEquals(ret, ['group1', 'group2'])
+        self.assertEqual(ret, ['group1', 'group2'])
 
     @testing.gen_test
     def test_get_group_users_exception(self):
@@ -635,7 +636,7 @@ class TestGroup(testing.AsyncTestCase):
     def test_get_group_users_no_users(self):
         self.actor.iam_conn.get_group.return_value = {}
         ret = yield self.actor._get_group_users('test')
-        self.assertEquals(ret, [])
+        self.assertEqual(ret, [])
 
     @testing.gen_test
     def test_purge_group_users_false(self):
@@ -707,7 +708,7 @@ class TestRole(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(entities)
+        importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
@@ -746,7 +747,7 @@ class TestRole(testing.AsyncTestCase):
                            "Principal": {"Service": "lambda.amazonaws.com"},
                            "Action": "sts:AssumeRole"}]}
 
-        lambda_string = urllib.pathname2url(json.dumps(request))
+        lambda_string = urllib.request.pathname2url(json.dumps(request))
         fake_entity = {'assume_role_policy_document': lambda_string}
         self.actor._get_entity = mock.MagicMock()
         self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
@@ -762,7 +763,7 @@ class TestRole(testing.AsyncTestCase):
             "Statement": [{"Effect": "Allow",
                            "Principal": {"Service": "ec2.amazonaws.com"},
                            "Action": "sts:AssumeRole"}]}
-        ec2_string = urllib.pathname2url(json.dumps(request))
+        ec2_string = urllib.request.pathname2url(json.dumps(request))
         fake_entity = {'assume_role_policy_document': ec2_string}
         self.actor._get_entity = mock.MagicMock()
         self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
@@ -781,7 +782,7 @@ class TestRole(testing.AsyncTestCase):
             "Statement": [{"Effect": "Allow",
                            "Principal": {"Service": "ec2.amazonaws.com"},
                            "Action": "sts:AssumeRole"}]}
-        ec2_string = urllib.pathname2url(json.dumps(request))
+        ec2_string = urllib.request.pathname2url(json.dumps(request))
         fake_entity = {'assume_role_policy_document': ec2_string}
         self.actor._get_entity = mock.MagicMock()
         self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
@@ -833,7 +834,7 @@ class TestInstanceProfile(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(entities)
+        importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..

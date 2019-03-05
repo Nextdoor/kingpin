@@ -520,7 +520,7 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         # map_href param. At this point, it should look identical to
         # our self.desired_images dict.
         existing_images = {}
-        for image in self.images.keys():
+        for image in list(self.images.keys()):
             existing_images[image] = {
                 'default': self.images[image]['default']
             }
@@ -529,10 +529,10 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
 
     @gen.coroutine
     def _set_images(self):
-        to_add = [href for href in self.desired_images.keys()
-                  if href not in self.images.keys()]
-        to_delete = [href for href in self.images.keys()
-                     if href not in self.desired_images.keys()]
+        to_add = [href for href in list(self.desired_images.keys())
+                  if href not in list(self.images.keys())]
+        to_delete = [href for href in list(self.images.keys())
+                     if href not in list(self.desired_images.keys())]
 
         tasks = []
         for href in to_add:
@@ -759,11 +759,11 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         # Get the default MCI href as described by the user -- or just get the
         # first key in the list and treat that as the desired default.
         try:
-            default_mci_href = [key for key in self.desired_images.keys()
+            default_mci_href = [key for key in list(self.desired_images.keys())
                                 if self.desired_images[key]['default'] is
                                 True][0]
         except IndexError:
-            default_mci_href = self.desired_images.keys()[0]
+            default_mci_href = list(self.desired_images.keys())[0]
 
         # Compare the desired vs current default_multi_cloud_image_href. This
         # comparison is quick and doesn't require any API calls, so we do it

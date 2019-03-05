@@ -8,6 +8,7 @@ from kingpin import exceptions as kingpin_exceptions
 from kingpin.actors import exceptions
 from kingpin.actors import misc
 from kingpin.actors.test.helper import mock_tornado
+import importlib
 
 log = logging.getLogger(__name__)
 
@@ -19,14 +20,14 @@ class TestNote(testing.AsyncTestCase):
         note = misc.Note('Test', {'message': 'Hello World'})
         note.log = mock.Mock()
         yield note._execute()
-        self.assertEquals(note.log.info.call_count, 1)
+        self.assertEqual(note.log.info.call_count, 1)
 
 
 class TestMacro(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestMacro, self).setUp()
-        reload(misc)
+        importlib.reload(misc)
 
     def test_init(self):
         misc.Macro._check_macro = mock.Mock()
@@ -47,8 +48,8 @@ class TestMacro(testing.AsyncTestCase):
                                init_tokens={})
 
             j2d.assert_called_with(script_file='unit-test-macro', tokens={})
-            self.assertEquals(schema_validate.call_count, 1)
-            self.assertEquals(actor.initial_actor, get_actor())
+            self.assertEqual(schema_validate.call_count, 1)
+            self.assertEqual(actor.initial_actor, get_actor())
 
     def test_init_nested_tokens(self):
         # Quick test to ensure that a series of nested groups and macro actors
@@ -65,24 +66,24 @@ class TestMacro(testing.AsyncTestCase):
         # created (from outer_group.yaml) both have the appropriate init
         # tokens. This helps ensure that we used .copy() properly a well as the
         # fact that the tokens were passed down appropriately.
-        self.assertEquals(actor._init_tokens, init_tokens)
-        self.assertEquals(actor.initial_actor._init_tokens, init_tokens)
+        self.assertEqual(actor._init_tokens, init_tokens)
+        self.assertEqual(actor.initial_actor._init_tokens, init_tokens)
 
         # Ensure that the nested misc.Macro actor from outer_macro.yaml got
         # init_tokens, AND the 'FOO' token from outer_group.yaml's own
         # definition.
-        self.assertEquals(actor.initial_actor._actions[0]._init_tokens,
+        self.assertEqual(actor.initial_actor._actions[0]._init_tokens,
                           {'SLEEP': 0, 'FOO': 'weee'})
 
         # Next ensure that the mostly nested examples/misc.macro/inner.yaml
         # actor got the SLEEP, FOO, and DESC tokens.
-        self.assertEquals(
+        self.assertEqual(
             actor.initial_actor._actions[0].initial_actor._init_tokens,
             {'SLEEP': 0, 'FOO': 'weee', 'DESC': 'Sleeping for a while'})
 
         # Finally, ensure the super nested
         s = actor.initial_actor._actions[0].initial_actor.initial_actor
-        self.assertEquals(
+        self.assertEqual(
             s._init_tokens,
             {'SLEEP': 0, 'FOO': 'weee', 'DESC': 'Sleeping for a while'})
 
@@ -103,8 +104,8 @@ class TestMacro(testing.AsyncTestCase):
             actor = misc.Macro('Unit Test', {'macro': 'test.json'})
 
             j2d.assert_called_with(script_file='unit-test-macro', tokens={})
-            self.assertEquals(schema_validate.call_count, 1)
-            self.assertEquals(actor.initial_actor, sync_actor())
+            self.assertEqual(schema_validate.call_count, 1)
+            self.assertEqual(actor.initial_actor, sync_actor())
 
     def test_init_remote(self):
         misc.Macro._get_config_from_script = mock.Mock()
@@ -194,7 +195,7 @@ class TestMacro(testing.AsyncTestCase):
             get_actor().execute = mock_tornado()
             yield actor._execute()
 
-            self.assertEquals(get_actor().execute._call_count, 1)
+            self.assertEqual(get_actor().execute._call_count, 1)
 
     @testing.gen_test
     def test_orgchart(self):
@@ -205,8 +206,8 @@ class TestMacro(testing.AsyncTestCase):
         )
         actor = misc.Macro('Unit test', {'macro': 'test'})
 
-        self.assertEquals(len(actor.get_orgchart()), 3)  # Macro, Group, Sleep
-        self.assertEquals(type(actor.get_orgchart()[0]), dict)
+        self.assertEqual(len(actor.get_orgchart()), 3)  # Macro, Group, Sleep
+        self.assertEqual(type(actor.get_orgchart()[0]), dict)
 
 
 class TestSleep(testing.AsyncTestCase):
@@ -218,7 +219,7 @@ class TestSleep(testing.AsyncTestCase):
         res = yield actor.execute()
 
         # Make sure we fired off an alert.
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)
 
     @testing.gen_test
     def test_execute_with_str(self):
@@ -227,7 +228,7 @@ class TestSleep(testing.AsyncTestCase):
         res = yield actor.execute()
 
         # Make sure we fired off an alert.
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)
 
 
 class TestGenericHTTP(testing.AsyncTestCase):
@@ -242,7 +243,7 @@ class TestGenericHTTP(testing.AsyncTestCase):
 
         yield actor.execute()
 
-        self.assertEquals(actor._fetch._call_count, 0)
+        self.assertEqual(actor._fetch._call_count, 0)
 
     @testing.gen_test
     def test_execute(self):

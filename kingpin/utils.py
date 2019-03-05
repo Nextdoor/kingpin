@@ -35,7 +35,7 @@ import time
 
 from tornado import gen
 from tornado import ioloop
-import httplib
+import http.client
 import rainbow_logging_handler
 
 from kingpin import exceptions
@@ -164,7 +164,7 @@ def super_httplib_debug_logging():
     Returns:
         Requests 'logger' object (mainly for unit testing)
     """
-    httplib.HTTPConnection.debuglevel = 1
+    http.client.HTTPConnection.debuglevel = 1
     requests_log = logging.getLogger("requests.packages.urllib3")
     requests_log.propagate = True
     requests_log.setLevel(logging.DEBUG)
@@ -275,9 +275,9 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
     # First things first, swap out all instances of %<str>% with any matching
     # token variables found. If no items are in the hash (none, empty hash,
     # etc), then skip this.
-    allowed_types = (str, unicode, bool, int, float)
+    allowed_types = (str, str, bool, int, float)
     if tokens:
-        for k, v in tokens.iteritems():
+        for k, v in tokens.items():
 
             if type(v) not in allowed_types:
                 log.warning('Token %s=%s is not in allowed types: %s' % (
@@ -348,7 +348,7 @@ def convert_script_to_dict(script_file, tokens):
 
     filename = ''
     try:
-        if type(script_file) in (str, unicode):
+        if type(script_file) in (str, str):
             filename = script_file
             instance = open(script_file)
         elif type(script_file) is file:
@@ -404,7 +404,7 @@ def order_dict(obj):
         obj: A sorted version of the object
     """
     if isinstance(obj, dict):
-        return sorted((k, order_dict(v)) for k, v in obj.items())
+        return sorted((k, order_dict(v)) for k, v in list(obj.items()))
     if isinstance(obj, list):
         return sorted(order_dict(x) for x in obj)
     else:
@@ -486,7 +486,7 @@ def diff_dicts(dict1, dict2):
     dict2 = pprint.pformat(dict2).splitlines()
 
     # Remove unicode identifiers.
-    dict1 = map(lambda line: line.replace('u\'', '\''), dict1)
-    dict2 = map(lambda line: line.replace('u\'', '\''), dict2)
+    dict1 = [line.replace('u\'', '\'') for line in dict1]
+    dict2 = [line.replace('u\'', '\'') for line in dict2]
 
     return '\n'.join(difflib.unified_diff(dict1, dict2, n=2))

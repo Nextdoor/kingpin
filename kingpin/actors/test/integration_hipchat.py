@@ -6,6 +6,7 @@ from tornado import testing
 
 from kingpin.actors import hipchat
 from kingpin.actors import exceptions
+import importlib
 
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
@@ -37,7 +38,7 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
                 {'message': message, 'room': room}, dry=True)
 
         # Reload the hipchat library to re-get the token
-        reload(hipchat)
+        importlib.reload(hipchat)
 
     @attr('hipchat', 'integration')
     @testing.gen_test(timeout=60)
@@ -62,7 +63,7 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
             'Unit Test Action',
             {'message': message, 'room': room}, dry=True)
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)
 
 
 class IntegrationHipchatTopic(testing.AsyncTestCase):
@@ -91,7 +92,7 @@ class IntegrationHipchatTopic(testing.AsyncTestCase):
                 {'topic': topic, 'room': room}, dry=True)
 
         # Reload the hipchat library to re-get the token
-        reload(hipchat)
+        importlib.reload(hipchat)
 
     @attr('hipchat', 'integration')
     @testing.gen_test(timeout=60)
@@ -116,4 +117,4 @@ class IntegrationHipchatTopic(testing.AsyncTestCase):
             'Unit Test Action',
             {'topic': topic, 'room': room}, dry=True)
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)

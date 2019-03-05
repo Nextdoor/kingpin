@@ -18,12 +18,12 @@ class TestSchema(unittest.TestCase):
     def test_validate_with_simple_json(self):
         json = demjson.decode(open('%s/simple.json' % self.examples).read())
         ret = schema.validate(json)
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     def test_validate_with_complex_json(self):
         json = demjson.decode(open('%s/complex.json' % self.examples).read())
         ret = schema.validate(json)
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     def test_validate_with_invalid_json(self):
         json = {'this': 'is', 'invalid': 'ok'}

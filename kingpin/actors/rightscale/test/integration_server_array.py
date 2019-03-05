@@ -54,7 +54,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
              'dest': self.clone_name},
             dry=True)
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=60)
@@ -75,7 +75,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'source': self.template_array,
              'dest': self.clone_name})
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('rightscale', 'integration')
     @testing.gen_test(timeout=30)
@@ -104,7 +104,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Update %s' % self.clone_name,
             {'array': self.clone_name}, dry=True)
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=60)
@@ -114,7 +114,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': 'unit-test-fake-array',
              'params': {}, 'inputs': {}}, dry=True)
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
@@ -128,7 +128,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
                         'status': 'enabled',
                         'description': 'Unit Tests: %s' % UUID}})
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('rightscale', 'integration')
     @testing.gen_test(timeout=60)
@@ -142,7 +142,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name,
              'inputs': {'TEST_INPUT': 'text:TEST_VALUE'}})
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('rightscale', 'integration')
     @testing.gen_test(timeout=10)
@@ -208,7 +208,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name,
              'enable': True}, dry=True)
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     # Note: These tests can run super slow -- the server boot time
     # itself may take 5-10 minutes, and sometimes Amazon and RightScale
@@ -223,7 +223,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
              'enable': True,
              'count': 2})
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=120)
@@ -235,7 +235,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
              'inputs': {'SLEEP': 'text:15'}},
             dry=True)
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('rightscale', 'integration')
     @testing.gen_test(timeout=480)
@@ -246,7 +246,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
              'script': self.template_script,
              'inputs': {'SLEEP': 'text:15'}})
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('rightscale', 'integration', 'dry')
     @testing.gen_test(timeout=120)
@@ -301,7 +301,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             {'array': self.clone_name},
             dry=True)
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('rightscale', 'integration')
     @testing.gen_test(timeout=600)
@@ -310,7 +310,7 @@ class IntegrationServerArray(testing.AsyncTestCase):
             'Destroy %s' % self.template_array,
             {'array': self.clone_name})
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('rightscale', 'integration')
     @testing.gen_test(timeout=600)

@@ -1,11 +1,12 @@
 """Vanity test"""
 
 import unittest
+import importlib
 
 
 class TestVersion(unittest.TestCase):
 
     def test_version(self):
         from kingpin import version
-        reload(version)
-        self.assertEquals(type(version.__version__), str)
+        importlib.reload(version)
+        self.assertEqual(type(version.__version__), str)

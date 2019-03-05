@@ -7,6 +7,7 @@ from tornado import testing
 from kingpin.actors import slack
 from kingpin.actors import exceptions
 from kingpin.actors.test.helper import mock_tornado
+import importlib
 
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
@@ -27,7 +28,7 @@ class TestSlackBase(testing.AsyncTestCase):
         # Ensure that the actor._slack_client is configured with a dictionary
         # that contains the token in it.
         slack_client_tokens = actor._slack_client._client._tokens
-        self.assertEquals(
+        self.assertEqual(
             slack_client_tokens,
             {'token': 'Unittest'})
 
@@ -37,7 +38,7 @@ class TestSlackBase(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidCredentials):
             slack.SlackBase('Unit Test Action', {})
         # Reload the slack library to re-get the token
-        reload(slack)
+        importlib.reload(slack)
 
     def test_check_results_with_ok_results(self):
         actor = slack.SlackBase('Unit test action', {})
@@ -51,7 +52,7 @@ class TestSlackBase(testing.AsyncTestCase):
                 "ts": "1423092527.000006"
             }
         }
-        self.assertEquals(None, actor._check_results(results))
+        self.assertEqual(None, actor._check_results(results))
 
     def test_check_results_with_invalid_creds(self):
         actor = slack.SlackBase('Unit test action', {})
@@ -92,7 +93,7 @@ class TestMessage(testing.AsyncTestCase):
         # Ensure we're dry
         self.actor._dry = True
         ret = yield self.actor._execute()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
         # Ensure the calls were made to the API
         auth_test_mock.http_post.assert_has_calls([mock.call()])
@@ -105,7 +106,7 @@ class TestMessage(testing.AsyncTestCase):
         self._slack_mock.chat_postMessage.return_value = post_mock
 
         ret = yield self.actor._execute()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
         # Ensure the calls were made to the API
         post_mock.http_post.assert_has_calls([mock.call(
@@ -127,7 +128,7 @@ class TestMessage(testing.AsyncTestCase):
         self._slack_mock.chat_postMessage.return_value = post_mock
 
         ret = yield actor._execute()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
         # Ensure the calls were made to the API
         post_mock.http_post.assert_has_calls([mock.call(
@@ -149,7 +150,7 @@ class TestMessage(testing.AsyncTestCase):
         self._slack_mock.chat_postMessage.return_value = post_mock
 
         ret = yield actor._execute()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
         # Ensure the calls were made to the API
         post_mock.http_post.assert_has_calls([mock.call(

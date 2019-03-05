@@ -47,7 +47,7 @@ class IntegrationSpotinstElastiGroup(testing.AsyncTestCase):
                 'wait_on_create': True,
             })
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)
 
     @attr('spotinst', 'integration')
     @testing.gen_test(timeout=300)
@@ -62,7 +62,7 @@ class IntegrationSpotinstElastiGroup(testing.AsyncTestCase):
                 'wait_on_create': True,
             })
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)
 
     @attr('spotinst', 'integration', 'dry')
     @testing.gen_test(timeout=60)
@@ -83,7 +83,7 @@ class IntegrationSpotinstElastiGroup(testing.AsyncTestCase):
         # Patch the group description to trigger an update
         actor._config['group']['description'] = UUID
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)
 
     @attr('spotinst', 'integration')
     @testing.gen_test(timeout=1800)
@@ -104,7 +104,7 @@ class IntegrationSpotinstElastiGroup(testing.AsyncTestCase):
         # Patch the group description to trigger an update
         actor._config['group']['description'] = UUID
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)
 
     @attr('spotinst', 'integration', 'dry')
     @testing.gen_test(timeout=60)
@@ -118,4 +118,4 @@ class IntegrationSpotinstElastiGroup(testing.AsyncTestCase):
                 'config': self.config,
             })
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)

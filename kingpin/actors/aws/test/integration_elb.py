@@ -53,7 +53,7 @@ class IntegrationELB(testing.AsyncTestCase):
 
         done = yield actor.execute()
 
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration')
     @testing.gen_test

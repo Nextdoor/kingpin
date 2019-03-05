@@ -117,7 +117,7 @@ def main():
 
     if args.actor and args.explain:
         ActorClass = actor_utils.get_actor_class(args.actor)
-        print(ActorClass.__doc__)
+        print((ActorClass.__doc__))
         sys.exit(0)
 
     if args.build_only:

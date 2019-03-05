@@ -27,7 +27,7 @@ class TestRightScale(testing.AsyncTestCase):
         resource = mock.Mock()
         resource.self.path = '/foo/bar/12345'
         ret = self.client.get_res_id(resource)
-        self.assertEquals(ret, 12345)
+        self.assertEqual(ret, 12345)
 
     def test_exception_logger(self):
         response = mock.MagicMock(name='fake_response')
@@ -61,7 +61,7 @@ class TestRightScale(testing.AsyncTestCase):
             ret = yield self.client.find_server_arrays('test', exact=True)
             u_mock.assert_called_once_with(
                 self.mock_client.server_arrays, 'test', exact=True)
-            self.assertEquals(array, ret)
+            self.assertEqual(array, ret)
 
         with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
             array1 = mock.MagicMock(name='array1')
@@ -75,7 +75,7 @@ class TestRightScale(testing.AsyncTestCase):
             ret = yield self.client.find_server_arrays('test2', exact=False)
             u_mock.assert_called_once_with(
                 self.mock_client.server_arrays, 'test2', exact=False)
-            self.assertEquals([array1, array2], ret)
+            self.assertEqual([array1, array2], ret)
 
     @testing.gen_test
     def test_find_server_arrays_empty_result(self):
@@ -84,14 +84,14 @@ class TestRightScale(testing.AsyncTestCase):
             ret = yield self.client.find_server_arrays('test', exact=True)
             u_mock.assert_called_once_with(
                 self.mock_client.server_arrays, 'test', exact=True)
-            self.assertEquals(None, ret)
+            self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_show(self):
         mock_rsr = mock.MagicMock(name='resource')
         mock_rsr.show.return_value = 1
         ret = yield self.client.show(mock_rsr)
-        self.assertEquals(1, ret)
+        self.assertEqual(1, ret)
 
     @testing.gen_test
     def test_find_cookbook(self):
@@ -100,14 +100,14 @@ class TestRightScale(testing.AsyncTestCase):
         resource.soul = {'metadata': {'recipes': {'cook::book': True}}}
         self.client._client.cookbooks.index.return_value = [resource]
         ret = yield self.client.find_cookbook('cook::book')
-        self.assertEquals(resource, ret)
+        self.assertEqual(resource, ret)
 
     @testing.gen_test
     def test_find_cookbook_empty_result(self):
         with mock.patch.object(api.rightscale_util, 'find_by_name') as u_mock:
             u_mock.return_value = None
             ret = yield self.client.find_cookbook('cook::book')
-            self.assertEquals(None, ret)
+            self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_find_right_script(self):
@@ -116,7 +116,7 @@ class TestRightScale(testing.AsyncTestCase):
             ret = yield self.client.find_right_script('test')
             u_mock.assert_called_once_with(
                 self.mock_client.right_scripts, 'test', exact=True)
-            self.assertEquals(1, ret)
+            self.assertEqual(1, ret)
 
     @testing.gen_test
     def test_find_right_script_empty_result(self):
@@ -125,7 +125,7 @@ class TestRightScale(testing.AsyncTestCase):
             ret = yield self.client.find_right_script('test')
             u_mock.assert_called_once_with(
                 self.mock_client.right_scripts, 'test', exact=True)
-            self.assertEquals(None, ret)
+            self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_find_by_name_and_keys(self):
@@ -137,7 +137,7 @@ class TestRightScale(testing.AsyncTestCase):
         ret = yield self.client.find_by_name_and_keys(
             collection=mock.MagicMock(), exact=True,
             name='FakeResource', href='/123')
-        self.assertEquals(ret, [])
+        self.assertEqual(ret, [])
 
         # Now create a fake Rightscale resource collection object.
         collection = mock.MagicMock(name='collection')
@@ -148,7 +148,7 @@ class TestRightScale(testing.AsyncTestCase):
         ret = yield self.client.find_by_name_and_keys(
             collection=collection, exact=True,
             name='FakeResource', href='/123')
-        self.assertEquals(ret, res_mock)
+        self.assertEqual(ret, res_mock)
         collection.index.assert_called_once_with(
             params={'filter[]': ['href==/123', 'name==FakeResource']})
         collection.reset_mock()
@@ -159,7 +159,7 @@ class TestRightScale(testing.AsyncTestCase):
         ret = yield self.client.find_by_name_and_keys(
             collection=collection, exact=True,
             name='FakeResource', href='/123')
-        self.assertEquals(ret, [res_mock, res_mock])
+        self.assertEqual(ret, [res_mock, res_mock])
         collection.index.assert_called_once_with(
             params={'filter[]': ['href==/123', 'name==FakeResource']})
         collection.reset_mock()
@@ -169,7 +169,7 @@ class TestRightScale(testing.AsyncTestCase):
         ret = yield self.client.find_by_name_and_keys(
             collection=collection, exact=False,
             name='FakeResource', href='/123')
-        self.assertEquals(ret, [res_mock])
+        self.assertEqual(ret, [res_mock])
         collection.index.assert_called_once_with(
             params={'filter[]': ['href==/123', 'name==FakeResource']})
         collection.reset_mock()
@@ -255,7 +255,7 @@ class TestRightScale(testing.AsyncTestCase):
         ret = yield self.client.clone_server_array(source_mock)
         self.mock_client.server_arrays.clone.assert_called_once_with(
             res_id=1234)
-        self.assertEquals(ret, clone_mock)
+        self.assertEqual(ret, clone_mock)
 
     @testing.gen_test
     def test_destroy_server_array(self):
@@ -268,7 +268,7 @@ class TestRightScale(testing.AsyncTestCase):
         self.mock_client.server_arrays.destroy.assert_called_once_with(
             res_id=1234)
 
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_update(self):
@@ -281,7 +281,7 @@ class TestRightScale(testing.AsyncTestCase):
         ret = yield self.client.update(sa_mock, params)
         sa_mock.self.update.assert_called_once_with(params=params)
 
-        self.assertEquals(ret, 'test')
+        self.assertEqual(ret, 'test')
 
     @testing.gen_test
     def test_update_with_string_and_sub_resource(self):
@@ -295,14 +295,14 @@ class TestRightScale(testing.AsyncTestCase):
                                        sub_resource='test_res')
         sa_mock.test_res.update.assert_called_once_with(data=params)
 
-        self.assertEquals(ret, 'test')
+        self.assertEqual(ret, 'test')
 
     @testing.gen_test
     def test_get_server_array_inputs(self):
         array = mock.Mock()
         ret = yield self.client.get_server_array_inputs(array)
 
-        self.assertEquals(
+        self.assertEqual(
             ret,
             array.next_instance.show().inputs.index())
 
@@ -317,7 +317,7 @@ class TestRightScale(testing.AsyncTestCase):
 
         ret = yield self.client.update_server_array_inputs(
             sa_mock, inputs=inputs)
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
         sa_mock.next_instance.show.assert_called_once_with()
         ni_mock.assert_has_calls([
             mock.call.inputs.multi_update(params=inputs)
@@ -332,7 +332,7 @@ class TestRightScale(testing.AsyncTestCase):
         array_mock.current_instances.index.return_value = fake_instances
 
         ret = yield self.client.get_server_array_current_instances(array_mock)
-        self.assertEquals(fake_instances, ret)
+        self.assertEqual(fake_instances, ret)
 
     @testing.gen_test
     def test_launch_server_array(self):
@@ -347,7 +347,7 @@ class TestRightScale(testing.AsyncTestCase):
         ret = yield self.client.launch_server_array(array_mock)
         self.mock_client.server_arrays.launch.assert_called_once_with(
             res_id=1234, params=None)
-        self.assertEquals(ret, instance_mock)
+        self.assertEqual(ret, instance_mock)
 
     @testing.gen_test
     def test_launch_server_array_launch_0_instance(self):
@@ -357,12 +357,12 @@ class TestRightScale(testing.AsyncTestCase):
 
         # A count of 0 should pass params=None to the launch call
         ret = yield self.client.launch_server_array(array_mock, count=0)
-        self.assertEquals(ret, None)
-        self.assertEquals(0, self.mock_client.server_arrays.launch.call_count)
+        self.assertEqual(ret, None)
+        self.assertEqual(0, self.mock_client.server_arrays.launch.call_count)
 
         # A count of None should pass params=None to the launch call
         ret = yield self.client.launch_server_array(array_mock, count=None)
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_launch_server_array_launch_1_instance(self):
@@ -407,7 +407,7 @@ class TestRightScale(testing.AsyncTestCase):
         ret = yield self.client.terminate_server_array_instances(array_mock)
         self.mock_client.server_arrays.multi_terminate.assert_called_once_with(
             res_id=1234)
-        self.assertEquals(mock_task, ret)
+        self.assertEqual(mock_task, ret)
 
     @testing.gen_test
     def test_terminate_server_array_instances_422_error(self):
@@ -423,7 +423,7 @@ class TestRightScale(testing.AsyncTestCase):
         self.mock_client.server_arrays.multi_terminate.side_effect = action
 
         ret = yield self.client.terminate_server_array_instances(array_mock)
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_wait_for_task(self):
@@ -466,7 +466,7 @@ class TestRightScale(testing.AsyncTestCase):
             ret = yield self.client.wait_for_task(
                 mock_task, task_name='ut-fake-task',
                 sleep=0.01, loc_log=mock_logger)
-        self.assertEquals(ret, True)
+        self.assertEqual(ret, True)
         mock_task.assert_has_calls(
             [mock.call.self.show(), mock.call.self.show(),
              mock.call.self.show()])
@@ -480,7 +480,7 @@ class TestRightScale(testing.AsyncTestCase):
         mock_task = mock.MagicMock(name='fake task')
         mock_task.self.show.side_effect = [queued, in_process, completed]
         ret = yield self.client.wait_for_task(mock_task, sleep=0.01)
-        self.assertEquals(ret, True)
+        self.assertEqual(ret, True)
         mock_task.assert_has_calls(
             [mock.call.self.show(), mock.call.self.show(),
              mock.call.self.show()])
@@ -489,14 +489,14 @@ class TestRightScale(testing.AsyncTestCase):
         mock_task = mock.MagicMock(name='fake task')
         mock_task.self.show.side_effect = [queued, in_process, failed]
         ret = yield self.client.wait_for_task(mock_task, sleep=0.01)
-        self.assertEquals(ret, False)
+        self.assertEqual(ret, False)
 
         # task fails
         mock_task = mock.MagicMock(name='fake task')
         mock_task.self.show.side_effect = [queued, in_process, failed]
         ret = yield self.client.wait_for_task(
             mock_task, sleep=0.01, instance=mocked_instance)
-        self.assertEquals(ret, False)
+        self.assertEqual(ret, False)
         mock_task.assert_has_calls(
             [mock.call.self.show(), mock.call.self.show(),
              mock.call.self.show()])
@@ -507,7 +507,7 @@ class TestRightScale(testing.AsyncTestCase):
         mock_task.self.show.side_effect = [queued, in_process, failed]
         ret = yield self.client.wait_for_task(
             mock_task, sleep=0.01, instance=mocked_instance)
-        self.assertEquals(ret, False)
+        self.assertEqual(ret, False)
         mock_task.assert_has_calls(
             [mock.call.self.show(), mock.call.self.show(),
              mock.call.self.show()])
@@ -515,7 +515,7 @@ class TestRightScale(testing.AsyncTestCase):
         # task is empty
         mock_task = None
         ret = yield self.client.wait_for_task(mock_task, sleep=0.01)
-        self.assertEquals(ret, True)
+        self.assertEqual(ret, True)
 
     @testing.gen_test
     def test_get_audit_logs(self):
@@ -540,9 +540,9 @@ class TestRightScale(testing.AsyncTestCase):
                                                 'end',
                                                 'failed')
 
-        self.assertEquals(len(logs), 1)
+        self.assertEqual(len(logs), 1)
         expected = self.mock_client.client.get().raw_response.text
-        self.assertEquals(logs[0], expected)
+        self.assertEqual(logs[0], expected)
 
     @testing.gen_test
     def test_run_executable_on_instances(self):
@@ -634,7 +634,7 @@ class TestRightScale(testing.AsyncTestCase):
             r_mock.return_value = resource_mock
             ret = yield self.client.make_generic_request(
                 '/foo', post={'a': 'b'})
-            self.assertEquals(resource_mock, ret)
+            self.assertEqual(resource_mock, ret)
             requests_mock_client.post.assert_called_once_with(
                 '/foo', data={'a': 'b'})
 
@@ -645,7 +645,7 @@ class TestRightScale(testing.AsyncTestCase):
             resource_mock = mock.MagicMock(name='resource_mock')
             r_mock.return_value = resource_mock
             ret = yield self.client.make_generic_request('/foo')
-            self.assertEquals(resource_mock, ret)
+            self.assertEqual(resource_mock, ret)
             requests_mock_client.get.assert_called_once_with('/foo')
 
         # Test 3: Simple POST that returns a location header
@@ -657,7 +657,7 @@ class TestRightScale(testing.AsyncTestCase):
             r_mock.return_value = resource_mock
             ret = yield self.client.make_generic_request(
                 '/foo', post={'a': 'b'})
-            self.assertEquals(resource_mock, ret)
+            self.assertEqual(resource_mock, ret)
             requests_mock_client.post.assert_called_once_with(
                 '/foo', data={'a': 'b'})
             requests_mock_client.get.assert_called_once_with('/foobar')
@@ -667,4 +667,4 @@ class TestRightScale(testing.AsyncTestCase):
         response_mock.json.side_effect = simplejson.scanner.JSONDecodeError(
             'a', 'b', 0)
         ret = yield self.client.make_generic_request('/foo')
-        self.assertEquals('test', ret)
+        self.assertEqual('test', ret)

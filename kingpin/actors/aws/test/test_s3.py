@@ -7,6 +7,7 @@ import mock
 from kingpin.actors import exceptions
 from kingpin.actors.aws import s3 as s3_actor
 from kingpin.actors.aws import settings
+import importlib
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class TestBucket(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(s3_actor)
+        importlib.reload(s3_actor)
 
         self.actor = s3_actor.Bucket(
             options={
@@ -66,22 +67,22 @@ class TestBucket(testing.AsyncTestCase):
     def test_generate_lifecycle_valid_config(self):
         # Validates that the generated config called by the __init__ class is
         # correct based on the actor configuration in the setUp() method above
-        self.assertEquals(len(self.actor.lifecycle), 1)
+        self.assertEqual(len(self.actor.lifecycle), 1)
 
         # Verify that the rule was created with the basic options
         r = self.actor.lifecycle[0]
-        self.assertEquals(r['ID'], 'test')
-        self.assertEquals(r['Filter']['Prefix'], '/test')
-        self.assertEquals(r['Status'], 'Enabled')
+        self.assertEqual(r['ID'], 'test')
+        self.assertEqual(r['Filter']['Prefix'], '/test')
+        self.assertEqual(r['Status'], 'Enabled')
 
         # Validate that the string "30" was turned into an Expiration object
-        self.assertEquals(r['Expiration']['Days'], 30)
+        self.assertEqual(r['Expiration']['Days'], 30)
 
         # Validate that the transition config was built properly too
-        self.assertEquals(r['Transitions'][0]['Days'], 45)
+        self.assertEqual(r['Transitions'][0]['Days'], 45)
 
         # Validate that the transition config was built properly too
-        self.assertEquals(
+        self.assertEqual(
             r['NoncurrentVersionTransitions'][0]['NoncurrentDays'], 14)
 
     def test_snake_to_camel(self):
@@ -93,7 +94,7 @@ class TestBucket(testing.AsyncTestCase):
             }
         }
 
-        self.assertEquals(
+        self.assertEqual(
             self.actor._snake_to_camel(snake),
             {'IShouldBeTaller': {'MeTooMan': ['not_me']}}
         )
@@ -113,13 +114,13 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_get_state_absent(self):
         ret = yield self.actor._get_state()
-        self.assertEquals('absent', ret)
+        self.assertEqual('absent', ret)
 
     @testing.gen_test
     def test_get_state_present(self):
         self.actor._bucket_exists = True
         ret = yield self.actor._get_state()
-        self.assertEquals('present', ret)
+        self.assertEqual('present', ret)
 
     @testing.gen_test
     def test_set_state_absent(self):
@@ -179,13 +180,13 @@ class TestBucket(testing.AsyncTestCase):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_policy.return_value = {'Policy': '{}'}
         ret = yield self.actor._get_policy()
-        self.assertEquals({}, ret)
+        self.assertEqual({}, ret)
 
     @testing.gen_test
     def test_get_policy_no_bucket(self):
         self.actor._bucket_exists = False
         ret = yield self.actor._get_policy()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_get_policy_empty(self):
@@ -193,7 +194,7 @@ class TestBucket(testing.AsyncTestCase):
         self.actor.s3_conn.get_bucket_policy.side_effect = ClientError(
             {'Error': {'Code': ''}}, 'NoSuchBucketPolicy')
         ret = yield self.actor._get_policy()
-        self.assertEquals('', ret)
+        self.assertEqual('', ret)
 
     @testing.gen_test
     def test_get_policy_exc(self):
@@ -280,7 +281,7 @@ class TestBucket(testing.AsyncTestCase):
         }
 
         ret = yield self.actor._get_logging()
-        self.assertEquals(
+        self.assertEqual(
             ret,
             {'target': 'Target-Bucket', 'prefix': 'Target-Prefix'})
 
@@ -289,13 +290,13 @@ class TestBucket(testing.AsyncTestCase):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_logging.return_value = {}
         ret = yield self.actor._get_logging()
-        self.assertEquals(ret, {'target': '', 'prefix': ''})
+        self.assertEqual(ret, {'target': '', 'prefix': ''})
 
     @testing.gen_test
     def test_get_logging_no_bucket(self):
         self.actor._bucket_exists = False
         ret = yield self.actor._get_logging()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_set_logging_not_desired(self):
@@ -340,7 +341,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_versioning_no_bucket(self):
         self.actor._bucket_exists = False
         ret = yield self.actor._get_versioning()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_get_versioning_suspended(self):
@@ -380,13 +381,13 @@ class TestBucket(testing.AsyncTestCase):
         self.actor.s3_conn.get_bucket_lifecycle_configuration.return_value = {
             'Rules': []}
         ret = yield self.actor._get_lifecycle()
-        self.assertEquals(ret, [])
+        self.assertEqual(ret, [])
 
     @testing.gen_test
     def test_get_lifecycle_no_bucket(self):
         self.actor._bucket_exists = False
         ret = yield self.actor._get_lifecycle()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_get_lifecycle_empty(self):
@@ -395,7 +396,7 @@ class TestBucket(testing.AsyncTestCase):
             ClientError(
                 {'Error': {'Code': ''}}, 'NoSuchLifecycleConfiguration')
         ret = yield self.actor._get_lifecycle()
-        self.assertEquals(ret, [])
+        self.assertEqual(ret, [])
 
     @testing.gen_test
     def test_get_lifecycle_clienterror(self):
@@ -470,13 +471,13 @@ class TestBucket(testing.AsyncTestCase):
             'PublicAccessBlockConfiguration': test_cfg
         }
         ret = yield self.actor._get_public_access_block_configuration()
-        self.assertEquals(ret, test_cfg)
+        self.assertEqual(ret, test_cfg)
 
     @testing.gen_test
     def test_get_public_access_block_configuration_no_bucket(self):
         self.actor._bucket_exists = False
         ret = yield self.actor._get_public_access_block_configuration()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_get_public_access_block_configuration_empty(self):
@@ -484,7 +485,7 @@ class TestBucket(testing.AsyncTestCase):
         self.actor.s3_conn.get_public_access_block.side_effect = ClientError(
             {'Error': {}}, 'NoSuchPublicAccessBlockConfiguration')
         ret = yield self.actor._get_public_access_block_configuration()
-        self.assertEquals(ret, [])
+        self.assertEqual(ret, [])
 
     @testing.gen_test
     def test_get_public_access_block_configuration_clienterror(self):
@@ -546,7 +547,7 @@ class TestBucket(testing.AsyncTestCase):
         self.actor.s3_conn.get_bucket_tagging.return_value = {
             'TagSet': [{'Key': 'k1', 'Value': 'v1'}]}
         ret = yield self.actor._get_tags()
-        self.assertEquals(ret, [{'key': 'k1', 'value': 'v1'}])
+        self.assertEqual(ret, [{'key': 'k1', 'value': 'v1'}])
 
     @testing.gen_test
     def test_get_tags_multiple_tags(self):
@@ -557,7 +558,7 @@ class TestBucket(testing.AsyncTestCase):
                 {'Key': 'k2', 'Value': 'v2'}
             ]}
         ret = yield self.actor._get_tags()
-        self.assertEquals(ret, [
+        self.assertEqual(ret, [
             {'key': 'k1', 'value': 'v1'},
             {'key': 'k2', 'value': 'v2'}
         ])
@@ -566,13 +567,13 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_tags_no_bucket(self):
         self.actor._bucket_exists = False
         ret = yield self.actor._get_tags()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_get_tags_not_managed(self):
         self.actor._options['tags'] = None
         ret = yield self.actor._get_tags()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_get_tags_empty(self):
@@ -580,7 +581,7 @@ class TestBucket(testing.AsyncTestCase):
         self.actor.s3_conn.get_bucket_tagging.side_effect = ClientError(
             {'Error': {'Code': ''}}, 'NoSuchTagSet')
         ret = yield self.actor._get_tags()
-        self.assertEquals(ret, [])
+        self.assertEqual(ret, [])
 
     @testing.gen_test
     def test_get_tags_exc(self):

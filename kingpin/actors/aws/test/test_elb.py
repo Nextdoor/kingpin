@@ -9,6 +9,7 @@ from kingpin.actors import exceptions
 from kingpin.actors.aws import elb as elb_actor
 from kingpin.actors.aws import settings
 from kingpin.actors.test import helper
+import importlib
 
 log = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class TestRegisterInstance(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(elb_actor)
+        importlib.reload(elb_actor)
 
     @testing.gen_test
     def test_add(self):
@@ -69,7 +70,7 @@ class TestRegisterInstance(testing.AsyncTestCase):
 
         yield act._check_elb_zones(elb=elb)
 
-        self.assertEquals(elb.enable_zones.call_count, 0)
+        self.assertEqual(elb.enable_zones.call_count, 0)
 
     @testing.gen_test
     def test_execute(self):
@@ -118,7 +119,7 @@ class TestDeregisterInstance(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(elb_actor)
+        importlib.reload(elb_actor)
 
     @testing.gen_test
     def test_remove(self):
@@ -222,7 +223,7 @@ class TestDeregisterInstance(testing.AsyncTestCase):
 
         ret = yield act._find_instance_elbs(['i-test'])
 
-        self.assertEquals(ret, [fake_elb_2])
+        self.assertEqual(ret, [fake_elb_2])
 
     @testing.gen_test
     def test_execute_self(self):
@@ -262,7 +263,7 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(elb_actor)
+        importlib.reload(elb_actor)
 
     @testing.gen_test
     def test_execute(self):
@@ -276,9 +277,9 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
         actor._is_healthy = mock.Mock(return_value=helper.tornado_value(True))
 
         val = yield actor._execute()
-        self.assertEquals(actor._find_elb.call_count, 1)
-        self.assertEquals(actor._is_healthy.call_count, 1)
-        self.assertEquals(val, None)
+        self.assertEqual(actor._find_elb.call_count, 1)
+        self.assertEqual(actor._is_healthy.call_count, 1)
+        self.assertEqual(val, None)
 
     @testing.gen_test
     def test_execute_retry(self):
@@ -299,9 +300,9 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
             ts.return_value = short_sleep
             val = yield actor._execute()
 
-        self.assertEquals(actor._find_elb.call_count, 1)  # Don't refetch!
-        self.assertEquals(actor._is_healthy.call_count, 2)  # Retry!
-        self.assertEquals(val, None)
+        self.assertEqual(actor._find_elb.call_count, 1)  # Don't refetch!
+        self.assertEqual(actor._is_healthy.call_count, 2)  # Retry!
+        self.assertEqual(val, None)
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -317,9 +318,9 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
         actor._is_healthy = mock.Mock(return_value=helper.tornado_value(False))
 
         val = yield actor._execute()
-        self.assertEquals(actor._find_elb.call_count, 1)
-        self.assertEquals(actor._is_healthy.call_count, 1)
-        self.assertEquals(val, None)
+        self.assertEqual(actor._find_elb.call_count, 1)
+        self.assertEqual(actor._is_healthy.call_count, 1)
+        self.assertEqual(val, None)
 
     @testing.gen_test
     def test_execute_fail(self):
@@ -341,8 +342,8 @@ class TestWaitUntilHealthy(testing.AsyncTestCase):
                                  'region': 'us-west-2',
                                  'count': 3})
 
-        self.assertEquals(actor._get_expected_count(5, 1), 5)
-        self.assertEquals(actor._get_expected_count('50%', 20), 10)
+        self.assertEqual(actor._get_expected_count(5, 1), 5)
+        self.assertEqual(actor._get_expected_count('50%', 20), 10)
 
     @testing.gen_test
     def test_is_healthy(self):
@@ -371,7 +372,7 @@ class TestSetCert(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(elb_actor)
+        importlib.reload(elb_actor)
 
     @testing.gen_test
     def test_check_access(self):
@@ -414,12 +415,12 @@ class TestSetCert(testing.AsyncTestCase):
 
         arn = yield actor._get_cert_arn('test')
 
-        self.assertEquals(actor.iam_conn.get_server_certificate.call_count, 1)
-        self.assertEquals(arn, 'unit-test-arn-value')
+        self.assertEqual(actor.iam_conn.get_server_certificate.call_count, 1)
+        self.assertEqual(arn, 'unit-test-arn-value')
 
         yield actor._get_cert_arn('test-new')
         # New name supplied, call count should be 2
-        self.assertEquals(actor.iam_conn.get_server_certificate.call_count, 2)
+        self.assertEqual(actor.iam_conn.get_server_certificate.call_count, 2)
 
     @testing.gen_test
     def test_get_cert_arn_fail(self):
@@ -446,7 +447,7 @@ class TestSetCert(testing.AsyncTestCase):
         elb = mock.Mock()
 
         yield actor._use_cert(elb=elb, arn='test')
-        self.assertEquals(elb.set_listener_SSL_certificate.call_count, 1)
+        self.assertEqual(elb.set_listener_SSL_certificate.call_count, 1)
 
         error = BotoServerError(400, 'test')
         elb.set_listener_SSL_certificate.side_effect = error
@@ -471,16 +472,16 @@ class TestSetCert(testing.AsyncTestCase):
 
         yield actor._execute()
 
-        self.assertEquals(actor._check_access._call_count, 0)
-        self.assertEquals(actor._use_cert._call_count, 1)
+        self.assertEqual(actor._check_access._call_count, 0)
+        self.assertEqual(actor._use_cert._call_count, 1)
 
         # Check quick exit if the cert is already in use
         actor._get_cert_arn = helper.mock_tornado(elb.listeners[0][4])
         yield actor._execute()
 
         # Function calls should remain unchanged
-        self.assertEquals(actor._check_access._call_count, 0)
-        self.assertEquals(actor._use_cert._call_count, 1)
+        self.assertEqual(actor._check_access._call_count, 0)
+        self.assertEqual(actor._use_cert._call_count, 1)
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -501,4 +502,4 @@ class TestSetCert(testing.AsyncTestCase):
 
         yield actor._execute()
 
-        self.assertEquals(actor._check_access._call_count, 1)
+        self.assertEqual(actor._check_access._call_count, 1)

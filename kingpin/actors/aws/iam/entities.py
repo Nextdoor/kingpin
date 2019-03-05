@@ -150,7 +150,7 @@ class EntityBaseActor(base.IAMBaseActor):
 
         # If a single policy was supplied (ie, maybe on a command line) then
         # turn it into a list.
-        if isinstance(policies, basestring):
+        if isinstance(policies, str):
             policies = [policies]
 
         # Run through any supplied Inline IAM Policies and verify that they're
@@ -594,7 +594,7 @@ class User(EntityBaseActor):
             name: The user we're managing
             groups: The list (or single) of groups to join be members of
         """
-        if isinstance(groups, basestring):
+        if isinstance(groups, str):
             groups = [groups]
 
         current_groups = set()

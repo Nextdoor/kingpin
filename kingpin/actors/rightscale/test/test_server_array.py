@@ -39,12 +39,12 @@ class TestServerArrayBaseActor(testing.AsyncTestCase):
         # Test 1: Pass in a single array
         arrays = [mock.MagicMock()]
         ret = yield self.actor._apply(fake_func, arrays, ret_val=1)
-        self.assertEquals(ret, [1])
+        self.assertEqual(ret, [1])
 
         # Test 2: Pass in several arrays
         arrays = [mock.MagicMock(), mock.MagicMock()]
         ret = yield self.actor._apply(fake_func, arrays, ret_val=1)
-        self.assertEquals(ret, [1, 1])
+        self.assertEqual(ret, [1, 1])
 
 
 class TestCloneActor(testing.AsyncTestCase):
@@ -69,10 +69,10 @@ class TestCloneActor(testing.AsyncTestCase):
                                          'dest': 'newunitarray',
                                          'strict_dest': False})
 
-        self.assertEquals(self.actor._source_raise_on, None)
-        self.assertEquals(self.actor._dest_raise_on, None)
-        self.assertEquals(self.actor._source_allow_mock, True)
-        self.assertEquals(self.actor._dest_allow_mock, True)
+        self.assertEqual(self.actor._source_raise_on, None)
+        self.assertEqual(self.actor._dest_raise_on, None)
+        self.assertEqual(self.actor._source_allow_mock, True)
+        self.assertEqual(self.actor._dest_allow_mock, True)
 
     @testing.gen_test
     def test_execute(self):
@@ -88,7 +88,7 @@ class TestCloneActor(testing.AsyncTestCase):
         self.client_mock.update = mock_tornado()
 
         ret = yield self.actor._execute()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_execute_in_dry_mode(self):
@@ -101,7 +101,7 @@ class TestCloneActor(testing.AsyncTestCase):
         self.client_mock.update = mock_tornado()
 
         ret = yield self.actor._execute()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
 
 class TestUpdateActor(testing.AsyncTestCase):
@@ -128,7 +128,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         inputs = {}
         self.actor._client.get_server_array_inputs = mock_tornado([])
         ok = yield self.actor._check_array_inputs(array, inputs)
-        self.assertEquals(ok, None)
+        self.assertEqual(ok, None)
 
     @testing.gen_test
     def test_check_inputs_missing(self):
@@ -146,7 +146,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         inputs = {}
         self.actor._client.get_server_array_inputs = mock_tornado([])
         ok = yield self.actor._check_array_inputs(array, inputs)
-        self.assertEquals(ok, None)
+        self.assertEqual(ok, None)
 
     @testing.gen_test
     def test_execute(self):
@@ -168,7 +168,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.client_mock.update_server_array_inputs.assert_called_once_with(
             mocked_array, [('inputs[test]', 'text:test')])
 
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_update_inputs_empty(self):
@@ -176,7 +176,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.actor._options['inputs'] = None
 
         yield self.actor._update_inputs(mocked_array)
-        self.assertEquals(0, mocked_array.call_count)
+        self.assertEqual(0, mocked_array.call_count)
 
     @testing.gen_test
     def test_update_params_empty(self):
@@ -184,7 +184,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.actor._options['params'] = None
 
         yield self.actor._update_params(mocked_array)
-        self.assertEquals(0, mocked_array.call_count)
+        self.assertEqual(0, mocked_array.call_count)
 
     @testing.gen_test
     def test_execute_500_error_raises_exc(self):
@@ -232,7 +232,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
         ret = yield self.actor._execute()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_execute_dry_with_missing_array(self):
@@ -244,7 +244,7 @@ class TestUpdateActor(testing.AsyncTestCase):
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
         ret = yield self.actor._execute()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
 
 class TestUpdateNextInstanceActor(testing.AsyncTestCase):
@@ -266,8 +266,8 @@ class TestUpdateNextInstanceActor(testing.AsyncTestCase):
 
         # Validate that the actor._params were saved properly the first time
         # and that the 'image_href' was not modified.
-        self.assertEquals(
-            self.actor._params, [(u'instance[image_href]', u'default')])
+        self.assertEqual(
+            self.actor._params, [('instance[image_href]', 'default')])
 
     @testing.gen_test
     def test_update_params(self):
@@ -381,7 +381,7 @@ class TestUpdateNextInstanceActor(testing.AsyncTestCase):
         # Execute the method
         ret = yield self.actor._find_def_image_href(mocked_instance)
         # Did we ultimatley get back /test/image?
-        self.assertEquals('/test/image', ret)
+        self.assertEqual('/test/image', ret)
 
         # Second test -- written inline with the first test to avoid the
         # massive setup process above.
@@ -399,7 +399,7 @@ class TestUpdateNextInstanceActor(testing.AsyncTestCase):
 
         ret = yield self.actor._execute()
 
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_execute_with_missing_array(self):
@@ -410,7 +410,7 @@ class TestUpdateNextInstanceActor(testing.AsyncTestCase):
         self.actor._find_server_arrays = mock_tornado(mocked_array)
 
         ret = yield self.actor._execute()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
 
 class TestTerminateActor(testing.AsyncTestCase):
@@ -432,8 +432,8 @@ class TestTerminateActor(testing.AsyncTestCase):
         self.actor = server_array.Terminate('Terminate',
                                             {'array': 'unittestarray',
                                              'strict': False})
-        self.assertEquals(self.actor._raise_on, None)
-        self.assertEquals(self.actor._allow_mock, True)
+        self.assertEqual(self.actor._raise_on, None)
+        self.assertEqual(self.actor._allow_mock, True)
 
     @testing.gen_test
     def test_terminate_all_instances(self):
@@ -449,8 +449,8 @@ class TestTerminateActor(testing.AsyncTestCase):
         self.client_mock.wait_for_task = mock_tornado()
 
         ret = yield self.actor._terminate_all_instances(array_mock)
-        self.assertEquals(ret, None)
-        self.assertEquals(
+        self.assertEqual(ret, None)
+        self.assertEqual(
             self.client_mock.terminate_server_array_instances._call_count,
             1)
 
@@ -467,8 +467,8 @@ class TestTerminateActor(testing.AsyncTestCase):
         self.client_mock.wait_for_task = mock_tornado()
 
         ret = yield self.actor._terminate_all_instances(array_mock)
-        self.assertEquals(ret, None)
-        self.assertEquals(
+        self.assertEqual(ret, None)
+        self.assertEqual(
             self.client_mock.terminate_server_array_instances._call_count,
             0)
 
@@ -486,15 +486,15 @@ class TestTerminateActor(testing.AsyncTestCase):
             tornado_value(r) for r in responses]
 
         ret = yield self.actor._wait_until_empty(array_mock, sleep=0.01)
-        self.assertEquals(get_func.call_count, 4)
-        self.assertEquals(ret, None)
+        self.assertEqual(get_func.call_count, 4)
+        self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_wait_until_empty_dry(self):
         self.actor._dry = True
         array_mock = mock.MagicMock(name='unittest')
         ret = yield self.actor._wait_until_empty(array_mock)
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_disable_array(self):
@@ -530,9 +530,9 @@ class TestTerminateActor(testing.AsyncTestCase):
 
         # Now verify that each of the steps (terminate, wait, destroyed) were
         # all called.
-        self.assertEquals(self.actor._wait_until_empty._call_count, 1)
-        self.assertEquals(self.actor._terminate_all_instances._call_count, 1)
-        self.assertEquals(ret, None)
+        self.assertEqual(self.actor._wait_until_empty._call_count, 1)
+        self.assertEqual(self.actor._terminate_all_instances._call_count, 1)
+        self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -597,8 +597,8 @@ class TestDestroyActor(testing.AsyncTestCase):
 
         ret = yield self.actor._execute()
 
-        self.assertEquals(self.actor._destroy_array._call_count, 1)
-        self.assertEquals(ret, None)
+        self.assertEqual(self.actor._destroy_array._call_count, 1)
+        self.assertEqual(ret, None)
 
 
 class TestLaunchActor(testing.AsyncTestCase):
@@ -644,15 +644,15 @@ class TestLaunchActor(testing.AsyncTestCase):
         self.client_mock.get_server_array_current_instances = get
 
         ret = yield self.actor._wait_until_healthy(array_mock, sleep=0.01)
-        self.assertEquals(len(server_list), 4)
-        self.assertEquals(ret, None)
+        self.assertEqual(len(server_list), 4)
+        self.assertEqual(ret, None)
 
         # Now run the same test, but in dry mode..
         self.actor._dry = True
         server_list = []
         ret = yield self.actor._wait_until_healthy(array_mock, sleep=0.01)
-        self.assertEquals(len(server_list), 0)
-        self.assertEquals(ret, None)
+        self.assertEqual(len(server_list), 0)
+        self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_wait_until_healthy_based_on_specific_count(self):
@@ -674,15 +674,15 @@ class TestLaunchActor(testing.AsyncTestCase):
         self.client_mock.get_server_array_current_instances = get
 
         ret = yield self.actor._wait_until_healthy(array_mock, sleep=0.01)
-        self.assertEquals(len(server_list), 2)
-        self.assertEquals(ret, None)
+        self.assertEqual(len(server_list), 2)
+        self.assertEqual(ret, None)
 
         # Now run the same test, but in dry mode..
         self.actor._dry = True
         server_list = []
         ret = yield self.actor._wait_until_healthy(array_mock, sleep=0.01)
-        self.assertEquals(len(server_list), 0)
-        self.assertEquals(ret, None)
+        self.assertEqual(len(server_list), 0)
+        self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_launch_instances(self):
@@ -698,7 +698,7 @@ class TestLaunchActor(testing.AsyncTestCase):
         self.client_mock.get_server_array_current_instances = mock_tornado([])
         self.client_mock.launch_server_array.reset_mock()
         yield self.actor._launch_instances(array_mock)
-        self.assertEquals(1, self.client_mock.launch_server_array.call_count)
+        self.assertEqual(1, self.client_mock.launch_server_array.call_count)
         self.client_mock.launch_server_array.assert_has_calls(
             [mock.call(array_mock, count=4)])
 
@@ -715,7 +715,7 @@ class TestLaunchActor(testing.AsyncTestCase):
             1, 2, 3, 4, 5])
         self.client_mock.launch_server_array.reset_mock()
         yield self.actor._launch_instances(array_mock)
-        self.assertEquals(self.client_mock.launch_server_array.call_count, 0)
+        self.assertEqual(self.client_mock.launch_server_array.call_count, 0)
 
         # Dry call
         self.actor._dry = True
@@ -748,7 +748,7 @@ class TestLaunchActor(testing.AsyncTestCase):
 
         # Run it again, object shoudl NOT be updated.
         yield self.actor._enable_array(initial_array)
-        self.assertEquals(initial_array.updated.call_count, 0)
+        self.assertEqual(initial_array.updated.call_count, 0)
 
     @testing.gen_test
     def test_disabled_no_launch(self):
@@ -842,7 +842,7 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.client_mock.get_server_array_current_instances = get
 
         ret = yield self.actor._get_operational_instances(mock_array)
-        self.assertEquals(2, len(ret))
+        self.assertEqual(2, len(ret))
 
     @testing.gen_test
     def test_exec_and_wait(self):
@@ -850,10 +850,10 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.client_mock.wait_for_task = mock_tornado('success-test')
         ret = yield self.actor._exec_and_wait('', {}, [], 1)
 
-        self.assertEquals(ret, 'success-test')
-        self.assertEquals(
+        self.assertEqual(ret, 'success-test')
+        self.assertEqual(
             self.client_mock.run_executable_on_instances._call_count, 1)
-        self.assertEquals(self.client_mock.wait_for_task._call_count, 1)
+        self.assertEqual(self.client_mock.wait_for_task._call_count, 1)
 
     @testing.gen_test
     def test_execute_array_with_concurrency_dry(self):
@@ -925,7 +925,7 @@ class TestExecuteActor(testing.AsyncTestCase):
             sleep=5,
             loc_log=self.actor.log,
             instance=mock_op_instance)
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
         # Now mock out a failure of the script execution
         wait = mock_tornado(False)
@@ -949,7 +949,7 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.client_mock.get_server_array_current_instances = mock_tornado([])
 
         ret = yield self.actor._execute_array(mock_array, 1)
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_execute_concurrent(self):
@@ -964,7 +964,7 @@ class TestExecuteActor(testing.AsyncTestCase):
 
         self.actor._execute_array_with_concurrency.assert_has_calls([
             mock.call(mock_array,
-                      [(u'inputs[foo]', u'text:bar')])])
+                      [('inputs[foo]', 'text:bar')])])
 
     @testing.gen_test
     def test_execute(self):
@@ -978,7 +978,7 @@ class TestExecuteActor(testing.AsyncTestCase):
         self.actor._apply.assert_has_calls([
             mock.call(self.actor._execute_array,
                       mock_array,
-                      [(u'inputs[foo]', u'text:bar')])])
+                      [('inputs[foo]', 'text:bar')])])
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -992,7 +992,7 @@ class TestExecuteActor(testing.AsyncTestCase):
         yield self.actor._execute()
         self.actor._apply.assert_has_calls([
             mock.call(self.actor._execute_array,
-                      mock_array, [(u'inputs[foo]', u'text:bar')])
+                      mock_array, [('inputs[foo]', 'text:bar')])
         ])
 
     @testing.gen_test

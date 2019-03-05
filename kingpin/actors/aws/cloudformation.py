@@ -297,7 +297,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         new_params = [
             {'ParameterKey': k,
              'ParameterValue': v}
-            for k, v in parameters.items()]
+            for k, v in list(parameters.items())]
         sorted_params = sorted(new_params, key=lambda k: k['ParameterKey'])
         return sorted_params
 

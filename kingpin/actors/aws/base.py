@@ -34,7 +34,7 @@ _Note, these can be skipped only if you have a .aws/credentials file in place._
 
 import json
 import logging
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import re
 
 from boto import exception as boto_exception
@@ -348,7 +348,7 @@ class AWSBaseActor(base.BaseActor):
         args:
             policy: The policy string returned by Boto
         """
-        return json.loads(urllib.unquote(policy))
+        return json.loads(urllib.parse.unquote(policy))
 
     def _parse_policy_json(self, policy):
         """Parse a single JSON file into an Amazon policy.

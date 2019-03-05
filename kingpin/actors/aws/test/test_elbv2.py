@@ -8,6 +8,7 @@ from kingpin.actors import exceptions
 from kingpin.actors.aws import elbv2 as elbv2_actor
 from kingpin.actors.aws import settings
 from kingpin.actors.test import helper
+import importlib
 
 log = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class TestRegisterInstance(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(elbv2_actor)
+        importlib.reload(elbv2_actor)
 
     @testing.gen_test
     def test_add(self):
@@ -86,7 +87,7 @@ class TestDeregisterInstance(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(elbv2_actor)
+        importlib.reload(elbv2_actor)
 
     @testing.gen_test
     def test_remove(self):

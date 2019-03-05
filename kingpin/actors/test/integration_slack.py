@@ -6,6 +6,7 @@ from tornado import testing
 
 from kingpin.actors import slack
 from kingpin.actors import exceptions
+import importlib
 
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
@@ -37,7 +38,7 @@ class IntegrationSlackMessage(testing.AsyncTestCase):
                  'channel': self.channel}, dry=True)
 
         # Reload the slack library to re-get the token
-        reload(slack)
+        importlib.reload(slack)
 
     @attr('slack', 'integration', 'dry')
     @testing.gen_test(timeout=2)
@@ -55,7 +56,7 @@ class IntegrationSlackMessage(testing.AsyncTestCase):
             yield actor.execute()
 
         # Reload the slack library to re-get the token
-        reload(slack)
+        importlib.reload(slack)
 
     @attr('slack', 'integration')
     @testing.gen_test(timeout=60)
@@ -75,7 +76,7 @@ class IntegrationSlackMessage(testing.AsyncTestCase):
             {'message': self.message,
              'channel': self.channel}, dry=True)
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)
 
     @attr('slack', 'integration')
     @testing.gen_test(timeout=60)
@@ -85,4 +86,4 @@ class IntegrationSlackMessage(testing.AsyncTestCase):
             {'message': self.message,
              'channel': self.channel})
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)

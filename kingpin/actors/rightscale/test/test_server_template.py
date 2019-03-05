@@ -189,10 +189,10 @@ class TestServerTemplateActor(testing.AsyncTestCase):
                 helper.tornado_value(None)]
 
             yield self.actor._precache()
-            self.assertEquals(self.actor.alert_specs, a_mock())
-        self.assertEquals(self.actor.st, new_st)
-        self.assertEquals(self.actor.desired_images, {})
-        self.assertEquals(self.actor.tags, new_tags)
+            self.assertEqual(self.actor.alert_specs, a_mock())
+        self.assertEqual(self.actor.st, new_st)
+        self.assertEqual(self.actor.desired_images, {})
+        self.assertEqual(self.actor.tags, new_tags)
 
     @testing.gen_test
     def test_precache_absent_template(self):
@@ -201,9 +201,9 @@ class TestServerTemplateActor(testing.AsyncTestCase):
         ]
 
         yield self.actor._precache()
-        self.assertEquals(self.actor.st.soul['description'], None)
-        self.assertEquals(self.actor.st.soul['name'], None)
-        self.assertEquals(self.actor.tags, [])
+        self.assertEqual(self.actor.st.soul['description'], None)
+        self.assertEqual(self.actor.st.soul['name'], None)
+        self.assertEqual(self.actor.tags, [])
 
     @testing.gen_test
     def test_get_mci_href(self):
@@ -216,7 +216,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
             helper.tornado_value(mci_mock)
         ]
         yield self.actor._get_mci_href({'mci': 'test mci'})
-        self.assertEquals(
+        self.assertEqual(
             self.actor.desired_images,
             {'/api/multi_cloud_images/test': {'default': False}}
         )
@@ -235,7 +235,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
     def test_get_mci_mappings_no_st(self):
         self.actor.st.href = None
         ret = yield self.actor._get_mci_mappings()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_get_mci_mappings(self):
@@ -255,7 +255,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
         ret = yield self.actor._get_mci_mappings()
 
         self.maxDiff = None
-        self.assertEquals(
+        self.assertEqual(
             ret,
             {'/api/mci/test': {
              'default': True,
@@ -267,7 +267,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_get_state(self):
         ret = yield self.actor._get_state()
-        self.assertEquals(ret, 'present')
+        self.assertEqual(ret, 'present')
 
     @testing.gen_test
     def test_get_state_absent(self):
@@ -275,7 +275,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
         self.actor.st.href = None
         self.actor.st.soul = {'name': None}
         ret = yield self.actor._get_state()
-        self.assertEquals(ret, 'absent')
+        self.assertEqual(ret, 'absent')
 
     @testing.gen_test
     def test_set_state_present(self):
@@ -303,7 +303,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
             helper.tornado_value(new_st)
         ]
         yield self.actor._create_st()
-        self.assertEquals(self.actor.st, new_st)
+        self.assertEqual(self.actor.st, new_st)
 
     @testing.gen_test
     def test_delete_st(self):
@@ -311,7 +311,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
             helper.tornado_value(None)
         ]
         ret = yield self.actor._delete_st()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
         self.client_mock.destroy_resource.assert_has_calls([
             mock.call(self.actor.st)
         ])
@@ -319,7 +319,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_get_description(self):
         ret = yield self.actor._get_description()
-        self.assertEquals('Fake desc', ret)
+        self.assertEqual('Fake desc', ret)
 
     @testing.gen_test
     def test_set_description(self):
@@ -328,11 +328,11 @@ class TestServerTemplateActor(testing.AsyncTestCase):
             helper.tornado_value(new_st)
         ]
         yield self.actor._set_description()
-        self.assertEquals(new_st, self.actor.st)
+        self.assertEqual(new_st, self.actor.st)
 
     def test_verify_one_default_image(self):
         ret = self.actor._verify_one_default_image()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     def test_verify_one_default_image_too_many(self):
         self.actor.option('images')[1]['is_default'] = True
@@ -386,7 +386,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_get_tags(self):
         ret = yield self.actor._get_tags()
-        self.assertEquals(self.actor.tags, ret)
+        self.assertEqual(self.actor.tags, ret)
 
     @testing.gen_test
     def test_set_tags(self):
@@ -474,7 +474,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_get_operational_bindings(self):
         ret = yield self.actor._get_operational_bindings()
-        self.assertEquals(self.actor.operational_bindings, ret)
+        self.assertEqual(self.actor.operational_bindings, ret)
 
     @testing.gen_test
     def test_set_decommission_bindings(self):
@@ -490,7 +490,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_get_decommission_bindings(self):
         ret = yield self.actor._get_decommission_bindings()
-        self.assertEquals(self.actor.decommission_bindings, ret)
+        self.assertEqual(self.actor.decommission_bindings, ret)
 
     @testing.gen_test
     def test_set_boot_bindings(self):
@@ -506,7 +506,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_get_boot_bindings(self):
         ret = yield self.actor._get_boot_bindings()
-        self.assertEquals(self.actor.boot_bindings, ret)
+        self.assertEqual(self.actor.boot_bindings, ret)
 
     @testing.gen_test
     def test_get_bindings(self):
@@ -524,14 +524,14 @@ class TestServerTemplateActor(testing.AsyncTestCase):
 
         (boot, operational, decommission) = yield self.actor._get_bindings()
 
-        self.assertEquals([boot_binding_c], boot)
-        self.assertEquals([operational_binding_c], operational)
-        self.assertEquals([], decommission)
+        self.assertEqual([boot_binding_c], boot)
+        self.assertEqual([operational_binding_c], operational)
+        self.assertEqual([], decommission)
 
     @testing.gen_test
     def test_generate_bindings_empty(self):
         ret = yield self.actor._generate_bindings([], 'test')
-        self.assertEquals([], ret)
+        self.assertEqual([], ret)
 
     @testing.gen_test
     def test_generate_bindings(self):
@@ -560,7 +560,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
 
         ret = yield self.actor._generate_bindings(
             self.actor.option('boot_bindings'), 'boot')
-        self.assertEquals(
+        self.assertEqual(
             [
                 {'position': 1,
                  'right_script_href': '/api/binding/binding_a_rev_0',
@@ -729,7 +729,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_get_alerts(self):
         ret = yield self.actor._get_alerts()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_compare_alerts(self):
@@ -737,7 +737,7 @@ class TestServerTemplateActor(testing.AsyncTestCase):
         self.actor.alert_specs._compare_specs.side_effect = [
             helper.tornado_value(False)]
         ret = yield self.actor._compare_alerts()
-        self.assertEquals(False, ret)
+        self.assertEqual(False, ret)
 
     @testing.gen_test
     def test_set_alerts(self):

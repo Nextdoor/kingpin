@@ -27,7 +27,7 @@ class TestDeploymentBaseActor(testing.AsyncTestCase):
         with mock.patch.object(actor._client, 'find_by_name_and_keys') as cr:
             cr.return_value = helper.tornado_value()
             yield actor._find_deployment('Unit Test')
-            self.assertEquals(
+            self.assertEqual(
                 actor._client.find_by_name_and_keys.call_count, 1)
 
 
@@ -59,14 +59,14 @@ class TestDeploymentCreateActor(testing.AsyncTestCase):
         self.actor._find_deployment = helper.mock_tornado(None)
         self.actor._client.create_resource = helper.mock_tornado()
         yield self.actor._execute()
-        self.assertEquals(self.actor._client.create_resource._call_count, 0)
+        self.assertEqual(self.actor._client.create_resource._call_count, 0)
 
     @testing.gen_test
     def test_exec(self):
         self.actor._find_deployment = helper.mock_tornado(None)
         self.actor._client.create_resource = helper.mock_tornado()
         yield self.actor._execute()
-        self.assertEquals(self.actor._client.create_resource._call_count, 1)
+        self.assertEqual(self.actor._client.create_resource._call_count, 1)
 
     @testing.gen_test
     def test_exec_duplicate(self):
@@ -96,14 +96,14 @@ class TestDeploymentDestroyActor(testing.AsyncTestCase):
         self.actor._client.destroy_resource = helper.mock_tornado()
         yield self.actor._execute()
 
-        self.assertEquals(self.actor._client.destroy_resource._call_count, 0)
+        self.assertEqual(self.actor._client.destroy_resource._call_count, 0)
 
     @testing.gen_test
     def test_exec(self):
         self.actor._client.destroy_resource = helper.mock_tornado()
         yield self.actor._execute()
 
-        self.assertEquals(self.actor._client.destroy_resource._call_count, 1)
+        self.assertEqual(self.actor._client.destroy_resource._call_count, 1)
 
     @testing.gen_test
     def test_exec_not_found(self):
@@ -112,4 +112,4 @@ class TestDeploymentDestroyActor(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidOptions):
             yield self.actor._execute()
 
-        self.assertEquals(self.actor._client.destroy_resource._call_count, 0)
+        self.assertEqual(self.actor._client.destroy_resource._call_count, 0)

@@ -181,7 +181,7 @@ class RightScaleBaseActor(base.BaseActor):
             if isinstance(d, collections.MutableMapping):
                 # If a dict is passed in, break it into its items and
                 # then iterate over them.
-                for k, v in d.items():
+                for k, v in list(d.items()):
                     new_key = parent_key + '[' + k + ']' if parent_key else k
                     items.extend(flatten(v, new_key))
             elif isinstance(d, list):
@@ -221,7 +221,7 @@ class RightScaleBaseActor(base.BaseActor):
             res: The resource object itself
             tags: A list of strings, or a single string as a tag.
         """
-        if isinstance(tags, basestring):
+        if isinstance(tags, str):
             tags = [tags]
 
         if not res.href:

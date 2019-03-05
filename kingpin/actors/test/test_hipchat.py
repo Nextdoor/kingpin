@@ -2,7 +2,7 @@
 
 import json
 import mock
-import StringIO
+import io
 
 from tornado import gen
 from tornado import httpclient
@@ -54,7 +54,7 @@ class TestHipchatBase(testing.AsyncTestCase):
             {'message': message, 'room': room})
 
         # Regular run
-        self.assertEquals('Foo Bar', actor._validate_from_name('Foo Bar'))
+        self.assertEqual('Foo Bar', actor._validate_from_name('Foo Bar'))
 
     def test_build_potential_args(self):
         potential_args = {
@@ -76,12 +76,12 @@ class TestHipchatBase(testing.AsyncTestCase):
 
         # Regular run
         args = actor._build_potential_args(potential_args)
-        self.assertEquals(args, expected_args)
+        self.assertEqual(args, expected_args)
 
         # Now in dry mode
         actor._dry = True
         args = actor._build_potential_args(potential_args)
-        self.assertEquals(args, expected_dry_args)
+        self.assertEqual(args, expected_dry_args)
 
     @testing.gen_test
     def test_init_without_environment_creds(self):
@@ -119,13 +119,13 @@ class TestHipchatMessage(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=io.StringIO(response_body))
 
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._execute()
-            self.assertEquals(res, None)
+            self.assertEqual(res, None)
 
     @testing.gen_test
     def test_execute_dry_mode_response(self):
@@ -141,13 +141,13 @@ class TestHipchatMessage(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=202,
-            buffer=StringIO.StringIO(response_body))
+            buffer=io.StringIO(response_body))
 
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._execute()
-            self.assertEquals(res, None)
+            self.assertEqual(res, None)
 
     @testing.gen_test
     def test_execute_with_401(self):
@@ -254,13 +254,13 @@ class TestHipchatTopic(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=200,
-            buffer=StringIO.StringIO(response_body))
+            buffer=io.StringIO(response_body))
 
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._execute()
-            self.assertEquals(res, None)
+            self.assertEqual(res, None)
 
     @testing.gen_test
     def test_execute_dry_mode_response(self):
@@ -276,13 +276,13 @@ class TestHipchatTopic(testing.AsyncTestCase):
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
             httpclient.HTTPRequest('/'), code=202,
-            buffer=StringIO.StringIO(response_body))
+            buffer=io.StringIO(response_body))
 
         with mock.patch.object(actor, '_get_http_client') as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._execute()
-            self.assertEquals(res, None)
+            self.assertEqual(res, None)
 
     @testing.gen_test
     def test_execute_with_401(self):

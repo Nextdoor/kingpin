@@ -612,7 +612,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         elif isinstance(data, dict):
             return dict(
                 (camelize(k), self._snake_to_camel(v)) for k, v
-                in data.iteritems())
+                in data.items())
         else:
             return data
 
@@ -1093,7 +1093,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         # returning them so that they are compared properly.
         tagset = []
         for tag in raw['TagSet']:
-            tag = {k.lower(): v for k, v in tag.items()}
+            tag = {k.lower(): v for k, v in list(tag.items())}
             tagset.append(tag)
 
         raise gen.Return(tagset)

@@ -32,7 +32,7 @@ cause/effect analysis.
 
 import logging
 import os
-import urllib
+import urllib.request, urllib.parse, urllib.error
 
 from tornado import gen
 from tornado import httpclient
@@ -150,7 +150,7 @@ class Annotation(base.HTTPBaseActor):
                     self.option('name'), self.option('title'),
                     self.option('description')))
             url = ANNOTATIONS_URL + self.option('name')
-            args = urllib.urlencode(
+            args = urllib.parse.urlencode(
                 {'title': self.option('title'),
                  'description': self.option('description')})
 

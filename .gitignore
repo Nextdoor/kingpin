@@ -4,7 +4,7 @@
 *egg
 *egg-info
 .coverage
-.venv
+.venv3
 .build
 build/
 docs/.ropeproject

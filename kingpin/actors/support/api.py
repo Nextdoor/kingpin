@@ -24,7 +24,7 @@ this package to create your own API client.
 
 import logging
 import types
-import urllib
+import urllib.request, urllib.parse, urllib.error
 
 from tornado import gen
 from tornado import httpclient
@@ -132,7 +132,7 @@ def _retry(*f_or_args, **options):
                     # pop it before searching.
                     default_exc = exc_conf.pop('', False)
                     log.debug('Searching through %s' % exc_conf)
-                    matched_exc = [exc for key, exc in exc_conf.items()
+                    matched_exc = [exc for key, exc in list(exc_conf.items())
                                    if key in str(e)]
 
                     log.debug('Matched exceptions: %s' % matched_exc)
@@ -230,7 +230,7 @@ def create_method(name, config):
         # the RestConsumer parent object. This ensures that tokens replaced in
         # the 'path' variables are passed all the way down the instantiation
         # chain.
-        merged_kwargs = dict(self._kwargs.items() + kwargs.items())
+        merged_kwargs = dict(list(self._kwargs.items()) + list(kwargs.items()))
 
         return self.__class__(
             name=name,
@@ -347,7 +347,7 @@ class RestConsumer(object):
         if not self._http_methods:
             return
 
-        for name in self._http_methods.keys():
+        for name in list(self._http_methods.keys()):
             full_method_name = 'http_%s' % name
             method = create_http_method(full_method_name, name)
             setattr(self,
@@ -363,7 +363,7 @@ class RestConsumer(object):
         if not self._attrs:
             return
 
-        for name in self._attrs.keys():
+        for name in list(self._attrs.keys()):
             method = create_method(name, self._attrs[name])
             setattr(self, name, types.MethodType(method, self, self.__class__))
 
@@ -419,10 +419,10 @@ class RestClient(object):
         """
 
         # Remove keys from the arguments where the value is None
-        args = dict((k, v) for k, v in args.iteritems() if v)
+        args = dict((k, v) for k, v in args.items() if v)
 
         # Convert all Bool values to lowercase strings
-        for key, value in args.iteritems():
+        for key, value in args.items():
             if type(value) is bool:
                 args[key] = str(value).lower()
 
@@ -456,7 +456,7 @@ class RestClient(object):
         # modified URL string and pass that into the fetch() method.
         body = None
         if method in ('PUT', 'POST'):
-            body = urllib.urlencode(params) or None
+            body = urllib.parse.urlencode(params) or None
         elif method in ('GET', 'DELETE') and params:
             url = self._generate_escaped_url(url, params)
 
@@ -508,7 +508,7 @@ class SimpleTokenRestClient(RestClient):
     def __init__(self, tokens, *args, **kwargs):
         super(SimpleTokenRestClient, self).__init__(*args, **kwargs)
         self._tokens = tokens
-        for key in tokens.keys():
+        for key in list(tokens.keys()):
             self._private_kwargs.append(key)
 
     @gen.coroutine

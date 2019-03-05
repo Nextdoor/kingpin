@@ -29,7 +29,7 @@ class IntegrationPingdom(testing.AsyncTestCase):
 
         check = yield actor._get_check()
 
-        self.assertEquals(check['status'], 'paused')
+        self.assertEqual(check['status'], 'paused')
 
     @attr('pingdom', 'integration')
     @testing.gen_test(timeout=60)
@@ -43,4 +43,4 @@ class IntegrationPingdom(testing.AsyncTestCase):
 
         check = yield actor._get_check()
 
-        self.assertEquals(check['status'], 'up')
+        self.assertEqual(check['status'], 'up')

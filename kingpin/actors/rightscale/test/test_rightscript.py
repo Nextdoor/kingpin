@@ -35,7 +35,7 @@ class TestRightScript(testing.AsyncTestCase):
     def test_read_source(self):
         # Should work fine
         ret = self.actor._read_source()
-        self.assertEquals('echo script1\n', ret)
+        self.assertEqual('echo script1\n', ret)
 
         # Should throw a token exc
         self.actor._options['source'] = (
@@ -44,7 +44,7 @@ class TestRightScript(testing.AsyncTestCase):
             self.actor._read_source()
         self.actor._init_tokens = {'TEST': 'test'}
         ret = self.actor._read_source()
-        self.assertEquals('echo script2: test\n', ret)
+        self.assertEqual('echo script2: test\n', ret)
 
         # Should throw exc
         self.actor._options['source'] = 'junk'
@@ -62,8 +62,8 @@ class TestRightScript(testing.AsyncTestCase):
         self.client_mock.make_generic_request.side_effect = [
             helper.tornado_value('test script')]
         yield self.actor._precache()
-        self.assertEquals(fake_script, self.actor.script)
-        self.assertEquals('test script', self.actor.source)
+        self.assertEqual(fake_script, self.actor.script)
+        self.assertEqual('test script', self.actor.source)
 
     @testing.gen_test
     def test_compare_source(self):
@@ -82,8 +82,8 @@ class TestRightScript(testing.AsyncTestCase):
         self.client_mock.make_generic_request.side_effect = [
             helper.tornado_value(None)]
         yield self.actor._precache()
-        self.assertEquals(None, self.actor.script)
-        self.assertEquals(None, self.actor.source)
+        self.assertEqual(None, self.actor.script)
+        self.assertEqual(None, self.actor.source)
 
     @testing.gen_test
     def test_set_state_absent_already_gone(self):
@@ -109,14 +109,14 @@ class TestRightScript(testing.AsyncTestCase):
             create.return_value = helper.tornado_value(1)
             yield self.actor._set_state()
             self.assertTrue(self.actor.changed)
-            self.assertEquals(self.actor.script, 1)
+            self.assertEqual(self.actor.script, 1)
 
     @testing.gen_test
     def test_set_state_dry(self):
         self.actor._dry = True
         yield self.actor._set_state()
         self.assertTrue(self.actor.changed)
-        self.assertEquals(self.actor.script, None)
+        self.assertEqual(self.actor.script, None)
 
     @testing.gen_test
     def test_set_source(self):
@@ -144,13 +144,13 @@ class TestRightScript(testing.AsyncTestCase):
     def test_get_description_none(self):
         self.actor.script = None
         ret = yield self.actor._get_description()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_get_packages_none(self):
         self.actor.script = None
         ret = yield self.actor._get_packages()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_set_packages(self):
@@ -170,9 +170,9 @@ class TestRightScript(testing.AsyncTestCase):
             self.assertTrue(self.actor.changed)
             update.assert_has_calls([mock.call(
                 self.actor.script,
-                [('right_script[packages]', u'curl'),
-                 ('right_script[description]', u'test description'),
-                 ('right_script[name]', u'test-name')])])
+                [('right_script[packages]', 'curl'),
+                 ('right_script[description]', 'test description'),
+                 ('right_script[name]', 'test-name')])])
 
     @testing.gen_test
     def test_commit(self):

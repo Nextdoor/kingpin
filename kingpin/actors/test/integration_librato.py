@@ -87,7 +87,7 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
              'name': 'kingpin-integration-testing'}, dry=True)
 
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)
 
     @attr('librato', 'integration')
     @testing.gen_test
@@ -99,4 +99,4 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
              'name': 'kingpin-integration-testing'})
 
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)

@@ -78,12 +78,12 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         # If the array is found, and we DO want it found, it should be
         # returned properly.
         ret = yield self.actor._find_server_arrays('t', raise_on='notfound')
-        self.assertEquals(mocked_array, ret)
+        self.assertEqual(mocked_array, ret)
 
         # Lastly, if the array is found and we we don't care whether its
         # found or not, it should be returned
         ret = yield self.actor._find_server_arrays('t', raise_on=None)
-        self.assertEquals(mocked_array, ret)
+        self.assertEqual(mocked_array, ret)
 
     @testing.gen_test
     def test_find_server_arrays_many_returned(self):
@@ -94,7 +94,7 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         self.client_mock.find_server_arrays = mock_find
 
         ret = yield self.actor._find_server_arrays('t', raise_on='notfound')
-        self.assertEquals([mocked_array1, mocked_array2], ret)
+        self.assertEqual([mocked_array1, mocked_array2], ret)
 
     @testing.gen_test
     def test_find_server_arrays_not_found(self):
@@ -108,12 +108,12 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         # If the array is not found, and we don't want it found, it should
         # return properly.
         ret = yield self.actor._find_server_arrays('t', raise_on='found')
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
         # Lastly, if the array is not found and we don't care whether its
         # found or not, None should be returned
         ret = yield self.actor._find_server_arrays('t', raise_on=None)
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_log_account_name(self):
@@ -190,7 +190,7 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         # Groups of 4 have to contain all the needed data
 
         # Break into chunks of 4 items.
-        ret_chunks = zip(*[iter(ret)] * 4)
+        ret_chunks = list(zip(*[iter(ret)] * 4))
 
         self.assertItemsEqual(expected_params[0], ret_chunks[0])
         self.assertItemsEqual(expected_params[1], ret_chunks[1])
@@ -211,7 +211,7 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         actor = base.RightScaleBaseActor('Unit Test Action', {})
         ret = actor._generate_rightscale_params('resource_hrefs', params)
 
-        self.assertEquals(expected_params, ret)
+        self.assertEqual(expected_params, ret)
 
     @testing.gen_test
     def test_get_resource_tags(self):
@@ -220,7 +220,7 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
             tornado_value(None)
         ]
         ret = yield self.actor._get_resource_tags(resource=resource)
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
         self.client_mock.get_resource_tags.assert_has_calls([
             mock.call(resource)
         ])

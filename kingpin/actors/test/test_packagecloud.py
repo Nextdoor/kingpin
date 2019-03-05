@@ -84,7 +84,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         actor._packagecloud_client.packages().http_get = mock_tornado(
             ALL_PACKAGES_MOCK_RESPONSE)
         all_packages = yield actor._get_all_packages(repo='unittest')
-        self.assertEquals(all_packages, ALL_PACKAGES_MOCK_RESPONSE)
+        self.assertEqual(all_packages, ALL_PACKAGES_MOCK_RESPONSE)
 
     @testing.gen_test
     def test_get_package_versions(self):
@@ -96,7 +96,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         versions = actor._get_package_versions(
             name='unittest', packages=packages)
 
-        self.assertEquals(
+        self.assertEqual(
             versions,
             [{'created_at': datetime.datetime(2014, 7, 7, 20, 27, 18),
               'name': 'unittest',
@@ -116,7 +116,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         packages = yield actor._get_all_packages(repo='unittest')
         packages_list_to_delete = actor._filter_packages(
             regex='unittest', packages=packages)
-        self.assertEquals(packages_list_to_delete, set(['unittest']))
+        self.assertEqual(packages_list_to_delete, set(['unittest']))
 
     @testing.gen_test
     def test_delete(self):
@@ -129,7 +129,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         deleted_packages = yield actor._delete(
             regex='unittest', repo='unittest')
 
-        self.assertEquals(deleted_packages,
+        self.assertEqual(deleted_packages,
                           [{'created_at': datetime.datetime(
                               2014, 7, 7, 20, 27, 18),
                             'name': 'unittest',
@@ -153,7 +153,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         deleted_packages = yield actor._delete(
             regex='unittest', repo='unittest')
 
-        self.assertEquals(deleted_packages,
+        self.assertEqual(deleted_packages,
                           [{'created_at': datetime.datetime(
                               2014, 7, 7, 20, 27, 18),
                             'name': 'unittest',
@@ -176,7 +176,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
         deleted_packages = yield actor._delete(
             regex='unittest', repo='unittest', number_to_keep=1)
 
-        self.assertEquals(
+        self.assertEqual(
             deleted_packages,
             [{'created_at': datetime.datetime(2014, 7, 7, 20, 27, 18),
               'name': 'unittest', 'distro_version': 'ubuntu/trusty',
@@ -196,7 +196,7 @@ class TestPackagecloudBase(testing.AsyncTestCase):
             regex='unittest', repo='unittest',
             older_than=older_than.total_seconds())
 
-        self.assertEquals(
+        self.assertEqual(
             deleted_packages,
             [{'created_at': datetime.datetime(2014, 7, 7, 20, 27, 18),
               'name': 'unittest', 'distro_version': 'ubuntu/trusty',
@@ -232,7 +232,7 @@ class TestDelete(testing.AsyncTestCase):
 
         deleted_packages = yield actor._execute()
 
-        self.assertEquals(deleted_packages, None)
+        self.assertEqual(deleted_packages, None)
 
 
 class TestDeleteByDate(testing.AsyncTestCase):
@@ -261,7 +261,7 @@ class TestDeleteByDate(testing.AsyncTestCase):
 
         deleted_packages = yield actor._execute()
 
-        self.assertEquals(deleted_packages, None)
+        self.assertEqual(deleted_packages, None)
 
 
 class TestWaitForPackage(testing.AsyncTestCase):
@@ -301,7 +301,7 @@ class TestWaitForPackage(testing.AsyncTestCase):
 
         matched_packages = yield actor._execute()
 
-        self.assertEquals(matched_packages, None)
+        self.assertEqual(matched_packages, None)
 
     @testing.gen_test
     def test_execute_with_sleep(self):
@@ -316,7 +316,7 @@ class TestWaitForPackage(testing.AsyncTestCase):
         actor._search = mock.Mock(
             side_effect=[tornado_value([]), tornado_value(['something'])])
         yield actor._execute()
-        self.assertEquals(actor._search.call_count, 2)
+        self.assertEqual(actor._search.call_count, 2)
 
     @testing.gen_test
     def test_search(self):
@@ -329,4 +329,4 @@ class TestWaitForPackage(testing.AsyncTestCase):
         matched_packages = yield actor._search(
             repo='unittest', name='unittest', version='0.2')
 
-        self.assertEquals(matched_packages, [ALL_PACKAGES_MOCK_RESPONSE[0]])
+        self.assertEqual(matched_packages, [ALL_PACKAGES_MOCK_RESPONSE[0]])

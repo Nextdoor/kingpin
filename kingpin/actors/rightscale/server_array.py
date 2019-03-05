@@ -351,7 +351,7 @@ class Update(ServerArrayBaseActor):
         all_input_names = [i.soul['name'] for i in all_inputs]
 
         success = True
-        for input_name, _ in inputs.items():
+        for input_name, _ in list(inputs.items()):
             # Inputs have to be there. If not -- it's a problem.
             if input_name not in all_input_names:
                 self.log.error('Input not found: "%s"' % input_name)
@@ -1241,7 +1241,7 @@ class Execute(ServerArrayBaseActor):
         inputs = self.option('inputs')
         issues = False
         types = ('text', 'ignore', 'env', 'cred', 'key', 'array')
-        for key, value in inputs.items():
+        for key, value in list(inputs.items()):
             if value.split(':')[0] not in types:
                 issues = True
                 self.log.error('Value for %s needs to begin with %s'
