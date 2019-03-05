@@ -32,6 +32,7 @@ import re
 import sys
 import yaml
 import time
+from io import IOBase
 
 from tornado import gen
 from tornado import ioloop
@@ -351,7 +352,7 @@ def convert_script_to_dict(script_file, tokens):
         if type(script_file) in (str, str):
             filename = script_file
             instance = open(script_file)
-        elif type(script_file) is file:
+        elif isinstance(script_file, IOBase):
             filename = script_file.name
             instance = script_file
         else:
@@ -368,6 +369,7 @@ def convert_script_to_dict(script_file, tokens):
     # If the file ends with .json, use demjson to read it. If it ends with
     # .yml/.yaml, use PyYAML. If neither, error.
     suffix = filename.split('.')[-1].strip().lower()
+
     try:
         if suffix == 'json':
             decoded = demjson.decode(parsed)
@@ -406,7 +408,7 @@ def order_dict(obj):
     if isinstance(obj, dict):
         return sorted((k, order_dict(v)) for k, v in list(obj.items()))
     if isinstance(obj, list):
-        return sorted(order_dict(x) for x in obj)
+        return sorted((order_dict(x) for x in obj), key=str)
     else:
         return obj
 
