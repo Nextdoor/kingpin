@@ -1,6 +1,6 @@
 language: python
 python:
-  - "3.7.2"
+  - "3.7"
 # https://github.com/travis-ci/travis-ci/issues/7940#issuecomment-310759657
 before_install:
   - sudo rm -f /etc/boto.cfg
