@@ -896,7 +896,7 @@ class Stack(CloudFormationBaseActor):
         # Get and compare the parameters we have vs the ones in CF. If they're
         # different, plan to do an update!
         if self._diff_params_safely(
-                stack.get('Parameters', {}),
+                stack.get('Parameters', []),
                 self._parameters):
             needs_update = True
 
@@ -958,6 +958,18 @@ class Stack(CloudFormationBaseActor):
                 'Removing "%s" from parameters before comparison.' % p)
             remote = [pair for pair in remote if pair['ParameterKey'] != p]
             local = [pair for pair in local if pair['ParameterKey'] != p]
+
+        # Remove any resolved parameter values that were inserted by SSM
+        # so that only supplied parameter values are compared.
+        filtered_remote = []
+        for param in remote:
+            filtered_param = {}
+            for k, v in param.items():
+                if k != "ResolvedValue":
+                    filtered_param[k] = v
+            filtered_remote.append(filtered_param)
+
+        remote = filtered_remote
 
         diff = utils.diff_dicts(remote, local)
         if diff:

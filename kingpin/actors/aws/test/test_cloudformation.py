@@ -659,7 +659,8 @@ class TestStack(testing.AsyncTestCase):
         remote = [
             {'ParameterKey': 'BucketName', 'ParameterValue': 'name'},
             {'ParameterKey': 'BucketPassword', 'ParameterValue': '***'},
-            {'ParameterKey': 'Metadata', 'ParameterValue': '2.0'}
+            {'ParameterKey': 'Metadata', 'ParameterValue': '2.0',
+             'ResolvedValue': 'Resolved'}
         ]
         ret = self.actor._diff_params_safely(remote, self.actor._parameters)
         self.assertEquals(True, ret)
