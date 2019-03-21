@@ -51,6 +51,59 @@ class InvalidBucketConfig(exceptions.RecoverableActorFailure):
     """Raised whenever an invalid option is passed to a Bucket"""
 
 
+class PublicAccessBlockConfig(SchemaCompareBase):
+
+    """Provides JSON-Schema based validation of the supplied Public Access
+    Block Configuration..
+
+    The S3 PublicAccessBlockConfiguration should look like this:
+
+    .. code-block:: json
+
+        { "block_public_acls": true,
+          "ignore_public_acls": true,
+          "block_public_policy": true,
+          "restrict_public_buckets": true }
+
+    If you supply an empty dict, then we will explicitly remove the Public
+    Access Block Configuration.
+
+    """
+
+    ACCESS_BLOCK_SCHEMA = {
+        'type': ['object'],
+        'required': [
+            'block_public_acls',
+            'ignore_public_acls',
+            'block_public_policy',
+            'restrict_public_buckets'
+        ],
+        'additionalProperties': False,
+        'properties': {
+            'block_public_acls': {'type': 'boolean'},
+            'ignore_public_acls': {'type': 'boolean'},
+            'block_public_policy': {'type': 'boolean'},
+            'restrict_public_buckets': {'type': 'boolean'},
+        }
+    }
+
+    SCHEMA = {
+        'definitions': {
+            'public_access_block_config': ACCESS_BLOCK_SCHEMA,
+        },
+
+        'anyOf': [
+            {'$ref': '#/definitions/public_access_block_config'},
+            {'type': 'null'},
+            {'type': 'object', 'additionalProperties': False}
+        ]
+    }
+
+    valid = (
+        '{ "block_public_acls": true, "ignore_public_acls": false, '
+        '"block_public_policy": true, "restrict_public_buckets": false }')
+
+
 class LoggingConfig(SchemaCompareBase):
 
     """Provides JSON-Schema based validation of the supplied logging config.
@@ -309,6 +362,21 @@ class Bucket(base.EnsurableAWSBaseActor):
       in at all) will cause Kingpin to ignore the policy for the bucket
       entirely. Default: None
 
+    :public_access_block_configuration:
+      (:py:class:`PublicAccessBlockConfig`, None)
+
+      If a dictionary is supplied, then it must conform to the
+      :py:class:`PublicAccessBlockConfig` type and include all of the Public
+      Access Block Configuration parameters.
+
+      If an empty dictionary is supplied, then Kingpin will explicitly remove
+      any Public Access Block Configurations from the bucket.
+
+      Finally, if None is supplied, Kingpin will ignore the checks entirely on
+      this portion of the bucket configuration.
+
+      Default: None
+
     :region:
       AWS region (or zone) name, such as us-east-1 or us-west-2
 
@@ -365,6 +433,9 @@ class Bucket(base.EnsurableAWSBaseActor):
                       'List of Lifecycle configurations.'),
         'logging': (LoggingConfig, None,
                     'Logging configuration for the bucket'),
+        'public_access_block_configuration': (
+            PublicAccessBlockConfig, None,
+            'Public Access Block Configuration'),
         'tags': (TaggingConfig, None,
                  'Array of dicts with the key/value tags'),
         'policy': ((str, None), None,
@@ -389,8 +460,14 @@ class Bucket(base.EnsurableAWSBaseActor):
         # If the Lifecycle config is anything but None, we parse it and
         # pre-build all of our Lifecycle/Rule/Expiration/Transition objects.
         self.lifecycle = self.option('lifecycle')
-        if self.option('lifecycle') is not None:
+        if self.lifecycle is not None:
             self.lifecycle = self._generate_lifecycle(self.option('lifecycle'))
+
+        # If the PublicAccessBlockConfiguration is anything but None, we parse
+        # it and pre-build the rules.
+        self.access_block = self.option('public_access_block_configuration')
+        if self.access_block is not None:
+            self.access_block = self._snake_to_camel(self.access_block)
 
         # Start out assuming the bucket doesn't exist. The _precache() method
         # will populate this with True if the bucket does exist.
@@ -464,7 +541,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         # This allows the rest of the getter-methods to know whether or not the
         # bucket exists and not make bogus API calls when the bucket doesn't
         # exist.
-        buckets = yield self.thread(self.s3_conn.list_buckets)
+        buckets = yield self.api_call(self.s3_conn.list_buckets)
         matching = [
             b for b in buckets['Buckets'] if b['Name'] == self.option('name')]
         if len(matching) == 1:
@@ -503,14 +580,14 @@ class Bucket(base.EnsurableAWSBaseActor):
             }
 
         self.log.info('Creating bucket')
-        yield self.thread(self.s3_conn.create_bucket, **params)
+        yield self.api_call(self.s3_conn.create_bucket, **params)
 
     @gen.coroutine
     def _verify_can_delete_bucket(self):
         # Find out if there are any files in the bucket before we go to delete
         # it. We cannot delete a bucket with files in it -- nor do we want to.
         bucket = self.option('name')
-        keys = yield self.thread(self.s3_conn.list_objects, Bucket=bucket)
+        keys = yield self.api_call(self.s3_conn.list_objects, Bucket=bucket)
 
         if 'Contents' not in keys:
             raise gen.Return()
@@ -525,7 +602,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         bucket = self.option('name')
         try:
             self.log.info('Deleting bucket %s' % bucket)
-            yield self.thread(self.s3_conn.delete_bucket, Bucket=bucket)
+            yield self.api_call(self.s3_conn.delete_bucket, Bucket=bucket)
         except ClientError as e:
             raise exceptions.RecoverableActorFailure(
                 'Cannot delete bucket: %s' % e.message)
@@ -536,7 +613,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             raise gen.Return(None)
 
         try:
-            raw = yield self.thread(
+            raw = yield self.api_call(
                 self.s3_conn.get_bucket_policy,
                 Bucket=self.option('name'))
             exist = json.loads(raw['Policy'])
@@ -584,7 +661,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         self.log.debug('Policy doc: %s' % self.policy)
 
         try:
-            yield self.thread(
+            yield self.api_call(
                 self.s3_conn.put_bucket_policy,
                 Bucket=self.option('name'),
                 Policy=json.dumps(self.policy))
@@ -599,7 +676,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     @dry('Would delete bucket policy')
     def _delete_policy(self):
         self.log.info('Deleting bucket policy')
-        yield self.thread(
+        yield self.api_call(
             self.s3_conn.delete_bucket_policy,
             Bucket=self.option('name'))
 
@@ -608,7 +685,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         if not self._bucket_exists:
             raise gen.Return(None)
 
-        data = yield self.thread(
+        data = yield self.api_call(
             self.s3_conn.get_bucket_logging, Bucket=self.option('name'))
 
         if 'LoggingEnabled' not in data:
@@ -648,7 +725,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     @dry('Bucket logging would have been disabled')
     def _disable_logging(self):
         self.log.info('Deleting Bucket logging configuration')
-        yield self.thread(
+        yield self.api_call(
             self.s3_conn.put_bucket_logging,
             Bucket=self.option('name'),
             BucketLoggingStatus={})
@@ -666,7 +743,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         self.log.info('Updating Bucket logging config to %s' % target_str)
 
         try:
-            yield self.thread(
+            yield self.api_call(
                 self.s3_conn.put_bucket_logging,
                 Bucket=self.option('name'),
                 BucketLoggingStatus={
@@ -683,7 +760,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         if not self._bucket_exists:
             raise gen.Return(None)
 
-        existing = yield self.thread(
+        existing = yield self.api_call(
             self.s3_conn.get_bucket_versioning,
             Bucket=self.option('name'))
 
@@ -710,7 +787,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     @dry('Bucket versioning would set to: {0}')
     def _put_versioning(self, state):
         self.log.info('Setting bucket object versioning to: %s' % state)
-        yield self.thread(
+        yield self.api_call(
             self.s3_conn.put_bucket_versioning,
             Bucket=self.option('name'),
             VersioningConfiguration={'Status': state})
@@ -721,7 +798,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             raise gen.Return(None)
 
         try:
-            raw = yield self.thread(
+            raw = yield self.api_call(
                 self.s3_conn.get_bucket_lifecycle,
                 Bucket=self.option('name'))
         except ClientError as e:
@@ -766,7 +843,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     @dry('Would have deleted the existing lifecycle configuration')
     def _delete_lifecycle(self):
         self.log.info('Deleting the existing lifecycle configuration.')
-        yield self.thread(
+        yield self.api_call(
             self.s3_conn.delete_bucket_lifecycle,
             Bucket=self.option('name'))
 
@@ -778,13 +855,87 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         self.log.info('Updating the Bucket Lifecycle config')
         try:
-            yield self.thread(
+            yield self.api_call(
                 self.s3_conn.put_bucket_lifecycle,
                 Bucket=self.option('name'),
                 LifecycleConfiguration={'Rules': self.lifecycle})
         except (ParamValidationError, ClientError) as e:
             raise InvalidBucketConfig('Invalid Lifecycle Configuration: %s'
                                       % e.message)
+
+    @gen.coroutine
+    def _get_public_access_block_configuration(self):
+        if not self._bucket_exists:
+            raise gen.Return(None)
+
+        try:
+            raw = yield self.api_call(
+                self.s3_conn.get_public_access_block,
+                Bucket=self.option('name'))
+        except ClientError as e:
+            if 'NoSuchPublicAccessBlockConfiguration' in e.message:
+                raise gen.Return([])
+            raise
+
+        raise gen.Return(raw['PublicAccessBlockConfiguration'])
+
+    @gen.coroutine
+    def _set_public_access_block_configuration(self):
+        if self.access_block == {}:
+            yield self._delete_public_access_block_configuration()
+        else:
+            yield self._push_public_access_block_configuration()
+
+        raise gen.Return()
+
+    @gen.coroutine
+    @dry('Would have deleted the existing public access block config')
+    def _delete_public_access_block_configuration(self):
+        self.log.info('Deleting the existing public access block config.')
+        yield self.api_call(
+            self.s3_conn.delete_public_access_block,
+            Bucket=self.option('name'))
+
+    @gen.coroutine
+    @dry('Would have pushed a new public access block config')
+    def _push_public_access_block_configuration(self):
+        self.log.debug('Public Access Block Config: %s' %
+                       jsonpickle.encode(self.access_block))
+
+        self.log.info('Updating the Bucket Public Access Block Config')
+        try:
+            yield self.api_call(
+                self.s3_conn.put_public_access_block,
+                Bucket=self.option('name'),
+                PublicAccessBlockConfiguration=self.access_block)
+        except (ParamValidationError, ClientError) as e:
+            raise InvalidBucketConfig(
+                'Invalid Public Access Block Config: %s' % e.message)
+
+    @gen.coroutine
+    def _compare_public_access_block_configuration(self):
+        existing = yield self._get_public_access_block_configuration()
+        new = self.access_block
+
+        if new is None:
+            self.log.debug('Not managing public access block config')
+            raise gen.Return(True)
+
+        # Now sort through the existing Lifecycle configuration and the one
+        # that we've built locally. If there are any differences, we're going
+        # to push an all new config.
+        diff = utils.diff_dicts(
+            json.loads(jsonpickle.encode(existing)),
+            json.loads(jsonpickle.encode(new)))
+
+        if not diff:
+            raise gen.Return(True)
+
+        self.log.info(
+            'Public Access Block Configurations do not match. Updating.')
+        for line in diff.split('\n'):
+            self.log.info('Diff: %s' % line)
+        raise gen.Return(False)
 
     @gen.coroutine
     def _get_tags(self):
@@ -795,7 +946,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             raise gen.Return(None)
 
         try:
-            raw = yield self.thread(
+            raw = yield self.api_call(
                 self.s3_conn.get_bucket_tagging,
                 Bucket=self.option('name'))
         except ClientError as e:
@@ -844,7 +995,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         tagset = self._snake_to_camel(self.option('tags'))
         self.log.info('Updating the Bucket Tags')
-        yield self.thread(
+        yield self.api_call(
             self.s3_conn.put_bucket_tagging,
             Bucket=self.option('name'),
             Tagging={'TagSet': tagset})

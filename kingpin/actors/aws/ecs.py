@@ -242,7 +242,7 @@ class ECSBaseActor(base.AWSBaseActor):
         self.log.info('Registering task definition with family {}'.format(
             family))
 
-        response = yield self.thread(
+        response = yield self.api_call(
             self.ecs_conn.register_task_definition, **task_definition)
 
         # Parse data from the server's response.
@@ -264,7 +264,7 @@ class ECSBaseActor(base.AWSBaseActor):
         """
         self.log.info(
             'Deregistering task definition {}.'.format(task_definition_name))
-        yield self.thread(
+        yield self.api_call(
             self.ecs_conn.deregister_task_definition,
             taskDefinition=task_definition_name)
 
@@ -301,7 +301,7 @@ class ECSBaseActor(base.AWSBaseActor):
         """
         self.log.info('Describing task definition {}.'.format(
             task_definition_name))
-        task_definition = yield self.thread(
+        task_definition = yield self.api_call(
             self.ecs_conn.describe_task_definition,
             taskDefinition=task_definition_name)
 
@@ -329,7 +329,7 @@ class ECSBaseActor(base.AWSBaseActor):
             'Listing task definitions '
             'with status {} and family prefix {}.'.format(
                 status, family_prefix))
-        task_definitions = yield self.thread(
+        task_definitions = yield self.api_call(
             self._read_list_task_definitions_paginator,
             status=status,
             familyPrefix=family_prefix)
@@ -528,7 +528,7 @@ class RunTask(ECSBaseActor):
             seconds=30)
 
         while True:
-            response = yield self.thread(
+            response = yield self.api_call(
                 self.ecs_conn.run_task,
                 cluster=self.option('cluster'),
                 taskDefinition=task_definition_name,
@@ -577,7 +577,7 @@ class RunTask(ECSBaseActor):
         Returns:
             A boolean indicating whether all tasks are done.
         """
-        response = yield self.thread(
+        response = yield self.api_call(
             self.ecs_conn.describe_tasks,
             cluster=self.option('cluster'),
             tasks=tasks)
@@ -838,7 +838,7 @@ class Service(ECSBaseActor):
         Raises:
             RecoverableActorFailure if number of services found is not 1.
         """
-        response = yield self.thread(
+        response = yield self.api_call(
             self.ecs_conn.describe_services,
             cluster=self.option('cluster'),
             services=[service_name])
@@ -958,7 +958,7 @@ class Service(ECSBaseActor):
 
         self.log.info('Creating service.')
 
-        yield self.thread(
+        yield self.api_call(
             self.ecs_conn.create_service,
             **create_parameters)
 
@@ -1020,7 +1020,7 @@ class Service(ECSBaseActor):
 
         self.log.info('Updating service.')
 
-        yield self.thread(
+        yield self.api_call(
             self.ecs_conn.update_service,
             **update_parameters)
 
@@ -1071,9 +1071,9 @@ class Service(ECSBaseActor):
                     service_name, status))
         else:
             yield self._stop_service(service_name, existing_service)
-            yield self.thread(self.ecs_conn.delete_service,
-                              cluster=self.option('cluster'),
-                              service=service_name)
+            yield self.api_call(self.ecs_conn.delete_service,
+                                cluster=self.option('cluster'),
+                                service=service_name)
         if deregister:
             task_definition_names = yield self._list_task_definitions(
                 status='ACTIVE',

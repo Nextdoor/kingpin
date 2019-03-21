@@ -37,6 +37,14 @@ def maybe_rm(path):
             os.remove(path)
 
 
+def read_requirements(requirements):
+    """Parse requirements from requirements.txt."""
+    reqs_path = requirements
+    with open(reqs_path, 'r') as f:
+        requirements = [line.rstrip() for line in f]
+    return requirements
+
+
 class Pep8Command(Command):
     description = 'Pep8 Lint Checks'
     user_options = []
@@ -161,12 +169,9 @@ setup(
     keywords='apache',
     packages=find_packages(),
     test_suite='nose.collector',
-    tests_require=open('%s/requirements.test.txt' % DIR).readlines(),
+    tests_require=read_requirements('%s/requirements.test.txt' % DIR),
     setup_requires=[],
-    install_requires=open('%s/requirements.txt' % DIR).readlines(),
-    dependency_links=[
-        'https://github.com/diranged/python-rightscale-1/tarball/nextdoor#egg=python-rightscale-0.1.7'
-    ],
+    install_requires=read_requirements('%s/requirements.txt' % DIR),
     entry_points={
         'console_scripts': [
             'kingpin = kingpin.bin.deploy:begin'

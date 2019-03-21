@@ -43,7 +43,7 @@ class TestRegisterInstance(testing.AsyncTestCase):
             'region': 'us-east-1',
             'instances': 'test'})
         actor.elbv2_conn = mock.Mock()
-        exc = botocore.exceptions.ClientError({'Error': {}}, 'Test')
+        exc = botocore.exceptions.ClientError({'Error': {'Code': ''}}, 'Test')
         actor.elbv2_conn.register_targets.side_effect = exc
 
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
@@ -110,7 +110,7 @@ class TestDeregisterInstance(testing.AsyncTestCase):
             'region': 'us-east-1',
             'instances': 'test'})
         actor.elbv2_conn = mock.Mock()
-        exc = botocore.exceptions.ClientError({'Error': {}}, 'Test')
+        exc = botocore.exceptions.ClientError({'Error': {'Code': ''}}, 'Test')
         actor.elbv2_conn.deregister_targets.side_effect = exc
 
         with self.assertRaises(exceptions.UnrecoverableActorFailure):

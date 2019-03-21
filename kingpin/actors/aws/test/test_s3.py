@@ -39,6 +39,12 @@ class TestBucket(testing.AsyncTestCase):
                     'target': 'test_target',
                     'prefix': '/prefix'
                 },
+                'public_access_block_configuration': {
+                    'block_public_acls': True,
+                    'block_public_policy': True,
+                    'ignore_public_acls': True,
+                    'restrict_public_buckets': True,
+                },
                 'versioning': False,
                 'tags': [],
             })
@@ -163,7 +169,7 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_delete_bucket_409(self):
         self.actor.s3_conn.delete_bucket.side_effect = ClientError(
-            {'Error': {}}, 'Error')
+            {'Error': {'Code': ''}}, 'Error')
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._delete_bucket()
 
@@ -184,7 +190,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_policy_empty(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_policy.side_effect = ClientError(
-            {'Error': {}}, 'NoSuchBucketPolicy')
+            {'Error': {'Code': ''}}, 'NoSuchBucketPolicy')
         ret = yield self.actor._get_policy()
         self.assertEquals('', ret)
 
@@ -192,7 +198,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_policy_exc(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_policy.side_effect = ClientError(
-            {'Error': {}}, 'SomeOtherError')
+            {'Error': {'Code': ''}}, 'SomeOtherError')
         with self.assertRaises(ClientError):
             yield self.actor._get_policy()
 
@@ -237,7 +243,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_set_policy_malformed_policy(self):
         self.actor.policy = {}
         self.actor.s3_conn.put_bucket_policy.side_effect = ClientError(
-            {'Error': {}}, 'MalformedPolicy')
+            {'Error': {'Code': ''}}, 'MalformedPolicy')
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._set_policy()
 
@@ -248,7 +254,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_set_policy_client_error(self):
         self.actor.policy = {}
         self.actor.s3_conn.put_bucket_policy.side_effect = ClientError(
-            {'Error': {}}, 'Some Other Error')
+            {'Error': {'Code': ''}}, 'Some Other Error')
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._set_policy()
 
@@ -317,7 +323,7 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_set_logging_client_error(self):
         self.actor.s3_conn.put_bucket_logging.side_effect = ClientError(
-            {'Error': {}}, 'Some error')
+            {'Error': {'Code': ''}}, 'Some error')
         with self.assertRaises(s3_actor.InvalidBucketConfig):
             yield self.actor._set_logging()
 
@@ -385,7 +391,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_lifecycle_empty(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_lifecycle.side_effect = ClientError(
-            {'Error': {}}, 'NoSuchLifecycleConfiguration')
+            {'Error': {'Code': ''}}, 'NoSuchLifecycleConfiguration')
         ret = yield self.actor._get_lifecycle()
         self.assertEquals(ret, [])
 
@@ -393,7 +399,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_lifecycle_clienterror(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_lifecycle.side_effect = ClientError(
-            {'Error': {}}, 'SomeOtherError')
+            {'Error': {'Code': ''}}, 'SomeOtherError')
         with self.assertRaises(ClientError):
             yield self.actor._get_lifecycle()
 
@@ -439,9 +445,93 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_set_lifecycle_client_error(self):
         self.actor.s3_conn.put_bucket_lifecycle.side_effect = ClientError(
-            {'Error': {}}, 'Error')
+            {'Error': {'Code': ''}}, 'Error')
         with self.assertRaises(s3_actor.InvalidBucketConfig):
             yield self.actor._set_lifecycle()
+
+    @testing.gen_test
+    def test_get_public_access_block_configuration(self):
+        test_cfg = {
+            'BlockPublicAcls': True,
+            'BlockPublicPolicy': True,
+            'IgnorePublicAcls': True,
+            'RestrictPublicBuckets': True
+        }
+
+        self.actor._bucket_exists = True
+        self.actor.s3_conn.get_public_access_block.return_value = {
+            'PublicAccessBlockConfiguration': test_cfg
+        }
+        ret = yield self.actor._get_public_access_block_configuration()
+        self.assertEquals(ret, test_cfg)
+
+    @testing.gen_test
+    def test_get_public_access_block_configuration_no_bucket(self):
+        self.actor._bucket_exists = False
+        ret = yield self.actor._get_public_access_block_configuration()
+        self.assertEquals(None, ret)
+
+    @testing.gen_test
+    def test_get_public_access_block_configuration_empty(self):
+        self.actor._bucket_exists = True
+        self.actor.s3_conn.get_public_access_block.side_effect = ClientError(
+            {'Error': {}}, 'NoSuchPublicAccessBlockConfiguration')
+        ret = yield self.actor._get_public_access_block_configuration()
+        self.assertEquals(ret, [])
+
+    @testing.gen_test
+    def test_get_public_access_block_configuration_clienterror(self):
+        self.actor._bucket_exists = True
+        self.actor.s3_conn.get_public_access_block.side_effect = ClientError(
+            {'Error': {}}, 'SomeOtherError')
+        with self.assertRaises(ClientError):
+            yield self.actor._get_public_access_block_configuration()
+
+    @testing.gen_test
+    def test_compare_public_access_block_configuration(self):
+        self.actor._bucket_exists = True
+        self.actor.access_block = [{'test': 'test'}]
+        self.actor.s3_conn.get_public_access_block.return_value = {
+            'PublicAccessBlockConfiguration': [{'test': 'test'}]}
+        ret = yield self.actor._compare_public_access_block_configuration()
+        self.assertTrue(ret)
+
+    @testing.gen_test
+    def test_compare_public_access_block_configuration_none(self):
+        self.actor.access_block = None
+        ret = yield self.actor._compare_public_access_block_configuration()
+        self.assertTrue(ret)
+
+    @testing.gen_test
+    def test_compare_public_access_block_configuration_diff(self):
+        self.actor.access_block = [{'test1': 'test'}]
+        self.actor.s3_conn.get_public_access_block.return_value = {
+            'Rules': [{'test': 'test'}]}
+        ret = yield self.actor._compare_public_access_block_configuration()
+        self.assertFalse(ret)
+
+    @testing.gen_test
+    def test_set_public_access_block_configuration_delete(self):
+        self.actor.access_block = {}
+        yield self.actor._set_public_access_block_configuration()
+        self.actor.s3_conn.delete_public_access_block.assert_has_calls([
+            mock.call(Bucket='test')])
+
+    @testing.gen_test
+    def test_set_public_access_block_configuration(self):
+        self.actor.access_block = {'test': 'test'}
+        yield self.actor._set_public_access_block_configuration()
+        self.actor.s3_conn.put_public_access_block.assert_has_calls([
+            mock.call(
+                Bucket='test',
+                PublicAccessBlockConfiguration={'test': 'test'})])
+
+    @testing.gen_test
+    def test_set_public_access_block_configuration_client_error(self):
+        self.actor.s3_conn.put_public_access_block.side_effect = ClientError(
+            {'Error': {}}, 'Error')
+        with self.assertRaises(s3_actor.InvalidBucketConfig):
+            yield self.actor._set_public_access_block_configuration()
 
     @testing.gen_test
     def test_get_tags(self):
@@ -481,7 +571,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_tags_empty(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_tagging.side_effect = ClientError(
-            {'Error': {}}, 'NoSuchTagSet')
+            {'Error': {'Code': ''}}, 'NoSuchTagSet')
         ret = yield self.actor._get_tags()
         self.assertEquals(ret, [])
 
@@ -489,7 +579,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_get_tags_exc(self):
         self.actor._bucket_exists = True
         self.actor.s3_conn.get_bucket_tagging.side_effect = ClientError(
-            {'Error': {}}, 'SomeOtherError')
+            {'Error': {'Code': ''}}, 'SomeOtherError')
         with self.assertRaises(ClientError):
             yield self.actor._get_tags()
 

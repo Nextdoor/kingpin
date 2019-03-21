@@ -5,7 +5,7 @@ six
 
 # 4.1+ is required for the @gen.with_timeout decorator.
 # http://tornado.readthedocs.org/en/latest/gen.html#tornado.gen.with_timeout
-tornado>=4.1
+tornado>=4.1,<6.0
 
 # Our custom rest client
 tornado_rest_client>=0.0.4
@@ -30,7 +30,7 @@ retrying
 #
 # NOTE: Version specified in the setup.py file
 # NOTE: mock is used inside the rightscale actor
-python-rightscale>=0.1.7
+python-rightscale @ https://github.com/diranged/python-rightscale-1/tarball/nextdoor#egg=python-rightscale-0.1.7
 mock==1.0.1
 
 # kingpin.actors.aws
@@ -38,7 +38,7 @@ boto>=2.32.1
 
 # kingpin.actors.aws.ecs
 # kingpin.actors.aws.cloudformation
-boto3>=1.3.1
+boto3>=1.9.46
 
 # Used to turn snake_case into CamelCase
 inflection
