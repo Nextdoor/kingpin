@@ -71,7 +71,7 @@ class TestBase(testing.AsyncTestCase):
         self.assertEquals(actor.ec2_conn.region.name, 'us-west-1')
 
     @testing.gen_test
-    def test_thread_400(self):
+    def test_api_call_400(self):
         actor = base.AWSBaseActor('Unit Test Action', {})
         actor.elb_conn = mock.Mock()
         actor.elb_conn.get_all_load_balancers = mock.MagicMock()
@@ -82,7 +82,7 @@ class TestBase(testing.AsyncTestCase):
             yield actor._find_elb('')
 
     @testing.gen_test
-    def test_thread_403(self):
+    def test_api_call_403(self):
         actor = base.AWSBaseActor('Unit Test Action', {})
         actor.elb_conn = mock.Mock()
         actor.elb_conn.get_all_load_balancers = mock.MagicMock()
@@ -91,6 +91,32 @@ class TestBase(testing.AsyncTestCase):
 
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor._find_elb('')
+
+    @testing.gen_test
+    def test_api_call_queue_400(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        actor.elb_conn = mock.Mock()
+        actor.elb_conn.get_all_load_balancers = mock.MagicMock()
+        exc = BotoServerError(400, 'Bad Request')
+        actor.elb_conn.get_all_load_balancers.side_effect = exc
+
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield actor.api_call_with_queueing(
+                actor.elb_conn.get_all_load_balancers,
+                queue_name='get_all_load_balancers')
+
+    @testing.gen_test
+    def test_api_call_queue_403(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        actor.elb_conn = mock.Mock()
+        actor.elb_conn.get_all_load_balancers = mock.MagicMock()
+        exc = BotoServerError(403, 'The security token')
+        actor.elb_conn.get_all_load_balancers.side_effect = exc
+
+        with self.assertRaises(exceptions.InvalidCredentials):
+            yield actor.api_call_with_queueing(
+                actor.elb_conn.get_all_load_balancers,
+                queue_name='get_all_load_balancers')
 
     @testing.gen_test
     def test_find_elb(self):
@@ -168,7 +194,7 @@ class TestBase(testing.AsyncTestCase):
     def test_find_target_group_exception_error(self):
         actor = base.AWSBaseActor('Unit Test Action', {})
         c_mock = mock.Mock()
-        exc = botocore.exceptions.ClientError({'Error': {}}, 'Test')
+        exc = botocore.exceptions.ClientError({'Error': {'Code': ''}}, 'Test')
         c_mock.describe_target_groups.side_effect = exc
         actor.elbv2_conn = c_mock
 

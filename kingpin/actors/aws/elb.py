@@ -165,7 +165,7 @@ class WaitUntilHealthy(ELBBaseActor):
         self.log.debug('Counting ELB InService instances for : %s' % name)
 
         # Get all instances for this ELB
-        instance_list = yield self.thread(elb.get_instance_health)
+        instance_list = yield self.api_call(elb.get_instance_health)
         total_count = len(instance_list)
 
         self.log.debug('All instances: %s' % instance_list)
@@ -273,7 +273,7 @@ class SetCert(ELBBaseActor):
         try:
             # A blank ARN value should have code 'CertificateNotFound'
             # We're only checking if credentials have sufficient access
-            yield self.thread(
+            yield self.api_call(
                 elb.set_listener_SSL_certificate,
                 self.option('port'),
                 '')
@@ -299,7 +299,7 @@ class SetCert(ELBBaseActor):
 
         self.log.debug('Searching for cert "%s"...' % name)
         try:
-            cert = yield self.thread(
+            cert = yield self.api_call(
                 self.iam_conn.get_server_certificate, name)
         except BotoServerError as e:
             raise CertNotFound(
@@ -325,7 +325,7 @@ class SetCert(ELBBaseActor):
 
         self.log.info('Setting ELB "%s" to use cert arn: %s' % (elb, arn))
         try:
-            yield self.thread(
+            yield self.api_call(
                 elb.set_listener_SSL_certificate, self.option('port'), arn)
         except BotoServerError as e:
             raise exceptions.RecoverableActorFailure(
@@ -431,13 +431,13 @@ class RegisterInstance(base.AWSBaseActor):
             elb: boto Loadbalancer object
             instances: list of instance ids.
         """
-        yield self.thread(elb.register_instances, instances)
+        yield self.api_call(elb.register_instances, instances)
 
     @gen.coroutine
     @dry('Would ensure {elb} is a member of all AZs')
     def _check_elb_zones(self, elb):
         """Ensure that `elb` has all available zones."""
-        zones = yield self.thread(self.ec2_conn.get_all_zones)
+        zones = yield self.api_call(self.ec2_conn.get_all_zones)
         zone_names = {z.name for z in zones}
 
         enabled_zones = set(elb.availability_zones)
@@ -445,7 +445,7 @@ class RegisterInstance(base.AWSBaseActor):
         if not zone_names.issubset(enabled_zones):
             self.log.warning('ELB "%s" is missing some AZ.' % elb.name)
             self.log.info('Enabling all zones: %s' % zone_names)
-            yield self.thread(elb.enable_zones, zone_names)
+            yield self.api_call(elb.enable_zones, zone_names)
 
     @gen.coroutine
     def _execute(self):
@@ -551,7 +551,7 @@ class DeregisterInstance(base.AWSBaseActor):
         self.log.info(('Removing instances from %s: %s'
                       % (elb, ', '.join(instances))))
 
-        yield self.thread(elb.deregister_instances, instances)
+        yield self.api_call(elb.deregister_instances, instances)
         yield self._wait_on_draining(elb)
 
     @gen.coroutine
@@ -570,7 +570,7 @@ class DeregisterInstance(base.AWSBaseActor):
         if not self.str2bool(self.option('wait_on_draining')):
             self.log.warning('Not waiting for connections to drain!')
 
-        attrs = yield self.thread(elb.get_attributes)
+        attrs = yield self.api_call(elb.get_attributes)
         if attrs.connection_draining.enabled:
             timeout = attrs.connection_draining.timeout
 
@@ -592,7 +592,7 @@ class DeregisterInstance(base.AWSBaseActor):
         Returns:
             a list of LoadBalancer objects
         """
-        all_elbs = yield self.thread(self.elb_conn.get_all_load_balancers)
+        all_elbs = yield self.api_call(self.elb_conn.get_all_load_balancers)
         elbs_with_members = []
 
         for instance in instances:

@@ -6,6 +6,7 @@ from botocore.exceptions import ClientError
 from tornado import testing
 import mock
 
+from kingpin.actors.aws import base
 from kingpin.actors.aws import settings
 from kingpin.actors.aws import cloudformation
 from kingpin.actors.test.helper import tornado_value
@@ -59,6 +60,10 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         self.actor = cloudformation.CloudFormationBaseActor(
             'unittest', {'region': 'us-east-1'})
         self.actor.cf3_conn = mock.MagicMock(name='cf3_conn')
+
+        # Need to recreate the api call queues between tests
+        # because nose creates a new ioloop per test run.
+        base.NAMED_API_CALL_QUEUES = {}
 
     def test_discover_noecho_params(self):
         file = 'examples/test/aws.cloudformation/cf.integration.json'
@@ -202,7 +207,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         self.actor.cf3_conn.get_template.return_value = fake_stack_template
         ret = yield self.actor._get_stack_template('test')
         self.actor.cf3_conn.get_template.assert_has_calls(
-            [mock.call(StackName='test')])
+            [mock.call(StackName='test', TemplateStage='Original')])
         self.assertEquals(ret, {'Fake': 'Stack'})
 
     @testing.gen_test
@@ -355,6 +360,9 @@ class TestCreate(testing.AsyncTestCase):
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
         reload(cloudformation)
+        # Need to recreate the api call queues between tests
+        # because nose creates a new ioloop per test run.
+        base.NAMED_API_CALL_QUEUES = {}
 
     @testing.gen_test
     def test_create_stack_file(self):
@@ -551,6 +559,9 @@ class TestDelete(testing.AsyncTestCase):
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
         reload(cloudformation)
+        # Need to recreate the api call queues between tests
+        # because nose creates a new ioloop per test run.
+        base.NAMED_API_CALL_QUEUES = {}
 
     @testing.gen_test
     def test_execute(self):
@@ -596,6 +607,9 @@ class TestStack(testing.AsyncTestCase):
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
         reload(cloudformation)
+        # Need to recreate the api call queues between tests
+        # because nose creates a new ioloop per test run.
+        base.NAMED_API_CALL_QUEUES = {}
 
         self.actor = cloudformation.Stack(
             options={
@@ -645,7 +659,8 @@ class TestStack(testing.AsyncTestCase):
         remote = [
             {'ParameterKey': 'BucketName', 'ParameterValue': 'name'},
             {'ParameterKey': 'BucketPassword', 'ParameterValue': '***'},
-            {'ParameterKey': 'Metadata', 'ParameterValue': '2.0'}
+            {'ParameterKey': 'Metadata', 'ParameterValue': '2.0',
+             'ResolvedValue': 'Resolved'}
         ]
         ret = self.actor._diff_params_safely(remote, self.actor._parameters)
         self.assertEquals(True, ret)

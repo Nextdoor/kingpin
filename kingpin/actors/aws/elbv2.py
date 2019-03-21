@@ -101,7 +101,7 @@ class RegisterInstance(base.AWSBaseActor):
         targets = [{'Id': t} for t in targets]
 
         try:
-            yield self.thread(
+            yield self.api_call(
                 self.elbv2_conn.register_targets,
                 TargetGroupArn=arn,
                 Targets=targets)
@@ -185,7 +185,7 @@ class DeregisterInstance(base.AWSBaseActor):
         targets = [{'Id': t} for t in targets]
 
         try:
-            yield self.thread(
+            yield self.api_call(
                 self.elbv2_conn.deregister_targets,
                 TargetGroupArn=arn,
                 Targets=targets)
