@@ -109,6 +109,16 @@ TASK_DEFINITION_SCHEMA = {
                             }
                         }
                     },
+                    'systemControls': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'namespace': {'type': 'string'},
+                                'value': {'type': 'string'}
+                            }
+                        }
+                    },
                     'volumesFrom': {
                         'type': 'array',
                         'items': {
