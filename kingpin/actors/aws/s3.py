@@ -524,11 +524,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             # You must supply at least 'expiration' or 'transition' in your
             # lifecycle config. This is tricky to check in the jsonschema, so
             # we do it here.
-            if not any(k in c for k in ('expiration',
-                                        'transition',
-                                        'noncurrent_version_transition',
-                                        'noncurrent_version_expiration',
-                                        'abort_incomplete_multipart_uploads')):
+            if not any(k in c for k in ('expiration', 'transition')):
                 raise InvalidBucketConfig(
                     'You must supply at least an expiration or transition '
                     'configuration in your config: %s' % c)
