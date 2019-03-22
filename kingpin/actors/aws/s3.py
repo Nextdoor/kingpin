@@ -262,16 +262,6 @@ class LifecycleConfig(SchemaCompareBase):
                         },
                     }
                 },
-                'abort_incomplete_multipart_uploads': {
-                    'type': 'object',
-                    'additionalProperties': False,
-                    'properties': {
-                        'days_after_initiation': {
-                            'type': ['string', 'integer'],
-                            'pattern': '^[0-9]+$',
-                        },
-                    }
-                },
             }
         }
     }
