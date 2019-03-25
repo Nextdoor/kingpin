@@ -262,6 +262,16 @@ class LifecycleConfig(SchemaCompareBase):
                         },
                     }
                 },
+                'abort_incomplete_multipart_upload': {
+                    'type': 'object',
+                    'additionalProperties': False,
+                    'properties': {
+                        'days_after_initiation': {
+                            'type': ['string', 'integer'],
+                            'pattern': '^[0-9]+$',
+                        },
+                    }
+                },
             }
         }
     }
@@ -509,12 +519,15 @@ class Bucket(base.EnsurableAWSBaseActor):
         # Generate a fresh Lifecycle configuration object
         rules = []
         for c in config:
-            self.log.debug('Generating lifecycle rule from: %s' % c)
+            self.log.debug('Generating lifecycle rule from foo: %s' % c)
 
             # You must supply at least 'expiration' or 'transition' in your
             # lifecycle config. This is tricky to check in the jsonschema, so
             # we do it here.
-            if not any(k in c for k in ('expiration', 'transition')):
+            if not any(k in c for k in ('expiration', 'transition',
+                                        'abort_incomplete_multipart_upload',
+                                        'noncurrent_version_expiration',
+                                        'noncurrent_version_transition')):
                 raise InvalidBucketConfig(
                     'You must supply at least an expiration or transition '
                     'configuration in your config: %s' % c)
