@@ -193,15 +193,26 @@ class TestDescribeTaskDefinition(testing.AsyncTestCase):
     @testing.gen_test
     def test_call(self):
         task_definition = {'family': 'family'}
+        task_tags = [
+            {
+                'key': 'foo',
+                'value': 'bar'
+            }
+        ]
         task_definition_name = 'task_definition'
         self.actor.ecs_conn.describe_task_definition.return_value = {
-            'taskDefinition': task_definition}
+            'taskDefinition': task_definition,
+            'tags': task_tags,
+            'ResponseMetadata': 'metadata'}
         result = yield self.actor._describe_task_definition(
             task_definition_name)
-        self.assertEqual(result, task_definition)
+        self.assertEqual(result, {
+            'taskDefinition': task_definition,
+            'tags': task_tags})
 
         call_args = self.actor.ecs_conn.describe_task_definition.call_args
-        expected = ({'taskDefinition': task_definition_name},)
+        expected = ({'taskDefinition': task_definition_name,
+                     'include': ['TAGS'], },)
         self.assertEqual(call_args, expected)
 
 
@@ -831,16 +842,18 @@ class TestIsTaskDefinitionDifferent(testing.AsyncTestCase):
         def mock_describe_task_definition(*args, **kwargs):
             mock_describe_task_definition.call_count += 1
             if mock_describe_task_definition.call_count == 1:
-                raise gen.Return({
+                raise gen.Return({'taskDefinition': {
                     'revision': 0,
                     'taskDefinitionArn': 'arn/family:1',
                     'family': 'family'
+                }, 'tags': [{'key': 'foo', 'value': 'bar'}]
                 })
             if mock_describe_task_definition.call_count == 2:
-                raise gen.Return({
+                raise gen.Return({'taskDefinition': {
                     'revision': 0,
                     'taskDefinitionArn': 'arn/family:2',
                     'family': 'family'
+                }, 'tags': [{'key': 'foo', 'value': 'bar'}]
                 })
             if mock_describe_task_definition.call_count > 2:
                 self.fail('Called more than twice.')
@@ -856,16 +869,43 @@ class TestIsTaskDefinitionDifferent(testing.AsyncTestCase):
         def mock_describe_task_definition(*args, **kwargs):
             mock_describe_task_definition.call_count += 1
             if mock_describe_task_definition.call_count == 1:
-                raise gen.Return({
+                raise gen.Return({'taskDefinition': {
                     'revision': 0,
                     'taskDefinitionArn': 'arn/family:1',
                     'family': 'family1'
-                })
+                }})
             if mock_describe_task_definition.call_count == 2:
-                raise gen.Return({
+                raise gen.Return({'taskDefinition': {
                     'revision': 0,
                     'taskDefinitionArn': 'arn/family:2',
                     'family': 'family2'
+                }})
+            if mock_describe_task_definition.call_count > 2:
+                self.fail('Called more than twice.')
+
+        mock_describe_task_definition.call_count = 0
+        self.actor._describe_task_definition = mock_describe_task_definition
+        diff = yield self.actor._is_task_definition_different('a', 'b')
+        self.assertEquals(diff, True)
+
+    @testing.gen_test
+    def test_different_tags(self):
+        @gen.coroutine
+        def mock_describe_task_definition(*args, **kwargs):
+            mock_describe_task_definition.call_count += 1
+            if mock_describe_task_definition.call_count == 1:
+                raise gen.Return({'taskDefinition': {
+                    'revision': 0,
+                    'taskDefinitionArn': 'arn/family:1',
+                    'family': 'family'
+                }, 'tags': [{'key': 'foo', 'value': 'bar'}]
+                })
+            if mock_describe_task_definition.call_count == 2:
+                raise gen.Return({'taskDefinition': {
+                    'revision': 0,
+                    'taskDefinitionArn': 'arn/family:2',
+                    'family': 'family'
+                }, 'tags': [{'key': 'foo', 'value': 'baz'}]
                 })
             if mock_describe_task_definition.call_count > 2:
                 self.fail('Called more than twice.')
