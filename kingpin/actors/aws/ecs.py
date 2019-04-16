@@ -190,6 +190,16 @@ TASK_DEFINITION_SCHEMA = {
                     }
                 }
             }
+        },
+        'tags': {
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'key': {'type': 'string'},
+                    'value': {'type': 'string'}
+                }
+            }
         }
     }
 }
@@ -307,15 +317,19 @@ class ECSBaseActor(base.AWSBaseActor):
             task_definition_name: Task Definition string.
 
         Returns:
-            Task Definition description dict.
+            Returns a dict containing the task definition dict and task
+            definition tags list.
         """
         self.log.info('Describing task definition {}.'.format(
             task_definition_name))
-        task_definition = yield self.api_call(
+        resp = yield self.api_call(
             self.ecs_conn.describe_task_definition,
-            taskDefinition=task_definition_name)
+            taskDefinition=task_definition_name,
+            include=['TAGS'])
 
-        raise gen.Return(task_definition['taskDefinition'])
+        del resp['ResponseMetadata']
+
+        raise gen.Return(resp)
 
     @gen.coroutine
     @dry('Would list task definitions')
@@ -938,10 +952,12 @@ class Service(ECSBaseActor):
             old_task_definition_name)
         new_task_definition = yield self._describe_task_definition(
             new_task_definition_name)
-        del new_task_definition['revision']
-        del new_task_definition['taskDefinitionArn']
-        del old_task_definition['revision']
-        del old_task_definition['taskDefinitionArn']
+
+        del new_task_definition['taskDefinition']['revision']
+        del new_task_definition['taskDefinition']['taskDefinitionArn']
+        del old_task_definition['taskDefinition']['revision']
+        del old_task_definition['taskDefinition']['taskDefinitionArn']
+
         raise gen.Return(old_task_definition != new_task_definition)
 
     @gen.coroutine
