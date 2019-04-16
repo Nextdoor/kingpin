@@ -317,7 +317,8 @@ class ECSBaseActor(base.AWSBaseActor):
             task_definition_name: Task Definition string.
 
         Returns:
-            Task Definition description dict.
+            Returns a dict containing the task definition dict and task
+            definition tags list.
         """
         self.log.info('Describing task definition {}.'.format(
             task_definition_name))
