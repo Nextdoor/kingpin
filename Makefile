@@ -43,7 +43,7 @@ pack: kingpin.zip
 kingpin.zip:
 	rm -rf zip
 	mkdir -p zip
-	pip install --process-dependency-links --target ./zip ./
+	pip install --target ./zip ./
 	find ./zip -name '*.pyc' -delete
 	find ./zip -name '*.egg-info' | xargs rm -rf
 	cd zip; ln -sf kingpin/bin/deploy.py ./__main__.py
