@@ -838,6 +838,14 @@ class Stack(CloudFormationBaseActor):
     def _update_stack(self, stack):
         self.log.info('Verifying that stack is in desired state')
 
+        # First, check that this stack isn't one that may have failed before
+        # and there was attempted to be deleted but failed. If it is, we have a
+        # fatal error and we must raise an exception.
+        if stack['StackStatus'] == 'DELETE_FAILED':
+            msg = 'Stack found in a deleted failed state: %s' % (
+                stack['StackStatus'])
+            raise StackFailed(msg)
+
         # Upon a stack creation, there are two states the stack can be left in
         # that are both un-fixable -- CREATE_FAILED and ROLLBACK_COMPLETE. In
         # both of these cases, the only possible option is to destroy the stack
