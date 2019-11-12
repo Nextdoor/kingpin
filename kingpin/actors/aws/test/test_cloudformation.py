@@ -711,6 +711,13 @@ class TestStack(testing.AsyncTestCase):
             stack='fake')
 
     @testing.gen_test
+    def test_update_stack_in_delete_failed_state(self):
+        fake_stack = create_fake_stack('fake', 'DELETE_FAILED')
+        self.actor._get_stack = mock.MagicMock(name='_get_stack')
+        with self.assertRaises(cloudformation.StackFailed):
+            yield self.actor._update_stack(fake_stack)
+
+    @testing.gen_test
     def test_update_stack_ensure_template(self):
         fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
         self.actor._ensure_template = mock.MagicMock(name='_ensure_stack')
