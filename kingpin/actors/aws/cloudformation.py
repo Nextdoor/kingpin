@@ -548,8 +548,9 @@ class Create(CloudFormationBaseActor):
 
     .. code-block:: json
 
-       { "desc": "Create production backend stack",
+       {
          "actor": "aws.cloudformation.Create",
+         "desc": "Create production backend stack",
          "options": {
            "capabilities": [ "CAPABILITY_IAM" ],
            "name": "%CF_NAME%",
@@ -753,8 +754,9 @@ class Stack(CloudFormationBaseActor):
 
     .. code-block:: json
 
-       { "actor": "aws.cloudformation.Create",
-         "state": "present",
+       {
+         "actor": "aws.cloudformation.Stack",
+         "desc": "Manages the state of a CloudFormation stack",
          "options": {
            "capabilities": [ "CAPABILITY_IAM" ],
            "on_failure": "DELETE",
@@ -764,6 +766,7 @@ class Stack(CloudFormationBaseActor):
            },
            "region": "us-west-1",
            "role_arn": "arn:aws:iam::123456789012:role/DeployRole",
+           "state": "present",
            "template": "/examples/cloudformation_test.json",
            "timeout_in_minutes": 45,
            "enable_termination_protection": true,
