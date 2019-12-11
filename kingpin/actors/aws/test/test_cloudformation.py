@@ -1039,7 +1039,10 @@ class TestStack(testing.AsyncTestCase):
     def test_wait_until_change_set_ready_failed_status(self):
         available = {'Status': 'AVAILABLE'}
         update_in_progress = {'Status': 'UPDATE_IN_PROGRESS'}
-        update_failed = {'Status': 'UPDATE_FAILED', 'StatusReason': 'Template error'}
+        update_failed = {
+            'Status': 'UPDATE_FAILED',
+            'StatusReason': 'Template error'
+        }
         self.actor.cf3_conn.describe_change_set.side_effect = [
             available,
             update_in_progress,
