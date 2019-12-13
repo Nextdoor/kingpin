@@ -379,8 +379,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
             # Lastly, if we get here, then something is very wrong and we got
             # some funky status back. Throw an exception.
-            msg = 'Unexpected stack state received (%s): %s' % (
-                stack['StackStatus'], stack['StackStatusReason'])
+            msg = 'Unxpected stack state received (%s)' % stack['StackStatus']
             raise StackFailed(msg)
 
     @gen.coroutine
@@ -1083,8 +1082,7 @@ class Stack(CloudFormationBaseActor):
 
             # Lastly, if we get here, then something is very wrong and we got
             # some funky status back. Throw an exception.
-            msg = 'Unexpected stack state received (%s): %s' % (
-                change[status_key], change['StatusReason'])
+            msg = 'Unxpected stack state received (%s)' % change[status_key]
             raise StackFailed(msg)
 
     def _print_change_set(self, change_set):
