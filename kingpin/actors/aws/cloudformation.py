@@ -1084,7 +1084,8 @@ class Stack(CloudFormationBaseActor):
             # Lastly, if we get here, then something is very wrong and we got
             # some funky status back. Throw an exception.
             msg = 'Unexpected stack state received (%s): %s' % (
-                change[status_key], change['StatusReason'])
+                change[status_key],
+                change.get('StatusReason', '<Unknown StatusReason>'))
             raise StackFailed(msg)
 
     def _print_change_set(self, change_set):
