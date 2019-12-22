@@ -87,32 +87,33 @@ class SpotinstAPI(api.RestConsumer):
                                 'http_methods': {'post': {}}
                             },
                             'list_group': {
-                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',
+                                'path':
+                                'aws/ec2/group/%id%?accountId=%account_id%',  # nopep8
                                 'http_methods': {'get': {}}
                             },
                             'update_group': {
-                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',
+                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',  # nopep8
                                 'http_methods': {'put': {}}
                             },
                             'delete_group': {
-                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',
+                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',  # nopep8
                                 'http_methods': {'delete': {}}
                             },
                             'group_status': {
-                                'path': 'aws/ec2/group/%id%/status?accountId=%account_id%',
+                                'path': 'aws/ec2/group/%id%/status?accountId=%account_id%',  # nopep8
                                 'http_methods': {'get': {}}
                             },
                             'validate_group': {
                                 'new': True,
-                                'path': 'aws/ec2/group/validation?accountId=%account_id%',
+                                'path': 'aws/ec2/group/validation?accountId=%account_id%',  # nopep8
                                 'http_methods': {'post': {}}
                             },
                             'roll': {
-                                'path': 'aws/ec2/group/%id%/roll?limit=50&accountId=%account_id%',
+                                'path': 'aws/ec2/group/%id%/roll?limit=50&accountId=%account_id%',  # nopep8
                                 'http_methods': {'put': {}, 'get': {}}
                             },
                             'roll_status': {
-                                'path': 'aws/ec2/group/%id%/roll/%roll_id%?accountId=%account_id%',
+                                'path': 'aws/ec2/group/%id%/roll/%roll_id%?accountId=%account_id%',  # nopep8
                                 'http_methods': {'get': {}}
                             },
                         }
@@ -304,7 +305,7 @@ class SpotinstBase(base.EnsurableBaseActor):
 
         if account_id is None:
             raise exceptions.InvalidCredentials(
-              'Missing SPOTINST_ACCOUNT_ID or account_id parameter')
+                'Missing SPOTINST_ACCOUNT_ID or account_id parameter')
 
         rest_client = SpotinstRestClient(
             headers={
