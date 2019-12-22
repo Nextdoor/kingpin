@@ -78,41 +78,41 @@ class SpotinstAPI(api.RestConsumer):
                         'attrs': {
                             'list_groups': {
                                 'new': True,
-                                'path': 'aws/ec2/group',
+                                'path': 'aws/ec2/group?accountId=%account_id%',
                                 'http_methods': {'get': {}}
                             },
                             'create_group': {
                                 'new': True,
-                                'path': 'aws/ec2/group',
+                                'path': 'aws/ec2/group?accountId=%account_id%',
                                 'http_methods': {'post': {}}
                             },
                             'list_group': {
-                                'path': 'aws/ec2/group/%id%',
+                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',
                                 'http_methods': {'get': {}}
                             },
                             'update_group': {
-                                'path': 'aws/ec2/group/%id%',
+                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',
                                 'http_methods': {'put': {}}
                             },
                             'delete_group': {
-                                'path': 'aws/ec2/group/%id%',
+                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',
                                 'http_methods': {'delete': {}}
                             },
                             'group_status': {
-                                'path': 'aws/ec2/group/%id%/status',
+                                'path': 'aws/ec2/group/%id%/status?accountId=%account_id%',
                                 'http_methods': {'get': {}}
                             },
                             'validate_group': {
                                 'new': True,
-                                'path': 'aws/ec2/group/validation',
+                                'path': 'aws/ec2/group/validation?accountId=%account_id%',
                                 'http_methods': {'post': {}}
                             },
                             'roll': {
-                                'path': 'aws/ec2/group/%id%/roll?limit=50',
+                                'path': 'aws/ec2/group/%id%/roll?limit=50&accountId=%account_id%',
                                 'http_methods': {'put': {}, 'get': {}}
                             },
                             'roll_status': {
-                                'path': 'aws/ec2/group/%id%/roll/%roll_id%',
+                                'path': 'aws/ec2/group/%id%/roll/%roll_id%?accountId=%account_id%',
                                 'http_methods': {'get': {}}
                             },
                         }
@@ -183,7 +183,7 @@ class InvalidConfig(SpotinstException):
     """Thrown when an invalid request was supplied to Spotinst"""
 
 
-class SpotinstRestClient(api.SimpleTokenRestClient):
+class SpotinstRestClient(api.RestClient):
 
     EXCEPTIONS = {
         httpclient.HTTPError: {
@@ -301,18 +301,14 @@ class SpotinstBase(base.EnsurableBaseActor):
         account_id = self._options.get('account_id')
         if account_id is None:
             account_id = ACCOUNT_ID
-        tokens = {}
-        if account_id:
-            tokens = {'accountId': account_id}
 
         rest_client = SpotinstRestClient(
             headers={
                 'Authorization': 'Bearer %s' % TOKEN,
                 'Content-Type': 'application/json',
-            },
-            tokens=tokens)
+            })
 
-        self._client = SpotinstAPI(client=rest_client)
+        self._client = SpotinstAPI(client=rest_client, account_id=account_id)
 
 
 class ElastiGroup(SpotinstBase):
