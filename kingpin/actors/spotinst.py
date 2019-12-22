@@ -302,6 +302,10 @@ class SpotinstBase(base.EnsurableBaseActor):
         if account_id is None:
             account_id = ACCOUNT_ID
 
+        if account_id is None:
+            raise exceptions.InvalidCredentials(
+              'Missing SPOTINST_ACCOUNT_ID or account_id parameter')
+
         rest_client = SpotinstRestClient(
             headers={
                 'Authorization': 'Bearer %s' % TOKEN,

@@ -106,6 +106,7 @@ class TestSpotinstBase(testing.AsyncTestCase):
         super(TestSpotinstBase, self).setUp(*args, **kwargs)
         spotinst.TOKEN = 'Unittest'
         spotinst.DEBUG = True
+        spotinst.ACCOUNT_ID = 'act-test'
 
     def test_init_with_debug_disabled(self):
         spotinst.DEBUG = False
@@ -114,21 +115,14 @@ class TestSpotinstBase(testing.AsyncTestCase):
             20, logging.getLogger('tornado_rest_client.api').level)
 
     def test_init_missing_token(self):
-        # Un-set the token and make sure the init fails
         spotinst.TOKEN = None
         with self.assertRaises(exceptions.InvalidCredentials):
             spotinst.SpotinstBase('Unit Test Action', {})
 
-    def test_init_with_account_id(self):
-        spotinst.ACCOUNT_ID = 'act-123456'
-        base = spotinst.SpotinstBase('Unit Test Action', {})
-        self.assertEquals(base._client._client._tokens['accountId'],
-                          'act-123456')
-
     def test_init_without_account_id(self):
         spotinst.ACCOUNT_ID = None
-        base = spotinst.SpotinstBase('Unit Test Action', {})
-        self.assertEquals(base._client._client._tokens, {})
+        with self.assertRaises(exceptions.InvalidCredentials):
+            spotinst.SpotinstBase('Unit Test Action', {})
 
 
 class TestElastiGroup(testing.AsyncTestCase):
@@ -139,6 +133,7 @@ class TestElastiGroup(testing.AsyncTestCase):
         super(TestElastiGroup, self).setUp(*args, **kwargs)
         file = 'examples/test/spotinst.elastigroup/unittest.json'
         spotinst.TOKEN = 'Unittest'
+        spotinst.ACCOUNT_ID = 'act-test'
 
         # Manually inject some fake values for the subnet/secgrp/zone
         init_tokens = {
