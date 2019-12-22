@@ -298,7 +298,9 @@ class SpotinstBase(base.EnsurableBaseActor):
 
         # Figure out our account ID and set it.. Or this will end up falling
         # back to None if neither are set.
-        account_id = self._options.get('account_id', ACCOUNT_ID)
+        account_id = self._options.get('account_id')
+        if account_id is None:
+            account_id = ACCOUNT_ID
         tokens = {}
         if account_id:
             tokens = {'accountId': account_id}
