@@ -33,8 +33,8 @@ https://spotinst.atlassian.net/wiki/display/API/API+Semantics
   https://console.spotinst.com/#/settings/tokens
 
 :SPOTINST_ACCOUNT_ID:
-  SpotInst API Account ID - used optionally when you have multiple accounts
-  under a single Organization. This can also be set on a per-actor basis.
+  SpotInst API Account ID - this is required unless you set the account_id
+  parameter on each individual actor call.
   http://docs.spotinst.com/#page:api-semantic,header:header-organizations-with-a-single-account
 """
 
