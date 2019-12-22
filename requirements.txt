@@ -42,3 +42,6 @@ boto3>=1.9.46
 
 # Used to turn snake_case into CamelCase
 inflection
+
+# Hard-code this to pre-8.x to maintain Python 2.x support
+more-itertools<=5.0.0

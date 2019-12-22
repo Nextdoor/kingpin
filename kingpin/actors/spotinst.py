@@ -33,8 +33,8 @@ https://spotinst.atlassian.net/wiki/display/API/API+Semantics
   https://console.spotinst.com/#/settings/tokens
 
 :SPOTINST_ACCOUNT_ID:
-  SpotInst API Account ID - used optionally when you have multiple accounts
-  under a single Organization. This can also be set on a per-actor basis.
+  SpotInst API Account ID - this is required unless you set the account_id
+  parameter on each individual actor call.
   http://docs.spotinst.com/#page:api-semantic,header:header-organizations-with-a-single-account
 """
 
@@ -78,41 +78,41 @@ class SpotinstAPI(api.RestConsumer):
                         'attrs': {
                             'list_groups': {
                                 'new': True,
-                                'path': 'aws/ec2/group',
+                                'path': 'aws/ec2/group?accountId=%account_id%',
                                 'http_methods': {'get': {}}
                             },
                             'create_group': {
                                 'new': True,
-                                'path': 'aws/ec2/group',
+                                'path': 'aws/ec2/group?accountId=%account_id%',
                                 'http_methods': {'post': {}}
                             },
                             'list_group': {
-                                'path': 'aws/ec2/group/%id%',
+                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',  # nopep8
                                 'http_methods': {'get': {}}
                             },
                             'update_group': {
-                                'path': 'aws/ec2/group/%id%',
+                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',  # nopep8
                                 'http_methods': {'put': {}}
                             },
                             'delete_group': {
-                                'path': 'aws/ec2/group/%id%',
+                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',  # nopep8
                                 'http_methods': {'delete': {}}
                             },
                             'group_status': {
-                                'path': 'aws/ec2/group/%id%/status',
+                                'path': 'aws/ec2/group/%id%/status?accountId=%account_id%',  # nopep8
                                 'http_methods': {'get': {}}
                             },
                             'validate_group': {
                                 'new': True,
-                                'path': 'aws/ec2/group/validation',
+                                'path': 'aws/ec2/group/validation?accountId=%account_id%',  # nopep8
                                 'http_methods': {'post': {}}
                             },
                             'roll': {
-                                'path': 'aws/ec2/group/%id%/roll?limit=50',
+                                'path': 'aws/ec2/group/%id%/roll?limit=50&accountId=%account_id%',  # nopep8
                                 'http_methods': {'put': {}, 'get': {}}
                             },
                             'roll_status': {
-                                'path': 'aws/ec2/group/%id%/roll/%roll_id%',
+                                'path': 'aws/ec2/group/%id%/roll/%roll_id%?accountId=%account_id%',  # nopep8
                                 'http_methods': {'get': {}}
                             },
                         }
@@ -183,7 +183,7 @@ class InvalidConfig(SpotinstException):
     """Thrown when an invalid request was supplied to Spotinst"""
 
 
-class SpotinstRestClient(api.SimpleTokenRestClient):
+class SpotinstRestClient(api.RestClient):
 
     EXCEPTIONS = {
         httpclient.HTTPError: {
@@ -298,19 +298,21 @@ class SpotinstBase(base.EnsurableBaseActor):
 
         # Figure out our account ID and set it.. Or this will end up falling
         # back to None if neither are set.
-        account_id = self._options.get('account_id', ACCOUNT_ID)
-        tokens = {}
-        if account_id:
-            tokens = {'accountId': account_id}
+        account_id = self._options.get('account_id')
+        if account_id is None:
+            account_id = ACCOUNT_ID
+
+        if account_id is None:
+            raise exceptions.InvalidCredentials(
+                'Missing SPOTINST_ACCOUNT_ID or account_id parameter')
 
         rest_client = SpotinstRestClient(
             headers={
                 'Authorization': 'Bearer %s' % TOKEN,
                 'Content-Type': 'application/json',
-            },
-            tokens=tokens)
+            })
 
-        self._client = SpotinstAPI(client=rest_client)
+        self._client = SpotinstAPI(client=rest_client, account_id=account_id)
 
 
 class ElastiGroup(SpotinstBase):
