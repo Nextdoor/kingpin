@@ -87,8 +87,7 @@ class SpotinstAPI(api.RestConsumer):
                                 'http_methods': {'post': {}}
                             },
                             'list_group': {
-                                'path':
-                                'aws/ec2/group/%id%?accountId=%account_id%',  # nopep8
+                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',  # nopep8
                                 'http_methods': {'get': {}}
                             },
                             'update_group': {
