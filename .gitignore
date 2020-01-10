@@ -9,3 +9,5 @@
 build/
 docs/.ropeproject
 .DS_Store
+.idea
+idea/
