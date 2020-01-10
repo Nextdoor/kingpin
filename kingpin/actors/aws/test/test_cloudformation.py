@@ -553,40 +553,6 @@ class TestCreate(testing.AsyncTestCase):
         actor._get_stack.return_value = tornado_value(None)
 
         yield actor._execute()
-
-    @testing.gen_test
-    def test_timeout(self):
-        # Create a quick mock.. so we can track whether or not API calls were
-        # actually made.
-        tracker = mock.MagicMock(name='tracker')
-
-        # Create a function and wrap it in our timeout
-        @gen.coroutine
-        def _execute():
-            tracker.reset_mock()
-            yield gen.Task(ioloop.IOLoop.current().add_timeout,
-                           time.time() + 0.2)
-            tracker.call_me()
-
-        self.actor._execute = _execute
-
-        # Set our timeout to 2s, test should work
-        self.actor._timeout = 1
-        yield self.actor.timeout(_execute)
-        tracker.assert_has_calls([mock.call.call_me()])
-
-        # Now set our timeout to 500ms. Exception should be raised, and the
-        # tracker should NOT be called.
-        self.actor._timeout = 0.1
-        with self.assertRaises(exceptions.ActorTimedOut):
-            yield self.actor.timeout(_execute)
-
-        # Set the timeout to 0, which disables it. No exception should be
-        # raised
-        self.actor._timeout = 0
-        yield self.actor.timeout(_execute)
-        self.actor_timeout = None
-        yield self.actor.timeout(_execute)
         
 
 class TestDelete(testing.AsyncTestCase):
