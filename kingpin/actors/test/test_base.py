@@ -192,6 +192,10 @@ class TestBaseActor(testing.AsyncTestCase):
         yield self.actor.timeout(_execute)
         self.actor_timeout = None
         yield self.actor.timeout(_execute)
+        
+        # Set the _execution_timeout attr of an actor.
+        self.actor._execution_timeout = self.timeout
+        yield self.actor.timeout(_execute)
 
     @testing.gen_test
     def test_httplib_debugging(self):
