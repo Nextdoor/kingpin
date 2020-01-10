@@ -378,7 +378,7 @@ class BaseActor(object):
 
         Parses the objects self._options dict (by converting it into a JSON
         string, substituting, and then turning it back into a dict) and the
-        self._desc string and replaces any {KEY}s with the valoues from the
+        self._desc string and replaces any {KEY}s with the values from the
         context dict that was supplied.
 
         Args:
@@ -478,7 +478,7 @@ class BaseActor(object):
         """
         self.log.debug('Beginning')
 
-        # Any exception thats raised by an actors _execute() method will
+        # Any exception that's raised by an actors _execute() method will
         # automatically cause actor failure and we return right away.
         result = None
 
@@ -488,7 +488,10 @@ class BaseActor(object):
             raise gen.Return()
 
         try:
-            result = yield self.timeout(self._execute)
+            if hasattr(self, '_execution_timeout'):
+                result = yield self._execution_timeout(self._execute)
+            else:
+                result = yield self.timeout(self._execute)
         except exceptions.ActorException as e:
             # If exception is not RecoverableActorFailure
             # or if warn_on_failure is not set, then escalate.
@@ -506,7 +509,7 @@ class BaseActor(object):
             # We don't like general exception catch clauses like this, but
             # because actors can be written by third parties and automatically
             # imported, its impossible for us to catch every exception
-            # possible. This is a failsafe thats meant to throw a strong
+            # possible. This is a failsafe that's meant to throw a strong
             # warning.
             log.critical('Unexpected exception caught! '
                          'Please contact the author (%s) and provide them '
@@ -594,7 +597,7 @@ class EnsurableBaseActor(BaseActor):
 
     # A list of option names that are _not_ automatically managed. These are
     # useful if you have special behaviors like 'commit' on change, or if you
-    # have parameters that are unmutable ('name').
+    # have parameters that are immutable ('name').
     unmanaged_options = []
 
     def __init__(self, *args, **kwargs):
@@ -753,7 +756,7 @@ class HTTPBaseActor(BaseActor):
 
         Sorts the arguments so that the returned string is predictable and in
         alphabetical order. Effectively wraps the tornado.httputil.url_concat
-        method and properly strips out None values, as well as lowercases
+        method and properly strips out None values, as well as lowercase
         Bool values.
 
         Args:
@@ -779,7 +782,7 @@ class HTTPBaseActor(BaseActor):
         return full_url
 
     # TODO: Add a retry/backoff timer here. If the remote endpoint returns
-    # garbled data (ie, maybe a 500 errror or something else thats not in
+    # garbled data (ie, maybe a 500 error or something else thats not in
     # JSON format, we should back off and try again.
     @gen.coroutine
     def _fetch(self, url, post=None, auth_username=None, auth_password=None):
