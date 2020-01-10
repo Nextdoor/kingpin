@@ -194,7 +194,7 @@ class TestBaseActor(testing.AsyncTestCase):
         yield self.actor.timeout(_execute)
         
         # Set the _execution_timeout attr of an actor.
-        self.actor._execution_timeout = self.timeout
+        self.actor._execution_timeout = self.actor.timeout
         yield self.actor.timeout(_execute)
 
     @testing.gen_test
