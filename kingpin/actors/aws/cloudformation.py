@@ -20,6 +20,7 @@
 import logging
 import json
 import uuid
+import time
 
 from botocore.exceptions import ClientError
 from tornado import concurrent
@@ -55,6 +56,11 @@ class StackFailed(exceptions.RecoverableActorFailure):
     """Raised any time a Stack fails to be created or updated."""
 
 
+class CancelUpdateStackFailed(exceptions.UnrecoverableActorFailure):
+
+    """Raised if the attempt to cancel a stack update fails."""
+    
+    
 class InvalidTemplate(exceptions.UnrecoverableActorFailure):
 
     """An invalid CloudFormation template was supplied."""
@@ -344,7 +350,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
     def _wait_until_state(self, stack_name, desired_states, sleep=15):
         """Indefinite loop until a stack has finished creating/deleting.
 
-        Whether the stack has failed, suceeded or been rolled back... this
+        Whether the stack has failed, succeeded or been rolled back... this
         method loops until the process has finished. If the final status is a
         failure (rollback/failed) then an exception is raised.
 
@@ -446,7 +452,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         except StackNotFound:
             # Pass here because a stack not found exception is totally
             # reasonable since we're deleting the stack. Sometimes Amazon
-            # actually deletes the stack immediately, and othertimes it lists
+            # actually deletes the stack immediately, and other times it lists
             # the stack as a 'deleted' state, but we still get that state back.
             # Either case is fine.
             pass
@@ -1122,7 +1128,7 @@ class Stack(CloudFormationBaseActor):
         """Executes the Change Set and waits for completion.
 
         Takes a supplied Change Set name and Stack Name, executes the change
-        set, and waits for it to complete sucessfully.
+        set, and waits for it to complete successfully.
 
         args:
             change_set_name: The Change Set Name/ARN
@@ -1209,6 +1215,44 @@ class Stack(CloudFormationBaseActor):
 
         raise gen.Return(stack)
 
+    @gen.coroutine
+    def _execution_timeout(self, f, *args, **kwargs):
+        # Get our timeout setting, or fallback to the default
+        self.log.debug('%s.%s() deadline: %s(s)' %
+                       (self._type, f.__name__, self._timeout))
+
+        # Get our Future object but don't yield on it yet, This starts the
+        # execution, but allows us to wrap it below with the
+        # 'gen.with_timeout' function.
+        fut = f(*args, **kwargs)
+
+        # If no timeout is set (none, or 0), then we just yield the Future and
+        # return its results.
+        if not self._timeout:
+            ret = yield fut
+            raise gen.Return(ret)
+
+        # Generate a timestamp in the future at which point we will raise
+        # an alarm if the actor is still executing
+        deadline = time.time() + float(self._timeout)
+
+        # Now we yield on the gen_with_timeout function
+        # Now we yield on the gen_with_timeout function
+        try:
+            ret = yield gen.with_timeout(
+                deadline, fut, quiet_exceptions=(exceptions.ActorTimedOut))
+        except gen.TimeoutError:
+            msg = ('%s.%s() execution exceeded deadline: %ss' %
+                   (self._type, f.__name__, self._timeout))
+            self.log.error(msg)
+            yield self.api_call(
+                self.cf3_conn.cancel_update_stack,
+                StackName=self.option('name'),
+            )
+            raise exceptions.ActorTimedOut(msg)
+
+        raise gen.Return(ret)        
+    
     @gen.coroutine
     def _execute(self):
         # Before we do anything, validate that the supplied template body or
