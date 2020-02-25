@@ -45,3 +45,6 @@ inflection
 
 # Hard-code this to pre-8.x to maintain Python 2.x support
 more-itertools<=5.0.0
+
+# Hard-code this to pre-2.0.0 to maintain Python 2.x support
+zipp<2.0.0
