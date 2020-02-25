@@ -379,7 +379,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
             # Lastly, if we get here, then something is very wrong and we got
             # some funky status back. Throw an exception.
-            msg = 'Unexpected Stack state received (%s): %s' % (
+            msg = 'Unexpected Stack state (StackStatus) received (%s): %s' % (
                 stack['StackStatus'],
                 stack.get('StackStatusReason',
                     'StackStatusReason not provided.'))
