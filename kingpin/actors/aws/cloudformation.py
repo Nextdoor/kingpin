@@ -382,7 +382,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             msg = 'Unexpected Stack state (StackStatus) received (%s): %s' % (
                 stack['StackStatus'],
                 stack.get('StackStatusReason',
-                        'StackStatusReason not provided.'))
+                          'StackStatusReason not provided.'))
             raise StackFailed(msg)
 
     @gen.coroutine
