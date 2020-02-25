@@ -381,7 +381,8 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             # some funky status back. Throw an exception.
             msg = 'Unexpected Stack state (StackStatus) received (%s): %s' % (
                 stack['StackStatus'],
-                stack.get('StackStatusReason', 'StackStatusReason not provided.'))
+                stack.get('StackStatusReason',
+                'StackStatusReason not provided.'))
             raise StackFailed(msg)
 
     @gen.coroutine
