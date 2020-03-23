@@ -504,6 +504,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             raise StackFailed(msg)
 
         self.log.info('Stack created: %s' % stack['StackId'])
+        self.log.info('THIS IS JUST A TEST')
 
         raise gen.Return(stack['StackId'])
 
