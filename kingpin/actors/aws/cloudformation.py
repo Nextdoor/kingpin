@@ -146,17 +146,21 @@ class TerminationProtectionConfig(StringCompareBase):
 # CloudFormation has over a dozen different 'stack states'... but for the
 # purposes of these actors, we really only care about a few logical states.
 # Here we map the raw states into logical states.
-COMPLETE = ('CREATE_COMPLETE', 'UPDATE_COMPLETE', 'UPDATE_ROLLBACK_COMPLETE')
+COMPLETE = (
+    'CREATE_COMPLETE', 'UPDATE_COMPLETE', 'UPDATE_ROLLBACK_COMPLETE',
+    'IMPORT_COMPLETE', 'IMPORT_ROLLBACK_COMPLETE')
 DELETED = ('DELETE_COMPLETE', )
 IN_PROGRESS = (
     'CREATE_PENDING', 'CREATE_IN_PROGRESS', 'DELETE_IN_PROGRESS',
     'EXECUTE_IN_PROGRESS', 'ROLLBACK_IN_PROGRESS',
     'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS', 'UPDATE_IN_PROGRESS',
     'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS',
-    'UPDATE_ROLLBACK_IN_PROGRESS')
+    'UPDATE_ROLLBACK_IN_PROGRESS', 'IMPORT_IN_PROGRESS',
+    'IMPORT_ROLLBACK_IN_PROGRESS')
 FAILED = (
     'CREATE_FAILED', 'DELETE_FAILED', 'ROLLBACK_FAILED',
-    'UPDATE_ROLLBACK_FAILED', 'ROLLBACK_COMPLETE')
+    'UPDATE_ROLLBACK_FAILED', 'ROLLBACK_COMPLETE',
+    'IMPORT_ROLLBACK_FAILED')
 
 
 class CloudFormationBaseActor(base.AWSBaseActor):
@@ -385,7 +389,10 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
             # Lastly, if we get here, then something is very wrong and we got
             # some funky status back. Throw an exception.
-            msg = 'Unxpected stack state received (%s)' % stack['StackStatus']
+            msg = 'Unexpected Stack state (StackStatus) received (%s): %s' % (
+                stack['StackStatus'],
+                stack.get('StackStatusReason',
+                          'StackStatusReason not provided.'))
             raise StackFailed(msg)
 
     @gen.coroutine
@@ -1068,7 +1075,7 @@ class Stack(CloudFormationBaseActor):
             except ClientError as e:
                 # If we hit an intermittent error, lets just loop around and
                 # try again.
-                self.log.error('Error receiving change set state: %s' % e)
+                self.log.error('Error receiving Change Set state: %s' % e)
                 yield utils.tornado_sleep(sleep)
                 continue
 
@@ -1088,7 +1095,10 @@ class Stack(CloudFormationBaseActor):
 
             # Lastly, if we get here, then something is very wrong and we got
             # some funky status back. Throw an exception.
-            msg = 'Unxpected stack state received (%s)' % change[status_key]
+            msg = 'Unexpected Change Set state (%s) received (%s): %s' % (
+                status_key,
+                change[status_key],
+                change.get('StatusReason', 'StatusReason not provided.'))
             raise StackFailed(msg)
 
     def _print_change_set(self, change_set):

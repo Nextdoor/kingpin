@@ -30,7 +30,7 @@ retrying
 #
 # NOTE: Version specified in the setup.py file
 # NOTE: mock is used inside the rightscale actor
-python-rightscale @ https://github.com/diranged/python-rightscale-1/tarball/nextdoor#egg=python-rightscale-0.1.7
+python-rightscale @ https://github.com/diranged/python-rightscale-1/tarball/nextdoor#egg=python-rightscale
 mock==1.0.1
 
 # kingpin.actors.aws
@@ -45,3 +45,6 @@ inflection
 
 # Hard-code this to pre-8.x to maintain Python 2.x support
 more-itertools<=5.0.0
+
+# Hard-code this to pre-2.0.0 to maintain Python 2.x support
+zipp<2.0.0
