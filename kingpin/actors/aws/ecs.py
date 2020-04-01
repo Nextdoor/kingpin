@@ -32,7 +32,7 @@ from kingpin.constants import REQUIRED, STATE
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Steve Mostovoy <smostovoy@nextdoor.com>'
+__author__ = 'Willem Van Eck <willem@nextdoor.com>'
 
 
 class ECSAPIException(exceptions.RecoverableActorFailure):
@@ -1044,11 +1044,30 @@ class Service(ECSBaseActor):
         if override is not None:
             update_parameters.update(override)
 
+        
+        
         self.log.info('Updating service.')
-
-        yield self.api_call(
-            self.ecs_conn.update_service,
-            **update_parameters)
+        try:
+            self.log.info('Checking if existing service is active.')
+            service_is_active = (existing_service and
+                                 existing_service['status'] != 'INACTIVE')
+            if not service_is_active:
+                # We can only update an existing service.
+                self.log.error(
+                    'Could not find service with name {} to update '
+                    'in {}. Update is likely to fail.'.format(
+                        service_name, self._format_location()))
+            yield self.api_call(
+                self.ecs_conn.update_service,
+                **update_parameters)
+        except self.ecs_conn.exceptions.ServiceNotFoundException as e:
+            current_primary_deployment = self._get_primary_deployment(existing_service)
+            self.log.info('
+                Current primary deployment task definition is: {}'.format(
+                    current_primary_deployment['taskDefinition']))
+            current_service_description = str(self._describe_service(service_name))
+            self.log.info('
+                Service description is: {}'.format(current_service))
 
         if is_new_task_definition:
             yield self._wait_for_deployment_update(service_name,
