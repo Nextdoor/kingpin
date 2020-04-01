@@ -1068,6 +1068,7 @@ class Service(ECSBaseActor):
             current_service_description = str(self._describe_service(service_name))
             self.log.info('
                 Service description is: {}'.format(current_service))
+            raise e
 
         if is_new_task_definition:
             yield self._wait_for_deployment_update(service_name,
