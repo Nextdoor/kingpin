@@ -26,7 +26,9 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r kingpin/requirements.test.txt
+        pwd
+        ls
+        pip install -r requirements.test.txt
     - name: Test with nose test
       run: |
         cd kingpin
