@@ -1062,12 +1062,12 @@ class Service(ECSBaseActor):
                 **update_parameters)
         except self.ecs_conn.exceptions.ServiceNotFoundException as e:
             current_primary_deployment = self._get_primary_deployment(existing_service)
-            self.log.info('
-                Current primary deployment task definition is: {}'.format(
+            self.log.info(
+                'Current primary deployment task definition is: {}'.format(
                     current_primary_deployment['taskDefinition']))
             current_service_description = str(self._describe_service(service_name))
-            self.log.info('
-                Service description is: {}'.format(current_service))
+            self.log.info(
+                'Service description is: {}'.format(current_service))
             raise e
 
         if is_new_task_definition:
