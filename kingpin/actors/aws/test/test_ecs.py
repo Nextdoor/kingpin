@@ -1185,15 +1185,14 @@ class TestUpdateService(testing.AsyncTestCase):
         configuration = 'configuration'
         existing_service = {'taskDefinition': 'arn/family:1',
                             'status': 'INACTIVE'}
-        self.actor._get_primary_deployment = helper.mock_tornado(existing_service)
+        self.actor._get_primary_deployment = mock.Mock()
+        self.actor._get_primary_deployment.return_value = existing_service
         self.actor._register_task = helper.mock_tornado()
         self.actor._describe_service = helper.mock_tornado()
         self.actor._is_task_definition_different = helper.mock_tornado(False)
         yield self.actor._update_service(
             service_name='service_name',
             existing_service=existing_service)
-        self.assertEqual(self.actor._get_primary_deployment._call_count, 1)
-        self.assertEqual(self.actor._describe_service._call_count, 1)
 
 
 class TestEnsureServicePresent(testing.AsyncTestCase):
