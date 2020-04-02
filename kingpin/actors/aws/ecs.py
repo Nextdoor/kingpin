@@ -1044,8 +1044,6 @@ class Service(ECSBaseActor):
         if override is not None:
             update_parameters.update(override)
 
-        
-        
         self.log.info('Updating service.')
         try:
             self.log.info('Checking if existing service is active.')
