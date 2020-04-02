@@ -1060,7 +1060,7 @@ class Service(ECSBaseActor):
                     current_primary_deployment['taskDefinition']))
             current_service_description = str(self._describe_service(service_name))
             self.log.info(
-                'Service description is: {}'.format(current_service))
+                'Service description is: {}'.format(current_service_description))
         yield self.api_call(
             self.ecs_conn.update_service,
             **update_parameters)
