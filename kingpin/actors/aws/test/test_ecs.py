@@ -1185,7 +1185,7 @@ class TestUpdateService(testing.AsyncTestCase):
         configuration = 'configuration'
         existing_service = {'taskDefinition': 'arn/family:1',
                             'status': 'INACTIVE'}
-        self.actor.__get_primary_deployment = helper.mock_tornado(existing_service)
+        self.actor._get_primary_deployment = helper.mock_tornado(existing_service)
         self.actor._register_task = helper.mock_tornado()
         self.actor._describe_service = helper.mock_tornado()
         self.actor._is_task_definition_different = helper.mock_tornado(False)
