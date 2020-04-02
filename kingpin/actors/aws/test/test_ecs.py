@@ -1178,9 +1178,7 @@ class TestUpdateService(testing.AsyncTestCase):
         yield self.actor._update_service(
             service_name='service_name',
             existing_service={'taskDefinition': 'arn/family:1',
-                              'status': 'ACTIVE'})
-        self.assertTrue(self._get_primary_deployment.called)
-        self.assertTrue(self._describe_service.called)
+                              'status': 'INACTIVE'})
 
 
 class TestEnsureServicePresent(testing.AsyncTestCase):
