@@ -1170,6 +1170,18 @@ class TestUpdateService(testing.AsyncTestCase):
                                   'status': 'ACTIVE'})
 
 
+    @testing.gen_test
+    def test_service_not_active_exception(self):
+        self.actor.ecs_conn.update_service.side_effect = self.actor.ecs_conn.exceptions.ServiceNotActiveException
+        self.actor._register_task = helper.mock_tornado()
+        self.actor._is_task_definition_different = helper.mock_tornado(False)
+        yield self.actor._update_service(
+            service_name='service_name',
+            existing_service={'taskDefinition': 'arn/family:1'})
+        self.assertTrue(self.actor._get_primary_deployment.called)
+        self.assertTrue(self.actor._describe_service.called)
+
+
 class TestEnsureServicePresent(testing.AsyncTestCase):
 
     def setUp(self):
