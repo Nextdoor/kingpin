@@ -1179,6 +1179,8 @@ class TestUpdateService(testing.AsyncTestCase):
             service_name='service_name',
             existing_service={'taskDefinition': 'arn/family:1',
                               'status': 'INACTIVE'})
+        self.assertEqual(self.actor._get_primary_deployment._call_count, 1)
+        self.assertEqual(self.actor._describe_service._call_count, 1)
 
 
 class TestEnsureServicePresent(testing.AsyncTestCase):
