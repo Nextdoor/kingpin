@@ -1071,7 +1071,7 @@ class TestUpdateService(testing.AsyncTestCase):
         yield self.actor._update_service(
             service_name=service_name,
             existing_service={'taskDefinition': 'arn/family:1',
-                              'status': 'ACTIVE'})
+                              'status': 'INACTIVE'})
         call_args = self.actor.ecs_conn.update_service.call_args
         expected = ({
                     'cluster': self.actor.option('cluster'),
