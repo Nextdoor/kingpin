@@ -1046,7 +1046,7 @@ class Service(ECSBaseActor):
 
         self.log.info('Updating service.')
         try:
-            self.log.info('Checking if existing service is active.')
+            self.log.info('Checking if existing service is active...')
             service_is_active = (existing_service and
                                  existing_service['status'] != 'INACTIVE')
             if not service_is_active:
