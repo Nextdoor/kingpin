@@ -1055,7 +1055,7 @@ class Service(ECSBaseActor):
                 # We can only update an existing service.
                 self.log.error(
                     'Could not find service with name {} to update '
-                    'in {}. Update is likely to fail.'.format(
+                    'in {}. Update is likely to fail!'.format(
                         service_name, self._format_location()))
             yield self.api_call(
                 self.ecs_conn.update_service,
