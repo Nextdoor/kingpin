@@ -1050,7 +1050,7 @@ class Service(ECSBaseActor):
             service_is_active = (existing_service and
                                  existing_service['status'] != 'INACTIVE')
             if not service_is_active:
-                # We can only update an existing service.
+                # We can only update an existing, active service.
                 self.log.error(
                     'Could not find service with name {} to update '
                     'in {}. Update is likely to fail!'.format(
