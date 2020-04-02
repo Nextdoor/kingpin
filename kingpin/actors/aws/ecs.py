@@ -1060,7 +1060,7 @@ class Service(ECSBaseActor):
             yield self.api_call(
                 self.ecs_conn.update_service,
                 **update_parameters)
-        except self.ecs_conn.exceptions.ServiceNotFoundException as e:
+        except self.ecs_conn.exceptions.ServiceNotActiveException as e:
             current_primary_deployment = self._get_primary_deployment(existing_service)
             self.log.info(
                 'Current primary deployment task definition is: {}'.format(
