@@ -1070,7 +1070,8 @@ class TestUpdateService(testing.AsyncTestCase):
 
         yield self.actor._update_service(
             service_name=service_name,
-            existing_service={'taskDefinition': 'arn/family:1'})
+            existing_service={'taskDefinition': 'arn/family:1',
+                              'status': 'ACTIVE'}})
         call_args = self.actor.ecs_conn.update_service.call_args
         expected = ({
                     'cluster': self.actor.option('cluster'),
@@ -1083,7 +1084,8 @@ class TestUpdateService(testing.AsyncTestCase):
         self.actor._options['cluster'] = 'cluster'
         yield self.actor._update_service(
             service_name=service_name,
-            existing_service={'taskDefinition': 'arn/family:2'})
+            existing_service={'taskDefinition': 'arn/family:2',
+                              'status': 'ACTIVE'}})
         call_args = self.actor.ecs_conn.update_service.call_args
         expected = ({
                     'cluster': self.actor.option('cluster'),
@@ -1109,7 +1111,8 @@ class TestUpdateService(testing.AsyncTestCase):
 
         yield self.actor._update_service(
             service_name=service_name,
-            existing_service={'taskDefinition': 'arn/family:1'})
+            existing_service={'taskDefinition': 'arn/family:1',
+                              'status': 'ACTIVE'}})
         call_args = self.actor.ecs_conn.update_service.call_args
         expected = ({
                     'cluster': self.actor.option('cluster'),
@@ -1134,7 +1137,8 @@ class TestUpdateService(testing.AsyncTestCase):
 
         yield self.actor._update_service(
             service_name=service_name,
-            existing_service={'taskDefinition': 'arn/family:1'},
+            existing_service={'taskDefinition': 'arn/family:1',
+                              'status': 'ACTIVE'}},
             override={'desiredCount': 5})
         call_args = self.actor.ecs_conn.update_service.call_args
         expected = ({
@@ -1162,7 +1166,8 @@ class TestUpdateService(testing.AsyncTestCase):
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._update_service(
                 service_name='service_name',
-                existing_service={'taskDefinition': 'arn/family:1'})
+                existing_service={'taskDefinition': 'arn/family:1',
+                                  'status': 'ACTIVE'}})
 
 
 class TestEnsureServicePresent(testing.AsyncTestCase):
