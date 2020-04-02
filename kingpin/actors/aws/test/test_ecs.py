@@ -1179,8 +1179,8 @@ class TestUpdateService(testing.AsyncTestCase):
             service_name='service_name',
             existing_service={'taskDefinition': 'arn/family:1',
                               'status': 'ACTIVE'})
-        self.assertTrue(self.actor._get_primary_deployment.called)
-        self.assertTrue(self.actor._describe_service.called)
+        self.assertTrue(self._get_primary_deployment.called)
+        self.assertTrue(self._describe_service.called)
 
 
 class TestEnsureServicePresent(testing.AsyncTestCase):
