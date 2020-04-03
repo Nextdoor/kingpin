@@ -1064,7 +1064,6 @@ class TestUpdateService(testing.AsyncTestCase):
                             'status': 'ACTIVE'}
         self.actor._register_task = helper.mock_tornado()
         self.actor._is_task_definition_different = helper.mock_tornado(False)
-        self.actor.__get_primary_deployment = helper.mock_tornado(existing_service)
         self.actor.service_definition = {
             'deploymentConfiguration': configuration,
             'loadBalancers': 'loadBalancers',
@@ -1109,7 +1108,6 @@ class TestUpdateService(testing.AsyncTestCase):
         self.actor._register_task = helper.mock_tornado('arn/family:1')
         self.actor._is_task_definition_different = helper.mock_tornado(True)
         self.actor._wait_for_deployment_update = helper.mock_tornado()
-        self.actor.__get_primary_deployment = helper.mock_tornado(existing_service)
         self.actor.service_definition = {
             'deploymentConfiguration': configuration,
             'extra': 'included'}
@@ -1137,7 +1135,6 @@ class TestUpdateService(testing.AsyncTestCase):
                             'status': 'ACTIVE'}
         self.actor._register_task = helper.mock_tornado()
         self.actor._is_task_definition_different = helper.mock_tornado(False)
-        self.actor.__get_primary_deployment = helper.mock_tornado(existing_service)
         self.actor.service_definition = {
             'deploymentConfiguration': configuration,
             'extra': 'included'}
@@ -1170,14 +1167,11 @@ class TestUpdateService(testing.AsyncTestCase):
                             'status': 'ACTIVE'}
         self.actor.ecs_conn.update_service.side_effect = Boto3Error
         self.actor._register_task = helper.mock_tornado()
-        self.actor._is_task_definition_different = helper.mock_tornado(False)
-        self.actor.__get_primary_deployment = helper.mock_tornado(existing_service)
-        
+        self.actor._is_task_definition_different = helper.mock_tornado(False)        
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._update_service(
                 service_name='service_name',
                 existing_service=existing_service)
-
 
     @testing.gen_test
     def test_service_not_active(self):
