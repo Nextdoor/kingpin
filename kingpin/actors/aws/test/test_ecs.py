@@ -1186,9 +1186,6 @@ class TestUpdateService(testing.AsyncTestCase):
         yield self.actor._update_service(
             service_name='service_name',
             existing_service=existing_service)
-        self.actor._get_primary_deployment.assert_called_once()
-        self.actor._describe_service.assert_called_once()
-        
 
 
 class TestEnsureServicePresent(testing.AsyncTestCase):
