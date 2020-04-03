@@ -1060,6 +1060,8 @@ class TestUpdateService(testing.AsyncTestCase):
     def test_call(self):
         service_name = 'service_name'
         configuration = 'configuration'
+        existing_service = {'taskDefinition': 'arn/family:1',
+                            'status': 'ACTIVE'}
         self.actor._register_task = helper.mock_tornado()
         self.actor._is_task_definition_different = helper.mock_tornado(False)
         self.actor.service_definition = {
@@ -1070,7 +1072,7 @@ class TestUpdateService(testing.AsyncTestCase):
 
         yield self.actor._update_service(
             service_name=service_name,
-            existing_service={'taskDefinition': 'arn/family:1'})
+            existing_service=existing_service)
         call_args = self.actor.ecs_conn.update_service.call_args
         expected = ({
                     'cluster': self.actor.option('cluster'),
@@ -1083,7 +1085,8 @@ class TestUpdateService(testing.AsyncTestCase):
         self.actor._options['cluster'] = 'cluster'
         yield self.actor._update_service(
             service_name=service_name,
-            existing_service={'taskDefinition': 'arn/family:2'})
+            existing_service={'taskDefinition': 'arn/family:2',
+                              'status': 'ACTIVE'})
         call_args = self.actor.ecs_conn.update_service.call_args
         expected = ({
                     'cluster': self.actor.option('cluster'),
@@ -1100,6 +1103,8 @@ class TestUpdateService(testing.AsyncTestCase):
     def test_different_task_definition(self):
         service_name = 'service_name'
         configuration = 'configuration'
+        existing_service = {'taskDefinition': 'arn/family:1',
+                            'status': 'ACTIVE'}
         self.actor._register_task = helper.mock_tornado('arn/family:1')
         self.actor._is_task_definition_different = helper.mock_tornado(True)
         self.actor._wait_for_deployment_update = helper.mock_tornado()
@@ -1109,7 +1114,7 @@ class TestUpdateService(testing.AsyncTestCase):
 
         yield self.actor._update_service(
             service_name=service_name,
-            existing_service={'taskDefinition': 'arn/family:1'})
+            existing_service=existing_service)
         call_args = self.actor.ecs_conn.update_service.call_args
         expected = ({
                     'cluster': self.actor.option('cluster'),
@@ -1126,6 +1131,8 @@ class TestUpdateService(testing.AsyncTestCase):
     def test_override(self):
         service_name = 'service_name'
         configuration = 'configuration'
+        existing_service = {'taskDefinition': 'arn/family:1',
+                            'status': 'ACTIVE'}
         self.actor._register_task = helper.mock_tornado()
         self.actor._is_task_definition_different = helper.mock_tornado(False)
         self.actor.service_definition = {
@@ -1134,7 +1141,7 @@ class TestUpdateService(testing.AsyncTestCase):
 
         yield self.actor._update_service(
             service_name=service_name,
-            existing_service={'taskDefinition': 'arn/family:1'},
+            existing_service=existing_service,
             override={'desiredCount': 5})
         call_args = self.actor.ecs_conn.update_service.call_args
         expected = ({
@@ -1156,13 +1163,29 @@ class TestUpdateService(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_internal_exception(self):
+        existing_service = {'taskDefinition': 'arn/family:1',
+                            'status': 'ACTIVE'}
         self.actor.ecs_conn.update_service.side_effect = Boto3Error
         self.actor._register_task = helper.mock_tornado()
         self.actor._is_task_definition_different = helper.mock_tornado(False)
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._update_service(
                 service_name='service_name',
-                existing_service={'taskDefinition': 'arn/family:1'})
+                existing_service=existing_service)
+
+    @testing.gen_test
+    def test_service_not_active(self):
+        existing_service = {'taskDefinition': 'arn/family:1',
+                            'status': 'INACTIVE'}
+        self.actor._get_primary_deployment = mock.Mock()
+        self.actor._describe_service = mock.Mock()
+        self.actor._get_primary_deployment.return_value = existing_service
+        self.actor._register_task = helper.mock_tornado()
+        self.actor._describe_service = helper.mock_tornado()
+        self.actor._is_task_definition_different = helper.mock_tornado(False)
+        yield self.actor._update_service(
+            service_name='service_name',
+            existing_service=existing_service)
 
 
 class TestEnsureServicePresent(testing.AsyncTestCase):
