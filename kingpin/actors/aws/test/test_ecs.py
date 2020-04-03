@@ -1178,6 +1178,7 @@ class TestUpdateService(testing.AsyncTestCase):
         existing_service = {'taskDefinition': 'arn/family:1',
                             'status': 'INACTIVE'}
         self.actor._get_primary_deployment = mock.Mock()
+        self.actor._describe_service = mock.Mock()
         self.actor._get_primary_deployment.return_value = existing_service
         self.actor._register_task = helper.mock_tornado()
         self.actor._describe_service = helper.mock_tornado()
@@ -1185,6 +1186,9 @@ class TestUpdateService(testing.AsyncTestCase):
         yield self.actor._update_service(
             service_name='service_name',
             existing_service=existing_service)
+        self.actor._get_primary_deployment.assert_called_once()
+        self.actor._describe_service.assert_called_once()
+        
 
 
 class TestEnsureServicePresent(testing.AsyncTestCase):
