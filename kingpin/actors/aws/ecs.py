@@ -1054,13 +1054,16 @@ class Service(ECSBaseActor):
                 'Could not find service with name {} to update '
                 'in {}. Update is likely to fail!'.format(
                     service_name, self._format_location()))
-            current_primary_deployment = self._get_primary_deployment(existing_service)
+            current_primary_deployment = self._get_primary_deployment(
+                existing_service)
             self.log.info(
                 'Current primary deployment task definition is: {}'.format(
                     current_primary_deployment['taskDefinition']))
-            current_service_description = str(self._describe_service(service_name))
+            current_service_description = str(self._describe_service(
+                service_name))
             self.log.info(
-                'Service description is: {}'.format(current_service_description))
+                'Service description is: {}'.format(
+                    current_service_description))
         yield self.api_call(
             self.ecs_conn.update_service,
             **update_parameters)
