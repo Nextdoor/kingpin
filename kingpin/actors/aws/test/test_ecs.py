@@ -1175,8 +1175,6 @@ class TestUpdateService(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_service_not_active(self):
-        service_name = 'service_name'
-        configuration = 'configuration'
         existing_service = {'taskDefinition': 'arn/family:1',
                             'status': 'INACTIVE'}
         self.actor._get_primary_deployment = mock.Mock()
