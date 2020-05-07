@@ -59,6 +59,20 @@ class TestBucket(testing.AsyncTestCase):
                         'invalid_data': 'bad_field'
                     }})
 
+    def test_generate_lifecycle_missing_prefix(self):
+        bad_config = [
+            {'id': 'test', 'state': 'Enabled'}
+        ]
+        with self.assertRaises(s3_actor.InvalidBucketConfig):
+            self.actor._generate_lifecycle(bad_config)
+
+    def test_generate_lifecycle_missing_expiration(self):
+        bad_config = [
+            {'id': 'test', 'prefix': '/', 'state': 'Enabled'}
+        ]
+        with self.assertRaises(s3_actor.InvalidBucketConfig):
+            self.actor._generate_lifecycle(bad_config)
+
     def test_generate_lifecycle_valid_config(self):
         # Validates that the generated config called by the __init__ class is
         # correct based on the actor configuration in the setUp() method above
