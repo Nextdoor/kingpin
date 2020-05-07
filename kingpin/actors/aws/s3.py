@@ -178,30 +178,38 @@ class LifecycleConfig(SchemaCompareBase):
         'uniqueItems': True,
         'items': {
             'type': 'object',
-            'required': ['id', 'status'],
-            'oneOf': [
+            'allOf': [
                 {
-                    'required': 'filter'
+                    'required': ['id', 'status'],
                 },
                 {
-                    'required': 'prefix'
-                }
-            ],
-            'anyOf': [
-                {
-                    'required': 'transition'
+                    'oneOf': [
+                        {
+                            'required': 'filter'
+                        },
+                        {
+                            'required': 'prefix'
+                        }
+                    ]
                 },
                 {
-                    'required': 'noncurrent_version_transition'
-                },
-                {
-                    'required': 'expiration'
-                },
-                {
-                    'required': 'noncurrent_version_expiration'
-                },
-                {
-                    'required': 'abort_incomplete_multipart_upload'
+                    'anyOf': [
+                        {
+                            'required': 'transition'
+                        },
+                        {
+                            'required': 'noncurrent_version_transition'
+                        },
+                        {
+                            'required': 'expiration'
+                        },
+                        {
+                            'required': 'noncurrent_version_expiration'
+                        },
+                        {
+                            'required': 'abort_incomplete_multipart_upload'
+                        }
+                    ]
                 }
             ],
             'additionalProperties': False,
