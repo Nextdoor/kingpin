@@ -179,6 +179,31 @@ class LifecycleConfig(SchemaCompareBase):
         'items': {
             'type': 'object',
             'required': ['id', 'status'],
+            'oneOf': [
+                {
+                    'required': 'filter'
+                },
+                {
+                    'required': 'prefix'
+                }
+            ],
+            'anyOf': [
+                {
+                    'required': 'transition'
+                },
+                {
+                    'required': 'noncurrent_version_transition'
+                },
+                {
+                    'required': 'expiration'
+                },
+                {
+                    'required': 'noncurrent_version_expiration'
+                },
+                {
+                    'required': 'abort_incomplete_multipart_upload'
+                }
+            ],
             'additionalProperties': False,
             'properties': {
                 # The ID must be a string. We do not allow for it to be
@@ -186,17 +211,21 @@ class LifecycleConfig(SchemaCompareBase):
                 'id': {
                     'type': 'string',
                     'minLength': 1,
-                    'maxLength': 255,
+                    'maxLength': 255
                 },
-                'prefix': {
+
+               # The Status field must be 'Enabled' or 'Disabled'
+                'status': {
                     'type': 'string',
+                    'enum': ['Enabled', 'Disabled']
                 },
+
                 # Filter is a new way of defining rule prefixes
                 'filter': {
                     'type': 'object',
-                    'additionalProperties': False,
                     'minProperties': 1,
                     'maxProperties': 1,
+                    'additionalProperties': False,
                     'properties': {
                         'prefix': {
                             'type': 'string',
@@ -246,36 +275,10 @@ class LifecycleConfig(SchemaCompareBase):
                     }
                 },
 
-                # The Status field must be 'Enabled' or 'Disabled'
-                'status': {
-                    'type': 'string',
-                    'enum': ['Enabled', 'Disabled'],
+                'prefix': {
+                    'type': 'string'
                 },
 
-                # Expiration and Transition can be empty, or have
-                # configurations associated with them.
-                #
-                # Note that we allow the actor to just accept a number of days
-                # instead of an object and we create the correct json with days
-                # in the init. Hence the object type of str/int/obj here.
-                'expiration': {
-                    'type': ['string', 'integer', 'object'],
-                    'pattern': '^[0-9]+$',
-                    'additionalProperties': False,
-                    'properties': {
-                        'days': {
-                            'type': ['string', 'integer'],
-                            'pattern': '^[0-9]+$',
-                        },
-                        'date': {
-                            'type': 'string',
-                            'format': 'date-time',
-                        },
-                        'expired_object_delete_marker': {
-                            'type': 'boolean',
-                        }
-                    }
-                },
                 'transition': {
                     'type': 'object',
                     'required': ['storage_class'],
@@ -307,6 +310,28 @@ class LifecycleConfig(SchemaCompareBase):
                         'storage_class': {
                             'type': 'string',
                             'enum': ['GLACIER', 'STANDARD_IA']
+                        }
+                    }
+                },
+                #
+                # Note that we allow the actor to just accept a number of days
+                # instead of an object and we create the correct json with days
+                # in the init. Hence the object type of str/int/obj here.
+                'expiration': {
+                    'type': ['string', 'integer', 'object'],
+                    'pattern': '^[0-9]+$',
+                    'additionalProperties': False,
+                    'properties': {
+                        'days': {
+                            'type': ['string', 'integer'],
+                            'pattern': '^[0-9]+$',
+                        },
+                        'date': {
+                            'type': 'string',
+                            'format': 'date-time',
+                        },
+                        'expired_object_delete_marker': {
+                            'type': 'boolean',
                         }
                     }
                 },
@@ -579,25 +604,6 @@ class Bucket(base.EnsurableAWSBaseActor):
         rules = []
         for c in config:
             self.log.debug('Generating lifecycle rule from foo: %s' % c)
-
-            # You must supply at least 'prefix' or 'filter' in your
-            # lifecycle config. This is tricky to check in the jsonschema, so
-            # we do it here.
-            if not any(k in c for k in ('prefix', 'filter')):
-                raise InvalidBucketConfig(
-                    'You must supply at least a prefix or filter '
-                    'configuration in your config: %s' % c)
-
-            # You must supply at least 'expiration' or 'transition' in your
-            # lifecycle config. This is tricky to check in the jsonschema, so
-            # we do it here.
-            if not any(k in c for k in ('expiration', 'transition',
-                                        'abort_incomplete_multipart_upload',
-                                        'noncurrent_version_expiration',
-                                        'noncurrent_version_transition')):
-                raise InvalidBucketConfig(
-                    'You must supply at least an expiration or transition '
-                    'configuration in your config: %s' % c)
 
             # Convert the snake_case into CamelCase.
             c = self._snake_to_camel(c)
