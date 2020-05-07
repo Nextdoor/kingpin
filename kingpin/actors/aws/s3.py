@@ -586,7 +586,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             if not any(k in c for k in ('prefix', 'filter')):
                 raise InvalidBucketConfig(
                     'You must supply at least a prefix or filter '
-                    ' configuration in your config: %s' % c)
+                    'configuration in your config: %s' % c)
 
             # You must supply at least 'expiration' or 'transition' in your
             # lifecycle config. This is tricky to check in the jsonschema, so
