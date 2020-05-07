@@ -175,6 +175,21 @@ class LifecycleConfig(SchemaCompareBase):
     """
 
     SCHEMA = {
+        'definitions': {
+            'tag': {
+                'type': 'object',
+                'required': ['key', 'value'],
+                'additionalProperties': False,
+                'properties': {
+                    'key': {
+                        'type': 'string',
+                    },
+                    'value': {
+                        'type': 'string',
+                    },
+                }
+            }
+        },
         # The outer wrapper must be a list of properly formatted objects,
         # or Null if we are not going to manage this configuration at all.
         'type': ['array', 'null'],
@@ -221,17 +236,7 @@ class LifecycleConfig(SchemaCompareBase):
                             'type': 'string',
                         },
                         'tag': {
-                            'type': 'object',
-                            'required': ['key', 'value'],
-                            'additionalProperties': False,
-                            'properties': {
-                                'key': {
-                                    'type': 'string',
-                                },
-                                'value': {
-                                    'type': 'string',
-                                },
-                            }
+                            '$ref': '#/definitions/tag'
                         },
                         'and': {
                             'type': 'object',
@@ -243,22 +248,7 @@ class LifecycleConfig(SchemaCompareBase):
                                     'type': 'string',
                                 },
                                 'tag': {
-                                    'type': 'array',
-                                    'uniqueItems': True,
-                                    'minItems': 1,
-                                    'items': {
-                                        'type': 'object',
-                                        'required': ['key', 'value'],
-                                        'additionalProperties': False,
-                                        'properties': {
-                                            'key': {
-                                                'type': 'string',
-                                            },
-                                            'value': {
-                                                'type': 'string',
-                                            },
-                                        }
-                                    }
+                                    '$ref': '#/definitions/tag'
                                 },
                             }
                         }
