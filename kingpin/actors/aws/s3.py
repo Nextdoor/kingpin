@@ -178,11 +178,11 @@ class LifecycleConfig(SchemaCompareBase):
         'uniqueItems': True,
         'items': {
             'type': 'object',
-            'required': ['id', 'prefix', 'status'],
+            'required': ['id', 'status'],
             'additionalProperties': False,
             'properties': {
-                # The ID and Prefix must be strings. We do not allow for them
-                # to be empty -- they must be defined.
+                # The ID must be a string. We do not allow for it to be
+                # empty -- it must be defined.
                 'id': {
                     'type': 'string',
                     'minLength': 1,
@@ -190,6 +190,60 @@ class LifecycleConfig(SchemaCompareBase):
                 },
                 'prefix': {
                     'type': 'string',
+                },
+                # Filter is a new way of defining rule prefixes
+                'filter': {
+                    'type': 'object',
+                    'additionalProperties': False,
+                    'minProperties': 1,
+                    'maxProperties': 1,
+                    'properties': {
+                        'prefix': {
+                            'type': 'string',
+                        },
+                        'tag': {
+                            'type': 'object',
+                            'required': ['key', 'value'],
+                            'additionalProperties': False,
+                            'properties': {
+                                'key': {
+                                    'type': 'string',
+                                },
+                                'value': {
+                                    'type': 'string',
+                                },
+                            }
+                        },
+                        'and': {
+                            'type': 'object',
+                            'additionalProperties': False,
+                            'minProperties': 1,
+                            'maxProperties': 2,
+                            'properties': {
+                                'prefix': {
+                                    'type': 'string',
+                                },
+                                'tag': {
+                                    'type': 'array',
+                                    'uniqueItems': True,
+                                    'minItems': 1,
+                                    'items': {
+                                        'type': 'object',
+                                        'required': ['key', 'value'],
+                                        'additionalProperties': False,
+                                        'properties': {
+                                            'key': {
+                                                'type': 'string',
+                                            },
+                                            'value': {
+                                                'type': 'string',
+                                            },
+                                        }
+                                    }
+                                },
+                            }
+                        }
+                    }
                 },
 
                 # The Status field must be 'Enabled' or 'Disabled'
@@ -201,7 +255,7 @@ class LifecycleConfig(SchemaCompareBase):
                 # Expiration and Transition can be empty, or have
                 # configurations associated with them.
                 'expiration': {
-                    'type': ['string', 'integer', 'object'],
+                    'type': 'object',
                     'pattern': '^[0-9]+$',
                     'additionalProperties': False,
                     'properties': {
@@ -219,7 +273,7 @@ class LifecycleConfig(SchemaCompareBase):
                     }
                 },
                 'transition': {
-                    'type': ['object', 'null'],
+                    'type': 'object',
                     'required': ['storage_class'],
                     'additionalProperties': False,
                     'properties': {
@@ -520,6 +574,14 @@ class Bucket(base.EnsurableAWSBaseActor):
         rules = []
         for c in config:
             self.log.debug('Generating lifecycle rule from foo: %s' % c)
+
+            # You must supply at least 'prefix' or 'filter' in your
+            # lifecycle config. This is tricky to check in the jsonschema, so
+            # we do it here.
+            if not any(k in c for k in ('prefix', 'filter')):
+                raise InvalidBucketConfig(
+                    'You must supply at least a prefix or filter configuration '
+                    'in your config: %s' % c)
 
             # You must supply at least 'expiration' or 'transition' in your
             # lifecycle config. This is tricky to check in the jsonschema, so
