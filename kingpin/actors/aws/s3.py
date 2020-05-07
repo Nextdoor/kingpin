@@ -931,7 +931,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         self.log.info('Updating the Bucket Lifecycle config')
         try:
             yield self.api_call(
-                self.s3_conn.put_bucket_lifecycle,
+                self.s3_conn.put_bucket_lifecycle_configuration,
                 Bucket=self.option('name'),
                 LifecycleConfiguration={'Rules': self.lifecycle})
         except (ParamValidationError, ClientError) as e:
