@@ -254,8 +254,12 @@ class LifecycleConfig(SchemaCompareBase):
 
                 # Expiration and Transition can be empty, or have
                 # configurations associated with them.
+                #
+                # Note that we allow the actor to just accept a number of days
+                # instead of an object and we create the correct json with days
+                # in the init. Hence the object type of str/int/obj here.
                 'expiration': {
-                    'type': 'object',
+                    'type': ['string', 'integer', 'object'],
                     'pattern': '^[0-9]+$',
                     'additionalProperties': False,
                     'properties': {
@@ -397,7 +401,8 @@ class Bucket(base.EnsurableAWSBaseActor):
       (:py:class:`LifecycleConfig`, None)
 
       A list of individual Lifecycle configurations. Each dictionary includes
-      keys for the `id`, `prefix` and `status` as required parameters.
+      keys for the `id`, `status` as required parameters.
+      Optionally you can supply an `prefix` and/or `filter` dictionary.
       Optionally you can supply an `expiration` and/or `transition` dictionary.
 
       If an empty list is supplied, or the list in any way does not match what
@@ -874,7 +879,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         try:
             raw = yield self.api_call(
-                self.s3_conn.get_bucket_lifecycle,
+                self.s3_conn.get_bucket_lifecycle_configuration,
                 Bucket=self.option('name'))
         except ClientError as e:
             if 'NoSuchLifecycleConfiguration' in e.message:
