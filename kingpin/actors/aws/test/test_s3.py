@@ -29,7 +29,7 @@ class TestBucket(testing.AsyncTestCase):
                     'id': 'test',
                     'prefix': '/test',
                     'status': 'Enabled',
-                    'expiration': '30'
+                    'expiration': '30',
                     'transition': {
                         'days': 45,
                         'storage_class': 'GLACIER',
