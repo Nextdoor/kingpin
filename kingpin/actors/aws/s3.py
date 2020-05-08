@@ -406,7 +406,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     :lifecycle:
       (:py:class:`LifecycleConfig`, None)
 
-      A list of indevitual Lifecycle configurations. Each dictionary includes
+      A list of individual Lifecycle configurations. Each dictionary includes
       keys for:
 
       * `id`
