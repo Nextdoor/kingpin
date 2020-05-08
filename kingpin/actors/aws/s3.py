@@ -149,8 +149,7 @@ class LifecycleConfig(SchemaCompareBase):
     .. code-block:: json
 
         [
-          {
-            "id": "unique_rule_identifier",
+          { "id": "unique_rule_identifier",
             "filter": {
               "prefix": "/some_path"
             },
@@ -410,17 +409,17 @@ class Bucket(base.EnsurableAWSBaseActor):
       A list of indevitual Lifecycle configurations. Each dictionary includes
       keys for:
 
-        * `id`
-        * `status`
-        * `filter` (or `prefix`, which is deprecated)
+      * `id`
+      * `status`
+      * `filter` (or `prefix`, which is deprecated)
 
       and at least one of:
 
-        * `transition`
-        * `noncurrent_version_transition`
-        * `expiration`
-        * `noncurrent_version_expiration`
-        * `abort_incomplete_multipart_upload`
+      * `transition`
+      * `noncurrent_version_transition`
+      * `expiration`
+      * `noncurrent_version_expiration`
+      * `abort_incomplete_multipart_upload`
 
       If an empty list is supplied, or the list in any way does not match what
       is currently configured in Amazon, the appropriate changes will be made.
@@ -480,8 +479,7 @@ class Bucket(base.EnsurableAWSBaseActor):
            "region": "us-west-2",
            "policy": "./examples/aws.s3/amazon_put.json",
            "lifecycle": [
-              {
-                "id": "main",
+              { "id": "main",
                 "filter": {
                     "prefix": "/"
                 },
