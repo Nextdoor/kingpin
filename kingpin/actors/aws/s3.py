@@ -258,43 +258,37 @@ class LifecycleConfig(SchemaCompareBase):
                 },
 
                 # Action Properties
-                'transitions': {
-                    'type': 'array',
-                    'items': {
-                        'type': 'object',
-                        'required': ['storage_class'],
-                        'additionalProperties': False,
-                        'properties': {
-                            'days': {
-                                'type': ['string', 'integer'],
-                                'pattern': '^[0-9]+$',
-                            },
-                            'date': {
-                                'type': 'string',
-                                'format': 'date-time'
-                            },
-                            'storage_class': {
-                                'type': 'string',
-                                'enum': ['GLACIER', 'STANDARD_IA']
-                            }
+                'transition': {
+                    'type': 'object',
+                    'required': ['storage_class'],
+                    'additionalProperties': False,
+                    'properties': {
+                        'days': {
+                            'type': ['string', 'integer'],
+                            'pattern': '^[0-9]+$',
+                        },
+                        'date': {
+                            'type': 'string',
+                            'format': 'date-time'
+                        },
+                        'storage_class': {
+                            'type': 'string',
+                            'enum': ['GLACIER', 'STANDARD_IA']
                         }
                     }
                 },
-                'noncurrent_version_transitions': {
-                    'type': 'array',
-                    'items': {
-                        'type': 'object',
-                        'required': ['storage_class'],
-                        'additionalProperties': False,
-                        'properties': {
-                            'noncurrent_days': {
-                                'type': ['string', 'integer'],
-                                'pattern': '^[0-9]+$',
-                            },
-                            'storage_class': {
-                                'type': 'string',
-                                'enum': ['GLACIER', 'STANDARD_IA']
-                            }
+                'noncurrent_version_transition': {
+                    'type': 'object',
+                    'required': ['storage_class'],
+                    'additionalProperties': False,
+                    'properties': {
+                        'noncurrent_days': {
+                            'type': ['string', 'integer'],
+                            'pattern': '^[0-9]+$',
+                        },
+                        'storage_class': {
+                            'type': 'string',
+                            'enum': ['GLACIER', 'STANDARD_IA']
                         }
                     }
                 },
