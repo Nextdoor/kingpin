@@ -150,9 +150,7 @@ class LifecycleConfig(SchemaCompareBase):
 
         [
           { "id": "unique_rule_identifier",
-            "filter": {
-              "prefix": "/some_path"
-            },
+            "prefix": "/some_path",
             "status": "Enabled",
             "expiration": {
               "days": 365,
@@ -174,92 +172,54 @@ class LifecycleConfig(SchemaCompareBase):
     """
 
     SCHEMA = {
-        'definitions': {
-            'tag': {
-                'type': 'object',
-                'required': ['key', 'value'],
-                'additionalProperties': False,
-                'properties': {
-                    'key': {
-                        'type': 'string',
-                    },
-                    'value': {
-                        'type': 'string',
-                    },
-                }
-            }
-        },
         # The outer wrapper must be a list of properly formatted objects,
         # or Null if we are not going to manage this configuration at all.
         'type': ['array', 'null'],
         'uniqueItems': True,
         'items': {
             'type': 'object',
-            'required': ['id', 'status'],
-            'oneOf': [
-                {'required': ['filter']},
-                {'required': ['prefix']}
-            ],
-            'anyOf': [
-                {'required': ['transition']},
-                {'required': ['noncurrent_version_transition']},
-                {'required': ['expiration']},
-                {'required': ['noncurrent_version_expiration']},
-                {'required': ['abort_incomplete_multipart_upload']}
-            ],
+            'required': ['id', 'prefix', 'status'],
             'additionalProperties': False,
             'properties': {
-                # Basic Properties
+                # The ID and Prefix must be strings. We do not allow for them
+                # to be empty -- they must be defined.
                 'id': {
                     'type': 'string',
                     'minLength': 1,
                     'maxLength': 255,
                 },
+                'prefix': {
+                    'type': 'string',
+                },
+
+                # The Status field must be 'Enabled' or 'Disabled'
                 'status': {
                     'type': 'string',
                     'enum': ['Enabled', 'Disabled'],
                 },
 
-
-                # Filtering Properties
-                #
-                # prefix is deprecated in the AWS s3 API. Please use filter
-                # instead.
-                'filter': {
-                    'type': 'object',
-                    'minProperties': 1,
-                    'maxProperties': 1,
+                # Expiration and Transition can be empty, or have
+                # configurations associated with them.
+                'expiration': {
+                    'type': ['string', 'integer', 'object'],
+                    'pattern': '^[0-9]+$',
                     'additionalProperties': False,
                     'properties': {
-                        'prefix': {
+                        'days': {
+                            'type': ['string', 'integer'],
+                            'pattern': '^[0-9]+$',
+                        },
+                        'date': {
                             'type': 'string',
+                            'format': 'date-time',
                         },
-                        'tag': {
-                            '$ref': '#/definitions/tag'
-                        },
-                        'and': {
-                            'type': 'object',
-                            'minProperties': 1,
-                            'maxProperties': 2,
-                            'additionalProperties': False,
-                            'properties': {
-                                'prefix': {
-                                    'type': 'string',
-                                },
-                                'tag': {
-                                    '$ref': '#/definitions/tag'
-                                },
-                            }
+                        'expired_object_delete_marker': {
+                            'type': 'boolean',
                         }
                     }
                 },
-                'prefix': {
-                    'type': 'string',
-                },
-
-                # Action Properties
                 'transition': {
-                    'type': 'object',
+                    'type': ['object', 'null'],
                     'required': ['storage_class'],
                     'additionalProperties': False,
                     'properties': {
@@ -292,31 +252,8 @@ class LifecycleConfig(SchemaCompareBase):
                         }
                     }
                 },
-                # Note for expireation, we allow the actor to just accept a
-                # number of days instead of an object and we create the
-                # correct json with days in the init. Hence the object type of
-                # str/int/obj here.
-                'expiration': {
-                    'type': ['string', 'integer', 'object'],
-                    'pattern': '^[0-9]+$',
-                    'additionalProperties': False,
-                    'properties': {
-                        'days': {
-                            'type': ['string', 'integer'],
-                            'pattern': '^[0-9]+$',
-                        },
-                        'date': {
-                            'type': 'string',
-                            'format': 'date-time',
-                        },
-                        'expired_object_delete_marker': {
-                            'type': 'boolean',
-                        }
-                    }
-                },
                 'noncurrent_version_expiration': {
                     'type': 'object',
-                    'required': ['noncurrent_days'],
                     'additionalProperties': False,
                     'properties': {
                         'noncurrent_days': {
@@ -327,7 +264,6 @@ class LifecycleConfig(SchemaCompareBase):
                 },
                 'abort_incomplete_multipart_upload': {
                     'type': 'object',
-                    'required': ['days_after_initiation'],
                     'additionalProperties': False,
                     'properties': {
                         'days_after_initiation': {
@@ -407,19 +343,8 @@ class Bucket(base.EnsurableAWSBaseActor):
       (:py:class:`LifecycleConfig`, None)
 
       A list of individual Lifecycle configurations. Each dictionary includes
-      keys for:
-
-      * `id`
-      * `status`
-      * `filter` (or `prefix`, which is deprecated)
-
-      and at least one of:
-
-      * `transition`
-      * `noncurrent_version_transition`
-      * `expiration`
-      * `noncurrent_version_expiration`
-      * `abort_incomplete_multipart_upload`
+      keys for the `id`, `prefix` and `status` as required parameters.
+      Optionally you can supply an `expiration` and/or `transition` dictionary.
 
       If an empty list is supplied, or the list in any way does not match what
       is currently configured in Amazon, the appropriate changes will be made.
@@ -480,9 +405,7 @@ class Bucket(base.EnsurableAWSBaseActor):
            "policy": "./examples/aws.s3/amazon_put.json",
            "lifecycle": [
               { "id": "main",
-                "filter": {
-                    "prefix": "/"
-                },
+                "prefix": "/",
                 "status": "Enabled",
                 "expiration": 30,
               }
@@ -597,6 +520,17 @@ class Bucket(base.EnsurableAWSBaseActor):
         rules = []
         for c in config:
             self.log.debug('Generating lifecycle rule from foo: %s' % c)
+
+            # You must supply at least 'expiration' or 'transition' in your
+            # lifecycle config. This is tricky to check in the jsonschema, so
+            # we do it here.
+            if not any(k in c for k in ('expiration', 'transition',
+                                        'abort_incomplete_multipart_upload',
+                                        'noncurrent_version_expiration',
+                                        'noncurrent_version_transition')):
+                raise InvalidBucketConfig(
+                    'You must supply at least an expiration or transition '
+                    'configuration in your config: %s' % c)
 
             # Convert the snake_case into CamelCase.
             c = self._snake_to_camel(c)
@@ -878,7 +812,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         try:
             raw = yield self.api_call(
-                self.s3_conn.get_bucket_lifecycle_configuration,
+                self.s3_conn.get_bucket_lifecycle,
                 Bucket=self.option('name'))
         except ClientError as e:
             if 'NoSuchLifecycleConfiguration' in e.message:
@@ -935,7 +869,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         self.log.info('Updating the Bucket Lifecycle config')
         try:
             yield self.api_call(
-                self.s3_conn.put_bucket_lifecycle_configuration,
+                self.s3_conn.put_bucket_lifecycle,
                 Bucket=self.option('name'),
                 LifecycleConfiguration={'Rules': self.lifecycle})
         except (ParamValidationError, ClientError) as e:
