@@ -29,7 +29,7 @@ class TestBucket(testing.AsyncTestCase):
                     'id': 'test',
                     'prefix': '/test',
                     'status': 'Enabled',
-                    'expiration': "30",
+                    'expiration': '30',
                     'transition': {
                         'days': 45,
                         'storage_class': 'GLACIER',
@@ -58,13 +58,6 @@ class TestBucket(testing.AsyncTestCase):
                     'logging': {
                         'invalid_data': 'bad_field'
                     }})
-
-    def test_generate_lifecycle_missing_expiration(self):
-        bad_config = [
-            {'id': 'test', 'prefix': '/', 'state': 'Enabled'}
-        ]
-        with self.assertRaises(s3_actor.InvalidBucketConfig):
-            self.actor._generate_lifecycle(bad_config)
 
     def test_generate_lifecycle_valid_config(self):
         # Validates that the generated config called by the __init__ class is
@@ -376,7 +369,7 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_get_lifecycle(self):
         self.actor._bucket_exists = True
-        self.actor.s3_conn.get_bucket_lifecycle.return_value = {
+        self.actor.s3_conn.get_bucket_lifecycle_configuration.return_value = {
             'Rules': []}
         ret = yield self.actor._get_lifecycle()
         self.assertEquals(ret, [])
@@ -390,16 +383,18 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_get_lifecycle_empty(self):
         self.actor._bucket_exists = True
-        self.actor.s3_conn.get_bucket_lifecycle.side_effect = ClientError(
-            {'Error': {'Code': ''}}, 'NoSuchLifecycleConfiguration')
+        self.actor.s3_conn.get_bucket_lifecycle_configuration.side_effect = \
+            ClientError(
+                {'Error': {'Code': ''}}, 'NoSuchLifecycleConfiguration')
         ret = yield self.actor._get_lifecycle()
         self.assertEquals(ret, [])
 
     @testing.gen_test
     def test_get_lifecycle_clienterror(self):
         self.actor._bucket_exists = True
-        self.actor.s3_conn.get_bucket_lifecycle.side_effect = ClientError(
-            {'Error': {'Code': ''}}, 'SomeOtherError')
+        self.actor.s3_conn.get_bucket_lifecycle_configuration.side_effect = \
+            ClientError(
+                {'Error': {'Code': ''}}, 'SomeOtherError')
         with self.assertRaises(ClientError):
             yield self.actor._get_lifecycle()
 
@@ -407,7 +402,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_compare_lifecycle(self):
         self.actor._bucket_exists = True
         self.actor.lifecycle = [{'test': 'test'}]
-        self.actor.s3_conn.get_bucket_lifecycle.return_value = {
+        self.actor.s3_conn.get_bucket_lifecycle_configuration.return_value = {
             'Rules': [{'test': 'test'}]}
         ret = yield self.actor._compare_lifecycle()
         self.assertTrue(ret)
@@ -421,7 +416,7 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_compare_lifecycle_diff(self):
         self.actor.lifecycle = [{'test1': 'test'}]
-        self.actor.s3_conn.get_bucket_lifecycle.return_value = {
+        self.actor.s3_conn.get_bucket_lifecycle_configuration.return_value = {
             'Rules': [{'test': 'test'}]}
         ret = yield self.actor._compare_lifecycle()
         self.assertFalse(ret)
@@ -437,15 +432,19 @@ class TestBucket(testing.AsyncTestCase):
     def test_set_lifecycle(self):
         self.actor.lifecycle = [{'test': 'test'}]
         yield self.actor._set_lifecycle()
-        self.actor.s3_conn.put_bucket_lifecycle.assert_has_calls([
-            mock.call(
-                Bucket='test',
-                LifecycleConfiguration={'Rules': [{'test': 'test'}]})])
+        self.actor.s3_conn.put_bucket_lifecycle_configuration.assert_has_calls(
+            [
+                mock.call(
+                    Bucket='test',
+                    LifecycleConfiguration={'Rules': [{'test': 'test'}]})
+            ]
+        )
 
     @testing.gen_test
     def test_set_lifecycle_client_error(self):
-        self.actor.s3_conn.put_bucket_lifecycle.side_effect = ClientError(
-            {'Error': {'Code': ''}}, 'Error')
+        self.actor.s3_conn.put_bucket_lifecycle_configuration.side_effect = \
+            ClientError(
+                {'Error': {'Code': ''}}, 'Error')
         with self.assertRaises(s3_actor.InvalidBucketConfig):
             yield self.actor._set_lifecycle()
 
