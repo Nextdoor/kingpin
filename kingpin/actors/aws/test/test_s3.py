@@ -30,10 +30,10 @@ class TestBucket(testing.AsyncTestCase):
                     'prefix': '/test',
                     'status': 'Enabled',
                     'expiration': '30',
-                    'transition': {
+                    'transitions': [{
                         'days': 45,
                         'storage_class': 'GLACIER',
-                    }
+                    }]
                 }],
                 'logging': {
                     'target': 'test_target',
@@ -74,7 +74,7 @@ class TestBucket(testing.AsyncTestCase):
         self.assertEquals(r['Expiration']['Days'], 30)
 
         # Validate that the transition config was built properly too
-        self.assertEquals(r['Transition']['Days'], 45)
+        self.assertEquals(r['Transitions'][0]['Days'], 45)
 
     def test_snake_to_camel(self):
         snake = {
