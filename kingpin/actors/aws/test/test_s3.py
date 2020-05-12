@@ -81,7 +81,8 @@ class TestBucket(testing.AsyncTestCase):
         self.assertEquals(r['Transitions'][0]['Days'], 45)
 
         # Validate that the transition config was built properly too
-        self.assertEquals(r['NoncurrentVersionTransitions'][0]['NoncurrentDays'], 14)
+        self.assertEquals(
+            r['NoncurrentVersionTransitions'][0]['NoncurrentDays'], 14)
 
     def test_snake_to_camel(self):
         snake = {
