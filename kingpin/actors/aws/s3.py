@@ -646,7 +646,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             # If the Prefix was supplied in the old style, convert it into
             # the proper format for Amazon.
             if 'Prefix' in c:
-                c['Filter']['Prefix'] = c.pop('Prefix')
+                c['Filter'] = {'Prefix': c.pop('Prefix')}
 
             # If the Tranisition was supplied in the old style, convert it into
             # the proper format for Amazon.
