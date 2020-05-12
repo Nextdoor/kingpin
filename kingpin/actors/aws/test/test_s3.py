@@ -71,7 +71,7 @@ class TestBucket(testing.AsyncTestCase):
         # Verify that the rule was created with the basic options
         r = self.actor.lifecycle[0]
         self.assertEquals(r['ID'], 'test')
-        self.assertEquals(r['Prefix'], '/test')
+        self.assertEquals(r['Filter']['Prefix'], '/test')
         self.assertEquals(r['Status'], 'Enabled')
 
         # Validate that the string "30" was turned into an Expiration object
