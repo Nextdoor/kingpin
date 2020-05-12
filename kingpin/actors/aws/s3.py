@@ -452,7 +452,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
       and at least one of:
 
-      * `transitions` (or `transition`)
+      * `transitions` (or `transition`, which is deprecated)
       * `noncurrent_version_transitions` (or `noncurrent_version_transition`)
       * `expiration`
       * `noncurrent_version_expiration`
@@ -642,6 +642,11 @@ class Bucket(base.EnsurableAWSBaseActor):
 
             # Fully capitalize the ID field
             c['ID'] = c.pop('Id')
+
+            # If the Prefix was supplied in the old style, convert it into
+            # the proper format for Amazon.
+            if 'Prefix' in c:
+                c['Filter']['Prefix'] = c.pop('Prefix')
 
             # If the Tranisition was supplied in the old style, convert it into
             # the proper format for Amazon.
