@@ -34,7 +34,7 @@ class TestBucket(testing.AsyncTestCase):
                         'storage_class': 'GLACIER',
                     },
                     'noncurrent_version_transition': {
-                        'days': 14,
+                        'noncurrent_days': 14,
                         'storage_class': 'GLACIER',
                     },
                     'expiration': '30'
