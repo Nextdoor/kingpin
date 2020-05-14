@@ -90,6 +90,12 @@ class TestUtils(unittest.TestCase):
             strict=False)
         self.assertEquals(result, expect)
 
+    def test_populate_with_escape_strict_fail(self):
+        tokens = {'UNIT_TEST': 'FOOBAR'}
+        string = 'Unit \%UNIT_TEST\% Test %TEST_TWO%'
+        with self.assertRaises(LookupError):
+            utils.populate_with_tokens(string, tokens, strict=True)
+
     def test_populate_with_escape_strict(self):
         tokens = {'UNIT_TEST': 'FOOBAR'}
         string = 'Unit \%UNIT_TEST\% Test'
