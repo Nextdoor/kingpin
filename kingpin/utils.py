@@ -261,7 +261,7 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
         right_wrapper: the character to use as the END of a token
         strict: (bool) whether or not to make sure all tokens were replaced
         escape_sequence: character string to use as the escape sequence for
-            left and right wrappers
+        left and right wrappers
     Example:
         export ME=biz
 
