@@ -90,6 +90,20 @@ class TestUtils(unittest.TestCase):
             strict=False)
         self.assertEquals(result, expect)
 
+    def test_populate_with_escape_strict(self):
+        tokens = {'UNIT_TEST': 'FOOBAR'}
+        string = 'Unit \%UNIT_TEST\% Test'
+        expect = 'Unit %UNIT_TEST% Test'
+        result = utils.populate_with_tokens(string, tokens, strict=True)
+        self.assertEquals(result, expect)
+
+    def test_populate_with_escape_non_strict(self):
+        tokens = {'UNIT_TEST': 'FOOBAR'}
+        string = 'Unit \%UNIT_TEST\% Test'
+        expect = 'Unit %UNIT_TEST% Test'
+        result = utils.populate_with_tokens(string, tokens, strict=False)
+        self.assertEquals(result, expect)
+
     def test_convert_script_to_dict(self):
         # Should work with string path to a file
         dirname, filename = os.path.split(os.path.abspath(__file__))
