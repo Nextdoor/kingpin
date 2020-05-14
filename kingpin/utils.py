@@ -306,7 +306,8 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
     if not strict:
         # Find text that's between the wrappers and escape sequence and replace
         # with just the wrappers and text.
-        string = re.sub(escapse_pattern,
+        string = re.sub(
+            escapse_pattern,
             r'{0}\1{1}'.format(left_wrapper, right_wrapper),
             string)
         return string
