@@ -292,12 +292,10 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
         string = string.replace(
             '%s%s%s' % (left_wrapper, match, right_wrapper), str(value))
 
-    # Regex is used to find the escape sequence so we need to
-    # escape the escape sequence..
-    if escape_sequence in ['\\', '(', ')', '[', ']', '|']:
-        escape_sequence = '{}{}'.format('\\', escape_sequence)
-
-    escape_pattern = r'{0}{1}([\w]+){0}{2}'.format(
+    # Slashes need to be escaped properly because they are a
+    # part of the regex syntax.
+    escape_sequence = escape_sequence.replace('\\', '\\\\')
+    escape_pattern = r'({0}{1})([\w]+)({0}{2})'.format(
         escape_sequence,
         left_wrapper,
         right_wrapper)
@@ -308,7 +306,7 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
         # with just the wrappers and text.
         string = re.sub(
             escape_pattern,
-            r'{0}\1{1}'.format(left_wrapper, right_wrapper),
+            r'{0}\2{1}'.format(left_wrapper, right_wrapper),
             string)
         return string
 
@@ -328,7 +326,7 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
 
     # Replace the escaped tokens
     string = re.sub(escape_pattern,
-                    r'{0}\1{1}'.format(left_wrapper, right_wrapper),
+                    r'{0}\2{1}'.format(left_wrapper, right_wrapper),
                     string)
 
     return string
