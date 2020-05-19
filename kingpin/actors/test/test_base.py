@@ -415,6 +415,9 @@ class TestBaseActor(testing.AsyncTestCase):
             init_context={'NAME': 'TEST'})
         self.assertEqual('Foo bar - TEST', self.actor.option('test_opt'))
 
+        # Reset the all options so we dont break other tests
+        base.BaseActor.all_options = {}
+
     def test_fill_in_contexts_options_escape(self):
         base.BaseActor.all_options = {
             'test_opt': (str, REQUIRED, 'Test option')
@@ -425,6 +428,9 @@ class TestBaseActor(testing.AsyncTestCase):
             options={'test_opt': 'Foo bar - \{NAME\}'},
             init_context={'NAME': 'TEST'})
         self.assertEqual('Foo bar - {NAME}', self.actor.option('test_opt'))
+
+        # Reset the all options so we dont break other tests
+        base.BaseActor.all_options = {}
 
 
 class TestEnsurableBaseActor(testing.AsyncTestCase):
