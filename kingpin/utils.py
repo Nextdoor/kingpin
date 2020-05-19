@@ -297,7 +297,7 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
     if escape_sequence in ['\\', '(', ')', '[', ']', '|']:
         escape_sequence = '{}{}'.format('\\', escape_sequence)
 
-    escapse_pattern = r'{0}{1}([\w]+){0}{2}'.format(
+    escape_pattern = r'{0}{1}([\w]+){0}{2}'.format(
         escape_sequence,
         left_wrapper,
         right_wrapper)
@@ -307,7 +307,7 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
         # Find text that's between the wrappers and escape sequence and replace
         # with just the wrappers and text.
         string = re.sub(
-            escapse_pattern,
+            escape_pattern,
             r'{0}\1{1}'.format(left_wrapper, right_wrapper),
             string)
         return string
@@ -318,7 +318,7 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
                              (left_wrapper, right_wrapper), string)))
 
     # Remove the escaped tokens from the missing tokens
-    escape_findings = re.finditer(escapse_pattern, string)
+    escape_findings = re.finditer(escape_pattern, string)
     escaped_tokens = [m.groups()[0] for m in escape_findings]
     missed_tokens = list(set(missed_tokens) - set(escaped_tokens))
 
@@ -327,7 +327,7 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
             'Found un-matched tokens in JSON string: %s' % missed_tokens)
 
     # Replace the escaped tokens
-    string = re.sub(escapse_pattern,
+    string = re.sub(escape_pattern,
                     r'{0}\1{1}'.format(left_wrapper, right_wrapper),
                     string)
 
