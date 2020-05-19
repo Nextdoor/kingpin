@@ -294,7 +294,8 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
 
     # Regex is used to find the escape sequence so we need to
     # escape the escape sequence..
-    if escape_sequence in ['\\', '(', ')', '[', ']', '|']:
+    escape_sequence = escape_sequence.replace('\\', '\\\\')
+    if escape_sequence in ['(', ')', '[', ']', '|']:
         escape_sequence = '{}{}'.format('\\', escape_sequence)
 
     escape_pattern = r'{0}{1}([\w]+){0}{2}'.format(

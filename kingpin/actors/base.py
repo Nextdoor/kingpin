@@ -425,7 +425,8 @@ class BaseActor(object):
                 context,
                 self.left_context_separator,
                 self.right_context_separator,
-                strict=strict)
+                strict=strict,
+                escape_sequence='\\\\')
         except LookupError as e:
             msg = 'Context for options failed: %s' % e
             raise exceptions.InvalidOptions(msg)
