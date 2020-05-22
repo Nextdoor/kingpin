@@ -116,7 +116,7 @@ class TestUtils(unittest.TestCase):
         expect = 'Unit \%UNIT_TEST\% Test'
         result = utils.populate_with_tokens(string, tokens,
                                             strict=False,
-                                            non_strict_remove_escape=False)
+                                            remove_escape_sequence=False)
         self.assertEquals(result, expect)
 
     def test_convert_script_to_dict(self):

@@ -64,7 +64,7 @@ class BaseGroupActor(base.BaseActor):
     # Do not remove remove escape sequence from escaped tokens. This will be
     # done later by another actor. Otherwise we risk remove the escapes and
     # failing because the token isn't found by a sub actor.
-    non_strict_remove_escape = False
+    remove_escape_sequence = False
 
     def __init__(self, *args, **kwargs):
         """Initializes all of the sub actors.
