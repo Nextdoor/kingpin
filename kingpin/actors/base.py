@@ -113,7 +113,7 @@ class BaseActor(object):
     # second 'global runtime context object'.
     strict_init_context = True
 
-    # Controls whether to remove escape characters from tokens that has been
+    # Controls whether to remove escape characters from tokens that have been
     # escaped.
     remove_escape_sequence = True
 
