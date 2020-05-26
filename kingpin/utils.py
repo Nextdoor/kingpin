@@ -248,7 +248,8 @@ def tornado_sleep(seconds=1.0):
 
 
 def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
-                         strict=True, escape_sequence='\\'):
+                         strict=True, escape_sequence='\\',
+                         remove_escape_sequence=True):
     """Insert token variables into the string.
 
     Will match any token wrapped in '%'s and replace it with the value of that
@@ -262,6 +263,8 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
         strict: (bool) whether or not to make sure all tokens were replaced
         escape_sequence: character string to use as the escape sequence for
         left and right wrappers
+        remove_escape_sequence: (bool) whether or not to remove the escape
+        sequence if it found. For example \\%FOO\\% would turn into %FOO%.
     Example:
         export ME=biz
 
@@ -300,35 +303,29 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
         left_wrapper,
         right_wrapper)
 
-    # If we aren't strict, we return after replacing escape sequence
-    if not strict:
-        # Find text that's between the wrappers and escape sequence and replace
-        # with just the wrappers and text.
+    # If we are strict, we check if we missed anything. If we did, raise an
+    # exception.
+    if strict:
+        missed_tokens = list(set(re.findall(r'%s[\w]+%s' %
+                                 (left_wrapper, right_wrapper), string)))
+
+        # Remove the escaped tokens from the missing tokens
+        escape_findings = re.finditer(escape_pattern, string)
+
+        escaped_tokens = [m.groups()[1] for m in escape_findings]
+        missed_tokens = list(set(missed_tokens) - set(escaped_tokens))
+
+        if missed_tokens:
+            raise LookupError(
+                'Found un-matched tokens in JSON string: %s' % missed_tokens)
+
+    # Find text that's between the wrappers and escape sequence and
+    # replace with just the wrappers and text.
+    if remove_escape_sequence:
         string = re.sub(
             escape_pattern,
             r'{0}\2{1}'.format(left_wrapper, right_wrapper),
             string)
-        return string
-
-    # If we are strict, we check if we missed anything. If we did, raise an
-    # exception.
-    missed_tokens = list(set(re.findall(r'%s[\w]+%s' %
-                             (left_wrapper, right_wrapper), string)))
-
-    # Remove the escaped tokens from the missing tokens
-    escape_findings = re.finditer(escape_pattern, string)
-    escaped_tokens = [m.groups()[0] for m in escape_findings]
-    missed_tokens = list(set(missed_tokens) - set(escaped_tokens))
-
-    if missed_tokens:
-        raise LookupError(
-            'Found un-matched tokens in JSON string: %s' % missed_tokens)
-
-    # Replace the escaped tokens
-    string = re.sub(escape_pattern,
-                    r'{0}\2{1}'.format(left_wrapper, right_wrapper),
-                    string)
-
     return string
 
 

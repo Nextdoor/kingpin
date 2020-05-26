@@ -61,6 +61,11 @@ class BaseGroupActor(base.BaseActor):
     # the moment that this actor is instantiated.
     strict_init_context = False
 
+    # Do not remove remove escape sequence from escaped tokens. This will be
+    # done later by another actor. Otherwise we risk remove the escapes and
+    # failing because the token isn't found by a sub actor.
+    remove_escape_sequence = False
+
     def __init__(self, *args, **kwargs):
         """Initializes all of the sub actors.
 

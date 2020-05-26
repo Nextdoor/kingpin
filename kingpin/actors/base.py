@@ -113,6 +113,10 @@ class BaseActor(object):
     # second 'global runtime context object'.
     strict_init_context = True
 
+    # Controls whether to remove escape characters from tokens that have been
+    # escaped.
+    remove_escape_sequence = True
+
     def __init__(self, desc=None, options={}, dry=False, warn_on_failure=False,
                  condition=True, init_context={}, init_tokens={},
                  timeout=None):
@@ -149,8 +153,10 @@ class BaseActor(object):
 
         # strict about this -- but in the future, when we have a
         # runtime_context object, we may loosen this restriction).
-        self._fill_in_contexts(context=self._init_context,
-                               strict=self.strict_init_context)
+        self._fill_in_contexts(
+            context=self._init_context,
+            strict=self.strict_init_context,
+            remove_escape_sequence=self.remove_escape_sequence)
 
         self._setup_log()
         self._setup_defaults()
@@ -158,8 +164,10 @@ class BaseActor(object):
 
         # Fill in any options with the supplied initialization context. Be
         self.log.debug('Initialized (warn_on_failure=%s, '
-                       'strict_init_context=%s)' %
-                       (warn_on_failure, self.strict_init_context))
+                       'strict_init_context=%s,'
+                       'remove_escape_sequence=%s)' %
+                       (warn_on_failure, self.strict_init_context,
+                        self.remove_escape_sequence))
 
     def __repr__(self):
         """Returns a nice name/description of the actor.
@@ -373,7 +381,8 @@ class BaseActor(object):
             self._condition, check))
         return check
 
-    def _fill_in_contexts(self, context={}, strict=True):
+    def _fill_in_contexts(self, context={}, strict=True,
+                          remove_escape_sequence=True):
         """Parses self._options and updates it with the supplied context.
 
         Parses the objects self._options dict (by converting it into a JSON
@@ -395,7 +404,8 @@ class BaseActor(object):
                 context,
                 self.left_context_separator,
                 self.right_context_separator,
-                strict=strict)
+                strict=strict,
+                remove_escape_sequence=remove_escape_sequence)
         except LookupError as e:
             msg = 'Context for description failed: %s' % e
             raise exceptions.InvalidOptions(msg)
@@ -407,7 +417,8 @@ class BaseActor(object):
                 context,
                 self.left_context_separator,
                 self.right_context_separator,
-                strict=strict)
+                strict=strict,
+                remove_escape_sequence=remove_escape_sequence)
         except LookupError as e:
             msg = 'Context for condition failed: %s' % e
             raise exceptions.InvalidOptions(msg)
@@ -426,7 +437,8 @@ class BaseActor(object):
                 self.left_context_separator,
                 self.right_context_separator,
                 strict=strict,
-                escape_sequence='\\\\')
+                escape_sequence='\\\\',
+                remove_escape_sequence=remove_escape_sequence)
         except LookupError as e:
             msg = 'Context for options failed: %s' % e
             raise exceptions.InvalidOptions(msg)
