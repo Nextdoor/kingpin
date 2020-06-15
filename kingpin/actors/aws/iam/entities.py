@@ -614,8 +614,12 @@ class User(EntityBaseActor):
 
         # Find any groups that we're not already a member of, and add us
         tasks = []
-        for new_group in set(groups) - current_groups:
-            tasks.append(self._add_user_to_group(name, new_group))
+        try:
+            for new_group in set(groups) - current_groups:
+                tasks.append(self._add_user_to_group(name, new_group))
+        except StopIteration:
+            pass
+
         yield tasks
 
         # Find any group memberships we didn't know about, and purge them
