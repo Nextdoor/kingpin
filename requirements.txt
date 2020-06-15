@@ -5,7 +5,7 @@ six
 
 # 4.1+ is required for the @gen.with_timeout decorator.
 # http://tornado.readthedocs.org/en/latest/gen.html#tornado.gen.with_timeout
-tornado>=4.1,<6.0
+tornado==6.0.4
 
 # Our custom rest client
 tornado_rest_client>=0.0.4

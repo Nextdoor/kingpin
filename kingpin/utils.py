@@ -31,7 +31,6 @@ import pprint
 import re
 import sys
 import yaml
-import time
 import io
 from io import IOBase
 
@@ -245,8 +244,7 @@ def tornado_sleep(seconds=1.0):
     Args:
         seconds: Float seconds. Default 1.0
     """
-    yield gen.Task(ioloop.IOLoop.current().add_timeout,
-                   time.time() + seconds)
+    yield gen.sleep(seconds)
 
 
 def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
