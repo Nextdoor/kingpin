@@ -352,7 +352,7 @@ class RestConsumer(object):
             method = create_http_method(full_method_name, name)
             setattr(self,
                     full_method_name,
-                    types.MethodType(method, self, self.__class__))
+                    types.MethodType(method, self))
 
     def _create_attrs(self):
         """Creates access methods to the attributes in self._attrs.
@@ -365,7 +365,7 @@ class RestConsumer(object):
 
         for name in list(self._attrs.keys()):
             method = create_method(name, self._attrs[name])
-            setattr(self, name, types.MethodType(method, self, self.__class__))
+            setattr(self, name, types.MethodType(method, self))
 
 
 class RestClient(object):
