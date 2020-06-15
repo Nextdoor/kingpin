@@ -146,14 +146,14 @@ class TestUtils(unittest.TestCase):
 
     def test_convert_script_to_dict_bad_name(self):
         instance = io.StringIO()  # Empty buffer will fail demjson.
-        instance.__repr__ = lambda: 'Somefile.HAHA'
+        instance.name = 'Somefile.HAHA'
 
         with self.assertRaises(exceptions.InvalidScriptName):
             utils.convert_script_to_dict(instance, {})
 
     def test_convert_script_to_dict_junk(self):
         instance = io.StringIO()
-        instance.__repr__ = lambda: 'Somefile.json'
+        instance.name = 'Somefile.json'
 
         with self.assertRaises(exceptions.InvalidScript):
             utils.convert_script_to_dict(instance, {})
@@ -162,7 +162,7 @@ class TestUtils(unittest.TestCase):
             utils.convert_script_to_dict('junk data', {})
 
         instance = io.StringIO()
-        instance.__repr__ = lambda: 'Somefile.yaml'
+        instance.name = 'Somefile.yaml'
         instance.write('---bad-yaml')
 
         with self.assertRaises(exceptions.InvalidScript):
