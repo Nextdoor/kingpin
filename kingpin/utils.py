@@ -32,6 +32,7 @@ import re
 import sys
 import yaml
 import time
+import io
 from io import IOBase
 
 from tornado import gen
@@ -351,7 +352,7 @@ def convert_script_to_dict(script_file, tokens):
     try:
         if type(script_file) in (str, str):
             filename = script_file
-            instance = open(script_file)
+            instance = io.open(script_file)
         elif isinstance(script_file, IOBase):
             filename = script_file.name
             instance = script_file
