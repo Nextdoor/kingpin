@@ -10,81 +10,71 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Copyright 2018 Nextdoor.com, Inc
+# Copyright 2014 Nextdoor.com, Inc
 """
 This package provides a quick way of creating custom API clients for JSON-based
-REST APIs. The majority of the work is in the creation of a _CONFIG dictionary
-for the class. This dictionary dynamically configures the object at
-instantiation time with the appropriate @gen.coroutine wrapped HTTP fetch
-methods.
+REST APIs. The majority of the work is in the creation of a
+:attr:`RestConsumer.CONFIG` dictionary for the class. This dictionary
+dynamically configures the object at instantiation time with the appropriate
+:func:`~tornado.gen.coroutine` wrapped HTTP fetch methods.
 
-See the documentation in docs/DEVELOPMENT.md for more details on how to use
-this package to create your own API client.
+.. autoclass:: RestConsumer
+   :members:
+   :private-members:
+.. autoclass:: RestClient
+   :members:
+   :private-members:
+.. autoclass:: SimpleTokenRestClient
+   :members:
+   :inherited-members:
+   :show-inheritance:
 """
 
 import logging
 import types
-import urllib.request, urllib.parse, urllib.error
+from urllib.parse import urlencode
+import functools
 
 from tornado import gen
 from tornado import httpclient
 from tornado import httputil
 import simplejson as json
 
-from kingpin import utils
-from kingpin.actors import exceptions
+from kingpin.actors.support import utils
+from kingpin.actors.support import exceptions
 
 log = logging.getLogger(__name__)
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
 
-def _retry(*f_or_args, **options):
-    """Coroutine-compatible Retry Decorator.
+def retry(func=None, retries=3, delay=0.25):
+    """Coroutine-compatible retry decorator.
 
     This decorator provides a simple retry mechanism that compares the
-    exceptions it received against a configuration list (self._EXCEPTIONS), and
-    then performs the action defined in that list. For example, an HTTPError
-    with a '500' code might want to retry 3 times. On the otherhand, a 401/403
-    might want to throw an InvalidCredentials exception.
+    exceptions it received against a configuration list stored in the
+    calling-object(:attr:`RestClient.EXCEPTIONS`), and then performs the action
+    defined in that list. For example, an :exc:`~tornado.httpclient.HTTPError`
+    with a '500' code might want to retry 3 times. On the otherhand, a
+    `401`/`403` might want to throw an
+    :exc:`~tornado_rest_client.exceptions.InvalidCredentials` exception.
 
     Examples:
 
-    >>> @_retry
-        def some_func(self):
-            yield ...
+    >>> @gen.coroutine
+    ... @retry
+    ... def some_func(self):
+    ...     yield ...
 
-    >>> @_retry(retries=5):
-        def some_func(self):
-            yield ...
-
+    >>> @gen.coroutine
+    ... @retry(retries=5):
+    ... def some_func(self):
+    ...     yield ...
     """
-
-    # Defaults...
-    retries = 3
-    delay = 0.25
-
-    # Have to determine if invoked as @_retry or @_retry()
-    if len(f_or_args) == 1 and callable(f_or_args[0]):
-        # Decorator invoked as @_retry
-        _call_with_args = False
-    else:
-        # Decorator invoked as @_retry(args...)
-        # `f` is unknown for now
-        _call_with_args = True
-        retries = options.pop('retries', retries)
-        delay = options.pop('delay', delay)
-
-    def decorator(f_or_self, *args, **kwargs):
-        # Depending on how this decorator is invoked
-        # The first argument is either the function, or the `self` object
-        if not _call_with_args:
-            self = f_or_self
-            f = f_or_args[0]
-        else:
-            f = f_or_self
-
+    def decorate(func):
+        @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
+            # Try #1!
             i = 1
 
             # Get a list of private kwargs to mask
@@ -103,15 +93,15 @@ def _retry(*f_or_args, **options):
                 # Don't log out the first try as a 'Try' ... just do it
                 if i > 1:
                     log.debug('Try (%s/%s) of %s(%s, %s)' %
-                              (i, retries, f, args, safe_kwargs))
+                              (i, retries, func, args, safe_kwargs))
 
                 # Attempt the method. Catch any exception listed in
-                # self._EXCEPTIONS.
+                # self.EXCEPTIONS.
 
                 try:
-                    ret = yield gen.coroutine(f)(self, *args, **kwargs)
+                    ret = yield gen.coroutine(func)(self, *args, **kwargs)
                     raise gen.Return(ret)
-                except tuple(self._EXCEPTIONS.keys()) as e:
+                except tuple(self.EXCEPTIONS.keys()) as e:
                     error = str(e)
                     if hasattr(e, 'message'):
                         error = e.message
@@ -123,23 +113,23 @@ def _retry(*f_or_args, **options):
                         raise e
 
                     # Gather the config for this exception-type from
-                    # self._EXCEPTIONS. Iterate through the data and see if we
+                    # self.EXCEPTIONS. Iterate through the data and see if we
                     # have a matching exception string.
-                    exc_conf = self._EXCEPTIONS[type(e)].copy()
+                    exc_conf = self.EXCEPTIONS[type(e)].copy()
 
                     # An empty string for the key is the default exception
                     # It's optional, but can match before others match, so we
                     # pop it before searching.
                     default_exc = exc_conf.pop('', False)
                     log.debug('Searching through %s' % exc_conf)
-                    matched_exc = [exc for key, exc in list(exc_conf.items())
+                    matched_exc = [exc for key, exc in exc_conf.items()
                                    if key in str(e)]
 
                     log.debug('Matched exceptions: %s' % matched_exc)
                     if matched_exc and matched_exc[0] is not None:
                         exception = matched_exc[0]
                         log.debug('Matched exception: %s' % exception)
-                        raise exception(error)
+                        raise exception(e)
                     elif matched_exc and matched_exc[0] is None:
                         log.debug('Exception is retryable!')
                         pass
@@ -158,31 +148,28 @@ def _retry(*f_or_args, **options):
                     yield utils.tornado_sleep(delay)
 
                 log.debug('Retrying..')
+        return wrapper
 
-        if not _call_with_args:
-            # Invoked as @_retry
-            # Should return the evaluated run
-            return wrapper(self, *args, **kwargs)
-        else:
-            # Invoked as @_retry(args...)
-            # Return a wrapper that expects all the new args
-            return wrapper
+    # http://stackoverflow.com/questions/3888158/
+    # python-making-decorators-with-optional-arguments
+    if func:
+        return decorate(func)
 
-    return decorator
+    return decorate
 
 
 def create_http_method(name, http_method):
-    """Creates the get/put/delete/post coroutined-method for a resource.
+    """Creates the *GET*/*PUT*/*DELETE*/*POST* function for a RestConsumer.
 
-    This method is called during the __init__ of a RestConsumer object. The
-    method creates a custom method thats handles a GET, PUT, POST or DELETE
-    through the Tornado HTTPClient class.
+    This method is called by :func:`RestConsumer._create_http_methods` to
+    create a method for the :class:`RestConsumer` object with the appropriate
+    name and HTTP method (:func:`http_get`, :func:`http_put`,
+    :func:`http_delete`, :func:`http_post`)
 
-    Args:
-        http_method: Name of the method (get, put, post, delete)
+    :param str name: Full name of the function to create (ie, `http_get`)
+    :param str http_method: Name of the method (ie, `get`)
 
-    Returns:
-        A method appropriately configured and named.
+    :return: A method appropriately configured and named.
     """
 
     @gen.coroutine
@@ -192,11 +179,11 @@ def create_http_method(name, http_method):
             raise exceptions.InvalidOptions('Must pass named-args (kwargs)')
 
         ret = yield self._client.fetch(
-            url='%s%s' % (self._ENDPOINT, self._path),
+            url='%s%s' % (self.ENDPOINT, self._path),
             method=http_method.upper(),
             params=kwargs,
-            auth_username=self._CONFIG.get('auth', {}).get('user'),
-            auth_password=self._CONFIG.get('auth', {}).get('pass')
+            auth_username=self.CONFIG.get('auth', {}).get('user'),
+            auth_password=self.CONFIG.get('auth', {}).get('pass')
         )
         raise gen.Return(ret)
 
@@ -204,25 +191,28 @@ def create_http_method(name, http_method):
     return method
 
 
-def create_method(name, config):
-    """Creates a RestConsumer object.
+def create_consumer_method(name, config):
+    """Creates a method that returns a configured RestConsumer object.
 
-    Configures a fresh RestConsumer object with the supplied configuration
-    bits. The configuration includes information about the name of the method
-    being consumed and the configuration of that method (which HTTP methods it
-    supports, etc).
+    RestConsumer objects themselves can have references to other RestConsumer
+    objects. For example, the
+    :class:`~tornado_rest_consumer.client.slack.Slack` object has no
+    :func:`http_*` methods itself, but it does have methods like
+    :func:`~tornadeo_rest_consumer.client.slack.Slack.auth_test` which return a
+    fresh :class:`RestConsumer` object that points to the `/api/auth.test` API
+    endpoint and provide :func:`http_post` as a function
 
-    The final created method accepts any args (`*args, **kwargs`) and passes
-    them on to the RestConsumer object being created. This allows for passing
-    in unique resource identifiers (ie, the '%res%' in
-    '/v2/rooms/%res%/history').
+    The method created here accepts any args (`*args, **kwargs`) and passes
+    them on to the :class:`RestConsumer` object being created. This allows for
+    passing in unique resource identifiers (ie, the `%res%` in
+    `/v2/rooms/%res%/history`).
 
-    Args:
-        name: The name passed into the RestConsumer object
-        config: The config passed into the RestConsumer object
+    :param str name: The name of the method to create (ie, `auth_test`)
+    :param dict config: The dictionary of :attr:`~RestConsumer.CONFIG` data
+      specific to the API endpoint that we are configuring (should include
+      `path` and `http_methods` keys).
 
-    Returns:
-        A method that returns a fresh RestConsumer object
+    :return: A method that returns a fresh RestConsumer object
     """
 
     def method(self, *args, **kwargs):
@@ -230,7 +220,7 @@ def create_method(name, config):
         # the RestConsumer parent object. This ensures that tokens replaced in
         # the 'path' variables are passed all the way down the instantiation
         # chain.
-        merged_kwargs = dict(list(self._kwargs.items()) + list(kwargs.items()))
+        merged_kwargs = dict(self._kwargs.items() + kwargs.items())
 
         return self.__class__(
             name=name,
@@ -244,46 +234,68 @@ def create_method(name, config):
 
 class RestConsumer(object):
 
-    """An abstract object that self-defines its own API access methods.
+    """Async REST API Consumer object.
 
-    At init time, this object reads its `_CONFIG` and pre-defines all of the
-    API access methods that have been described. It does not handle actual HTTP
-    calls directly, but is passed in a `client` object (anything that
-    subclasses the RestClient class) and leverages that for the actual web
-    calls.
+    The generic RestConsumer object (with no parameters passed in) looks at
+    the :attr:`CONFIG` dictionary and dynamically generates access methods
+    for the various API methods.
+
+    The *GET*, *PUT*, *POST* and *DELETE* methods optionally listed in
+    `CONFIG['http_methods']` represent the possible types of HTTP methods
+    that the `CONFIG['path']` supports. For each one of these listed, a
+    :func:`~tornado.gen.coroutine` wrapped :func:`http_get`,
+    :func:`http_put`, :func:`http_post`, or :func:`http_delete` method will
+    be created.
+
+    For each item listed in `CONFIG['attrs']`, an access method is created
+    that creates and returns a new RestConsumer object that's configured for
+    this endpoint. These methods are not asynchronous, but are non-blocking.
+
+    :param str name: Name of the resource method (default: None)
+    :param dict config: The dictionary object with the configuration for this
+      API endpoint call.
+    :param RestClient client: The `RestClient` compatible object used to
+      actually fire off HTTP requests.
+    :param dict kwargs: Any named arguments that should be passed along in the
+      web request through the :func:`replace_path_tokens` method. This allows
+      for string replacement in URL paths, like `/api/%resource_id%/terminate`
+      to have the `%resource_id%` token replaced with something you've
+      passed in here.
     """
 
-    _CONFIG = {}
-    _ENDPOINT = None
+    #: The URL of the API Endpoint.
+    #: (for example: http://httpbin.org)
+    ENDPOINT = None
+
+    #: The configuration dictionary for the REST API. This dictionary
+    #: consists of a root object that has three possible named keys: `path`,
+    #: `http_methods` and `attrs`.
+    #:
+    #: * *path*: The API Endpoint that any of the HTTP methods should talk to.
+    #: * *http_methods*: A dictionary of HTTP methods that are supported.
+    #: * *attrs*: A dictionary of other methods to create that reference other
+    #:   API URLs.
+    #: * *new*: Set to True if you want to create an access property rather
+    #:   an access method. Only works if your path has no token replacement in
+    #:   it.
+    #:
+    #: This data can be nested as much as you'd like
+    #:
+    #: >>> CONFIG = {
+    #: ...     'path': '/', 'http_methods': {'get': {}},
+    #: ...     'new': True,
+    #: ...     'attrs': {
+    #: ...         'getter': {'path': '/get', 'htpt_methods': {'get': {}}},
+    #: ...         'poster': {'path': '/post', 'htpt_methods': {'post': {}}},
+    #: ...     }
+    #: ... }:
+    CONFIG = {}
 
     def __init__(self, name=None, config=None, client=None, *args, **kwargs):
-        """Initialize the RestConsumer object.
-
-        The generic RestConsumer object (with no parameters passed in) looks at
-        the self.__class__._CONFIG dictionary and dynamically generates access
-        methods for the various API methods.
-
-        The GET, PUT, POST and DELETE methods optionally listed in
-        CONFIG['http_methods'] represent the possible types of HTTP methods
-        that the CONFIG['path'] supports. For each one of these listed, a
-        @coroutine wrapped get/put/post/delete() method will be created in the
-        RestConsumer that knows how to make the HTTP request.
-
-        For each item listed in CONFIG['attrs'], an access method is created
-        that will dynamically create and return a new RestConsumer object thats
-        configured for this endpoint. These methods are not asynchronous, but
-        are non-blocking.
-
-        Args:
-            name: Name of the resource method (default: None)
-            config: The dictionary object with the configuration for this API
-                    endpoint call.
-            client: <TBD>
-            *args,**kwargs: <TBD>
-        """
+        """Initializes the RestConsumer."""
         # If these aren't passed in, then get them from the class definition
         name = name or self.__class__.__name__
-        config = config or self._CONFIG
+        config = config or self.CONFIG
 
         # Get the basic options for this particular REST endpoint access object
         self._path = config.get('path', None)
@@ -291,18 +303,18 @@ class RestConsumer(object):
         self._attrs = config.get('attrs', None)
         self._kwargs = kwargs
 
-        # If no client was supplied, then we
+        # If no client was supplied, then we use our default
         self._client = client or RestClient()
 
         # Ensure that any tokens that need filling-in in the self._path setting
         # are pulled from the **kwargs passed into this init. This is used on
         # API paths like Hipchats '/v2/room/%(res)/...' URLs.
-        self._path = self._replace_path_tokens(self._path, kwargs)
+        self._path = self.replace_path_tokens(self._path, kwargs)
 
         # Create all of the methods based on the self._http_methods and
         # self._attrs dict.
-        self._create_methods()
-        self._create_attrs()
+        self._create_http_methods()
+        self._create_consumer_methods()
 
         # Log some things
         log.debug('%s/%s initialized' %
@@ -314,18 +326,15 @@ class RestConsumer(object):
     def __str__(self):
         return str(self._path)
 
-    def _replace_path_tokens(self, path, tokens):
-        """Search and replace %xxx% with values from tokens.
+    def replace_path_tokens(self, path, tokens):
+        """Search and replace `%xxx%` with values from tokens.
 
-        Used to replace any values of %xxx% with 'xxx' from tokens. Can replace
-        one, or many fields at aonce.
+        Used to replace any values of `%xxx%` with `'xxx`' from tokens. Can
+        replace one, or many fields at aonce.
 
-        Args:
-            path: String of the path
-            tokens: A dictionary of tokens to search through.
-
-        Returns:
-            path: A modified string
+        :param str path: String of the path
+        :param dict tokens: A dictionary of tokens to search through.
+        :return: A modified string
         """
         if not path:
             return
@@ -338,50 +347,67 @@ class RestConsumer(object):
 
         return path
 
-    def _create_methods(self):
-        """Create @gen.coroutine wrapped HTTP methods.
+    def _create_http_methods(self):
+        """Create :func:`~tornado.gen.coroutine` wrapped HTTP methods.
 
-        Iterates through the methods described in self._methods and creates
-        @gen.coroutine wrapped access methods that perform these actions.
+        Iterates through the methods described in `self._http_methods` and
+        creates :func:`~tornado.gen.coroutine` wrapped access methods that
+        perform these actions.
         """
         if not self._http_methods:
             return
 
-        for name in list(self._http_methods.keys()):
+        for name in self._http_methods.keys():
             full_method_name = 'http_%s' % name
             method = create_http_method(full_method_name, name)
             setattr(self,
                     full_method_name,
                     types.MethodType(method, self))
 
-    def _create_attrs(self):
-        """Creates access methods to the attributes in self._attrs.
+    def _create_consumer_methods(self):
+        """Creates access methods to the attributes in `self._attrs`.
 
-        Iterates through the attributes described in self._attrs and creates
-        access methods that return RestConsumer objects for those attributes.
+        Iterates through the attributes described in `self._attrs` and creates
+        access methods that return :class:`RestConsumer` objects for those
+        attributes.
         """
         if not self._attrs:
             return
 
-        for name in list(self._attrs.keys()):
-            method = create_method(name, self._attrs[name])
-            setattr(self, name, types.MethodType(method, self))
+        for name in self._attrs.keys():
+            method = create_consumer_method(name, self._attrs[name])
+
+            if 'new' in self._attrs[name]:
+                try:
+                    setattr(self, name, method(self))
+                except TypeError:
+                    setattr(self, name, types.MethodType(method, self))
+            else:
+                setattr(self, name, types.MethodType(method, self))
 
 
 class RestClient(object):
 
-    """Very simple REST client for the RestConsumer. Implements a
-    AsyncHTTPClient(), some convinience methods for URL escaping, and a single
-    fetch() method that can handle GET/POST/PUT/DELETEs.
+    """Simple Async REST client for the RestConsumer.
 
-    This code is nearly identical to the kingpin.actors.base.BaseHTTPActor
-    class, but is not actor-specific.
+    Implements a :class:`~tornado.httpclient.AsyncHTTPClient`, some convinience
+    methods for URL escaping, and a single :func:`~RestClient.fetch` method
+    that can handle GET/POST/PUT/DELETEs.
 
-    Args:
-        headers: Headers to pass in on every HTTP request
+    :param dict headers: Headers to pass in on every HTTP request
     """
 
-    _EXCEPTIONS = {
+    #: Dictionary describing the exception handling behavior for HTTP calls.
+    #: The dictionary should look like this:
+    #:
+    #: >>> {
+    #: ...     <exception type... aka httpclient.HTTPError>: {
+    #: ...         `<string to match in exception.message>`: <raises exc>,
+    #: ...         '<this string triggers a retry>': None,
+    #: ...         '': <all other strings trigger this exception>
+    #: ...     }
+    #:
+    EXCEPTIONS = {
         httpclient.HTTPError: {
             '401': exceptions.InvalidCredentials,
             '403': exceptions.InvalidCredentials,
@@ -393,36 +419,54 @@ class RestClient(object):
             # Rrepresents a standard HTTP Timeout
             '599': None,
 
-            '': exceptions.RecoverableActorFailure,
+            '': exceptions.RecoverableFailure,
         }
     }
 
-    def __init__(self, client=None, headers=None):
+    # Combined Connect and Request Timeout settings. Note, None
+    # is the default -- but actually times out after 20s (due to
+    # a bug in Tornado). Use a very high number or 0 to indicate no
+    # timeout.
+    TIMEOUT = None
+
+    # If the APi expects that you send a JSON body with data rather than
+    # passing url arguments, set this to true.
+    JSON_BODY = False
+
+    def __init__(self, client=None, headers=None, timeout=TIMEOUT,
+                 json=None, allow_nonstandard_methods=False):
         self._client = client or httpclient.AsyncHTTPClient()
         self._private_kwargs = ['auth_password']
         self.headers = headers
+        self.timeout = timeout
+        self.allow_nonstandard_methods = allow_nonstandard_methods
+        self.json = json
+
+        if ((self.json is True or self.JSON_BODY) and self.json is not False) \
+           and not self.headers:
+            self.headers = {
+                'Content-Type': 'application/json'
+            }
 
     def _generate_escaped_url(self, url, args):
-        """Takes in a dictionary of arguments and returns a URL line.
+        """Generates a fully escaped URL string.
 
         Sorts the arguments so that the returned string is predictable and in
-        alphabetical order. Effectively wraps the tornado.httputil.url_concat
-        method and properly strips out None values, as well as lowercases
-        Bool values.
+        alphabetical order. Effectively wraps the
+        :func:`tornado.httputil.url_concat` method and properly strips out
+        `None` values, as well as lowercases `Bool` values.
 
-        Args:
-            url: (Str) The URL to append the arguments to
-            args: (Dict) Key/Value arguments. Values should be primitives.
+        :param str url: The URL to append the arguments to
+        :param dict args: Key/Value arguments. Values should be primitives.
 
-        Returns:
-            A URL encoded string like this: <url>?foo=bar&abc=xyz
+        :return: URL encoded string like this: `<url>?foo=bar&abc=xyz`
         """
 
         # Remove keys from the arguments where the value is None
-        args = dict((k, v) for k, v in args.items() if v)
+        args = dict((k, v) for k, v in args.iteritems() if v)
 
         # Convert all Bool values to lowercase strings
-        for key, value in args.items():
+        for key, value in args.iteritems():
             if type(value) is bool:
                 args[key] = str(value).lower()
 
@@ -432,31 +476,34 @@ class RestClient(object):
 
         return full_url
 
-    # TODO: Add a retry/backoff timer here. If the remote endpoint returns
-    # garbled data (ie, maybe a 500 errror or something else thats not in
-    # JSON format, we should back off and try again.
     @gen.coroutine
-    @_retry
+    @retry
     def fetch(self, url, method, params={},
-              auth_username=None, auth_password=None):
+              auth_username=None, auth_password=None, timeout=None):
         """Executes a web request asynchronously and yields the body.
 
-        Args:
-            url: (Str) The full url path of the API call
-            params: (Dict) Arguments (k/v pairs) to submit either as POST data
-                    or URL argument options.
-            method: (Str) GET/PUT/POST/DELETE
-            auth_username: (str) HTTP auth username
-            auth_password: (str) HTTP auth password
+        :param str url: The full url path of the API call
+        :param dict params: Arguments (k/v pairs) to submit either as POST data
+          or URL argument options.
+        :param str method: GET/PUT/POST/DELETE
+        :param str auth_username: HTTP auth username
+        :param str auth_password: HTTP auth password
+        :yields: String of the returned text from the web service.
         """
 
         # Start with empty post data. If we're doing a PUT/POST, then just pass
         # args directly into the ch() method and let it take care of
         # things. If we're doing a GET/DELETE though, convert kwargs into a
         # modified URL string and pass that into the fetch() method.
+        if timeout is None:
+            timeout = self.timeout
         body = None
         if method in ('PUT', 'POST'):
-            body = urllib.parse.urlencode(params) or None
+            if not ((self.json is True or self.JSON_BODY) and
+                    self.json is not False):
+                body = urlencode(params)
+            else:
+                body = json.dumps(params)
         elif method in ('GET', 'DELETE') and params:
             url = self._generate_escaped_url(url, params)
 
@@ -472,11 +519,14 @@ class RestClient(object):
             auth_username=auth_username,
             auth_password=auth_password,
             follow_redirects=True,
+            request_timeout=timeout,
+            connect_timeout=timeout,
+            allow_nonstandard_methods=self.allow_nonstandard_methods,
             max_redirects=10)
 
         # Execute the request and raise any exception. Exceptions are not
         # caught here because they are unique to the API endpoints, and thus
-        # should be handled by the individual Actor that called this method.
+        # should be handled by the individual callers of this method.
         log.debug('HTTP Request: %s' % http_request)
         try:
             http_response = yield self._client.fetch(http_request)
@@ -496,19 +546,18 @@ class RestClient(object):
 
 class SimpleTokenRestClient(RestClient):
 
-    """Simple RestClient that appends a 'token' to every web request for
-    authentication. Used in most simple APIs where a token is provided to the
-    end user.
+    """Simple RestClient with a token for HTTP authentication.
 
-    Args:
-        tokens: (dict) A dict with the token name/value(s) to append to every
-                we request.
+    Used in most simple APIs where a token is provided to the end user.
+
+    :param dict tokens: A dict with the token name/value(s) to append to every
+      web request.
     """
 
     def __init__(self, tokens, *args, **kwargs):
         super(SimpleTokenRestClient, self).__init__(*args, **kwargs)
         self._tokens = tokens
-        for key in list(tokens.keys()):
+        for key in tokens.keys():
             self._private_kwargs.append(key)
 
     @gen.coroutine

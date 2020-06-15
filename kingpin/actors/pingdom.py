@@ -78,7 +78,7 @@ class PingdomClient(api.RestClient):
 
     # The default exception handling is fine, but the Pingdom API uses a 599 to
     # represent a timeout on the backend of their service.
-    _EXCEPTIONS = dict(api.RestClient._EXCEPTIONS)
+    _EXCEPTIONS = dict(api.RestClient.EXCEPTIONS)
     _EXCEPTIONS[httpclient.HTTPError]['599'] = None
 
 

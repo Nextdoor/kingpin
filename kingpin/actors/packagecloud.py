@@ -37,10 +37,10 @@ import re
 import sys
 
 from tornado import gen
-from tornado_rest_client import api
 
 from kingpin.actors import base
 from kingpin.actors import exceptions
+from kingpin.actors.support import api
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
