@@ -916,7 +916,7 @@ class Service(ECSBaseActor):
             try:
                 service = yield self._describe_service(service_name)
             except ServiceNotFound as e:
-                self.log.info('Service Not Found: %s' % e.message)
+                self.log.info('Service Not Found: %s' % str(e))
                 yield gen.sleep(2)
                 continue
 
