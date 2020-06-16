@@ -106,7 +106,7 @@ class RegisterInstance(base.AWSBaseActor):
                 TargetGroupArn=arn,
                 Targets=targets)
         except botocore.exceptions.ClientError as e:
-            raise exceptions.UnrecoverableActorFailure(e.message)
+            raise exceptions.UnrecoverableActorFailure(str(e))
 
     @gen.coroutine
     def _execute(self):
@@ -190,7 +190,7 @@ class DeregisterInstance(base.AWSBaseActor):
                 TargetGroupArn=arn,
                 Targets=targets)
         except botocore.exceptions.ClientError as e:
-            raise exceptions.UnrecoverableActorFailure(e.message)
+            raise exceptions.UnrecoverableActorFailure(str(e))
 
     @gen.coroutine
     def _execute(self):
