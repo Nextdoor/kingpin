@@ -348,15 +348,12 @@ def convert_script_to_dict(script_file, tokens):
 
     filename = ''
     try:
-        if type(script_file) in (str, str):
-            filename = script_file
-            instance = io.open(script_file)
-        elif isinstance(script_file, IOBase):
+        if isinstance(script_file, IOBase):
             filename = script_file.name
             instance = script_file
         else:
-            filename = str(script_file)
-            instance = script_file
+            filename = script_file
+            instance = io.open(script_file)
     except IOError as e:
         raise exceptions.InvalidScript('Error reading script %s: %s' %
                                        (script_file, e))
