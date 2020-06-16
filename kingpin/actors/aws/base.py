@@ -248,7 +248,7 @@ class AWSBaseActor(base.BaseActor):
                 msg = 'Access credentials have expired'
                 return exceptions.InvalidCredentials(msg)
 
-            msg = '%s: %s' % (e.error_code, e.message)
+            msg = '%s: %s' % (e.error_code, str(e))
             if e.status == 403:
                 return exceptions.InvalidCredentials(msg)
         elif isinstance(e, boto3_exceptions.Boto3Error):
@@ -277,7 +277,7 @@ class AWSBaseActor(base.BaseActor):
             elbs = yield self.api_call(self.elb_conn.get_all_load_balancers,
                                        load_balancer_names=name)
         except boto_exception.BotoServerError as e:
-            msg = '%s: %s' % (e.error_code, e.message)
+            msg = '%s: %s' % (e.error_code, str(e))
             log.error('Received exception: %s' % msg)
 
             if e.status == 400:
@@ -312,7 +312,7 @@ class AWSBaseActor(base.BaseActor):
             trgts = yield self.api_call(self.elbv2_conn.describe_target_groups,
                                         Names=[arn])
         except botocore_exceptions.ClientError as e:
-            raise exceptions.UnrecoverableActorFailure(e.message)
+            raise exceptions.UnrecoverableActorFailure(str(e))
 
         arns = [t['TargetGroupArn'] for t in trgts['TargetGroups']]
 

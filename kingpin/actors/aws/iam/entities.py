@@ -1079,12 +1079,21 @@ class InstanceProfile(EntityBaseActor):
         if not existing and not role:
             raise gen.Return()
         elif existing and not role:
-            yield self._remove_role(name, existing)
+            try:
+                yield self._remove_role(name, existing)
+            except StopIteration:
+                pass
         elif not existing and role:
-            yield self._add_role(name, role)
+            try:
+                yield self._add_role(name, role)
+            except StopIteration:
+                pass
         elif existing != role:
-            yield self._remove_role(name, existing)
-            yield self._add_role(name, role)
+            try:
+                yield self._remove_role(name, existing)
+                yield self._add_role(name, role)
+            except StopIteration:
+                pass
 
     @gen.coroutine
     def _execute(self):

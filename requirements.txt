@@ -7,9 +7,6 @@ six
 # http://tornado.readthedocs.org/en/latest/gen.html#tornado.gen.with_timeout
 tornado==6.0.4
 
-# Our custom rest client
-tornado_rest_client>=0.0.4
-
 # Used to make synchronous tasks asynchronous
 futures
 
