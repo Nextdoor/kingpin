@@ -69,8 +69,11 @@ def dry(dry_message):
             if self._dry:
                 self.log.warning(msg)
                 raise gen.Return()
-            ret = yield gen.coroutine(f)(self, *args, **kwargs)
-            raise gen.Return(ret)
+            try:
+                ret = yield gen.coroutine(f)(self, *args, **kwargs)
+                raise gen.Return(ret)
+            except StopIteration:
+                pass
 
         return wrapper
     return _skip_on_dry

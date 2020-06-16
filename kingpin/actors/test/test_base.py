@@ -169,8 +169,7 @@ class TestBaseActor(testing.AsyncTestCase):
         @gen.coroutine
         def _execute():
             tracker.reset_mock()
-            yield gen.Task(ioloop.IOLoop.current().add_timeout,
-                           time.time() + 0.2)
+            yield gen.sleep(0.2)
             tracker.call_me()
 
         self.actor._execute = _execute
