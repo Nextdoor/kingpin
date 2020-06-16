@@ -172,8 +172,7 @@ class TestRightScript(testing.AsyncTestCase):
                 self.actor.script,
                 [('right_script[packages]', 'curl'),
                  ('right_script[description]', 'test description'),
-                 ('right_script[name]', 'test-name')])],
-                any_order=True)
+                 ('right_script[name]', 'test-name')])])
 
     @testing.gen_test
     def test_commit(self):

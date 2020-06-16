@@ -624,8 +624,12 @@ class User(EntityBaseActor):
 
         # Find any group memberships we didn't know about, and purge them
         tasks = []
-        for bad_group in current_groups - set(groups):
-            tasks.append(self._remove_user_from_group(name, bad_group))
+        try:
+            for bad_group in current_groups - set(groups):
+                tasks.append(self._remove_user_from_group(name, bad_group))
+        except StopIteration:
+            pass
+
         yield tasks
 
     @gen.coroutine
@@ -1082,18 +1086,18 @@ class InstanceProfile(EntityBaseActor):
             try:
                 yield self._remove_role(name, existing)
             except StopIteration:
-                pass
+                return
         elif not existing and role:
             try:
                 yield self._add_role(name, role)
             except StopIteration:
-                pass
+                return
         elif existing != role:
             try:
                 yield self._remove_role(name, existing)
                 yield self._add_role(name, role)
             except StopIteration:
-                pass
+                return
 
     @gen.coroutine
     def _execute(self):

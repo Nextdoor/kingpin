@@ -504,7 +504,10 @@ class MCI(MCIBaseActor):
             params: The parameters to force-set for the MCI setting
         """
         self.log.info('Force-setting the user_data')
-        yield self._client.update(mci_setting, params)
+        try:
+            yield self._client.update(mci_setting, params)
+        except StopIteration:
+            return
 
     @gen.coroutine
     def _ensure_settings(self, mci):
