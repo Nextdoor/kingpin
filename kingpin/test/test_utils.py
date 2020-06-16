@@ -234,7 +234,7 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
 
         logger = utils.setup_root_logger(syslog='local0')
         self.assertEqual(type(logger.handlers[0]),
-                          logging.handlers.SysLogHandler)
+                         logging.handlers.SysLogHandler)
         self.assertEqual(logger.handlers[0].facility, 'local0')
 
     def test_super_httplib_debug_logging(self):

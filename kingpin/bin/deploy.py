@@ -135,7 +135,7 @@ def main():
                 log.critical(e)
                 sys.exit(2)
 
-            with file(args.orgchart, 'w') as output:
+            with open(args.orgchart, 'w') as output:
                 output.write(json.dumps(orgdata))
 
         sys.exit(0)

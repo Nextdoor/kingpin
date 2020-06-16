@@ -4,11 +4,9 @@ import io
 import json
 import os
 import logging
-import time
 
 from tornado import gen
 from tornado import httpclient
-from tornado import ioloop
 from tornado import simple_httpclient
 from tornado import testing
 import mock
@@ -560,10 +558,8 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
 
             yield self.actor._fetch('/', auth_username='foo',
                                     auth_password='bar')
-            self.assertEqual(m.return_value.request.auth_username,
-                              'foo')
-            self.assertEqual(m.return_value.request.auth_password,
-                              'bar')
+            self.assertEqual(m.return_value.request.auth_username, 'foo')
+            self.assertEqual(m.return_value.request.auth_password, 'bar')
 
 
 class TestActualEnsurableBaseActor(testing.AsyncTestCase):

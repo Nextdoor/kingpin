@@ -157,7 +157,8 @@ class BaseGroupActor(base.BaseActor):
         for context in context_data:
             combined_context = dict(list(self._init_context.items()) +
                                     list(context.items()))
-            self.log.debug('Inherited context %s' % list(self._init_context.items()))
+            self.log.debug('Inherited context %s' %
+                           list(self._init_context.items()))
             self.log.debug('Specified context %s' % list(context.items()))
             self.log.debug('Building acts with parameters: %s' %
                            combined_context)

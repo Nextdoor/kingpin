@@ -30,7 +30,9 @@ dedicated packages. Things like sleep timers, loggers, etc.
 import io
 import json
 import logging
-import urllib.request, urllib.parse, urllib.error
+import urllib.request
+import urllib.parse
+import urllib.error
 
 from tornado import gen
 from tornado import httpclient

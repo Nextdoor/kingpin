@@ -73,7 +73,7 @@ class TestMacro(testing.AsyncTestCase):
         # init_tokens, AND the 'FOO' token from outer_group.yaml's own
         # definition.
         self.assertEqual(actor.initial_actor._actions[0]._init_tokens,
-                          {'SLEEP': 0, 'FOO': 'weee'})
+                         {'SLEEP': 0, 'FOO': 'weee'})
 
         # Next ensure that the mostly nested examples/misc.macro/inner.yaml
         # actor got the SLEEP, FOO, and DESC tokens.

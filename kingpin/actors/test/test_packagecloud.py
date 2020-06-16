@@ -130,16 +130,16 @@ class TestPackagecloudBase(testing.AsyncTestCase):
             regex='unittest', repo='unittest')
 
         self.assertEqual(deleted_packages,
-                          [{'created_at': datetime.datetime(
-                              2014, 7, 7, 20, 27, 18),
-                            'name': 'unittest',
-                            'distro_version': 'ubuntu/trusty',
-                            'filename': 'unittest_0.1-1_all.deb'},
-                           {'created_at': datetime.datetime(
-                               2015, 7, 7, 20, 27, 18),
-                            'name': 'unittest',
-                            'distro_version': 'ubuntu/trusty',
-                            'filename': 'unittest_0.2-1_all.deb'}])
+                         [{'created_at': datetime.datetime(
+                             2014, 7, 7, 20, 27, 18),
+                             'name': 'unittest',
+                             'distro_version': 'ubuntu/trusty',
+                             'filename': 'unittest_0.1-1_all.deb'},
+                             {'created_at': datetime.datetime(
+                                 2015, 7, 7, 20, 27, 18),
+                                 'name': 'unittest',
+                                 'distro_version': 'ubuntu/trusty',
+                                 'filename': 'unittest_0.2-1_all.deb'}])
 
     @testing.gen_test
     def test_delete_dry(self):
@@ -154,16 +154,16 @@ class TestPackagecloudBase(testing.AsyncTestCase):
             regex='unittest', repo='unittest')
 
         self.assertEqual(deleted_packages,
-                          [{'created_at': datetime.datetime(
-                              2014, 7, 7, 20, 27, 18),
-                            'name': 'unittest',
-                            'distro_version': 'ubuntu/trusty',
-                            'filename': 'unittest_0.1-1_all.deb'},
-                           {'created_at': datetime.datetime(
-                               2015, 7, 7, 20, 27, 18),
-                            'name': 'unittest',
-                            'distro_version': 'ubuntu/trusty',
-                            'filename': 'unittest_0.2-1_all.deb'}])
+                         [{'created_at': datetime.datetime(
+                             2014, 7, 7, 20, 27, 18),
+                             'name': 'unittest',
+                             'distro_version': 'ubuntu/trusty',
+                             'filename': 'unittest_0.1-1_all.deb'},
+                             {'created_at': datetime.datetime(
+                                 2015, 7, 7, 20, 27, 18),
+                                 'name': 'unittest',
+                                 'distro_version': 'ubuntu/trusty',
+                                 'filename': 'unittest_0.2-1_all.deb'}])
 
     @testing.gen_test
     def test_delete_keep_one(self):

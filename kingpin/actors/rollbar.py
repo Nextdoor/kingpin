@@ -27,7 +27,9 @@ execute a code deployment.
 
 import logging
 import os
-import urllib.request, urllib.parse, urllib.error
+import urllib.request
+import urllib.parse
+import urllib.error
 
 from tornado import gen
 from tornado import httpclient

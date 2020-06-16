@@ -215,7 +215,8 @@ class BaseActor(object):
 
         # Loop through all_options, and find the required ones
         required = [opt_name
-                    for (opt_name, definition) in list(self.all_options.items())
+                    for (opt_name, definition) in
+                    list(self.all_options.items())
                     if definition[1] is REQUIRED]
 
         self.log.debug('Checking for required options: %s' % required)

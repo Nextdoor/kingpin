@@ -211,7 +211,8 @@ class RightScale(object):
         found_cookbooks = self._client.cookbooks.index(
             params={'filter[]': ['name==%s' % cookbook],
                     'view': 'extended'})
-        found_recipes = [r for r in found_cookbooks if r.soul['metadata']['recipes'].get(name)]
+        found_recipes = [r for r in found_cookbooks
+                         if r.soul['metadata']['recipes'].get(name)]
 
         if not found_recipes:
             log.debug('Recipe matching "%s" could not be found.' % name)

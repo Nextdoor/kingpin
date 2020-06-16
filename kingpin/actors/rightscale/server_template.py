@@ -434,7 +434,7 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
 
         try:
             raw = yield self._client.find_by_name_and_keys(
-                collection=self._client._client.server_template_multi_cloud_images,
+                collection=self._client._client.server_template_multi_cloud_images,  # nopep8
                 server_template_href=self.st.href)
         except StopIteration:
             return

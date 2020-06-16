@@ -124,6 +124,7 @@ class TestSpotinstBase(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidCredentials):
             spotinst.SpotinstBase('Unit Test Action', {})
 
+
 class TestElastiGroup(testing.AsyncTestCase):
 
     """Unit tests for the ElastiGroup actor."""
@@ -256,7 +257,7 @@ class TestElastiGroup(testing.AsyncTestCase):
         # Second, make sure we overwrote the user config's [capacity][target]
         # setting with the spotinst value
         self.assertEqual(self.actor._config['group']['capacity']['target'],
-                          128)
+                         128)
 
     @testing.gen_test
     def test_validate_group(self):

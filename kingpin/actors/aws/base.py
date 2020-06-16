@@ -34,7 +34,9 @@ _Note, these can be skipped only if you have a .aws/credentials file in place._
 
 import json
 import logging
-import urllib.request, urllib.parse, urllib.error
+import urllib.request
+import urllib.parse
+import urllib.error
 import re
 
 from boto import exception as boto_exception
