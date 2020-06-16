@@ -153,7 +153,7 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         actor = base.RightScaleBaseActor('Unit Test Action', {})
         ret = actor._generate_rightscale_params('server_array', params)
 
-        self.assertItemsEqual(expected_params, ret)
+        self.assertCountEqual(expected_params, ret)
 
     def test_generate_rightscale_params_with_array(self):
         self.maxDiff = None
@@ -192,9 +192,9 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         # Break into chunks of 4 items.
         ret_chunks = list(zip(*[iter(ret)] * 4))
 
-        self.assertItemsEqual(expected_params[0], ret_chunks[0])
-        self.assertItemsEqual(expected_params[1], ret_chunks[1])
-        self.assertItemsEqual(expected_params[2], ret_chunks[2])
+        self.assertCountEqual(expected_params[0], ret_chunks[0])
+        self.assertCountEqual(expected_params[1], ret_chunks[1])
+        self.assertCountEqual(expected_params[2], ret_chunks[2])
 
     def test_generate_rightscale_params_with_pure_array(self):
         params = [
@@ -272,7 +272,7 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         ])
         self.client_mock.delete_resource_tags.assert_has_calls([
             mock.call(mci, ['tag1', 'tag2'])
-        ])
+        ], any_order=True)
 
     @testing.gen_test
     def test_ensure_tags_with_mocked_mci(self):

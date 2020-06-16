@@ -168,11 +168,11 @@ class TestRightScript(testing.AsyncTestCase):
             update.return_value = helper.tornado_value(self.actor.script)
             yield self.actor._update_params()
             self.assertTrue(self.actor.changed)
-            update.assert_has_calls([mock.call(
+            update.assert_has_call(mock.call(
                 self.actor.script,
                 [('right_script[packages]', 'curl'),
                  ('right_script[description]', 'test description'),
-                 ('right_script[name]', 'test-name')])])
+                 ('right_script[name]', 'test-name')]))
 
     @testing.gen_test
     def test_commit(self):

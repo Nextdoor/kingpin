@@ -77,7 +77,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             helper.tornado_value(self.clouda_instance_mock),
         ]
         ret = yield self.actor._get_mci_setting_def(self._images[0])
-        self.assertEqual(ret, self.clouda_href_tuples)
+        self.assertCountEqual(ret, self.clouda_href_tuples)
 
     @testing.gen_test
     def test_get_mci_setting_def_no_user_data(self):
@@ -89,7 +89,7 @@ class TestMCIBaseActor(testing.AsyncTestCase):
             helper.tornado_value(self.cloudb_instance_mock),
         ]
         ret = yield self.actor._get_mci_setting_def(self._images[1])
-        self.assertEqual(ret, self.cloudb_href_tuples)
+        self.assertCountEqual(ret, self.cloudb_href_tuples)
 
     @testing.gen_test
     def test_get_mci_setting_def_exc_in_cloud_call(self):

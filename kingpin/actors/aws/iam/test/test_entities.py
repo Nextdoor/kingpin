@@ -492,7 +492,7 @@ class TestUser(testing.AsyncTestCase):
         self.actor._add_user_to_group.assert_has_calls([
             mock.call('test', 'ng1'),
             mock.call('test', 'ng2')
-        ])
+        ], any_order=True)
         self.assertFalse(self.actor._remove_user_from_group.called)
 
         # Some other error happens? raise it!
