@@ -189,6 +189,7 @@ class TestRightScale(testing.AsyncTestCase):
     @testing.gen_test
     def test_commit_resource(self):
         mock_res = mock.MagicMock(res='MockedResource')
+        mock_res.self.path = "1"
         mock_res_type = mock.MagicMock()
         yield self.client.commit_resource(
             mock_res, mock_res_type, message='test')
