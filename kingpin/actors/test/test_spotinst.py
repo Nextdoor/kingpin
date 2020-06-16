@@ -121,8 +121,8 @@ class TestSpotinstBase(testing.AsyncTestCase):
 
     def test_init_without_account_id(self):
         spotinst.ACCOUNT_ID = None
-        base = spotinst.SpotinstBase('Unit Test Action', {})
-        self.assertEqual(base._client._client._tokens, {})
+        with self.assertRaises(exceptions.InvalidCredentials):
+            spotinst.SpotinstBase('Unit Test Action', {})
 
 class TestElastiGroup(testing.AsyncTestCase):
 

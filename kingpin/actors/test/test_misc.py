@@ -112,7 +112,8 @@ class TestMacro(testing.AsyncTestCase):
         misc.Macro._get_config_from_script.return_value = {}
         misc.Macro._check_schema = mock.Mock()
         with mock.patch('kingpin.actors.utils.get_actor'):
-            with mock.patch.object(httpclient.HTTPClient, 'fetch'):
+            with mock.patch.object(httpclient.HTTPClient, 'fetch') as fetch:
+                fetch.return_value.body = "foo"
                 misc.Macro('Unit Test', {'macro': 'http://test.json',
                                          'tokens': {}})
 

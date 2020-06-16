@@ -107,18 +107,22 @@ class TestApiCallQueue(testing.AsyncTestCase):
 
         @gen.coroutine
         def _call_without_exception():
+            print("_call_without_exception")
             result = yield self.api_call_queue.call(
                 self._mock_api_function_sync, delay=0.05)
             self.assertEqual(result, 'OK')
+            print("_call_without_exception DONE")
             raise gen.Return('no exception')
 
         @gen.coroutine
         def _call_with_exception():
+            print("_call_with_exception")
             with self.assertRaises(ValueError):
                 yield self.api_call_queue.call(
                     self._mock_api_function_sync,
                     exception=ValueError('test exception'),
                     delay=0.05)
+            print("_call_with_exception DONE")
             raise gen.Return('exception')
 
         @gen.coroutine
@@ -128,6 +132,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
             This should take:
                 call delay * 2 + min rate limiting delay * 1
             """
+            print("_call_with_exception_after_boto2_rate_limit")
             with self.assertRaises(boto_exception.BotoServerError):
                 yield self.api_call_queue.call(
                     self._mock_api_function_sync,
@@ -135,6 +140,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
                         self.boto2_throttle_exception_1,
                         self.boto2_exception],
                     delay=0.05)
+            print("_call_with_exception_after_boto2_rate_limit DONE")
             raise gen.Return('exception')
 
         @gen.coroutine
@@ -144,6 +150,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
             This should take:
                 call delay * 2 + min rate limiting delay * 1
             """
+            print("_call_with_exception_after_boto3_rate_limit")
             with self.assertRaises(botocore_exceptions.ClientError):
                 yield self.api_call_queue.call(
                     self._mock_api_function_sync,
@@ -151,6 +158,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
                         self.boto3_throttle_exception,
                         self.boto3_exception],
                     delay=0.05)
+            print("_call_with_exception_after_boto3_rate_limit DONE")
             raise gen.Return('exception')
 
         call_wrappers = [

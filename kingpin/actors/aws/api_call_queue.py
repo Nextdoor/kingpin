@@ -68,7 +68,9 @@ class ApiCallQueue:
         """
         result_queue = queues.Queue(maxsize=1)
         yield self._queue.put((result_queue, api_function, args, kwargs))
+
         result = yield result_queue.get()
+
         if isinstance(result, Exception):
             raise result
         raise gen.Return(result)
