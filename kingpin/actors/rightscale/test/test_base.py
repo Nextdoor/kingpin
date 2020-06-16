@@ -270,9 +270,9 @@ class TestRightScaleBaseActor(testing.AsyncTestCase):
         self.client_mock.add_resource_tags.assert_has_calls([
             mock.call(mci, ['tag'])
         ])
-        self.client_mock.delete_resource_tags.assert_has_calls([
+        self.client_mock.delete_resource_tags.assert_has_call([
             mock.call(mci, ['tag1', 'tag2'])
-        ], any_order=True)
+        ])
 
     @testing.gen_test
     def test_ensure_tags_with_mocked_mci(self):

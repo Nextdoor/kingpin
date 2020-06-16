@@ -541,23 +541,18 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
                      if href not in list(self.desired_images.keys())]
 
         tasks = []
-        try:
-            for href in to_add:
-                tasks.append(self._create_mci_reference(href))
-            yield tasks
-        except StopIteration:
-            pass
+        for href in to_add:
+            tasks.append(self._create_mci_reference(href))
+        yield tasks
 
         yield self._ensure_mci_default()
 
         tasks = []
-        try:
-            for href in to_delete:
-                tasks.append(self._delete_mci_reference(
-                    self.images[href]['map_obj']))
-            yield tasks
-        except StopIteration:
-            pass
+        for href in to_delete:
+            tasks.append(self._delete_mci_reference(
+                self.images[href]['map_obj']))
+        yield tasks
+
     @gen.coroutine
     def _set_operational_bindings(self):
         yield self._set_bindings(
