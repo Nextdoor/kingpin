@@ -94,7 +94,7 @@ class TestSpotinstException(testing.AsyncTestCase):
         fake_exc = spotinst.SpotinstException(source_exc)
         self.assertEqual(
             ('Spotinst Request ID (fake_id) GET /fake: '
-             '{u\'something\': u\'else\'}'),
+             '{\'something\': \'else\'}'),
             str(fake_exc))
 
 

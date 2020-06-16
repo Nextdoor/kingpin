@@ -411,9 +411,12 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         revision = image.get('revision', 0)
         default = image.get('is_default', False)
 
-        mci = yield self._client.find_by_name_and_keys(
-            collection=self._client._client.multi_cloud_images,
-            name=name, revision=revision)
+        try:
+            mci = yield self._client.find_by_name_and_keys(
+                collection=self._client._client.multi_cloud_images,
+                name=name, revision=revision)
+        except StopIteration:
+            return
 
         if not mci:
             raise exceptions.InvalidOptions(
@@ -429,9 +432,12 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         if not self.st.href:
             raise gen.Return()
 
-        raw = yield self._client.find_by_name_and_keys(
-            collection=self._client._client.server_template_multi_cloud_images,
-            server_template_href=self.st.href)
+        try:
+            raw = yield self._client.find_by_name_and_keys(
+                collection=self._client._client.server_template_multi_cloud_images,
+                server_template_href=self.st.href)
+        except StopIteration:
+            return
         if not isinstance(raw, list):
             raw = [raw]
 
@@ -535,18 +541,23 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
                      if href not in list(self.desired_images.keys())]
 
         tasks = []
-        for href in to_add:
-            tasks.append(self._create_mci_reference(href))
-        yield tasks
+        try:
+            for href in to_add:
+                tasks.append(self._create_mci_reference(href))
+            yield tasks
+        except StopIteration:
+            pass
 
         yield self._ensure_mci_default()
 
         tasks = []
-        for href in to_delete:
-            tasks.append(self._delete_mci_reference(
-                self.images[href]['map_obj']))
-        yield tasks
-
+        try:
+            for href in to_delete:
+                tasks.append(self._delete_mci_reference(
+                    self.images[href]['map_obj']))
+            yield tasks
+        except StopIteration:
+            pass
     @gen.coroutine
     def _set_operational_bindings(self):
         yield self._set_bindings(
@@ -628,10 +639,13 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
             self.log.debug('Searching for %s (rev: %s)' %
                            (config['right_script'], config.get('rev')))
 
-            raw = yield self._client.find_by_name_and_keys(
-                collection=self._client._client.right_scripts,
-                exact=True,
-                name=config['right_script'])
+            try:
+                raw = yield self._client.find_by_name_and_keys(
+                    collection=self._client._client.right_scripts,
+                    exact=True,
+                    name=config['right_script'])
+            except StopIteration:
+                continue
 
             # If we got nothing back (empty list, or None), throw an exception
             if raw is None or not raw:
@@ -697,15 +711,18 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
 
         for binding in params_to_add:
             self.log.info('Adding binding %s' % binding['right_script_href'])
-            yield self._client.create_resource(
-                self.st.runnable_bindings,
-                self._generate_rightscale_params(
-                    prefix='runnable_binding',
-                    params={
-                        'right_script_href': binding['right_script_href'],
-                        'sequence': binding['sequence']
-                    }))
-            self.changed = True
+            try:
+                yield self._client.create_resource(
+                    self.st.runnable_bindings,
+                    self._generate_rightscale_params(
+                        prefix='runnable_binding',
+                        params={
+                            'right_script_href': binding['right_script_href'],
+                            'sequence': binding['sequence']
+                        }))
+                self.changed = True
+            except StopIteration:
+                pass
 
     @gen.coroutine
     @dry('Would have added MCI Mapping -> {0}')
@@ -719,10 +736,13 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         )
 
         self.log.info('Adding MCI %s to ServerTemplate' % href)
-        yield self._client.create_resource(
-            self._client._client.server_template_multi_cloud_images,
-            definition)
-        self.changed = True
+        try:
+            yield self._client.create_resource(
+                self._client._client.server_template_multi_cloud_images,
+                definition)
+            self.changed = True
+        except StopIteration:
+            pass
 
     @gen.coroutine
     @dry('Would have deleted MCI reference {0.links[multi_cloud_image]}')

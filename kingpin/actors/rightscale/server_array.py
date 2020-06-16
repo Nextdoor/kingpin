@@ -1352,7 +1352,7 @@ class Execute(ServerArrayBaseActor):
                 instance=i,
                 sleep=self.option('expected_runtime')))
 
-            running_tasks = len([t for t in tasks if t.running()])
+            running_tasks = len([t for t in tasks if not t.done()])
             if running_tasks < self.option('concurrency'):
                 # We can queue more tasks, continue the loop to add one more.
                 continue
@@ -1360,7 +1360,7 @@ class Execute(ServerArrayBaseActor):
             self.log.debug('Concurrency saturated. Waiting...')
             while running_tasks >= self.option('concurrency'):
                 yield gen.moment
-                running_tasks = len([t for t in tasks if t.running()])
+                running_tasks = len([t for t in tasks if not t.done()])
 
             self.log.debug('Concurrency desaturated: %s<%s. Continuing.' % (
                 running_tasks, self.option('concurrency')))

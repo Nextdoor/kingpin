@@ -183,7 +183,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         self.actor._delete_entity_policy.assert_has_calls([
             mock.call('test', 'Policy1'),
             mock.call('test', 'Policy2'),
-        ])
+        ], any_order=True)
 
     @testing.gen_test
     def test_ensure_inline_policies_updated(self):
@@ -469,7 +469,9 @@ class TestUser(testing.AsyncTestCase):
             mock.call('test', 'ng1')])
         self.actor._remove_user_from_group.assert_has_calls([
             mock.call('test', 'test-group-1'),
-            mock.call('test', 'test-group-2')])
+            mock.call('test', 'test-group-2')],
+            any_order=True
+        )
         self.actor._add_user_to_group.reset_mock()
         self.actor._remove_user_from_group.reset_mock()
 
@@ -490,7 +492,7 @@ class TestUser(testing.AsyncTestCase):
         self.actor._add_user_to_group.assert_has_calls([
             mock.call('test', 'ng1'),
             mock.call('test', 'ng2')
-        ])
+        ], any_order=True)
         self.assertFalse(self.actor._remove_user_from_group.called)
 
         # Some other error happens? raise it!
