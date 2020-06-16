@@ -5,6 +5,7 @@ python:
 before_install:
   - sudo rm -f /etc/boto.cfg
 install:
+  - make venv
   - make build
 script: make test
 sudo: false
