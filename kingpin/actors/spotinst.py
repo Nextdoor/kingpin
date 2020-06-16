@@ -47,6 +47,8 @@ import json
 from tornado import gen
 from tornado import httpclient
 
+from tornado_rest_client import api
+
 from kingpin import utils
 from kingpin import exceptions as kingpin_exceptions
 from kingpin.actors import base
@@ -54,7 +56,7 @@ from kingpin.actors import exceptions
 from kingpin.actors.utils import dry
 from kingpin.constants import REQUIRED
 from kingpin.constants import SchemaCompareBase
-from kingpin.actors.support import api
+
 
 log = logging.getLogger(__name__)
 

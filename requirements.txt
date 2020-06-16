@@ -20,6 +20,9 @@ PyYAML
 # Colorize the log output!
 rainbow_logging_handler
 
+# tornado rest client
+tornado_rest_client @ https://github.com/Nextdoor/tornado_rest_client/tarball/python3#egg=tornado-rest-client-0.2
+
 # Used for retrying non-asynchronous methods
 retrying
 

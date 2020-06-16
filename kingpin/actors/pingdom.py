@@ -38,10 +38,11 @@ import os
 from tornado import gen
 from tornado import httpclient
 
+from tornado_rest_client import api
+
 from kingpin.constants import REQUIRED
 from kingpin.actors import base
 from kingpin.actors import exceptions
-from kingpin.actors.support import api
 
 log = logging.getLogger(__name__)
 
