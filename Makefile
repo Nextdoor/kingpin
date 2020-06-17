@@ -1,3 +1,4 @@
+HERE = $(shell pwd)
 BIN = $(HERE)/bin
 
 BUILD_DIRS = bin .build build include lib lib64 man share package *.egg
@@ -24,15 +25,15 @@ test: build docs
 	python3 setup.py test pep8 pyflakes
 	# A few simple dry-tests of yaml and json scripts to make sure that the
 	# full commandline actually works.
-	python3 kingpin/bin/deploy.py --dry --script examples/test/sleep.json
-	python3 kingpin/bin/deploy.py --dry --script examples/test/sleep.yaml
+	PYTHONPATH=$(HERE) python kingpin/bin/deploy.py --dry --script examples/test/sleep.json
+	PYTHONPATH=$(HERE) python kingpin/bin/deploy.py --dry --script examples/test/sleep.yaml
 
 integration: build
 	INTEGRATION_TESTS=$(INTEGRATION_TESTS) PYFLAKES_NODOCTEST=True \
 		python3 setup.py integration pep8 pyflakes
 
 pack: kingpin.zip
-	@python3 kingpin.zip --help 2>&1 >/dev/null && echo Success || echo Fail
+	python kingpin.zip --help 2>&1 >/dev/null && echo Success || echo Fail
 
 kingpin.zip:
 	rm -rf zip
