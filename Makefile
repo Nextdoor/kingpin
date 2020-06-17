@@ -44,5 +44,5 @@ kingpin.zip:
 	cd zip; zip -9mrv ../kingpin.zip .
 	rm -rf zip
 
-docs: venv
+docs:
 	$(MAKE) -C docs html
