@@ -12,8 +12,12 @@ INTEGRATION_TESTS ?= aws,rightscale,http,rollbar,slack,spotinst
 export URLLIB_DEBUG=true
 
 all: build
+build: .build
 
-build:
+.build: requirements.test.txt
+	pip install -r requirements.test.txt
+	pip install -r requirements.txt
+	touch .build
 
 clean:
 	find . -type f -name '*.pyc' -exec rm "{}" \;
