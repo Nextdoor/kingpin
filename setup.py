@@ -170,6 +170,7 @@ setup(
     packages=find_packages(),
     test_suite='nose.collector',
     tests_require=read_requirements('%s/requirements.test.txt' % DIR),
+    python_requires='~=3.7',
     setup_requires=[],
     install_requires=read_requirements('%s/requirements.txt' % DIR),
     entry_points={
