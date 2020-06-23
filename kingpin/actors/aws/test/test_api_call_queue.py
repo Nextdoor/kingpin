@@ -167,11 +167,11 @@ class TestApiCallQueue(testing.AsyncTestCase):
             _call_without_exception(),
             # Should take 0.05s.
             _call_with_exception(),
-            # # Should take 0.05s.
+            # Should take 0.05s.
             _call_without_exception(),
-            # # Should take 0.05s + 0.05s + 0.05s.
+            # Should take 0.05s + 0.05s + 0.05s.
             _call_with_exception_after_boto2_rate_limit(),
-            # # Should take 0.05s + 0.05s + 0.05s.
+            # Should take 0.05s + 0.05s + 0.05s.
             _call_with_exception_after_boto3_rate_limit(),
         ]
 
