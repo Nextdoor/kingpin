@@ -9,6 +9,7 @@ from tornado import testing
 from kingpin import utils
 from kingpin.actors.aws import settings
 from kingpin.actors.aws import sqs
+import importlib
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
@@ -53,7 +54,7 @@ class IntegrationSQS(testing.AsyncTestCase):
              'region': self.region},
             dry=True)
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
@@ -63,7 +64,7 @@ class IntegrationSQS(testing.AsyncTestCase):
             {'name': self.queue_name,
              'region': self.region})
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration', 'dry')
     @testing.gen_test(timeout=60)
@@ -73,7 +74,7 @@ class IntegrationSQS(testing.AsyncTestCase):
                                     'region': self.region},
                                    dry=True)
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
@@ -85,11 +86,11 @@ class IntegrationSQS(testing.AsyncTestCase):
 
         log.debug('New queue should be empty')
         queue = actor.sqs_conn.get_queue(self.queue_name)
-        self.assertEquals(queue.count(), 0)
+        self.assertEqual(queue.count(), 0)
 
         done = yield actor.execute()
         yield utils.tornado_sleep()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration', 'dry')
     @testing.gen_test()
@@ -101,7 +102,7 @@ class IntegrationSQS(testing.AsyncTestCase):
                            dry=True)
 
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=120)  # Delete actor sleeps and retries.
@@ -111,13 +112,13 @@ class IntegrationSQS(testing.AsyncTestCase):
                             'region': self.region})
 
         done = yield actor.execute()
-        self.assertEquals(done, None)
+        self.assertEqual(done, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=120)  # Delete actor sleeps and retries.
     def integration_03c_delete_fake_queue(self):
         settings.SQS_RETRY_DELAY = 0
-        reload(sqs)
+        importlib.reload(sqs)
         actor = sqs.Delete('Delete %s' % self.queue_name,
                            {'name': 'totally-fake-queue',
                             'region': self.region})

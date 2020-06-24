@@ -46,6 +46,7 @@ import json
 
 from tornado import gen
 from tornado import httpclient
+
 from tornado_rest_client import api
 
 from kingpin import utils
@@ -55,6 +56,7 @@ from kingpin.actors import exceptions
 from kingpin.actors.utils import dry
 from kingpin.constants import REQUIRED
 from kingpin.constants import SchemaCompareBase
+
 
 log = logging.getLogger(__name__)
 
@@ -506,7 +508,7 @@ class ElastiGroup(SpotinstBase):
         # fails, we assume its raw text and we encode it.
         orig_data = (parsed['group']['compute']
                      ['launchSpecification']['userData'])
-        new = base64.b64encode(orig_data)
+        new = base64.b64encode(orig_data.encode("utf-8"))
         parsed['group']['compute']['launchSpecification']['userData'] = new
 
         # Ensure that the name of the ElastiGroup in the config file matches

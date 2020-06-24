@@ -7,6 +7,7 @@ from tornado import testing
 from kingpin import version
 from kingpin.actors import rollbar
 from kingpin.actors import exceptions
+import importlib
 
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
@@ -38,7 +39,7 @@ class IntegrationRollbarDeploy(testing.AsyncTestCase):
                  'comment': 'Integration Tests Are Good, MmmKay'})
 
         # Reload the rollbar package so it gets our environment variable back.
-        reload(rollbar)
+        importlib.reload(rollbar)
 
     @attr('rollbar', 'integration', 'dry')
     @testing.gen_test(timeout=60)
@@ -65,7 +66,7 @@ class IntegrationRollbarDeploy(testing.AsyncTestCase):
              'local_username': 'Kingpin Integration Testing',
              'comment': 'This should never appear in Rollbar'}, dry=True)
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)
 
     @attr('rollbar', 'integration')
     @testing.gen_test(timeout=60)
@@ -78,7 +79,7 @@ class IntegrationRollbarDeploy(testing.AsyncTestCase):
              'comment': 'Integration Tests Are Good, MmmKay'})
 
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)
 
     @attr('rollbar', 'integration')
     @testing.gen_test(timeout=60)
@@ -92,4 +93,4 @@ class IntegrationRollbarDeploy(testing.AsyncTestCase):
              'comment': 'Now, with a rollbar_username too!'})
 
         res = yield actor.execute()
-        self.assertEquals(res, None)
+        self.assertEqual(res, None)

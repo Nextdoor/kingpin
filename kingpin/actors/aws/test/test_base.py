@@ -10,6 +10,7 @@ import mock
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
 from kingpin.actors.aws import settings
+import importlib
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ class TestBase(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(base)
+        importlib.reload(base)
 
     @mock.patch('boto.iam.connection.IAMConnection')
     def test_missing_auth(self, mock_iam):
@@ -68,7 +69,7 @@ class TestBase(testing.AsyncTestCase):
     def test_zone_check(self):
         actor = base.AWSBaseActor('Unit Test Action',
                                   {'region': 'us-west-1d'})
-        self.assertEquals(actor.ec2_conn.region.name, 'us-west-1')
+        self.assertEqual(actor.ec2_conn.region.name, 'us-west-1')
 
     @testing.gen_test
     def test_api_call_400(self):
@@ -126,8 +127,8 @@ class TestBase(testing.AsyncTestCase):
 
         elb = yield actor._find_elb('')
 
-        self.assertEquals(elb, 'test')
-        self.assertEquals(actor.elb_conn.get_all_load_balancers.call_count, 1)
+        self.assertEqual(elb, 'test')
+        self.assertEqual(actor.elb_conn.get_all_load_balancers.call_count, 1)
 
         actor.elb_conn.get_all_load_balancers.assert_called_with(
             load_balancer_names='')
@@ -168,7 +169,7 @@ class TestBase(testing.AsyncTestCase):
         actor.elbv2_conn = c_mock
 
         target = yield actor._find_target_group('123')
-        self.assertEquals(
+        self.assertEqual(
             target,
             'arn:aws:elb:us-east-1:123:targetgroup/unittest/123')
         c_mock.describe_target_groups.assert_called_with(
@@ -209,7 +210,7 @@ class TestBase(testing.AsyncTestCase):
             md.return_value = {'ut-key': 'ut-value'}
             meta = yield actor._get_meta_data('ut-key')
 
-        self.assertEquals(meta, 'ut-value')
+        self.assertEqual(meta, 'ut-value')
 
     @testing.gen_test
     def test_get_meta_data_error(self):
@@ -237,17 +238,17 @@ class TestBase(testing.AsyncTestCase):
             '%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%22%5D%2C%20',
             '%22Effect%22%3A%20%22Allow%22%7D%5D%7D'])
         policy_dict = {
-            u'Version': u'2012-10-17',
-            u'Statement': [
-                {u'Action': [
-                    u's3:Create*',
-                    u's3:Get*',
-                    u's3:Put*',
-                    u's3:List*'],
-                 u'Resource': [
-                    u'arn:aws:s3:::kingpin*/*',
-                    u'arn:aws:s3:::kingpin*'],
-                 u'Effect': u'Allow'}]}
+            'Version': '2012-10-17',
+            'Statement': [
+                {'Action': [
+                    's3:Create*',
+                    's3:Get*',
+                    's3:Put*',
+                    's3:List*'],
+                 'Resource': [
+                    'arn:aws:s3:::kingpin*/*',
+                    'arn:aws:s3:::kingpin*'],
+                 'Effect': 'Allow'}]}
 
         actor = base.AWSBaseActor('Unit Test Action', {})
         ret = actor._policy_doc_to_dict(policy_str)
@@ -259,7 +260,7 @@ class TestBase(testing.AsyncTestCase):
 
         # Should work fine by default with good data
         ret = actor._parse_policy_json('examples/aws.iam.user/s3_example.json')
-        self.assertEquals(ret['Version'], '2012-10-17')
+        self.assertEqual(ret['Version'], '2012-10-17')
 
         # If the file doesn't exist, raise an exception
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
@@ -269,4 +270,4 @@ class TestBase(testing.AsyncTestCase):
     def test_parse_policy_json_none(self):
         actor = base.AWSBaseActor('Unit Test Action', {})
         ret = actor._parse_policy_json(None)
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)

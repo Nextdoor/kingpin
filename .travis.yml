@@ -1,14 +1,18 @@
 language: python
 python:
-  - "2.7"
+  - "3.7"
+env:
+  global:
+    # pypi api token split in 2 because of travisci issue https://travis-ci.community/t/travis-encrypt-data-too-large-for-pypi-tokens-with-older-repos/5792/5
+    - secure: "gZ9TDdXbvpw+84CC1Hx4nS44XpDqlao6E1fw44g4DIAKtFwdBd/eDntexWjPCP7X1qVuY3ssswKTVV2gAKUzDPROhZUVTv6L6nrNruKn75MXKNyb4XTf6fatfUptWRA9kVu/mFi8M6Ptp1ySULvEmI0bUSuGZ9AuQISwjfhTqPA="
+    - secure: "dpoI6IGPp78nrvuZpgvqkt+PbVIPKb5QrnR+XGOXKRHYpSwNb6DOeZ55tzNZ16e3T/3LVTFZ+VZsn8iv26uUYGBQctP5HBh4zzO8qOuZKgqkN2tmxCifcUxgcWh+Prjj71Toj/+gUdy8ph7zEcLfj3Q2bRTdCfuM56/MoI6Y/5E="
 # https://github.com/travis-ci/travis-ci/issues/7940#issuecomment-310759657
 before_install:
   - sudo rm -f /etc/boto.cfg
 install:
+  - pip install pip --upgrade
   - make build
-  - python setup.py install
 script: make test
-sudo: false
 before_deploy:
   - make kingpin.zip
 deploy:
@@ -17,20 +21,19 @@ deploy:
       secure: "TMRRd3PeZIRf4wvD2Bh+ykvvBVIztE6M6JE89WBb/CbaIbdUqoDoldYjybYbbXDPPPs+ybVOYZTwMylx6TDy40WsYlzlaabnbTZedvUWDC3GcqD3E4I5XMBVBColP1cKZqHYaa/p23V9QfJFoXCJzGJ5VWOXclj0A0NEvb+oUpU="
     file: kingpin.zip
     overwrite: true
-    skip_cleanup: true
+    cleanup: false
     on:
       tags: true
-      python: '2.7'
+      python: '3.7'
       all_branches: true
       condition: $TRAVIS_TAG =~ ^(v[0-9]+.[0-9]+.[0-9]+[a-z]?)|pre_release$
       repo: Nextdoor/kingpin
   - provider: pypi
-    user: nextdoor
-    password:
-      secure: "Xi9h1g1AECHV8dzV+Pz0JnD46lFCYkIaX3IYnWjrknbX8KAbcUxvcRmx1NfTxNTI7/jm4Sl0UakEmvG9GFleldLp0vXrxEIqyuZtT3bNlD6xD6SVt4XXZ6lIGFuzVfMhE2FJSkPlqSjKOzEzGSIUwmO3D7ZSqLl7LYBYQKwNslM="
+    user: __token__
+    password: $TOKEN_1$TOKEN_2
     on:
       tags: true
-      python: '2.7'
+      python: '3.7'
       all_branches: true
       condition: $TRAVIS_TAG =~ ^v[0-9]+.[0-9]+.[0-9]+[a-z]?$
       repo: Nextdoor/kingpin

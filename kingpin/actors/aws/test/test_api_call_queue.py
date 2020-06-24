@@ -114,11 +114,14 @@ class TestApiCallQueue(testing.AsyncTestCase):
 
         @gen.coroutine
         def _call_with_exception():
-            with self.assertRaises(ValueError):
+            err = ValueError('test exception')
+            try:
                 yield self.api_call_queue.call(
                     self._mock_api_function_sync,
-                    exception=ValueError('test exception'),
+                    exception=err,
                     delay=0.05)
+            except Exception as e:
+                self.assertEqual(err, e)
             raise gen.Return('exception')
 
         @gen.coroutine
@@ -128,13 +131,16 @@ class TestApiCallQueue(testing.AsyncTestCase):
             This should take:
                 call delay * 2 + min rate limiting delay * 1
             """
-            with self.assertRaises(boto_exception.BotoServerError):
+            try:
                 yield self.api_call_queue.call(
                     self._mock_api_function_sync,
                     exception=[
                         self.boto2_throttle_exception_1,
                         self.boto2_exception],
                     delay=0.05)
+            except Exception as e:
+                self.assertEqual(self.boto2_exception, e)
+
             raise gen.Return('exception')
 
         @gen.coroutine
@@ -144,13 +150,16 @@ class TestApiCallQueue(testing.AsyncTestCase):
             This should take:
                 call delay * 2 + min rate limiting delay * 1
             """
-            with self.assertRaises(botocore_exceptions.ClientError):
+            try:
                 yield self.api_call_queue.call(
                     self._mock_api_function_sync,
                     exception=[
                         self.boto3_throttle_exception,
                         self.boto3_exception],
                     delay=0.05)
+            except Exception as e:
+                self.assertEqual(self.boto3_exception, e)
+
             raise gen.Return('exception')
 
         call_wrappers = [
@@ -167,7 +176,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
         ]
 
         start = time.time()
-        results = yield gen.multi(call_wrappers)
+        results = yield gen.multi_future(call_wrappers)
         stop = time.time()
         run_time = stop - start
 

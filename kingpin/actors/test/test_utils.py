@@ -42,18 +42,18 @@ class TestUtils(testing.AsyncTestCase):
             'actor': 'kingpin.actors.test.test_utils.FakeActor',
             'options': {'return_value': True}}
         ret = utils.get_actor(actor_return_true, dry=True)
-        self.assertEquals(True, ret._options['return_value'])
-        self.assertEquals(FakeActor, type(ret))
+        self.assertEqual(True, ret._options['return_value'])
+        self.assertEqual(FakeActor, type(ret))
 
     def test_get_actor_class(self):
         actor_string = 'misc.Sleep'
         ret = utils.get_actor_class(actor_string)
-        self.assertEquals(type(misc.Sleep), type(ret))
+        self.assertEqual(type(misc.Sleep), type(ret))
 
     def test_get_actor_class_direct(self):
         actor_string = 'kingpin.actors.test.test_utils.FakeActor'
         ret = utils.get_actor_class(actor_string)
-        self.assertEquals(type(FakeActor), type(ret))
+        self.assertEqual(type(FakeActor), type(ret))
 
     def test_get_actor_class_bogus_actor(self):
         actor_string = 'bogus.actor'

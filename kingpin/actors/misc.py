@@ -27,10 +27,12 @@ dedicated packages. Things like sleep timers, loggers, etc.
   headers/cookies/etc. are exposed*
 """
 
-import StringIO
+import io
 import json
 import logging
-import urllib
+import urllib.request
+import urllib.parse
+import urllib.error
 
 from tornado import gen
 from tornado import httpclient
@@ -212,7 +214,7 @@ class Macro(base.BaseActor):
                 raise exceptions.UnrecoverableActorFailure(e)
             finally:
                 client.close()
-            buf = StringIO.StringIO()
+            buf = io.StringIO()
             # Set buffer representation for debug printing.
             buf.__repr__ = lambda: (
                 'In-memory file from: %s' % self.option('macro'))
@@ -314,7 +316,7 @@ class Sleep(base.BaseActor):
 
         sleep = self.option('sleep')
 
-        if isinstance(sleep, basestring):
+        if isinstance(sleep, str):
             sleep = float(sleep)
 
         if not self._dry:
@@ -394,7 +396,7 @@ class GenericHTTP(base.HTTPBaseActor):
             datajson = json.dumps(self.option('data-json'))
 
         escaped_post = (
-            urllib.urlencode(self.option('data')) or
+            urllib.parse.urlencode(self.option('data')) or
             datajson or None)
 
         try:

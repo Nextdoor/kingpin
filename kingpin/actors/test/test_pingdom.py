@@ -30,7 +30,7 @@ class TestPingdomBase(testing.AsyncTestCase):
 
         check = yield actor._get_check()
 
-        self.assertEquals(check['name'], 'lollipop')
+        self.assertEqual(check['name'], 'lollipop')
 
     @testing.gen_test
     def test_check_name_fail(self):
@@ -64,7 +64,7 @@ class TestPause(testing.AsyncTestCase):
 
         yield actor._execute()
 
-        self.assertEquals(actor._get_check._call_count, 1)
+        self.assertEqual(actor._get_check._call_count, 1)
         actor._pingdom_client.check.assert_called_with(check_id='lol')
         actor._pingdom_client.check().http_put.assert_called_with(
             paused='true')
@@ -81,7 +81,7 @@ class TestPause(testing.AsyncTestCase):
 
         yield actor._execute()
 
-        self.assertEquals(actor._get_check._call_count, 1)
+        self.assertEqual(actor._get_check._call_count, 1)
         actor._pingdom_client.check().http_put.assert_not_called()
 
 
@@ -105,7 +105,7 @@ class TestUnpause(testing.AsyncTestCase):
 
         yield actor._execute()
 
-        self.assertEquals(actor._get_check._call_count, 1)
+        self.assertEqual(actor._get_check._call_count, 1)
         actor._pingdom_client.check.assert_called_with(check_id='lol')
         actor._pingdom_client.check().http_put.assert_called_with(
             paused='false')
@@ -122,5 +122,5 @@ class TestUnpause(testing.AsyncTestCase):
 
         yield actor._execute()
 
-        self.assertEquals(actor._get_check._call_count, 1)
+        self.assertEqual(actor._get_check._call_count, 1)
         actor._pingdom_client.check().http_put.assert_not_called()

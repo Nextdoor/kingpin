@@ -612,7 +612,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         elif isinstance(data, dict):
             return dict(
                 (camelize(k), self._snake_to_camel(v)) for k, v
-                in data.iteritems())
+                in data.items())
         else:
             return data
 
@@ -739,7 +739,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             yield self.api_call(self.s3_conn.delete_bucket, Bucket=bucket)
         except ClientError as e:
             raise exceptions.RecoverableActorFailure(
-                'Cannot delete bucket: %s' % e.message)
+                'Cannot delete bucket: %s' % str(e))
 
     @gen.coroutine
     def _get_policy(self):
@@ -752,7 +752,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 Bucket=self.option('name'))
             exist = json.loads(raw['Policy'])
         except ClientError as e:
-            if 'NoSuchBucketPolicy' in e.message:
+            if 'NoSuchBucketPolicy' in str(e):
                 raise gen.Return('')
             raise
 
@@ -800,8 +800,8 @@ class Bucket(base.EnsurableAWSBaseActor):
                 Bucket=self.option('name'),
                 Policy=json.dumps(self.policy))
         except ClientError as e:
-            if 'MalformedPolicy' in e.message:
-                raise base.InvalidPolicy(e.message)
+            if 'MalformedPolicy' in str(e):
+                raise base.InvalidPolicy(str(e))
 
             raise exceptions.RecoverableActorFailure(
                 'An unexpected error occurred: %s' % e)
@@ -887,7 +887,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                     }
                 })
         except ClientError as e:
-            raise InvalidBucketConfig(e.message)
+            raise InvalidBucketConfig(str(e))
 
     @gen.coroutine
     def _get_versioning(self):
@@ -936,7 +936,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 self.s3_conn.get_bucket_lifecycle_configuration,
                 Bucket=self.option('name'))
         except ClientError as e:
-            if 'NoSuchLifecycleConfiguration' in e.message:
+            if 'NoSuchLifecycleConfiguration' in str(e):
                 raise gen.Return([])
             raise
 
@@ -995,7 +995,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 LifecycleConfiguration={'Rules': self.lifecycle})
         except (ParamValidationError, ClientError) as e:
             raise InvalidBucketConfig('Invalid Lifecycle Configuration: %s'
-                                      % e.message)
+                                      % str(e))
 
     @gen.coroutine
     def _get_public_access_block_configuration(self):
@@ -1007,7 +1007,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 self.s3_conn.get_public_access_block,
                 Bucket=self.option('name'))
         except ClientError as e:
-            if 'NoSuchPublicAccessBlockConfiguration' in e.message:
+            if 'NoSuchPublicAccessBlockConfiguration' in str(e):
                 raise gen.Return([])
             raise
 
@@ -1044,7 +1044,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 PublicAccessBlockConfiguration=self.access_block)
         except (ParamValidationError, ClientError) as e:
             raise InvalidBucketConfig(
-                'Invalid Public Access Block Config: %s' % e.message)
+                'Invalid Public Access Block Config: %s' % str(e))
 
     @gen.coroutine
     def _compare_public_access_block_configuration(self):
@@ -1084,7 +1084,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 self.s3_conn.get_bucket_tagging,
                 Bucket=self.option('name'))
         except ClientError as e:
-            if 'NoSuchTagSet' in e.message:
+            if 'NoSuchTagSet' in str(e):
                 raise gen.Return([])
             raise
 
@@ -1093,7 +1093,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         # returning them so that they are compared properly.
         tagset = []
         for tag in raw['TagSet']:
-            tag = {k.lower(): v for k, v in tag.items()}
+            tag = {k.lower(): v for k, v in list(tag.items())}
             tagset.append(tag)
 
         raise gen.Return(tagset)

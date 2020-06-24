@@ -149,16 +149,17 @@ class BaseGroupActor(base.BaseActor):
         # with contexts in it. We read that file, and we parse it for any
         # missing tokens. We use the "init tokens" that made it into this actor
         # as available token substitutions.
-        elif isinstance(contexts, basestring):
+        elif isinstance(contexts, str):
             context_data = kp_utils.convert_script_to_dict(
                 contexts, self._init_tokens)
 
         actions = []
         for context in context_data:
-            combined_context = dict(self._init_context.items() +
-                                    context.items())
-            self.log.debug('Inherited context %s' % self._init_context.items())
-            self.log.debug('Specified context %s' % context.items())
+            combined_context = dict(list(self._init_context.items()) +
+                                    list(context.items()))
+            self.log.debug('Inherited context %s' %
+                           list(self._init_context.items()))
+            self.log.debug('Specified context %s' % list(context.items()))
             self.log.debug('Building acts with parameters: %s' %
                            combined_context)
             for action in self._build_action_group(context=combined_context):
@@ -468,7 +469,7 @@ class Async(BaseGroupActor):
                 # No concurrency limit - continue the loop without checks.
                 continue
 
-            running_tasks = len([t for t in tasks if t.running()])
+            running_tasks = len([t for t in tasks if not t.done()])
 
             if running_tasks < self.option('concurrency'):
                 # We can queue more tasks, continue the loop to add one more.
@@ -477,7 +478,7 @@ class Async(BaseGroupActor):
             self.log.debug('Concurrency saturated. Waiting...')
             while running_tasks >= self.option('concurrency'):
                 yield gen.moment
-                running_tasks = len([t for t in tasks if t.running()])
+                running_tasks = len([t for t in tasks if not t.done()])
 
             self.log.debug('Concurrency desaturated: %s<%s. Continuing.' % (
                 running_tasks, self.option('concurrency')))

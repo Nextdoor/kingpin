@@ -150,7 +150,7 @@ class EntityBaseActor(base.IAMBaseActor):
 
         # If a single policy was supplied (ie, maybe on a command line) then
         # turn it into a list.
-        if isinstance(policies, basestring):
+        if isinstance(policies, str):
             policies = [policies]
 
         # Run through any supplied Inline IAM Policies and verify that they're
@@ -594,7 +594,7 @@ class User(EntityBaseActor):
             name: The user we're managing
             groups: The list (or single) of groups to join be members of
         """
-        if isinstance(groups, basestring):
+        if isinstance(groups, str):
             groups = [groups]
 
         current_groups = set()
@@ -614,14 +614,19 @@ class User(EntityBaseActor):
 
         # Find any groups that we're not already a member of, and add us
         tasks = []
-        for new_group in set(groups) - current_groups:
-            tasks.append(self._add_user_to_group(name, new_group))
+        try:
+            for new_group in set(groups) - current_groups:
+                tasks.append(self._add_user_to_group(name, new_group))
+        except StopIteration:
+            pass
+
         yield tasks
 
         # Find any group memberships we didn't know about, and purge them
         tasks = []
         for bad_group in current_groups - set(groups):
             tasks.append(self._remove_user_from_group(name, bad_group))
+
         yield tasks
 
     @gen.coroutine
@@ -1075,7 +1080,10 @@ class InstanceProfile(EntityBaseActor):
         if not existing and not role:
             raise gen.Return()
         elif existing and not role:
-            yield self._remove_role(name, existing)
+            try:
+                yield self._remove_role(name, existing)
+            except StopIteration:
+                return
         elif not existing and role:
             yield self._add_role(name, role)
         elif existing != role:

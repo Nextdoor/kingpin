@@ -9,6 +9,7 @@ from kingpin.actors import exceptions
 from kingpin.actors.aws import settings
 from kingpin.actors.aws import sqs
 from kingpin.actors.test.helper import mock_tornado
+import importlib
 
 log = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class SQSTestCase(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
-        reload(sqs)
+        importlib.reload(sqs)
 
     @mock.patch.object(boto.sqs.connection, 'SQSConnection')
     def run(self, result, sqsc):
@@ -47,7 +48,7 @@ class TestSQSBaseActor(SQSTestCase):
 
         results = yield actor._fetch_queues('match')
 
-        self.assertEquals(results, [all_queues[2], all_queues[3]])
+        self.assertEqual(results, [all_queues[2], all_queues[3]])
 
 
 class TestCreateSQSQueueActor(SQSTestCase):
@@ -60,7 +61,7 @@ class TestCreateSQSQueueActor(SQSTestCase):
 
         self.sqs_conn().create_queue.return_value = boto.sqs.queue.Queue()
         ret = yield self.actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
         self.sqs_conn().create_queue.assert_called_once_with('unit-test-queue')
 
     @testing.gen_test
@@ -134,14 +135,14 @@ class TestDeleteSQSQueueActor(SQSTestCase):
         self.sqs_conn().get_all_queues = mock.Mock(return_value=[])
         # Should fail even in dry run, if idempotent flag is not there.
         settings.SQS_RETRY_DELAY = 0
-        reload(sqs)
+        importlib.reload(sqs)
         with self.assertRaises(sqs.QueueNotFound):
             yield actor.execute()
 
     @testing.gen_test
     def test_execute_with_failure(self):
         settings.SQS_RETRY_DELAY = 0
-        reload(sqs)
+        importlib.reload(sqs)
         actor = sqs.Delete('Unit Test Action',
                            {'name': 'non-existent-queue',
                             'region': 'us-west-2'})
@@ -152,7 +153,7 @@ class TestDeleteSQSQueueActor(SQSTestCase):
     @testing.gen_test
     def test_execute_idempotent(self):
         settings.SQS_RETRY_DELAY = 0
-        reload(sqs)
+        importlib.reload(sqs)
         actor = sqs.Delete('Unit Test Action',
                            {'name': 'non-existent-queue',
                             'region': 'us-west-2',
@@ -194,9 +195,9 @@ class TestWaitUntilQueueEmptyActor(SQSTestCase):
         queue = mock.Mock()
         queue.count.side_effect = [1, 0, 0]
         attr = 'ApproximateNumberOfMessagesNotVisible'
-        queue.get_attributes.side_effect = [{attr: u'0'},
-                                            {attr: u'1'},
-                                            {attr: u'0'}]
+        queue.get_attributes.side_effect = [{attr: '0'},
+                                            {attr: '1'},
+                                            {attr: '0'}]
         yield actor._wait(queue, sleep=0)
         self.assertEqual(queue.count.call_count, 3)
 

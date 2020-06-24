@@ -1,17 +1,8 @@
 # General App Requirements
 
-# Py3 Compat
-six
-
 # 4.1+ is required for the @gen.with_timeout decorator.
 # http://tornado.readthedocs.org/en/latest/gen.html#tornado.gen.with_timeout
-tornado>=4.1,<6.0
-
-# Our custom rest client
-tornado_rest_client>=0.0.4
-
-# Used to make synchronous tasks asynchronous
-futures
+tornado==6.0.4
 
 # Used to parse out the JSON and validate its format.
 simplejson
@@ -23,6 +14,9 @@ PyYAML
 # Colorize the log output!
 rainbow_logging_handler
 
+# tornado rest client
+tornado_rest_client==1.0.0
+
 # Used for retrying non-asynchronous methods
 retrying
 
@@ -30,7 +24,8 @@ retrying
 #
 # NOTE: Version specified in the setup.py file
 # NOTE: mock is used inside the rightscale actor
-python-rightscale @ https://github.com/diranged/python-rightscale-1/tarball/nextdoor#egg=python-rightscale
+# NOTE: python-rightscale requires ConfigParser but it is not in the requirements file
+python-rightscale==1.0.1
 mock==1.0.1
 
 # kingpin.actors.aws
@@ -42,12 +37,5 @@ boto3>=1.9.46
 
 # Used to turn snake_case into CamelCase
 inflection
-
-# Hard-code this to pre-8.x to maintain Python 2.x support
-more-itertools<=5.0.0
-
-# Hard-code this to pre-2.0.0 to maintain Python 2.x support
-zipp<2.0.0
-
-# Hard-code this to pre-5.0.0 to maintain Python 2.x support
-configparser<=4.0.2
+zipp
+configparser

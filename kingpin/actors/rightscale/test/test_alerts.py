@@ -37,7 +37,7 @@ class TestAlertsBaseActor(testing.AsyncTestCase):
             # Try a search with no exact matching
             u_mock.return_value = helper.tornado_value([fake_spec])
             ret = yield self.actor._find_alert_spec('FakeSpec', 'fake_href')
-            self.assertEquals(ret[0].soul['name'], 'FakeSpec')
+            self.assertEqual(ret[0].soul['name'], 'FakeSpec')
 
     @testing.gen_test
     def test_find_alert_spec_empty_result(self):
@@ -47,7 +47,7 @@ class TestAlertsBaseActor(testing.AsyncTestCase):
             # Try a search with no exact matching
             u_mock.return_value = helper.tornado_value(None)
             ret = yield self.actor._find_alert_spec('FakeSpec', 'fake_href')
-            self.assertEquals(ret, None)
+            self.assertEqual(ret, None)
 
 
 class TestCreateActor(testing.AsyncTestCase):
@@ -206,7 +206,7 @@ class TestDestroyActor(testing.AsyncTestCase):
 
         # Do it!
         yield self.actor._execute()
-        self.assertEquals(1, destroy_mock._call_count)
+        self.assertEqual(1, destroy_mock._call_count)
 
     @testing.gen_test
     def test_execute_dry(self):
@@ -228,7 +228,7 @@ class TestDestroyActor(testing.AsyncTestCase):
         # Do it!
         self.actor._dry = True
         yield self.actor._execute()
-        self.assertEquals(0, destroy_mock._call_count)
+        self.assertEqual(0, destroy_mock._call_count)
 
     @testing.gen_test
     def test_execute_alert_not_found(self):
@@ -248,7 +248,7 @@ class TestDestroyActor(testing.AsyncTestCase):
         # Do it!
         with self.assertRaises(alerts.AlertSpecNotFound):
             yield self.actor._execute()
-        self.assertEquals(0, destroy_mock._call_count)
+        self.assertEqual(0, destroy_mock._call_count)
 
 
 class TestAlertSpecBase(testing.AsyncTestCase):
@@ -288,7 +288,7 @@ class TestAlertSpecBase(testing.AsyncTestCase):
         self.client_mock.find_by_name_and_keys.side_effect = [
             helper.tornado_value(fake_spec)]
         yield self.actor._precache()
-        self.assertEquals(self.actor.existing_spec, fake_spec)
+        self.assertEqual(self.actor.existing_spec, fake_spec)
 
     @testing.gen_test
     def test_precache_too_many_matching(self):
@@ -300,7 +300,7 @@ class TestAlertSpecBase(testing.AsyncTestCase):
             ])
         ]
         yield self.actor._precache()
-        self.assertEquals(self.actor.existing_spec, fake_spec)
+        self.assertEqual(self.actor.existing_spec, fake_spec)
 
     @testing.gen_test
     def test_precache_missing(self):
@@ -308,17 +308,17 @@ class TestAlertSpecBase(testing.AsyncTestCase):
         self.client_mock.find_by_name_and_keys.side_effect = [
             helper.tornado_value(fake_spec)]
         yield self.actor._precache()
-        self.assertEquals(self.actor.existing_spec, fake_spec)
+        self.assertEqual(self.actor.existing_spec, fake_spec)
 
     @testing.gen_test
     def test_get_state(self):
         self.actor.existing_spec = mock.MagicMock()
         ret = yield self.actor._get_state()
-        self.assertEquals(ret, 'present')
+        self.assertEqual(ret, 'present')
 
         self.actor.existing_spec = None
         ret = yield self.actor._get_state()
-        self.assertEquals(ret, 'absent')
+        self.assertEqual(ret, 'absent')
 
     @testing.gen_test
     def test_set_state_present(self):
@@ -348,7 +348,7 @@ class TestAlertSpecBase(testing.AsyncTestCase):
             'condition': '>='
         }
         ret = yield self.actor._get_spec()
-        self.assertEquals(
+        self.assertEqual(
             {'name': 'high load alarm',
              'description': 'My test alert',
              'file': 'cpu-0/cpu-idle',
@@ -371,7 +371,7 @@ class TestAlertSpecBase(testing.AsyncTestCase):
             helper.tornado_value(fake_spec)
         ]
         yield self.actor._create_spec()
-        self.assertEquals(self.actor.existing_spec, fake_spec)
+        self.assertEqual(self.actor.existing_spec, fake_spec)
 
     @testing.gen_test
     def test_create_spec_422(self):
@@ -412,7 +412,7 @@ class TestAlertSpecBase(testing.AsyncTestCase):
             helper.tornado_value(fake_spec)
         ]
         yield self.actor._update_spec()
-        self.assertEquals(self.actor.existing_spec, fake_spec)
+        self.assertEqual(self.actor.existing_spec, fake_spec)
 
     @testing.gen_test
     def test_update_spec_422(self):
@@ -453,7 +453,7 @@ class TestAlertSpecBase(testing.AsyncTestCase):
             helper.tornado_value(None)
         ]
         yield self.actor._delete_spec()
-        self.assertEquals(self.actor.existing_spec, None)
+        self.assertEqual(self.actor.existing_spec, None)
 
 
 class TestAlertSpecsBase(testing.AsyncTestCase):
@@ -508,7 +508,7 @@ class TestAlertSpecsBase(testing.AsyncTestCase):
             a_mock()._precache.side_effect = [helper.tornado_value(None)]
             yield self.actor._precache()
 
-        self.assertEquals(2, len(self.actor.alert_actors))
+        self.assertEqual(2, len(self.actor.alert_actors))
 
         self.assertTrue(self.actor.alert_actors[0]._precache.called)
         self.assertTrue(self.actor.alert_actors[1]._precache.called)
@@ -526,14 +526,14 @@ class TestAlertSpecsBase(testing.AsyncTestCase):
             a_mock()._precache.side_effect = [helper.tornado_value(None)]
             yield self.actor._precache()
 
-        self.assertEquals(1, len(self.actor.alert_actors))
+        self.assertEqual(1, len(self.actor.alert_actors))
 
         self.assertTrue(self.actor.alert_actors[0]._precache.called)
 
     @testing.gen_test
     def test_get_state(self):
         ret = yield self.actor._get_state()
-        self.assertEquals(None, ret)
+        self.assertEqual(None, ret)
 
     @testing.gen_test
     def test_compare_state(self):
@@ -541,7 +541,7 @@ class TestAlertSpecsBase(testing.AsyncTestCase):
             helper.tornado_value(False)]
 
         ret = yield self.actor._compare_state()
-        self.assertEquals(False, ret)
+        self.assertEqual(False, ret)
 
     @testing.gen_test
     def test_set_state(self):
@@ -559,7 +559,7 @@ class TestAlertSpecsBase(testing.AsyncTestCase):
         self.actor.alert_actors[0]._get_spec.side_effect = [
             helper.tornado_value(1)]
         ret = yield self.actor._get_specs()
-        self.assertEquals([1], ret)
+        self.assertEqual([1], ret)
 
     @testing.gen_test
     def test_set_specs(self):

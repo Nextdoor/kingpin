@@ -197,7 +197,7 @@ class BaseActor(object):
     def _setup_defaults(self):
         """Populate options with defaults if they aren't set."""
 
-        for option, definition in self.all_options.items():
+        for option, definition in list(self.all_options.items()):
             if option not in self._options:
                 default = definition[1]
                 if default is not REQUIRED:
@@ -215,7 +215,8 @@ class BaseActor(object):
 
         # Loop through all_options, and find the required ones
         required = [opt_name
-                    for (opt_name, definition) in self.all_options.items()
+                    for (opt_name, definition) in
+                    list(self.all_options.items())
                     if definition[1] is REQUIRED]
 
         self.log.debug('Checking for required options: %s' % required)
@@ -227,7 +228,7 @@ class BaseActor(object):
                 option_errors.append('Option "%s" is required: %s' % (
                                      opt, description))
 
-        for opt, value in self._options.items():
+        for opt, value in list(self._options.items()):
             if opt not in self.all_options:
                 option_warnings.append('Option "%s" is not expected by %s.' % (
                     opt, self.__class__.__name__))
@@ -237,7 +238,7 @@ class BaseActor(object):
 
             # Unicode is not a `str` but it is a `basestring`
             # Cast the passed value explicitly as a string
-            if isinstance(value, basestring):
+            if isinstance(value, str):
                 value = str(value)
 
             # If the expected_type has an attribute 'valid', then verify that
@@ -619,7 +620,7 @@ class EnsurableBaseActor(BaseActor):
         super(EnsurableBaseActor, self).__init__(*args, **kwargs)
 
         # Generate a list of options that will be ensured ...
-        self._ensurable_options = self.all_options.keys()
+        self._ensurable_options = list(self.all_options.keys())
         for option in self.unmanaged_options:
             self._ensurable_options.remove(option)
 
@@ -778,10 +779,10 @@ class HTTPBaseActor(BaseActor):
         """
 
         # Remove keys from the arguments where the value is None
-        args = dict((k, v) for k, v in args.iteritems() if v)
+        args = dict((k, v) for k, v in args.items() if v)
 
         # Convert all Bool values to lowercase strings
-        for key, value in args.iteritems():
+        for key, value in args.items():
             if type(value) is bool:
                 args[key] = str(value).lower()
 

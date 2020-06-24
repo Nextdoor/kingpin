@@ -10,6 +10,7 @@ from kingpin.actors import exceptions
 from kingpin.actors.aws import ecs as ecs_actor
 from kingpin.actors.aws import settings
 from kingpin.actors.test import helper
+import importlib
 
 log = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ log = logging.getLogger(__name__)
 class TestECSBaseActor(testing.AsyncTestCase):
     def setUp(self):
         super(TestECSBaseActor, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
 
     @testing.gen_test
     def test_int_count(self):
@@ -33,7 +34,7 @@ class TestECSBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_unicode_count(self):
-        self.actor = ecs_actor.ECSBaseActor(options={'count': unicode('1')})
+        self.actor = ecs_actor.ECSBaseActor(options={'count': str('1')})
         self.assertEqual(self.actor.option('count'), 1)
         self.assertEqual(type(self.actor.option('count')), int)
 
@@ -47,7 +48,7 @@ class TestHandleFailures(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestHandleFailures, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
         self.actor = ecs_actor.ECSBaseActor()
 
     @testing.gen_test
@@ -78,7 +79,7 @@ class TestLoadTaskDefinition(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestLoadTaskDefinition, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
         self.actor = ecs_actor.ECSBaseActor()
 
     @testing.gen_test
@@ -170,7 +171,7 @@ class TestDeregisterTaskDefinition(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestDeregisterTaskDefinition, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
         self.actor = ecs_actor.ECSBaseActor()
         self.actor.ecs_conn = mock.Mock()
 
@@ -186,7 +187,7 @@ class TestDescribeTaskDefinition(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestDescribeTaskDefinition, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
         self.actor = ecs_actor.ECSBaseActor()
         self.actor.ecs_conn = mock.Mock()
 
@@ -220,7 +221,7 @@ class TestListTaskDefinitions(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestListTaskDefinitions, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
         self.actor = ecs_actor.ECSBaseActor()
         self.actor.ecs_conn = mock.Mock()
 
@@ -270,7 +271,7 @@ class TestLoadServiceDefinition(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestLoadServiceDefinition, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
         self.actor = ecs_actor.ECSBaseActor()
 
     @testing.gen_test
@@ -342,7 +343,7 @@ class TestRegisterTask(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestRegisterTask, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
 
         self.actor = _mock_task_actor()
         self.actor.ecs_conn = mock.Mock()
@@ -391,7 +392,7 @@ class TestTaskRun(testing.AsyncTestCase):
         gen.sleep = helper.mock_tornado()
 
     def tearDown(self):
-        reload(gen)
+        importlib.reload(gen)
 
     def test_ok_minimal(self):
         self._test(
@@ -464,7 +465,7 @@ class TestTaskWait(testing.AsyncTestCase):
         gen.sleep = helper.mock_tornado()
 
     def tearDown(self):
-        reload(gen)
+        importlib.reload(gen)
 
     @testing.gen_test
     def test_return_for_empty(self):
@@ -506,7 +507,7 @@ class TestTaskDone(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestTaskDone, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
 
         self.actor = _mock_task_actor()
         self.actor.ecs_conn = mock.Mock()
@@ -517,7 +518,7 @@ class TestTaskDone(testing.AsyncTestCase):
         self.actor._get_containers_from_tasks = mock.Mock()
 
     def tearDown(self):
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
 
     @testing.gen_test
     def test_one_stopped_container(self):
@@ -705,7 +706,7 @@ class TestDescribeService(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestDescribeService, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
         self.actor = _mock_service_actor()
         self.actor.ecs_conn = mock.Mock()
         self.actor._handle_failures = mock.Mock()
@@ -793,13 +794,13 @@ class TestWaitForDeploymentUpdate(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestWaitForDeploymentUpdate, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
         self.actor = _mock_service_actor()
         self.actor.ecs_conn = mock.Mock()
         gen.sleep = helper.mock_tornado()
 
     def tearDown(self):
-        reload(gen)
+        importlib.reload(gen)
 
     @testing.gen_test
     def test_slow_update(self):
@@ -832,7 +833,7 @@ class TestIsTaskDefinitionDifferent(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestIsTaskDefinitionDifferent, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
         self.actor = _mock_service_actor()
         self.actor.ecs_conn = mock.Mock()
 
@@ -861,7 +862,7 @@ class TestIsTaskDefinitionDifferent(testing.AsyncTestCase):
         mock_describe_task_definition.call_count = 0
         self.actor._describe_task_definition = mock_describe_task_definition
         diff = yield self.actor._is_task_definition_different('a', 'b')
-        self.assertEquals(diff, False)
+        self.assertEqual(diff, False)
 
     @testing.gen_test
     def test_different(self):
@@ -913,7 +914,7 @@ class TestIsTaskDefinitionDifferent(testing.AsyncTestCase):
         mock_describe_task_definition.call_count = 0
         self.actor._describe_task_definition = mock_describe_task_definition
         diff = yield self.actor._is_task_definition_different('a', 'b')
-        self.assertEquals(diff, True)
+        self.assertEqual(diff, True)
 
 
 class TestCreateService(testing.AsyncTestCase):
@@ -989,8 +990,8 @@ class TestStopService(testing.AsyncTestCase):
         yield self.actor._stop_service('service',
                                        {'taskDefinition': 'arn/family:1'})
 
-        self.assertEquals(self.actor._update_service._call_count, 1)
-        self.assertEquals(self.actor._wait_for_service_update._call_count, 1)
+        self.assertEqual(self.actor._update_service._call_count, 1)
+        self.assertEqual(self.actor._wait_for_service_update._call_count, 1)
 
 
 class TestDeleteService(testing.AsyncTestCase):
@@ -1008,7 +1009,7 @@ class TestDeleteService(testing.AsyncTestCase):
         self.actor._deregister_task_definition = helper.mock_tornado()
         yield self.actor._delete_service('service',
                                          {'status': 'ACTIVE'})
-        self.assertEquals(self.actor.ecs_conn.delete_service.call_count, 1)
+        self.assertEqual(self.actor.ecs_conn.delete_service.call_count, 1)
         self.assertEqual(self.actor._deregister_task_definition._call_count, 1)
 
     @testing.gen_test
@@ -1021,7 +1022,7 @@ class TestDeleteService(testing.AsyncTestCase):
         yield self.actor._delete_service('service',
                                          {'status': 'ACTIVE'},
                                          deregister=False)
-        self.assertEquals(self.actor.ecs_conn.delete_service.call_count, 1)
+        self.assertEqual(self.actor.ecs_conn.delete_service.call_count, 1)
         self.assertEqual(self.actor._deregister_task_definition._call_count, 0)
 
     @testing.gen_test
@@ -1033,7 +1034,7 @@ class TestDeleteService(testing.AsyncTestCase):
         self.actor._deregister_task_definition = helper.mock_tornado()
         yield self.actor._delete_service('service',
                                          {'status': 'INACTIVE'})
-        self.assertEquals(self.actor.ecs_conn.delete_service.call_count, 0)
+        self.assertEqual(self.actor.ecs_conn.delete_service.call_count, 0)
         self.assertEqual(self.actor._deregister_task_definition._call_count, 2)
 
     @testing.gen_test
@@ -1045,7 +1046,7 @@ class TestDeleteService(testing.AsyncTestCase):
         self.actor._deregister_task_definition = helper.mock_tornado()
         yield self.actor._delete_service('service',
                                          {'status': 'DRAINING'})
-        self.assertEquals(self.actor.ecs_conn.delete_service.call_count, 0)
+        self.assertEqual(self.actor.ecs_conn.delete_service.call_count, 0)
         self.assertEqual(self.actor._deregister_task_definition._call_count, 2)
 
 
@@ -1192,7 +1193,7 @@ class TestEnsureServicePresent(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestEnsureServicePresent, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
         self.actor = _mock_service_actor()
         self.actor.ecs_conn = mock.Mock()
         self.actor._create_service = helper.mock_tornado()
@@ -1289,7 +1290,7 @@ class TestEnsureServiceAbsent(testing.AsyncTestCase):
 
     def setUp(self):
         super(TestEnsureServiceAbsent, self).setUp()
-        reload(ecs_actor)
+        importlib.reload(ecs_actor)
         self.actor = _mock_service_actor()
         self.actor.ecs_conn = mock.Mock()
         self.actor._delete_service = helper.mock_tornado()
@@ -1320,7 +1321,7 @@ class TestWaitForServiceUpdate(testing.AsyncTestCase):
         self.service_name = 'service_name'
 
     def tearDown(self):
-        reload(gen)
+        importlib.reload(gen)
 
     @testing.gen_test
     def test_instant_success(self):
@@ -1789,7 +1790,7 @@ class TestGetSortedNewLogEvents(testing.AsyncTestCase):
 
 def _mock_task_actor():
     settings.ECS_RETRY_ATTEMPTS = 0
-    reload(ecs_actor)
+    importlib.reload(ecs_actor)
     base_actor = 'kingpin.actors.aws.ecs.ECSBaseActor'
     load_task_definition = base_actor + '._load_task_definition'
     with mock.patch(load_task_definition):
@@ -1802,7 +1803,7 @@ def _mock_task_actor():
 
 def _mock_service_actor():
     settings.ECS_RETRY_ATTEMPTS = 0
-    reload(ecs_actor)
+    importlib.reload(ecs_actor)
     base_actor = 'kingpin.actors.aws.ecs.ECSBaseActor'
     load_task_definition = base_actor + '._load_task_definition'
     load_service_definition = base_actor + '._load_service_definition'

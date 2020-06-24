@@ -411,9 +411,12 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         revision = image.get('revision', 0)
         default = image.get('is_default', False)
 
-        mci = yield self._client.find_by_name_and_keys(
-            collection=self._client._client.multi_cloud_images,
-            name=name, revision=revision)
+        try:
+            mci = yield self._client.find_by_name_and_keys(
+                collection=self._client._client.multi_cloud_images,
+                name=name, revision=revision)
+        except StopIteration:
+            return
 
         if not mci:
             raise exceptions.InvalidOptions(
@@ -429,9 +432,12 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         if not self.st.href:
             raise gen.Return()
 
-        raw = yield self._client.find_by_name_and_keys(
-            collection=self._client._client.server_template_multi_cloud_images,
-            server_template_href=self.st.href)
+        try:
+            raw = yield self._client.find_by_name_and_keys(
+                collection=self._client._client.server_template_multi_cloud_images,  # nopep8
+                server_template_href=self.st.href)
+        except StopIteration:
+            return
         if not isinstance(raw, list):
             raw = [raw]
 
@@ -520,7 +526,7 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         # map_href param. At this point, it should look identical to
         # our self.desired_images dict.
         existing_images = {}
-        for image in self.images.keys():
+        for image in list(self.images.keys()):
             existing_images[image] = {
                 'default': self.images[image]['default']
             }
@@ -529,10 +535,10 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
 
     @gen.coroutine
     def _set_images(self):
-        to_add = [href for href in self.desired_images.keys()
-                  if href not in self.images.keys()]
-        to_delete = [href for href in self.images.keys()
-                     if href not in self.desired_images.keys()]
+        to_add = [href for href in list(self.desired_images.keys())
+                  if href not in list(self.images.keys())]
+        to_delete = [href for href in list(self.images.keys())
+                     if href not in list(self.desired_images.keys())]
 
         tasks = []
         for href in to_add:
@@ -628,10 +634,13 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
             self.log.debug('Searching for %s (rev: %s)' %
                            (config['right_script'], config.get('rev')))
 
-            raw = yield self._client.find_by_name_and_keys(
-                collection=self._client._client.right_scripts,
-                exact=True,
-                name=config['right_script'])
+            try:
+                raw = yield self._client.find_by_name_and_keys(
+                    collection=self._client._client.right_scripts,
+                    exact=True,
+                    name=config['right_script'])
+            except StopIteration:
+                continue
 
             # If we got nothing back (empty list, or None), throw an exception
             if raw is None or not raw:
@@ -697,15 +706,18 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
 
         for binding in params_to_add:
             self.log.info('Adding binding %s' % binding['right_script_href'])
-            yield self._client.create_resource(
-                self.st.runnable_bindings,
-                self._generate_rightscale_params(
-                    prefix='runnable_binding',
-                    params={
-                        'right_script_href': binding['right_script_href'],
-                        'sequence': binding['sequence']
-                    }))
-            self.changed = True
+            try:
+                yield self._client.create_resource(
+                    self.st.runnable_bindings,
+                    self._generate_rightscale_params(
+                        prefix='runnable_binding',
+                        params={
+                            'right_script_href': binding['right_script_href'],
+                            'sequence': binding['sequence']
+                        }))
+                self.changed = True
+            except StopIteration:
+                pass
 
     @gen.coroutine
     @dry('Would have added MCI Mapping -> {0}')
@@ -719,10 +731,13 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         )
 
         self.log.info('Adding MCI %s to ServerTemplate' % href)
-        yield self._client.create_resource(
-            self._client._client.server_template_multi_cloud_images,
-            definition)
-        self.changed = True
+        try:
+            yield self._client.create_resource(
+                self._client._client.server_template_multi_cloud_images,
+                definition)
+            self.changed = True
+        except StopIteration:
+            pass
 
     @gen.coroutine
     @dry('Would have deleted MCI reference {0.links[multi_cloud_image]}')
@@ -759,11 +774,11 @@ class ServerTemplate(base.EnsurableRightScaleBaseActor):
         # Get the default MCI href as described by the user -- or just get the
         # first key in the list and treat that as the desired default.
         try:
-            default_mci_href = [key for key in self.desired_images.keys()
+            default_mci_href = [key for key in list(self.desired_images.keys())
                                 if self.desired_images[key]['default'] is
                                 True][0]
         except IndexError:
-            default_mci_href = self.desired_images.keys()[0]
+            default_mci_href = list(self.desired_images.keys())[0]
 
         # Compare the desired vs current default_multi_cloud_image_href. This
         # comparison is quick and doesn't require any API calls, so we do it

@@ -18,7 +18,7 @@ class TestSpotinstException(testing.AsyncTestCase):
     def test_no_json_in_body(self):
         fake_body = '400 Bad Mmmkay'
         exc = spotinst.SpotinstException(fake_body)
-        self.assertEquals(
+        self.assertEqual(
             'Unknown error: 400 Bad Mmmkay',
             str(exc))
 
@@ -41,7 +41,7 @@ class TestSpotinstException(testing.AsyncTestCase):
         source_exc = httpclient.HTTPError(
             400, '400 Bad Request', fake_resp_body)
         fake_exc = spotinst.SpotinstException(source_exc)
-        self.assertEquals(
+        self.assertEqual(
             'Spotinst Request ID (fake_id) GET /fake: invalid auth',
             str(fake_exc))
 
@@ -68,7 +68,7 @@ class TestSpotinstException(testing.AsyncTestCase):
         source_exc = httpclient.HTTPError(
             400, '400 Bad Request', fake_resp_body)
         fake_exc = spotinst.SpotinstException(source_exc)
-        self.assertEquals(
+        self.assertEqual(
             ('Spotinst Request ID (fake_id) GET /fake: GENERAL_ERROR: Cant '
              'create spot requests., UnsupportedOperation: AMI ami-16fc4976 '
              'with an...'),
@@ -92,9 +92,9 @@ class TestSpotinstException(testing.AsyncTestCase):
         source_exc = httpclient.HTTPError(
             400, '400 Bad Request', fake_resp_body)
         fake_exc = spotinst.SpotinstException(source_exc)
-        self.assertEquals(
+        self.assertEqual(
             ('Spotinst Request ID (fake_id) GET /fake: '
-             '{u\'something\': u\'else\'}'),
+             '{\'something\': \'else\'}'),
             str(fake_exc))
 
 
@@ -111,7 +111,7 @@ class TestSpotinstBase(testing.AsyncTestCase):
     def test_init_with_debug_disabled(self):
         spotinst.DEBUG = False
         spotinst.SpotinstBase('Unit Test Action', {})
-        self.assertEquals(
+        self.assertEqual(
             20, logging.getLogger('tornado_rest_client.api').level)
 
     def test_init_missing_token(self):
@@ -159,15 +159,15 @@ class TestElastiGroup(testing.AsyncTestCase):
                          'roll_batch_size': 'some_number'})
 
     def test_parse_group_config(self):
-        self.assertEquals(
+        self.assertEqual(
             (self.actor._config['group']['compute']
              ['availabilityZones'][0]['name']), 'us-test-1a')
-        self.assertEquals(
+        self.assertEqual(
             self.actor._config['group']['name'], 'unittest')
 
     def test_parse_group_config_no_config(self):
         self.actor._options['config'] = None
-        self.assertEquals(
+        self.assertEqual(
             None, self.actor._parse_group_config())
 
     def test_parse_group_config_missing_token(self):
@@ -194,7 +194,7 @@ class TestElastiGroup(testing.AsyncTestCase):
         self.actor._client.aws.ec2.list_groups.http_get = mock_tornado(
             list_of_groups)
         ret = yield self.actor._list_groups()
-        self.assertEquals(
+        self.assertEqual(
             ret, [{'group': {'name': 'test'}}])
 
     @testing.gen_test
@@ -206,7 +206,7 @@ class TestElastiGroup(testing.AsyncTestCase):
         self.actor._list_groups = mock_tornado([matching_group])
 
         ret = yield self.actor._get_group()
-        self.assertEquals(ret, {'group': matching_group})
+        self.assertEqual(ret, {'group': matching_group})
 
     @testing.gen_test
     def test_get_group_too_many_results(self):
@@ -224,7 +224,7 @@ class TestElastiGroup(testing.AsyncTestCase):
     def test_get_group_no_groups(self):
         self.actor._list_groups = mock_tornado(None)
         ret = yield self.actor._get_group()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_get_group_no_matching_groups(self):
@@ -234,7 +234,7 @@ class TestElastiGroup(testing.AsyncTestCase):
         }
         self.actor._list_groups = mock_tornado([unmatching_group])
         ret = yield self.actor._get_group()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_precache(self):
@@ -252,12 +252,12 @@ class TestElastiGroup(testing.AsyncTestCase):
         yield self.actor._precache()
 
         # First make sure we stored the group
-        self.assertEquals(fake_group, self.actor._group)
+        self.assertEqual(fake_group, self.actor._group)
 
         # Second, make sure we overwrote the user config's [capacity][target]
         # setting with the spotinst value
-        self.assertEquals(self.actor._config['group']['capacity']['target'],
-                          128)
+        self.assertEqual(self.actor._config['group']['capacity']['target'],
+                         128)
 
     @testing.gen_test
     def test_validate_group(self):
@@ -274,13 +274,13 @@ class TestElastiGroup(testing.AsyncTestCase):
     def test_get_state(self):
         self.actor._group = True
         ret = yield self.actor._get_state()
-        self.assertEquals('present', ret)
+        self.assertEqual('present', ret)
 
     @testing.gen_test
     def test_get_state_false(self):
         self.actor._group = None
         ret = yield self.actor._get_state()
-        self.assertEquals('absent', ret)
+        self.assertEqual('absent', ret)
 
     @testing.gen_test
     def test_set_state_present(self):
@@ -343,13 +343,13 @@ class TestElastiGroup(testing.AsyncTestCase):
 
         # This should return True because the configs are identical..
         ret = yield self.actor._compare_config()
-        self.assertEquals(True, ret)
+        self.assertEqual(True, ret)
 
         # Now, lets modify the ElastiGroup config a bit.. the diff should
         # return false.
         self.actor._group['group']['description'] = 'new description'
         ret = yield self.actor._compare_config()
-        self.assertEquals(False, ret)
+        self.assertEqual(False, ret)
 
     @testing.gen_test
     def test_compare_config_not_existing(self):
@@ -359,13 +359,13 @@ class TestElastiGroup(testing.AsyncTestCase):
         # This should return True because the config simply doesnt exist in
         # Spotinst. The _set_state() method will create it during a real run.
         ret = yield self.actor._compare_config()
-        self.assertEquals(True, ret)
+        self.assertEqual(True, ret)
 
     @testing.gen_test
     def test_get_config(self):
         self.actor._group = 1
         ret = yield self.actor._get_config()
-        self.assertEquals(1, ret)
+        self.assertEqual(1, ret)
 
     @testing.gen_test
     def test_set_config(self):
@@ -400,7 +400,7 @@ class TestElastiGroup(testing.AsyncTestCase):
 
         mock_client.http_put.assert_called_with(
             group=self.actor._config['group'])
-        self.assertEquals(self.actor._group['group'], {'group': 'object'})
+        self.assertEqual(self.actor._group['group'], {'group': 'object'})
         self.actor._roll_group.assert_has_calls([mock.call])
 
     @testing.gen_test

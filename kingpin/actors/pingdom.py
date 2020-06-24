@@ -38,10 +38,11 @@ import os
 from tornado import gen
 from tornado import httpclient
 
+from tornado_rest_client import api
+
 from kingpin.constants import REQUIRED
 from kingpin.actors import base
 from kingpin.actors import exceptions
-from kingpin.actors.support import api
 
 log = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ class PingdomClient(api.RestClient):
 
     # The default exception handling is fine, but the Pingdom API uses a 599 to
     # represent a timeout on the backend of their service.
-    _EXCEPTIONS = dict(api.RestClient._EXCEPTIONS)
+    _EXCEPTIONS = dict(api.RestClient.EXCEPTIONS)
     _EXCEPTIONS[httpclient.HTTPError]['599'] = None
 
 

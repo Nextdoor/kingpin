@@ -8,6 +8,7 @@ from tornado import testing
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
 from kingpin.actors.aws import settings
+import importlib
 
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
@@ -36,7 +37,7 @@ class IntegrationBase(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor._find_elb('unit-test')
 
-        reload(settings)
+        importlib.reload(settings)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
@@ -46,4 +47,4 @@ class IntegrationBase(testing.AsyncTestCase):
 
         LB = yield actor._find_elb(self.elb_name)
 
-        self.assertEquals(LB.name, self.elb_name)
+        self.assertEqual(LB.name, self.elb_name)

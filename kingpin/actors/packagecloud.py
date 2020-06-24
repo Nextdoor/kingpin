@@ -37,6 +37,7 @@ import re
 import sys
 
 from tornado import gen
+
 from tornado_rest_client import api
 
 from kingpin.actors import base
@@ -58,7 +59,7 @@ class PackagecloudAPI(api.RestConsumer):
         'attrs': {
             'packages': {
                 'path': ('repos/%account%/%repo%/packages.json'
-                         '?per_page={}'.format(sys.maxint)),
+                         '?per_page={}'.format(sys.maxsize)),
                 'http_methods': {'get': {}}
             },
             'delete': {

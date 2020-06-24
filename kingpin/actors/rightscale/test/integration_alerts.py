@@ -63,7 +63,7 @@ class IntegrationAlerts(testing.AsyncTestCase):
             dry=True)
 
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
@@ -84,7 +84,7 @@ class IntegrationAlerts(testing.AsyncTestCase):
              })
 
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
@@ -105,7 +105,7 @@ class IntegrationAlerts(testing.AsyncTestCase):
              })
 
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)
@@ -116,7 +116,7 @@ class IntegrationAlerts(testing.AsyncTestCase):
              'name': self.test_alert_name})
 
         ret = yield actor.execute()
-        self.assertEquals(ret, None)
+        self.assertEqual(ret, None)
 
     @attr('aws', 'integration')
     @testing.gen_test(timeout=60)

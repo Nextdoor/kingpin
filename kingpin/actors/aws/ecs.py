@@ -216,7 +216,7 @@ class ECSBaseActor(base.AWSBaseActor):
         super(ECSBaseActor, self).__init__(*args, **kwargs)
 
         count = self.option('count')
-        if type(count) is str or type(count) is unicode:
+        if type(count) is str or type(count) is str:
             try:
                 self._options['count'] = int(count)
             except ValueError:
@@ -916,7 +916,7 @@ class Service(ECSBaseActor):
             try:
                 service = yield self._describe_service(service_name)
             except ServiceNotFound as e:
-                self.log.info('Service Not Found: %s' % e.message)
+                self.log.info('Service Not Found: %s' % str(e))
                 yield gen.sleep(2)
                 continue
 
