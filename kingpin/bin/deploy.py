@@ -142,10 +142,10 @@ def main():
 
     # Begin doing real stuff!
     if os.environ.get('SKIP_DRY', False):
-        log.warn('')
-        log.warn('*** You have disabled the dry run.')
-        log.warn('*** Execution will begin with no expectation of success.')
-        log.warn('')
+        log.warning('')
+        log.warning('*** You have disabled the dry run.')
+        log.warning('*** Execution will begin with no expectation of success.')
+        log.warning('')
     elif not args.dry:
         log.info('Rehearsing... Break a leg!')
 
@@ -163,7 +163,7 @@ def main():
         runner = get_main_actor(dry=args.dry)
 
         log.info('')
-        log.warn('Lights, camera ... action!')
+        log.warning('Lights, camera ... action!')
         log.info('')
         yield runner.execute()
     except actor_exceptions.ActorException as e:
