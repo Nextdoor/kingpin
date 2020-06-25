@@ -21,7 +21,7 @@ deploy:
       secure: "TMRRd3PeZIRf4wvD2Bh+ykvvBVIztE6M6JE89WBb/CbaIbdUqoDoldYjybYbbXDPPPs+ybVOYZTwMylx6TDy40WsYlzlaabnbTZedvUWDC3GcqD3E4I5XMBVBColP1cKZqHYaa/p23V9QfJFoXCJzGJ5VWOXclj0A0NEvb+oUpU="
     file: kingpin.zip
     overwrite: true
-    cleanup: false
+    skip_cleanup: true
     on:
       tags: true
       python: '3.7'
