@@ -878,10 +878,10 @@ class Stack(CloudFormationBaseActor):
 
     @gen.coroutine
     def _read_stack_url(self, url):
-        # hopefully we are in the right region
+        # hopefully we are in the right region as self.s3_conn
         bucket, _, key = parse_s3_url(url)
         resp = yield self.api_call(self.s3_conn.get_object, {'Bucket': bucket, 'Key': key})
-        yield resp['Body'].read()
+        raise gen.Return(resp['Body'].read())
 
     @gen.coroutine
     def _ensure_template(self, stack):
@@ -904,7 +904,8 @@ class Stack(CloudFormationBaseActor):
         if self._template_body:
             new = json.loads(self._template_body)
         elif self._template_url:
-            new = json.loads(self._read_stack_url(self._template_url))
+            template_body = yield self._read_stack_url(self._template_url)
+            new = json.loads(template_body)
 
         # Compare the two templates. If they differ at all, log it out for the
         # user and flip the needs_update bit.
@@ -1240,26 +1241,39 @@ class Stack(CloudFormationBaseActor):
 
 def parse_s3_url(url):
     """ Gets bucket name and region from url, matching any of the different formats for S3 urls
-    * http://bucket.s3.amazonaws.com
-    * http://bucket.s3-aws-region.amazonaws.com
-    * http://s3.amazonaws.com/bucket
-    * http://s3-aws-region.amazonaws.com/bucket
+    * http://bucket.s3.amazonaws.com/key
+    * http://bucket.s3-aws-region.amazonaws.com/key
+    * http://s3.amazonaws.com/bucket/key
+    * http://s3-aws-region.amazonaws.com/bucket/key
+    * http://s3.aws-region.amazonaws.com/bucket/key
 
     returns bucket name, region, key
     """
+    # virtual host style, no region
+    # https://bucket-name.s3.Region.amazonaws.com/key-name
     match = re.search(r'^https?://(.+).s3.amazonaws.com/(.+)', url)
     if match:
         return match.group(1), None, match.group(2)
 
+    # virtual host style, with region
+    # https://bucket-name.s3-Region.amazonaws.com/key-name
     match = re.search(r'^https?://(.+).s3-([^.]+).amazonaws.com/(.+)', url)
     if match:
         return match.group(1), match.group(2), match.group(3)
 
+    # path style, no region
+    # https://s3.amazonaws.com/bucket_name/key
     match = re.search(r'^https?://s3.amazonaws.com/([^\/]+)/(.+)', url)
     if match:
         return match.group(1), None, match.group(2)
 
     match = re.search(r'^https?://s3-([^.]+).amazonaws.com/([^\/]+)/(.+)', url)
+    if match:
+        return match.group(2), match.group(1), match.group(3)
+
+    # path style request, with region, using dots
+    # http://s3.region.amazonaws.com/bucket/key
+    match = re.search(r'^https?://s3.([^.]+).amazonaws.com/([^\/]+)/(.+)', url)
     if match:
         return match.group(2), match.group(1), match.group(3)
 

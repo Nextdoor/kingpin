@@ -1,6 +1,5 @@
 import datetime
 import importlib
-import io
 import json
 import logging
 import unittest
@@ -823,19 +822,63 @@ class TestStack(testing.AsyncTestCase):
             yield self.actor._update_stack(fake_stack)
 
     @testing.gen_test
-    def test_ensure_template_with_url_quietly_exits(self):
-        self.actor._template_url = 'http://fakeurl.com'
+    def test_ensure_template_with_url_works(self):
+        self.actor._template_body = None
+        self.actor._template_url = 'https://s3.us-west-2.amazonaws.com/some.bucket.name/template.json'
+        expected_body = '{"AWSTemplateFormatVersion": "2010-09-09", "Resources": {"ImageRepository": {"Type": "AWS::ECR::Repository"}}}'
+        body_io = mock.MagicMock()
+        body_io.read.return_value = expected_body
+        self.actor.s3_conn.get_object.return_value = {'Body': body_io}
+
+        self.actor._create_change_set = mock.MagicMock(name='_create_change')
+        self.actor._create_change_set.return_value = tornado_value(
+            {'Id': 'abcd'})
+        self.actor._wait_until_change_set_ready = mock.MagicMock(name='_wait')
+        self.actor._wait_until_change_set_ready.return_value = tornado_value(
+            {'Changes': []})
+        self.actor._execute_change_set = mock.MagicMock(name='_execute_change')
+        self.actor._execute_change_set.return_value = tornado_value(None)
+        self.actor.cf3_conn.delete_change_set.return_value = tornado_value(
+            None)
+
+        # Change the actors parameters from the first time it was run -- this
+        # ensures all the lines on the ensure_template method are called
+        self.actor._parameters = self.actor._create_parameters({})
+
         fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
+
+        # Grab the raw stack body from the test actor -- this is what it should
+        # compare against, so this test should cause the method to bail out and
+        # not make any changes.
+        template = {'Fake': 'Stack'}
+        get_temp_mock = mock.MagicMock(name='_get_stack_template')
+        self.actor._get_stack_template = get_temp_mock
+        self.actor._get_stack_template.return_value = tornado_value(template)
+
+        # We run three tests in here because the setup takes so many lines
+        # (above). First test is a normal execution with changes detected.
         ret = yield self.actor._ensure_template(fake_stack)
         self.assertEqual(None, ret)
+        self.actor._create_change_set.assert_has_calls(
+            [mock.call(fake_stack)])
+        self.actor._wait_until_change_set_ready.assert_has_calls(
+            [mock.call('abcd', 'Status', 'CREATE_COMPLETE')])
+        self.assertFalse(self.actor.cf3_conn.delete_change_set.called)
+
+        # Quick second execution with _dry set. In this case, we SHOULD call
+        # the delete changset function.
+        self.actor._dry = True
+        yield self.actor._ensure_template(fake_stack)
+        self.actor.cf3_conn.delete_change_set.assert_has_calls(
+            [mock.call(ChangeSetName='abcd')])
 
     @testing.gen_test
     def test_read_stack_url(self):
-        url = 'https://s3.us-west-2.amazonaws.com/some.bucket.name/template.json'
+        url = 'http://s3.us-west-2.amazonaws.com/bucket_name/template.json'
         expected_body = '{"AWSTemplateFormatVersion": "2010-09-09", "Resources": {"ImageRepository": {"Type": "AWS::ECR::Repository"}}}'
-        self.actor.s3_conn.get_object.return_value = {
-            'Body': io.StringIO(expected_body)
-        }
+        body_io = mock.MagicMock()
+        body_io.read.return_value = expected_body
+        self.actor.s3_conn.get_object.return_value = {'Body': body_io}
         read_body = yield self.actor._read_stack_url(url)
         self.assertEqual(read_body, expected_body)
 
