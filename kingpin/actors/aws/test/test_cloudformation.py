@@ -824,8 +824,12 @@ class TestStack(testing.AsyncTestCase):
     @testing.gen_test
     def test_ensure_template_with_url_works(self):
         self.actor._template_body = None
-        self.actor._template_url = 'https://s3.us-west-2.amazonaws.com/some.bucket.name/template.json'
-        expected_body = '{"AWSTemplateFormatVersion": "2010-09-09", "Resources": {"ImageRepository": {"Type": "AWS::ECR::Repository"}}}'
+        self.actor._template_url = (
+            'https://s3.us-west-2.amazonaws.com/some.bucket.name/template.json'
+        )
+        expected_body = (
+            '{"AWSTemplateFormatVersion": "2010-09-09", "Resources": '
+            '{"ImageRepository": {"Type": "AWS::ECR::Repository"}}}')
         body_io = mock.MagicMock()
         body_io.read.return_value = expected_body
         self.actor.s3_conn.get_object.return_value = {'Body': body_io}
@@ -875,7 +879,10 @@ class TestStack(testing.AsyncTestCase):
     @testing.gen_test
     def test_read_stack_url(self):
         url = 'http://s3.us-west-2.amazonaws.com/bucket_name/template.json'
-        expected_body = '{"AWSTemplateFormatVersion": "2010-09-09", "Resources": {"ImageRepository": {"Type": "AWS::ECR::Repository"}}}'
+        expected_body = (
+            '{"AWSTemplateFormatVersion": "2010-09-09", "Resources": '
+            '{"ImageRepository": {"Type": "AWS::ECR::Repository"}}}'
+        )
         body_io = mock.MagicMock()
         body_io.read.return_value = expected_body
         self.actor.s3_conn.get_object.return_value = {'Body': body_io}

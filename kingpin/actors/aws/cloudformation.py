@@ -880,7 +880,8 @@ class Stack(CloudFormationBaseActor):
     def _read_stack_url(self, url):
         # hopefully we are in the right region as self.s3_conn
         bucket, _, key = parse_s3_url(url)
-        resp = yield self.api_call(self.s3_conn.get_object, {'Bucket': bucket, 'Key': key})
+        resp = yield self.api_call(self.s3_conn.get_object,
+                                   {'Bucket': bucket, 'Key': key})
         raise gen.Return(resp['Body'].read())
 
     @gen.coroutine
@@ -1240,12 +1241,7 @@ class Stack(CloudFormationBaseActor):
 
 
 def parse_s3_url(url):
-    """ Gets bucket name and region from url, matching any of the different formats for S3 urls
-    * http://bucket.s3.amazonaws.com/key
-    * http://bucket.s3-aws-region.amazonaws.com/key
-    * http://s3.amazonaws.com/bucket/key
-    * http://s3-aws-region.amazonaws.com/bucket/key
-    * http://s3.aws-region.amazonaws.com/bucket/key
+    """ Gets bucket name, region, and key from url
 
     returns bucket name, region, key
     """
@@ -1257,7 +1253,8 @@ def parse_s3_url(url):
 
     # path style request
     # http://s3.region.amazonaws.com/bucket-name/key-name
-    match = re.search(r'^https?://s3\.([^.]+)\.amazonaws\.com/([^\/]+)/(.+)', url)
+    regex = r'^https?://s3\.([^.]+)\.amazonaws\.com/([^\/]+)/(.+)'
+    match = re.search(regex, url)
     if match:
         return match.group(2), match.group(1), match.group(3)
 
