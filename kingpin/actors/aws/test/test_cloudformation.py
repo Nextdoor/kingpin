@@ -1270,35 +1270,19 @@ class TestS3UrlParsing(unittest.TestCase):
 
     def test_url_parsing(self):
         urls = [
-            ('http://s3-eu-central-1.amazonaws.com/images/photo.jpg',
-             ('images', 'eu-central-1', 'photo.jpg')),
-            ('http://s3.eu-central-1.amazonaws.com/images/photo.jpg',
-             ('images', 'eu-central-1', 'photo.jpg')),
-            ('http://s3.amazonaws.com/images/photo.jpg',
-             ('images', None, 'photo.jpg')),
-            ('http://s3-external-1.amazonaws.com/images/photo.jpg',
-             ('images', None, 'photo.jpg')),
-            ('http://images.s3-us-west-2.amazonaws.com/photo.jpg',
-             ('images', 'us-west-2', 'photo.jpg')),
-            ('http://images.s3-eu-central-1.amazonaws.com/photo.jpg',
-             ('images', 'eu-central-1', 'photo.jpg')),
-            ('http://images.s3.eu-central-1.amazonaws.com/photo.jpg',
-             ('images', 'eu-central-1', 'photo.jpg')),
-            ('http://images.s3.amazonaws.com/photo.jpg',
-             ('images', None, 'photo.jpg')),
-            ('http://images.s3-external-1.amazonaws.com/photo.jpg',
-             ('images', None, 'photo.jpg')),
-            ('http://images.s3-us-west-2.amazonaws.com/photo.jpg',
-             ('images', 'us-west-2', 'photo.jpg')),
-            ('http://images.s3.amazonaws.com/photo.jpg',
-             ('images', None, 'photo.jpg')),
-            ('http://gods.s3.eu-central-1.amazonaws.com/odin.jpg',
-             ('gods', 'eu-central-1', 'odin.jpg')),
-            ('http://gods.s3.amazonaws.com/odin.jpg',
-             ('gods', None, 'odin.jpg')),
+            ('http://bucket.name.s3.eu-central-1.amazonaws.com/dir/photo.jpg',
+             ('bucket.name', 'eu-central-1', 'dir/photo.jpg')),
+            ('http://s3.eu-central-1.amazonaws.com/bucket.name/dir/photo.jpg',
+             ('bucket.name', 'eu-central-1', 'dir/photo.jpg')),
         ]
         for url, (bucket, region, key) in urls:
             b, r, k = cloudformation.parse_s3_url(url)
             self.assertEqual(b, bucket)
             self.assertEqual(r, region)
             self.assertEqual(k, key)
+
+    def test_broken_url_parsing(self):
+        # make sure we fail if we use a non-support url
+        url = 'http://bucket.name.s3-eu-central-1.amazonaws.com/dir/photo.jpg'
+        with self.assertRaises(Exception):
+            cloudformation.parse_s3_url(url)

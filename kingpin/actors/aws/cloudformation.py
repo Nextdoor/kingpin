@@ -1249,32 +1249,16 @@ def parse_s3_url(url):
 
     returns bucket name, region, key
     """
-    # virtual host style, no region
-    # https://bucket-name.s3.Region.amazonaws.com/key-name
-    match = re.search(r'^https?://(.+).s3.amazonaws.com/(.+)', url)
-    if match:
-        return match.group(1), None, match.group(2)
-
-    # virtual host style, with region
+    # virtual host style
     # https://bucket-name.s3-Region.amazonaws.com/key-name
-    match = re.search(r'^https?://(.+).s3-([^.]+).amazonaws.com/(.+)', url)
+    match = re.search(r'^https?://(.+)\.s3\.([^.]+)\.amazonaws\.com/(.+)', url)
     if match:
         return match.group(1), match.group(2), match.group(3)
 
-    # path style, no region
-    # https://s3.amazonaws.com/bucket_name/key
-    match = re.search(r'^https?://s3.amazonaws.com/([^\/]+)/(.+)', url)
-    if match:
-        return match.group(1), None, match.group(2)
-
-    match = re.search(r'^https?://s3-([^.]+).amazonaws.com/([^\/]+)/(.+)', url)
+    # path style request
+    # http://s3.region.amazonaws.com/bucket-name/key-name
+    match = re.search(r'^https?://s3\.([^.]+)\.amazonaws\.com/([^\/]+)/(.+)', url)
     if match:
         return match.group(2), match.group(1), match.group(3)
 
-    # path style request, with region, using dots
-    # http://s3.region.amazonaws.com/bucket/key
-    match = re.search(r'^https?://s3.([^.]+).amazonaws.com/([^\/]+)/(.+)', url)
-    if match:
-        return match.group(2), match.group(1), match.group(3)
-
-    raise Exception()
+    raise Exception('Cannot parse url')
