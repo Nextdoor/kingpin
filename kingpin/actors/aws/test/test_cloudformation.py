@@ -1,5 +1,6 @@
 import datetime
 import importlib
+import io
 import json
 import logging
 import unittest
@@ -626,6 +627,7 @@ class TestStack(testing.AsyncTestCase):
                 }
             })
         self.actor.cf3_conn = mock.MagicMock(name='cf3_conn')
+        self.actor.s3_conn = mock.MagicMock(name='s3_conn')
 
     def test_diff_params_safely(self):
         self.actor = cloudformation.Stack(
@@ -826,6 +828,16 @@ class TestStack(testing.AsyncTestCase):
         fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
         ret = yield self.actor._ensure_template(fake_stack)
         self.assertEqual(None, ret)
+
+    @testing.gen_test
+    def test_read_stack_url(self):
+        url = 'https://s3.us-west-2.amazonaws.com/some.bucket.name/template.json'
+        expected_body = '{"AWSTemplateFormatVersion": "2010-09-09", "Resources": {"ImageRepository": {"Type": "AWS::ECR::Repository"}}}'
+        self.actor.s3_conn.get_object.return_value = {
+            'Body': io.StringIO(expected_body)
+        }
+        read_body = yield self.actor._read_stack_url(url)
+        self.assertEqual(read_body, expected_body)
 
     @testing.gen_test
     def test_ensure_template_no_diff(self):
