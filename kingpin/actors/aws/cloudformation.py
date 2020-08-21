@@ -230,7 +230,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         """
         # if the template is provided inline, return it and don't bother with
         # s3 buckets
-        if inline_template
+        if inline_template:
             try:
                 return json.dumps(self._parse_policy_json(inline_template)), None
             except exceptions.UnrecoverableActorFailure as e:
@@ -257,7 +257,6 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             return remote_template, url
         except Exception as e:
             raise InvalidTemplate(e)
-
 
     @gen.coroutine
     def _validate_template(self, body=None, url=None):
@@ -286,7 +285,6 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 yield self.api_call(self.cf3_conn.validate_template, **cfg)
             except ClientError as e:
                 raise InvalidTemplate(e)
-
 
     def _create_parameters(self, parameters):
         """Converts a simple Key/Value dict into Amazon CF Parameters.
