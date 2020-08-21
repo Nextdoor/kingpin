@@ -19,6 +19,7 @@
 
 import logging
 import json
+import re
 import uuid
 
 from botocore.exceptions import ClientError
