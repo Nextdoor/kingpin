@@ -1,6 +1,8 @@
 import datetime
-import logging
+import importlib
 import json
+import logging
+import unittest
 
 from botocore.exceptions import ClientError
 from tornado import testing
@@ -10,7 +12,6 @@ from kingpin.actors.aws import base
 from kingpin.actors.aws import settings
 from kingpin.actors.aws import cloudformation
 from kingpin.actors.test.helper import tornado_value
-import importlib
 
 log = logging.getLogger(__name__)
 
@@ -1208,3 +1209,41 @@ class TestStack(testing.AsyncTestCase):
         self.actor._ensure_stack = mock.MagicMock()
         self.actor._ensure_stack.return_value = tornado_value(None)
         yield self.actor._execute()
+
+
+class TestS3UrlParsing(unittest.TestCase):
+
+    def test_url_parsing(self):
+        urls = [
+            ('http://s3-eu-central-1.amazonaws.com/images/photo.jpg',
+             ('images', 'eu-central-1', 'photo.jpg')),
+            ('http://s3.eu-central-1.amazonaws.com/images/photo.jpg',
+             ('images', 'eu-central-1', 'photo.jpg')),
+            ('http://s3.amazonaws.com/images/photo.jpg',
+             ('images', None, 'photo.jpg')),
+            ('http://s3-external-1.amazonaws.com/images/photo.jpg',
+             ('images', None, 'photo.jpg')),
+            ('http://images.s3-us-west-2.amazonaws.com/photo.jpg',
+             ('images', 'us-west-2', 'photo.jpg')),
+            ('http://images.s3-eu-central-1.amazonaws.com/photo.jpg',
+             ('images', 'eu-central-1', 'photo.jpg')),
+            ('http://images.s3.eu-central-1.amazonaws.com/photo.jpg',
+             ('images', 'eu-central-1', 'photo.jpg')),
+            ('http://images.s3.amazonaws.com/photo.jpg',
+             ('images', None, 'photo.jpg')),
+            ('http://images.s3-external-1.amazonaws.com/photo.jpg',
+             ('images', None, 'photo.jpg')),
+            ('http://images.s3-us-west-2.amazonaws.com/photo.jpg',
+             ('images', 'us-west-2', 'photo.jpg')),
+            ('http://images.s3.amazonaws.com/photo.jpg',
+             ('images', None, 'photo.jpg')),
+            ('http://gods.s3.eu-central-1.amazonaws.com/odin.jpg',
+             ('gods', 'eu-central-1', 'odin.jpg')),
+            ('http://gods.s3.amazonaws.com/odin.jpg',
+             ('gods', None, 'odin.jpg')),
+        ]
+        for url, (bucket, region, key) in urls:
+            b, r, k = cloudformation.parse_s3_url(url)
+            self.assertEqual(b, bucket)
+            self.assertEqual(r, region)
+            self.assertEqual(k, key)

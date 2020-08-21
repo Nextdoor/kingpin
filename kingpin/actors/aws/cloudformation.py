@@ -876,6 +876,13 @@ class Stack(CloudFormationBaseActor):
         yield self._ensure_template(stack)
 
     @gen.coroutine
+    def _read_stack_url(self, url):
+        # hopefully we are in the right region
+        bucket, _, key = parse_s3_url(url)
+        resp = yield self.api_call(self.s3_conn.get_object, {'Bucket': bucket, 'Key': key})
+        yield resp['Body'].read()
+
+    @gen.coroutine
     def _ensure_template(self, stack):
         """Compares and updates the state of a CF Stack template
 
@@ -890,15 +897,13 @@ class Stack(CloudFormationBaseActor):
         """
         needs_update = False
 
-        # TODO: Implement this
-        if self._template_url:
-            self.log.warning('Cannot compare against remote template url')
-            raise gen.Return()
-
         # Get the current template for the stack, and get our local template
         # body. Make sure they're in the same form (dict).
         existing = yield self._get_stack_template(stack['StackId'])
-        new = json.loads(self._template_body)
+        if self._template_body:
+            new = json.loads(self._template_body)
+        elif self._template_url:
+            new = json.loads(self._read_stack_url(self._template_url))
 
         # Compare the two templates. If they differ at all, log it out for the
         # user and flip the needs_update bit.
@@ -1230,3 +1235,31 @@ class Stack(CloudFormationBaseActor):
         # This main method triggers the creation, deletion or update of the
         # stack as necessary.
         yield self._ensure_stack()
+
+
+def parse_s3_url(url):
+    """ Gets bucket name and region from url, matching any of the different formats for S3 urls
+    * http://bucket.s3.amazonaws.com
+    * http://bucket.s3-aws-region.amazonaws.com
+    * http://s3.amazonaws.com/bucket
+    * http://s3-aws-region.amazonaws.com/bucket
+
+    returns bucket name, region, key
+    """
+    match = re.search(r'^https?://(.+).s3.amazonaws.com/(.+)', url)
+    if match:
+        return match.group(1), None, match.group(2)
+
+    match = re.search(r'^https?://(.+).s3-([^.]+).amazonaws.com/(.+)', url)
+    if match:
+        return match.group(1), match.group(2), match.group(3)
+
+    match = re.search(r'^https?://s3.amazonaws.com/([^\/]+)/(.+)', url)
+    if match:
+        return match.group(1), None, match.group(2)
+
+    match = re.search(r'^https?://s3-([^.]+).amazonaws.com/([^\/]+)/(.+)', url)
+    if match:
+        return match.group(2), match.group(1), match.group(3)
+
+    raise Exception()
