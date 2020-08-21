@@ -824,8 +824,8 @@ class Stack(CloudFormationBaseActor):
         'template': (str, None,
                      'Path to the AWS CloudFormation File. (ie file:///), '
                      'absolute or relative file paths.'),
-        'template_bucket': (str, None, ''),
-        'template_key': (str, None, ''),
+        'template_bucket': (str, None, 'S3 bucket containing the CFN template'),
+        'template_key': (str, None, 'Key in S3 bucket containing the CFN template'),
         'timeout_in_minutes': (int, 60,
                                'The amount of time that can pass before the '
                                'stack status becomes CREATE_FAILED'),
