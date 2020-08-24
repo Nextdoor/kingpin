@@ -231,6 +231,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         Raises:
             InvalidTemplate
         """
+        if template is None:
+            return None, None
+
         if template.startswith('s3://'):
             match = re.match(r's3://([a-z0-9.-]+)/(.*)', template)
             if match:
@@ -241,7 +244,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
             # figure out the region the bucket is in
             if s3_region is None:
-                resp = self.s3_conn.get_bucket_location(bucket)
+                resp = self.s3_conn.get_bucket_location(Bucket=bucket)
                 s3_region = resp['LocationConstraint']
                 if s3_region is None:
                     s3_region = 'us-east-1'
@@ -251,9 +254,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             # work but I'm hesitant to use buckets as components in a subdomain.
             url = f'https://s3-{s3_region}.amazonaws.com/{bucket}/{key}'
 
-            s3_conn = boto3.client('s3', region_name=s3_region)
+            s3 = self.get_s3_client(s3_region)
             try:
-                resp = s3_conn.get_object(Bucket=bucket, Key=key)
+                resp = s3.get_object(Bucket=bucket, Key=key)
             except Exception as e:
                 raise InvalidTemplate(e)
             remote_template = resp['Body'].read()
@@ -264,6 +267,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 return json.dumps(self._parse_policy_json(template)), None
             except exceptions.UnrecoverableActorFailure as e:
                 raise InvalidTemplate(e)
+
+    def get_s3_client(self, region):
+        return boto3.client('s3', region_name=region)
 
     @gen.coroutine
     def _validate_template(self, body=None, url=None):
