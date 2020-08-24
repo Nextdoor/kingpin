@@ -2,6 +2,7 @@ import datetime
 import logging
 import json
 
+import boto3
 from botocore.exceptions import ClientError
 from tornado import testing
 import mock
@@ -466,11 +467,12 @@ class TestCreate(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_create_stack_url(self):
-        actor = cloudformation.Create(
-            'Unit Test Action',
-            {'name': 'unit-test-cf',
-             'region': 'us-west-2',
-             'template': 'https://www.test.com'})
+        with mock.patch.object(boto3, 'client'):
+            actor = cloudformation.Create(
+                'Unit Test Action',
+                {'name': 'unit-test-cf',
+                 'region': 'us-west-2',
+                 'template': 's3://bucket/key'})
         actor._wait_until_state = mock.MagicMock(name='_wait_until_state')
         actor._wait_until_state.side_effect = [tornado_value(None)]
         actor.cf3_conn.create_stack = mock.MagicMock(name='create_stack_mock')
@@ -1049,14 +1051,14 @@ class TestStack(testing.AsyncTestCase):
         self.actor.cf3_conn.create_change_set.return_value = {'Id': 'abcd'}
         template_body = json.dumps({})
         self.actor._template_body = template_body
-        self.actor._template_url = 's3://foobar.bin'
+        self.actor._template_url = 'https://s3-us-east-1.amazonaws.com/foobar/bin'
         fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
         ret = yield self.actor._create_change_set(fake_stack, 'uuid')
         self.assertEqual(ret, {'Id': 'abcd'})
         self.actor.cf3_conn.create_change_set.assert_has_calls(
             [mock.call(
                 StackName='arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x',
-                TemplateURL='http://foobar.bin',
+                TemplateURL='https://s3-us-east-1.amazonaws.com/foobar/bin',
                 Capabilities=[],
                 ChangeSetName='kingpin-uuid',
                 Parameters=[

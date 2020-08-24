@@ -569,7 +569,7 @@ class Create(CloudFormationBaseActor):
     :template:
       String of path to CloudFormation template. Can either be in the form of a
       local file path (ie, `./my_template.json`) or a URI (ie
-      `https://my_site.com/cf.json`).
+      `s3://bucket-name/cf.json`).
 
     :timeout_in_minutes:
       The amount of time that can pass before the stack status becomes
@@ -776,7 +776,7 @@ class Stack(CloudFormationBaseActor):
     :template:
       String of path to CloudFormation template. Can either be in the form of a
       local file path (ie, `./my_template.json`) or a URI (ie
-      `https://my_site.com/cf.json`).
+      `s3://bucket-name/cf.json`).
 
     :timeout_in_minutes:
       The amount of time that can pass before the stack status becomes
