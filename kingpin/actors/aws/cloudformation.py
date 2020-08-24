@@ -23,6 +23,7 @@ import re
 import uuid
 from typing import Any, Dict, Optional
 
+import boto3
 from botocore.exceptions import ClientError
 from tornado import concurrent
 from tornado import gen
@@ -214,7 +215,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         }
         return default_params
 
-    def _get_template_body(self, inline_template: Optional[str], s3_path: Optional[str], s3_region: Optional[str]):
+    def _get_template_body(self, template: str, s3_region: Optional[str]):
         """Reads in a local template file and returns the contents.
 
         If the template string supplied is a local file resource (has no
@@ -230,34 +231,39 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         Raises:
             InvalidTemplate
         """
-        # You must specify exaxtly one of inline_template or s3_path.
-        if inline_template is None and s3_path is not None:
-            raise InvalidTemplate()
-        if s3_path is None and inline_template is not None:
-            raise InvalidTemplate()
-
-        # if the template is provided inline, return it and don't bother with
-        # s3 buckets
-        if inline_template:
-            try:
-                return json.dumps(self._parse_policy_json(inline_template)), None
-            except exceptions.UnrecoverableActorFailure as e:
-                raise InvalidTemplate(e)
-
-        if s3_path:
-            match = re.match(r's3://([a-z0-9.-]+)/(.*)', s3_path)
+        if template.startswith('s3://'):
+            match = re.match(r's3://([a-z0-9.-]+)/(.*)', template)
             if match:
                 bucket = match.group(1)
                 key = match.group(2)
             else:
                 raise InvalidTemplate()
 
-            url = f'https://{bucket}.s3.amazonaws.com/{key}'
+            # figure out the region the bucket is in
+            if s3_region is None:
+                resp = self.s3_conn.get_bucket_location(bucket)
+                s3_region = resp['LocationConstraint']
+                if s3_region is None:
+                    s3_region = 'us-east-1'
+            # AWS support assured me this format would work for all regions for
+            # all buckets they also said
+            # f'https://{bucket}.s3-{region}.amazonaws.com/{key} would also
+            # work but I'm hesitant to use buckets as components in a subdomain.
+            url = f'https://s3-{s3_region}.amazonaws.com/{bucket}/{key}'
 
-            # TODO: is s3_conn pinned to aregion?
-            resp = self.api_call(self.s3_conn.get_object, {'Bucket': bucket, 'Key': key})
+            s3_conn = boto3.client('s3', region_name=s3_region)
+            try:
+                resp = s3_conn.get_object(Bucket=bucket, Key=key)
+            except Exception as e:
+                raise InvalidTemplate(e)
             remote_template = resp['Body'].read()
             return remote_template, url
+        else:
+            # The template is provided inline.
+            try:
+                return json.dumps(self._parse_policy_json(template)), None
+            except exceptions.UnrecoverableActorFailure as e:
+                raise InvalidTemplate(e)
 
     @gen.coroutine
     def _validate_template(self, body=None, url=None):
@@ -605,10 +611,9 @@ class Create(CloudFormationBaseActor):
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
         'role_arn': (str, None,
                      'The Amazon IAM Role to use when executing the stack'),
-        'template': (str, None,
-                     'Path to the AWS CloudFormation File. (ie file:///), '
-                     'absolute or relative file paths.'),
-        'template_s3_path': (str, None, 'Path to template in s3://<bucket>/key format'),
+        'template': (str, REQUIRED,
+                     'Path to the AWS CloudFormation File. s3://, '
+                     'file:///, absolute or relative file paths.'),
         'template_s3_region': (str, None, 'Region of the bucket containing template_s3_path'),
         'timeout_in_minutes': (int, 60,
                                'The amount of time that can pass before the '
@@ -632,7 +637,6 @@ class Create(CloudFormationBaseActor):
         # into memory.
         self._template_body, self._template_url = self._get_template_body(
             self.option('template'),
-            self.option('template_s3_path'),
             self.option('template_s3_region'),
         )
 
@@ -821,10 +825,9 @@ class Stack(CloudFormationBaseActor):
         'region': (str, REQUIRED, 'AWS region (or zone) name, like us-west-2'),
         'role_arn': (str, None,
                      'The Amazon IAM Role to use when executing the stack'),
-        'template': (str, None,
-                     'Path to the AWS CloudFormation File. (ie file:///), '
-                     'absolute or relative file paths.'),
-        'template_s3_path': (str, None, 'Path to template in s3://<bucket>/key format'),
+        'template': (str, REQUIRED,
+                     'Path to the AWS CloudFormation File. s3://, '
+                     'file:///, absolute or relative file paths.'),
         'template_s3_region': (str, None, 'Region of the bucket containing template_s3_path'),
         'timeout_in_minutes': (int, 60,
                                'The amount of time that can pass before the '
@@ -845,7 +848,6 @@ class Stack(CloudFormationBaseActor):
         # into memory.
         self._template_body, self._template_url = self._get_template_body(
             self.option('template'),
-            self.option('template_s3_path'),
             self.option('template_s3_region'),
         )
 
