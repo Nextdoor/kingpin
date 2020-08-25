@@ -48,6 +48,9 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
+S3_REGEX = re.compile(r's3://([a-z0-9.-]+)/(.*)')
+
+
 class CloudFormationError(exceptions.RecoverableActorFailure):
 
     """Raised on any generic CloudFormation error."""
@@ -235,7 +238,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             return None, None
 
         if template.startswith('s3://'):
-            match = re.match(r's3://([a-z0-9.-]+)/(.*)', template)
+            match = S3_REGEX.match(template)
             if match:
                 bucket = match.group(1)
                 key = match.group(2)
