@@ -247,6 +247,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
             # figure out the region the bucket is in
             if s3_region is None:
+                log.info(f'Getting region for bucket {bucket}')
                 resp = self.s3_conn.get_bucket_location(Bucket=bucket)
                 s3_region = resp['LocationConstraint']
                 if s3_region is None:
@@ -259,6 +260,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
             s3 = self.get_s3_client(s3_region)
             try:
+                log.info('Downloading template stored in s3')
                 resp = s3.get_object(Bucket=bucket, Key=key)
             except Exception as e:
                 raise InvalidTemplate(e)
