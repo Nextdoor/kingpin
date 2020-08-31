@@ -90,7 +90,9 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
     def test_get_template_body_s3(self):
         url = 's3://bucket/foobar.json'
         self.actor.s3_conn = mock.MagicMock(name="s3_conn")
-        self.actor.s3_conn.get_bucket_location.return_value = {'LocationConstraint': None}
+        self.actor.s3_conn.get_bucket_location.return_value = (
+            {'LocationConstraint': None}
+        )
 
         expected_template = 'i am a cfn template'
         with mock.patch.object(self.actor, 'get_s3_client') as mock_get:
@@ -101,7 +103,10 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             mock_get.return_value = mock_s3
 
             ret = self.actor._get_template_body(url, None)
-            expected = (expected_template, 'https://s3-us-east-1.amazonaws.com/bucket/foobar.json')
+            expected = (
+                expected_template,
+                'https://s3-us-east-1.amazonaws.com/bucket/foobar.json'
+            )
             self.assertEqual(ret, expected)
 
         # Should raise exception
@@ -111,7 +116,9 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
     def test_get_template_body_s3_read_failure(self):
         url = 's3://bucket/foobar.json'
         self.actor.s3_conn = mock.MagicMock(name="s3_conn")
-        self.actor.s3_conn.get_bucket_location.return_value = {'LocationConstraint': None}
+        self.actor.s3_conn.get_bucket_location.return_value = (
+            {'LocationConstraint': None}
+        )
 
         with mock.patch.object(self.actor, 'get_s3_client') as mock_get:
             mock_s3 = mock.MagicMock()
@@ -1051,7 +1058,9 @@ class TestStack(testing.AsyncTestCase):
         self.actor.cf3_conn.create_change_set.return_value = {'Id': 'abcd'}
         template_body = json.dumps({})
         self.actor._template_body = template_body
-        self.actor._template_url = 'https://s3-us-east-1.amazonaws.com/foobar/bin'
+        self.actor._template_url = (
+            'https://s3-us-east-1.amazonaws.com/foobar/bin'
+        )
         fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
         ret = yield self.actor._create_change_set(fake_stack, 'uuid')
         self.assertEqual(ret, {'Id': 'abcd'})

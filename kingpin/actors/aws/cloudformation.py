@@ -21,7 +21,7 @@ import json
 import logging
 import re
 import uuid
-from typing import Any, Dict, Optional
+from typing import Optional
 
 import boto3
 from botocore.exceptions import ClientError
@@ -254,7 +254,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             # AWS support assured me this format would work for all regions for
             # all buckets they also said
             # f'https://{bucket}.s3-{region}.amazonaws.com/{key} would also
-            # work but I'm hesitant to use buckets as components in a subdomain.
+            # work but I'm hesitant to use buckets as components in a subdomain
             url = f'https://s3-{s3_region}.amazonaws.com/{bucket}/{key}'
 
             s3 = self.get_s3_client(s3_region)
@@ -608,7 +608,7 @@ class Create(CloudFormationBaseActor):
     not exist. Does not create the stack.
     """
 
-    all_options: Dict[str, Any] = {
+    all_options = {
         'capabilities': (list, [],
                          'The list of capabilities that you want to allow '
                          'in the stack'),
@@ -623,7 +623,8 @@ class Create(CloudFormationBaseActor):
         'template': (str, REQUIRED,
                      'Path to the AWS CloudFormation File. s3://, '
                      'file:///, absolute or relative file paths.'),
-        'template_s3_region': (str, None, 'Region of the bucket containing template_s3_path'),
+        'template_s3_region': (str, None,
+                               'Region of the bucket containing template'),
         'timeout_in_minutes': (int, 60,
                                'The amount of time that can pass before the '
                                'stack status becomes CREATE_FAILED'),
@@ -817,7 +818,7 @@ class Stack(CloudFormationBaseActor):
     not exist. Does not create the stack.
     """
 
-    all_options: Dict[str, Any] = {
+    all_options = {
         'name': (str, REQUIRED, 'Name of the stack'),
         'state': (STATE, 'present',
                   'Desired state of the bucket: present/absent'),
@@ -837,7 +838,8 @@ class Stack(CloudFormationBaseActor):
         'template': (str, REQUIRED,
                      'Path to the AWS CloudFormation File. s3://, '
                      'file:///, absolute or relative file paths.'),
-        'template_s3_region': (str, None, 'Region of the bucket containing template_s3_path'),
+        'template_s3_region': (str, None,
+                               'Region of the bucket containing template'),
         'timeout_in_minutes': (int, 60,
                                'The amount of time that can pass before the '
                                'stack status becomes CREATE_FAILED'),
