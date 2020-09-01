@@ -247,7 +247,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
             # figure out the region the bucket is in
             if s3_region is None:
-                log.info(f'Getting region for bucket {bucket}')
+                log.debug(f'Getting region for bucket {bucket}')
                 resp = self.s3_conn.get_bucket_location(Bucket=bucket)
                 s3_region = resp['LocationConstraint']
                 if s3_region is None:
@@ -259,10 +259,10 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             url = f'https://s3-{s3_region}.amazonaws.com/{bucket}/{key}'
 
             s3 = self.get_s3_client(s3_region)
+            log.debug('Downloading template stored in s3')
             try:
-                log.info('Downloading template stored in s3')
                 resp = s3.get_object(Bucket=bucket, Key=key)
-            except Exception as e:
+            except ClientError as e:
                 raise InvalidTemplate(e)
             remote_template = resp['Body'].read()
             return remote_template, url
@@ -274,6 +274,12 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 raise InvalidTemplate(e)
 
     def get_s3_client(self, region):
+        """Get a boto3 S3 client for a given region.
+
+        If the CFN template is stored in S3, we need to download it.  The
+        bucket may be in a different region than self.s3_conn, so get a
+        connection that is definitely in the correct region.
+        """
         return boto3.client('s3', region_name=region)
 
     @gen.coroutine
