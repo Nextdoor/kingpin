@@ -105,7 +105,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             ret = self.actor._get_template_body(url, None)
             expected = (
                 expected_template,
-                'https://s3-us-east-1.amazonaws.com/bucket/foobar.json'
+                'https://bucket.s3.us-east-1.amazonaws.com/foobar.json'
             )
             self.assertEqual(ret, expected)
 
@@ -122,7 +122,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
 
         with mock.patch.object(self.actor, 'get_s3_client') as mock_get:
             mock_s3 = mock.MagicMock()
-            mock_s3.get_object.side_effect = Exception()
+            mock_s3.get_object.side_effect = ClientError({}, 'FakeOperation')
             mock_get.return_value = mock_s3
 
             with self.assertRaises(cloudformation.InvalidTemplate):
@@ -1059,7 +1059,7 @@ class TestStack(testing.AsyncTestCase):
         template_body = json.dumps({})
         self.actor._template_body = template_body
         self.actor._template_url = (
-            'https://s3-us-east-1.amazonaws.com/foobar/bin'
+            'https://foobar.s3.us-east-1.amazonaws.com/bin'
         )
         fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
         ret = yield self.actor._create_change_set(fake_stack, 'uuid')
@@ -1067,7 +1067,7 @@ class TestStack(testing.AsyncTestCase):
         self.actor.cf3_conn.create_change_set.assert_has_calls(
             [mock.call(
                 StackName='arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x',
-                TemplateURL='https://s3-us-east-1.amazonaws.com/foobar/bin',
+                TemplateURL='https://foobar.s3.us-east-1.amazonaws.com/bin',
                 Capabilities=[],
                 ChangeSetName='kingpin-uuid',
                 Parameters=[
