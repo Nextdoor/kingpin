@@ -252,11 +252,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 s3_region = resp['LocationConstraint']
                 if s3_region is None:
                     s3_region = 'us-east-1'
-            # AWS support assured me this format would work for all regions for
-            # all buckets they also said
-            # f'https://{bucket}.s3-{region}.amazonaws.com/{key} would also
-            # work but I'm hesitant to use buckets as components in a subdomain
-            url = f'https://s3-{s3_region}.amazonaws.com/{bucket}/{key}'
+            # AWS has a multitude of different s3 url formats, but not all are
+            # supported. Use this one.
+            url = f'https://{bucket}.s3.{s3_region}.amazonaws.com/{key}'
 
             s3 = self.get_s3_client(s3_region)
             log.debug('Downloading template stored in s3')
