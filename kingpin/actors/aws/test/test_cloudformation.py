@@ -2,6 +2,7 @@ import datetime
 import logging
 import json
 
+import boto3
 from botocore.exceptions import ClientError
 from tornado import testing
 import mock
@@ -69,32 +70,71 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
 
     def test_discover_noecho_params(self):
         file = 'examples/test/aws.cloudformation/cf.integration.json'
-        (body, url) = self.actor._get_template_body(file)
+        (body, url) = self.actor._get_template_body(file, None)
         ret = self.actor._discover_noecho_params(body)
         self.assertEqual(ret, ['BucketPassword'])
 
     def test_get_template_body(self):
         file = 'examples/test/aws.cloudformation/cf.unittest.json'
-        url = 'http://foobar.json'
 
         # Should work...
-        ret = self.actor._get_template_body(file)
+        ret = self.actor._get_template_body(file, None)
         expected = ('{"blank": "json"}', None)
         self.assertEqual(ret, expected)
 
         # Should return None
-        ret = self.actor._get_template_body(None)
+        ret = self.actor._get_template_body(None, None)
         expected = (None, None)
         self.assertEqual(ret, expected)
 
-        # Should return None
-        ret = self.actor._get_template_body(url)
-        expected = (None, 'http://foobar.json')
-        self.assertEqual(ret, expected)
+    def test_get_template_body_s3(self):
+        url = 's3://bucket/foobar.json'
+        self.actor.s3_conn = mock.MagicMock(name="s3_conn")
+        self.actor.s3_conn.get_bucket_location.return_value = (
+            {'LocationConstraint': None}
+        )
+
+        expected_template = 'i am a cfn template'
+        with mock.patch.object(self.actor, 'get_s3_client') as mock_get:
+            mock_s3 = mock.MagicMock()
+            mock_body = mock.MagicMock()
+            mock_body.read.return_value = expected_template
+            mock_s3.get_object.return_value = {'Body': mock_body}
+            mock_get.return_value = mock_s3
+
+            ret = self.actor._get_template_body(url, None)
+            expected = (
+                expected_template,
+                'https://bucket.s3.us-east-1.amazonaws.com/foobar.json'
+            )
+            self.assertEqual(ret, expected)
 
         # Should raise exception
         with self.assertRaises(cloudformation.InvalidTemplate):
-            self.actor._get_template_body('missing')
+            self.actor._get_template_body('missing', None)
+
+    def test_get_template_body_s3_read_failure(self):
+        url = 's3://bucket/foobar.json'
+        self.actor.s3_conn = mock.MagicMock(name="s3_conn")
+        self.actor.s3_conn.get_bucket_location.return_value = (
+            {'LocationConstraint': None}
+        )
+
+        with mock.patch.object(self.actor, 'get_s3_client') as mock_get:
+            mock_s3 = mock.MagicMock()
+            mock_s3.get_object.side_effect = ClientError({}, 'FakeOperation')
+            mock_get.return_value = mock_s3
+
+            with self.assertRaises(cloudformation.InvalidTemplate):
+                self.actor._get_template_body(url, None)
+
+    def test_get_template_body_bad_s3_path(self):
+        url = 's3://bucket-foobar.json'
+        with self.assertRaises(cloudformation.InvalidTemplate):
+            self.actor._get_template_body(url, None)
+
+    def test_get_s3_client(self):
+        self.actor.get_s3_client('us-east-1')
 
     @testing.gen_test
     def test_validate_template_body(self):
@@ -434,11 +474,12 @@ class TestCreate(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_create_stack_url(self):
-        actor = cloudformation.Create(
-            'Unit Test Action',
-            {'name': 'unit-test-cf',
-             'region': 'us-west-2',
-             'template': 'https://www.test.com'})
+        with mock.patch.object(boto3, 'client'):
+            actor = cloudformation.Create(
+                'Unit Test Action',
+                {'name': 'unit-test-cf',
+                 'region': 'us-west-2',
+                 'template': 's3://bucket/key'})
         actor._wait_until_state = mock.MagicMock(name='_wait_until_state')
         actor._wait_until_state.side_effect = [tornado_value(None)]
         actor.cf3_conn.create_stack = mock.MagicMock(name='create_stack_mock')
@@ -625,6 +666,7 @@ class TestStack(testing.AsyncTestCase):
                 }
             })
         self.actor.cf3_conn = mock.MagicMock(name='cf3_conn')
+        self.actor.s3_conn = mock.MagicMock(name='s3_conn')
 
     def test_diff_params_safely(self):
         self.actor = cloudformation.Stack(
@@ -820,11 +862,57 @@ class TestStack(testing.AsyncTestCase):
             yield self.actor._update_stack(fake_stack)
 
     @testing.gen_test
-    def test_ensure_template_with_url_quietly_exits(self):
-        self.actor._template_url = 'http://fakeurl.com'
+    def test_ensure_template_with_url_works(self):
+        self.actor._template_body = json.dumps({})
+        self.actor._template_url = 's3://some.bucket.name/template.json'
+        expected_body = (
+            '{"AWSTemplateFormatVersion": "2010-09-09", "Resources": '
+            '{"ImageRepository": {"Type": "AWS::ECR::Repository"}}}')
+        body_io = mock.MagicMock()
+        body_io.read.return_value = expected_body
+        self.actor.s3_conn.get_object.return_value = {'Body': body_io}
+
+        self.actor._create_change_set = mock.MagicMock(name='_create_change')
+        self.actor._create_change_set.return_value = tornado_value(
+            {'Id': 'abcd'})
+        self.actor._wait_until_change_set_ready = mock.MagicMock(name='_wait')
+        self.actor._wait_until_change_set_ready.return_value = tornado_value(
+            {'Changes': []})
+        self.actor._execute_change_set = mock.MagicMock(name='_execute_change')
+        self.actor._execute_change_set.return_value = tornado_value(None)
+        self.actor.cf3_conn.delete_change_set.return_value = tornado_value(
+            None)
+
+        # Change the actors parameters from the first time it was run -- this
+        # ensures all the lines on the ensure_template method are called
+        self.actor._parameters = self.actor._create_parameters({})
+
         fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
+
+        # Grab the raw stack body from the test actor -- this is what it should
+        # compare against, so this test should cause the method to bail out and
+        # not make any changes.
+        template = {'Fake': 'Stack'}
+        get_temp_mock = mock.MagicMock(name='_get_stack_template')
+        self.actor._get_stack_template = get_temp_mock
+        self.actor._get_stack_template.return_value = tornado_value(template)
+
+        # We run three tests in here because the setup takes so many lines
+        # (above). First test is a normal execution with changes detected.
         ret = yield self.actor._ensure_template(fake_stack)
         self.assertEqual(None, ret)
+        self.actor._create_change_set.assert_has_calls(
+            [mock.call(fake_stack)])
+        self.actor._wait_until_change_set_ready.assert_has_calls(
+            [mock.call('abcd', 'Status', 'CREATE_COMPLETE')])
+        self.assertFalse(self.actor.cf3_conn.delete_change_set.called)
+
+        # Quick second execution with _dry set. In this case, we SHOULD call
+        # the delete changset function.
+        self.actor._dry = True
+        yield self.actor._ensure_template(fake_stack)
+        self.actor.cf3_conn.delete_change_set.assert_has_calls(
+            [mock.call(ChangeSetName='abcd')])
 
     @testing.gen_test
     def test_ensure_template_no_diff(self):
@@ -968,15 +1056,18 @@ class TestStack(testing.AsyncTestCase):
     @testing.gen_test
     def test_create_change_set_url(self):
         self.actor.cf3_conn.create_change_set.return_value = {'Id': 'abcd'}
-        self.actor._template_body = None
-        self.actor._template_url = 'http://foobar.bin'
+        template_body = json.dumps({})
+        self.actor._template_body = template_body
+        self.actor._template_url = (
+            'https://foobar.s3.us-east-1.amazonaws.com/bin'
+        )
         fake_stack = create_fake_stack('fake', 'CREATE_COMPLETE')
         ret = yield self.actor._create_change_set(fake_stack, 'uuid')
         self.assertEqual(ret, {'Id': 'abcd'})
         self.actor.cf3_conn.create_change_set.assert_has_calls(
             [mock.call(
                 StackName='arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x',
-                TemplateURL='http://foobar.bin',
+                TemplateURL='https://foobar.s3.us-east-1.amazonaws.com/bin',
                 Capabilities=[],
                 ChangeSetName='kingpin-uuid',
                 Parameters=[

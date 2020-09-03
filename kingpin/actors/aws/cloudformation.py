@@ -17,10 +17,13 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 """
 
-import logging
 import json
+import logging
+import re
 import uuid
+from typing import Optional
 
+import boto3
 from botocore.exceptions import ClientError
 from tornado import concurrent
 from tornado import gen
@@ -28,10 +31,10 @@ from tornado import ioloop
 
 from kingpin import utils
 from kingpin.actors import exceptions
-from kingpin.actors.utils import dry
 from kingpin.actors.aws import base
-from kingpin.constants import SchemaCompareBase, StringCompareBase
+from kingpin.actors.utils import dry
 from kingpin.constants import REQUIRED, STATE
+from kingpin.constants import SchemaCompareBase, StringCompareBase
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +46,9 @@ __author__ = 'Matt Wise <matt@nextdoor.com>'
 # across RightScale objects, but we see testing IO errors when we
 # do this.
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
+
+
+S3_REGEX = re.compile(r's3://(?P<bucket>[a-z0-9.-]+)/(?P<key>.*)')
 
 
 class CloudFormationError(exceptions.RecoverableActorFailure):
@@ -212,7 +218,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         }
         return default_params
 
-    def _get_template_body(self, template):
+    def _get_template_body(self, template: str, s3_region: Optional[str]):
         """Reads in a local template file and returns the contents.
 
         If the template string supplied is a local file resource (has no
@@ -220,12 +226,10 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         Otherwise, returns None.
 
         Args:
-            template: String with a reference to a template location.
 
         Returns:
-            One tuple of:
-              (Contents of template file, None)
-              (None, URL of template)
+          (Contents of template file, None)
+          (Contents of template downloaded from s3, URL of template)
 
         Raises:
             InvalidTemplate
@@ -233,15 +237,48 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         if template is None:
             return None, None
 
-        remote_types = ('http://', 'https://')
+        if template.startswith('s3://'):
+            match = S3_REGEX.match(template)
+            if match:
+                bucket = match.group('bucket')
+                key = match.group('key')
+            else:
+                raise InvalidTemplate()
 
-        if template.startswith(remote_types):
-            return None, template
+            # figure out the region the bucket is in
+            if s3_region is None:
+                log.debug(f'Getting region for bucket {bucket}')
+                resp = self.s3_conn.get_bucket_location(Bucket=bucket)
+                s3_region = resp['LocationConstraint']
+                if s3_region is None:
+                    s3_region = 'us-east-1'
+            # AWS has a multitude of different s3 url formats, but not all are
+            # supported. Use this one.
+            url = f'https://{bucket}.s3.{s3_region}.amazonaws.com/{key}'
 
-        try:
-            return json.dumps(self._parse_policy_json(template)), None
-        except exceptions.UnrecoverableActorFailure as e:
-            raise InvalidTemplate(e)
+            s3 = self.get_s3_client(s3_region)
+            log.debug('Downloading template stored in s3')
+            try:
+                resp = s3.get_object(Bucket=bucket, Key=key)
+            except ClientError as e:
+                raise InvalidTemplate(e)
+            remote_template = resp['Body'].read()
+            return remote_template, url
+        else:
+            # The template is provided inline.
+            try:
+                return json.dumps(self._parse_policy_json(template)), None
+            except exceptions.UnrecoverableActorFailure as e:
+                raise InvalidTemplate(e)
+
+    def get_s3_client(self, region):
+        """Get a boto3 S3 client for a given region.
+
+        If the CFN template is stored in S3, we need to download it.  The
+        bucket may be in a different region than self.s3_conn, so get a
+        connection that is definitely in the correct region.
+        """
+        return boto3.client('s3', region_name=region)
 
     @gen.coroutine
     def _validate_template(self, body=None, url=None):
@@ -256,17 +293,16 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             exceptions.InvalidCredentials
         """
 
-        if body is not None:
-            cfg = {'TemplateBody': body}
-            self.log.info('Validating template with AWS...')
+        if url is not None:
+            cfg = {'TemplateURL': url}
+            self.log.info('Validating template (%s) with AWS...' % url)
             try:
                 yield self.api_call(self.cf3_conn.validate_template, **cfg)
             except ClientError as e:
                 raise InvalidTemplate(e)
-
-        if url is not None:
-            cfg = {'TemplateURL': url}
-            self.log.info('Validating template (%s) with AWS...' % url)
+        elif body is not None:
+            cfg = {'TemplateBody': body}
+            self.log.info('Validating template with AWS...')
             try:
                 yield self.api_call(self.cf3_conn.validate_template, **cfg)
             except ClientError as e:
@@ -466,10 +502,10 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         self.log.info('Creating stack %s' % stack)
 
         cfg = dict()
-        if self._template_body:
-            cfg['TemplateBody'] = self._template_body
-        else:
+        if self._template_url:
             cfg['TemplateURL'] = self._template_url
+        else:
+            cfg['TemplateBody'] = self._template_body
 
         if self.option('role_arn'):
             cfg['RoleARN'] = self.option('role_arn')
@@ -542,7 +578,7 @@ class Create(CloudFormationBaseActor):
     :template:
       String of path to CloudFormation template. Can either be in the form of a
       local file path (ie, `./my_template.json`) or a URI (ie
-      `https://my_site.com/cf.json`).
+      `s3://bucket-name/cf.json`).
 
     :timeout_in_minutes:
       The amount of time that can pass before the stack status becomes
@@ -591,8 +627,10 @@ class Create(CloudFormationBaseActor):
         'role_arn': (str, None,
                      'The Amazon IAM Role to use when executing the stack'),
         'template': (str, REQUIRED,
-                     'Path to the AWS CloudFormation File. http(s)://, '
+                     'Path to the AWS CloudFormation File. s3://, '
                      'file:///, absolute or relative file paths.'),
+        'template_s3_region': (str, None,
+                               'Region of the bucket containing template'),
         'timeout_in_minutes': (int, 60,
                                'The amount of time that can pass before the '
                                'stack status becomes CREATE_FAILED'),
@@ -614,15 +652,15 @@ class Create(CloudFormationBaseActor):
         # Check if the supplied CF template is a local file. If it is, read it
         # into memory.
         self._template_body, self._template_url = self._get_template_body(
-            self.option('template'))
+            self.option('template'),
+            self.option('template_s3_region'),
+        )
 
     @gen.coroutine
     def _execute(self):
         stack_name = self.option('name')
 
-        yield self._validate_template(
-            self._template_body,
-            self._template_url)
+        yield self._validate_template(self._template_body, self._template_url)
 
         # If a stack already exists, we cannot re-create it. Raise a
         # recoverable exception and let the end user decide whether this is bad
@@ -748,7 +786,7 @@ class Stack(CloudFormationBaseActor):
     :template:
       String of path to CloudFormation template. Can either be in the form of a
       local file path (ie, `./my_template.json`) or a URI (ie
-      `https://my_site.com/cf.json`).
+      `s3://bucket-name/cf.json`).
 
     :timeout_in_minutes:
       The amount of time that can pass before the stack status becomes
@@ -804,8 +842,10 @@ class Stack(CloudFormationBaseActor):
         'role_arn': (str, None,
                      'The Amazon IAM Role to use when executing the stack'),
         'template': (str, REQUIRED,
-                     'Path to the AWS CloudFormation File. http(s)://, '
+                     'Path to the AWS CloudFormation File. s3://, '
                      'file:///, absolute or relative file paths.'),
+        'template_s3_region': (str, None,
+                               'Region of the bucket containing template'),
         'timeout_in_minutes': (int, 60,
                                'The amount of time that can pass before the '
                                'stack status becomes CREATE_FAILED'),
@@ -824,11 +864,12 @@ class Stack(CloudFormationBaseActor):
         # Check if the supplied CF template is a local file. If it is, read it
         # into memory.
         self._template_body, self._template_url = self._get_template_body(
-            self.option('template'))
+            self.option('template'),
+            self.option('template_s3_region'),
+        )
 
         # Find any Default parameters embedded in the stack.
-        _default_params = self._discover_default_params(
-            self._template_body)
+        _default_params = self._discover_default_params(self._template_body)
 
         # Convert Default parameters and our supplied parameters into a
         # properly formatted list.
@@ -889,11 +930,6 @@ class Stack(CloudFormationBaseActor):
             stack: A Boto3 Stack object
         """
         needs_update = False
-
-        # TODO: Implement this
-        if self._template_url:
-            self.log.warning('Cannot compare against remote template url')
-            raise gen.Return()
 
         # Get the current template for the stack, and get our local template
         # body. Make sure they're in the same form (dict).
@@ -1024,10 +1060,10 @@ class Stack(CloudFormationBaseActor):
         if self.option('role_arn'):
             change_opts['RoleARN'] = self.option('role_arn')
 
-        if self._template_body:
-            change_opts['TemplateBody'] = self._template_body
-        else:
+        if self._template_url:
             change_opts['TemplateURL'] = self._template_url
+        else:
+            change_opts['TemplateBody'] = self._template_body
 
         self.log.info('Generating a stack Change Set...')
         try:
@@ -1223,9 +1259,7 @@ class Stack(CloudFormationBaseActor):
     def _execute(self):
         # Before we do anything, validate that the supplied template body or
         # url is valid. If its not, an exception is raised.
-        yield self._validate_template(
-            self._template_body,
-            self._template_url)
+        yield self._validate_template(self._template_body, self._template_url)
 
         # This main method triggers the creation, deletion or update of the
         # stack as necessary.
