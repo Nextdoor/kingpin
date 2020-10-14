@@ -959,7 +959,8 @@ class ECSBaseActor(base.AWSBaseActor):
         raise gen.Return(task_definitions)
 
     @staticmethod
-    def _load_task_definition(task_definition_file, tokens, default_tokens=None):
+    def _load_task_definition(task_definition_file, tokens,
+                              default_tokens=None):
         """Loads and verifies a task definition template file, interpolates
         tokens, and optionally default tokens which may contain environment
         variables.
