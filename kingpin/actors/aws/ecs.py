@@ -91,7 +91,6 @@ TASK_DEFINITION_SCHEMA = {
                                 'type': 'string'
                             }
                         },
-                        'additionalProperties': False,
                         'required': [
                             'credentialsParameter'
                         ]
@@ -109,8 +108,7 @@ TASK_DEFINITION_SCHEMA = {
                         'type': 'array',
                         'items': {
                             'type': 'string'
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'portMappings': {
                         'type': 'array',
@@ -130,10 +128,8 @@ TASK_DEFINITION_SCHEMA = {
                                         'udp'
                                     ]
                                 }
-                            },
-                            'additionalProperties': False
-                        },
-                        'additionalProperties': False
+                            }
+                        }
                     },
                     'essential': {
                         'type': 'boolean'
@@ -142,15 +138,13 @@ TASK_DEFINITION_SCHEMA = {
                         'type': 'array',
                         'items': {
                             'type': 'string'
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'command': {
                         'type': 'array',
                         'items': {
                             'type': 'string'
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'environment': {
                         'type': 'array',
@@ -163,10 +157,8 @@ TASK_DEFINITION_SCHEMA = {
                                 'value': {
                                     'type': 'string'
                                 }
-                            },
-                            'additionalProperties': False
-                        },
-                        'additionalProperties': False
+                            }
+                        }
                     },
                     'environmentFiles': {
                         'type': 'array',
@@ -183,13 +175,11 @@ TASK_DEFINITION_SCHEMA = {
                                     ]
                                 }
                             },
-                            'additionalProperties': False,
                             'required': [
                                 'value',
                                 'type'
                             ]
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'mountPoints': {
                         'type': 'array',
@@ -205,10 +195,8 @@ TASK_DEFINITION_SCHEMA = {
                                 'readOnly': {
                                     'type': 'boolean'
                                 }
-                            },
-                            'additionalProperties': False
-                        },
-                        'additionalProperties': False
+                            }
+                        }
                     },
                     'volumesFrom': {
                         'type': 'array',
@@ -221,10 +209,8 @@ TASK_DEFINITION_SCHEMA = {
                                 'readOnly': {
                                     'type': 'boolean'
                                 }
-                            },
-                            'additionalProperties': False
-                        },
-                        'additionalProperties': False
+                            }
+                        }
                     },
                     'linuxParameters': {
                         'type': 'object',
@@ -236,18 +222,15 @@ TASK_DEFINITION_SCHEMA = {
                                         'type': 'array',
                                         'items': {
                                             'type': 'string'
-                                        },
-                                        'additionalProperties': False
+                                        }
                                     },
                                     'drop': {
                                         'type': 'array',
                                         'items': {
                                             'type': 'string'
-                                        },
-                                        'additionalProperties': False
+                                        }
                                     }
-                                },
-                                'additionalProperties': False
+                                }
                             },
                             'devices': {
                                 'type': 'array',
@@ -269,16 +252,13 @@ TASK_DEFINITION_SCHEMA = {
                                                     'write',
                                                     'mknod'
                                                 ]
-                                            },
-                                            'additionalProperties': False
+                                            }
                                         }
                                     },
-                                    'additionalProperties': False,
                                     'required': [
                                         'hostPath'
                                     ]
-                                },
-                                'additionalProperties': False
+                                }
                             },
                             'initProcessEnabled': {
                                 'type': 'boolean'
@@ -301,17 +281,14 @@ TASK_DEFINITION_SCHEMA = {
                                             'type': 'array',
                                             'items': {
                                                 'type': 'string'
-                                            },
-                                            'additionalProperties': False
+                                            }
                                         }
                                     },
-                                    'additionalProperties': False,
                                     'required': [
                                         'containerPath',
                                         'size'
                                     ]
-                                },
-                                'additionalProperties': False
+                                }
                             },
                             'maxSwap': {
                                 'type': 'integer'
@@ -319,8 +296,7 @@ TASK_DEFINITION_SCHEMA = {
                             'swappiness': {
                                 'type': 'integer'
                             }
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'secrets': {
                         'type': 'array',
@@ -334,13 +310,11 @@ TASK_DEFINITION_SCHEMA = {
                                     'type': 'string'
                                 }
                             },
-                            'additionalProperties': False,
                             'required': [
                                 'name',
                                 'valueFrom'
                             ]
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'dependsOn': {
                         'type': 'array',
@@ -360,13 +334,11 @@ TASK_DEFINITION_SCHEMA = {
                                     ]
                                 }
                             },
-                            'additionalProperties': False,
                             'required': [
                                 'containerName',
                                 'condition'
                             ]
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'startTimeout': {
                         'type': 'integer'
@@ -396,15 +368,13 @@ TASK_DEFINITION_SCHEMA = {
                         'type': 'array',
                         'items': {
                             'type': 'string'
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'dnsSearchDomains': {
                         'type': 'array',
                         'items': {
                             'type': 'string'
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'extraHosts': {
                         'type': 'array',
@@ -418,20 +388,17 @@ TASK_DEFINITION_SCHEMA = {
                                     'type': 'string'
                                 }
                             },
-                            'additionalProperties': False,
                             'required': [
                                 'hostname',
                                 'ipAddress'
                             ]
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'dockerSecurityOptions': {
                         'type': 'array',
                         'items': {
                             'type': 'string'
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'interactive': {
                         'type': 'boolean'
@@ -479,14 +446,12 @@ TASK_DEFINITION_SCHEMA = {
                                     'type': 'integer'
                                 }
                             },
-                            'additionalProperties': False,
                             'required': [
                                 'name',
                                 'softLimit',
                                 'hardLimit'
                             ]
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'logConfiguration': {
                         'type': 'object',
@@ -524,16 +489,13 @@ TASK_DEFINITION_SCHEMA = {
                                             'type': 'string'
                                         }
                                     },
-                                    'additionalProperties': False,
                                     'required': [
                                         'name',
                                         'valueFrom'
                                     ]
-                                },
-                                'additionalProperties': False
+                                }
                             }
                         },
-                        'additionalProperties': False,
                         'required': [
                             'logDriver'
                         ]
@@ -545,8 +507,7 @@ TASK_DEFINITION_SCHEMA = {
                                 'type': 'array',
                                 'items': {
                                     'type': 'string'
-                                },
-                                'additionalProperties': False
+                                }
                             },
                             'interval': {
                                 'type': 'integer'
@@ -561,7 +522,6 @@ TASK_DEFINITION_SCHEMA = {
                                 'type': 'integer'
                             }
                         },
-                        'additionalProperties': False,
                         'required': [
                             'command'
                         ]
@@ -577,10 +537,8 @@ TASK_DEFINITION_SCHEMA = {
                                 'value': {
                                     'type': 'string'
                                 }
-                            },
-                            'additionalProperties': False
-                        },
-                        'additionalProperties': False
+                            }
+                        }
                     },
                     'resourceRequirements': {
                         'type': 'array',
@@ -598,13 +556,11 @@ TASK_DEFINITION_SCHEMA = {
                                     ]
                                 }
                             },
-                            'additionalProperties': False,
                             'required': [
                                 'value',
                                 'type'
                             ]
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'firelensConfiguration': {
                         'type': 'object',
@@ -625,15 +581,12 @@ TASK_DEFINITION_SCHEMA = {
                                 }
                             }
                         },
-                        'additionalProperties': False,
                         'required': [
                             'type'
                         ]
                     }
-                },
-                'additionalProperties': False
-            },
-            'additionalProperties': False
+                }
+            }
         },
         'volumes': {
             'type': 'array',
@@ -649,8 +602,7 @@ TASK_DEFINITION_SCHEMA = {
                             'sourcePath': {
                                 'type': 'string'
                             }
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'dockerVolumeConfiguration': {
                         'type': 'object',
@@ -684,8 +636,7 @@ TASK_DEFINITION_SCHEMA = {
                                     }
                                 }
                             }
-                        },
-                        'additionalProperties': False
+                        }
                     },
                     'efsVolumeConfiguration': {
                         'type': 'object',
@@ -719,19 +670,15 @@ TASK_DEFINITION_SCHEMA = {
                                             'DISABLED'
                                         ]
                                     }
-                                },
-                                'additionalProperties': False
+                                }
                             }
                         },
-                        'additionalProperties': False,
                         'required': [
                             'fileSystemId'
                         ]
                     }
-                },
-                'additionalProperties': False
-            },
-            'additionalProperties': False
+                }
+            }
         },
         'placementConstraints': {
             'type': 'array',
@@ -747,10 +694,8 @@ TASK_DEFINITION_SCHEMA = {
                     'expression': {
                         'type': 'string'
                     }
-                },
-                'additionalProperties': False
-            },
-            'additionalProperties': False
+                }
+            }
         },
         'requiresCompatibilities': {
             'type': 'array',
@@ -760,8 +705,7 @@ TASK_DEFINITION_SCHEMA = {
                     'EC2',
                     'FARGATE'
                 ]
-            },
-            'additionalProperties': False
+            }
         },
         'cpu': {
             'type': 'string'
@@ -786,10 +730,8 @@ TASK_DEFINITION_SCHEMA = {
                         'minLength': 0,
                         'pattern': '^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$'
                     }
-                },
-                'additionalProperties': False
+                }
             },
-            'additionalProperties': False,
             'maxLength': 50,
             'minLength': 0
         },
@@ -831,13 +773,10 @@ TASK_DEFINITION_SCHEMA = {
                             'value': {
                                 'type': 'string'
                             }
-                        },
-                        'additionalProperties': False
-                    },
-                    'additionalProperties': False
+                        }
+                    }
                 }
             },
-            'additionalProperties': False,
             'required': [
                 'containerName'
             ]
@@ -854,16 +793,13 @@ TASK_DEFINITION_SCHEMA = {
                         'type': 'string'
                     }
                 },
-                'additionalProperties': False,
                 'required': [
                     'deviceName',
                     'deviceType'
                 ]
-            },
-            'additionalProperties': False
+            }
         }
-    },
-    'additionalProperties': False,
+    }
 }
 
 
