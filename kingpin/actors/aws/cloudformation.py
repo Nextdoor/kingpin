@@ -963,8 +963,14 @@ class Stack(CloudFormationBaseActor):
         # If we're here, the templates have diverged. Generate the change set,
         # log out the changes, and execute them.
         change_set_req = yield self._create_change_set(stack)
-        change_set = yield self._wait_until_change_set_ready(
-            change_set_req['Id'], 'Status', 'CREATE_COMPLETE')
+        yield self._wait_until_change_set_ready(
+            change_set_req['Id'],
+            'Status',
+            'CREATE_COMPLETE'
+        )
+        change_set = yield self._recursively_fetch_change_set(
+            change_set_req['Id']
+        )
         self._print_change_set(change_set)
 
         # Ok run the change set itself!
@@ -1055,6 +1061,7 @@ class Stack(CloudFormationBaseActor):
             'ChangeSetName': 'kingpin-%s' % uuid,
             'Parameters': self._parameters,
             'UsePreviousTemplate': False,
+            'IncludeNestedStacks': True,
         }
 
         if self.option('role_arn'):
@@ -1131,7 +1138,64 @@ class Stack(CloudFormationBaseActor):
                 change.get('StatusReason', 'StatusReason not provided.'))
             raise StackFailed(msg)
 
-    def _print_change_set(self, change_set):
+    @gen.coroutine
+    def _recursively_fetch_change_set(self, change_set_name, sleep=5):
+        """Recursively fetches nested Change Sets.
+
+        This loop recursively fetches nested Change Set by looking for
+        `ChangeSetId`.
+
+        args:
+            change_set_name: The Change Set Request Name
+            sleep: Time to wait between checks in seconds
+
+        returns:
+            The final completed change set dictionary
+        """
+        self.log.info("Fetching %s", change_set_name)
+        while True:
+            try:
+                change = yield self.api_call(
+                    self.cf3_conn.describe_change_set,
+                    ChangeSetName=change_set_name)
+            except ClientError as e:
+                # If we hit an intermittent error, lets just loop around and
+                # try again.
+                self.log.error('Error receiving Change Set state: %s' % e)
+                yield utils.tornado_sleep(sleep)
+                continue
+
+            ret = []
+
+            for change_item in change["Changes"]:
+                # add information about this resource
+                resource = change_item['ResourceChange']
+                change_itme_out = {
+                    "Action": resource["Action"],
+                    "ResourceType": resource["ResourceType"],
+                    "LogicalResourceId": resource["LogicalResourceId"],
+                    "PhysicalResourceId": resource.get(
+                        "PhysicalResourceId",
+                        "N/A"
+                    ),
+                    "Replacement": resource.get("Replacement", False),
+                }
+
+                # recurse into a nested stack resource if needed
+                child_change_set_name = resource["ChangeSetId"]
+                if child_change_set_name:
+                    self.log.debug('Fetching nested Change Set.')
+                    change_itme_out["children"] = \
+                        self._recursively_fetch_change_set(
+                            child_change_set_name)
+
+                # add the completed resource tree to the master return value
+                ret.append(change_itme_out)
+
+            self.log.debug('Fetched all nested Change Sets.')
+            raise gen.Return(ret)
+
+    def _print_change_set(self, change_set, _indent=""):
         """Logs out the changes a Change Set would make if executed.
 
         http://docs.aws.amazon.com/AWSCloudFormation/latest/
@@ -1140,27 +1204,25 @@ class Stack(CloudFormationBaseActor):
         args:
             change_set: Change Set Object
         """
+        log_string_fmt = (
+            'Change: '
+            '{Action} {ResourceType} '
+            '{LogicalResourceId}/{PhysicalResourceId} '
+            '(Replacement? {Replacement})'
+        )
+
         self.log.debug('Parsing change set: %s' % change_set)
 
         # Reverse the list, and iterate through the data
-        for change in change_set['Changes']:
-            resource = change['ResourceChange']
-
-            if 'PhysicalResourceId' not in resource:
-                resource['PhysicalResourceId'] = 'N/A'
-
-            if 'Replacement' not in resource:
-                resource['Replacement'] = False
-
-            log_string_fmt = (
-                'Change: '
-                '{Action} {ResourceType} '
-                '{LogicalResourceId}/{PhysicalResourceId} '
-                '(Replacement? {Replacement})'
-            )
-
-            msg = log_string_fmt.format(**resource)
+        for change in change_set:
+            msg = _indent + log_string_fmt.format(**change)
             self.log.warning(msg)
+
+            if "children" in change:
+                self._print_change_set(
+                    change["children"],
+                    _indent = _indent + "  - "
+                )
 
     @gen.coroutine
     @dry('Would have executed Change Set {change_set_name}')
