@@ -30,9 +30,9 @@ import os
 import pprint
 import re
 import sys
-import yaml
 import io
 from io import IOBase
+import cfn_tools
 
 from tornado import gen
 from tornado import ioloop
@@ -57,7 +57,6 @@ STATIC_PATH_NAME = 'static'
 # # want to prvent the app from going thread-crazy.
 # THREADPOOL_SIZE = 10
 # THREADPOOL = futures.ThreadPoolExecutor(THREADPOOL_SIZE)
-
 
 def str_to_class(string):
     """Method that converts a string name into a usable Class name
@@ -370,7 +369,7 @@ def convert_script_to_dict(script_file, tokens):
         if suffix == 'json':
             decoded = demjson.decode(parsed)
         elif suffix in ('yml', 'yaml'):
-            decoded = yaml.safe_load(parsed)
+            decoded = cfn_tools.load_yaml(parsed)
             if decoded is None:
                 raise exceptions.InvalidScript(
                     'Invalid YAML in `%s`' % filename)
