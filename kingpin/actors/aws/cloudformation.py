@@ -18,6 +18,9 @@
 """
 
 import json
+from json import JSONEncoder
+
+import datetime
 import logging
 import re
 import uuid
@@ -40,6 +43,11 @@ log = logging.getLogger(__name__)
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
 
+class DateTimeEncoder(JSONEncoder):
+    #Override the default method
+    def default(self, obj):
+        if isinstance(obj, (datetime.date, datetime.datetime)):
+            return obj.isoformat()
 
 # This executor is used by the tornado.concurrent.run_on_executor()
 # decorator. We would like this to be a class variable so its shared
@@ -267,7 +275,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         else:
             # The template is provided inline.
             try:
-                return json.dumps(self._parse_policy_json(template)), None
+                return json.dumps(self._parse_policy_json(template),cls=DateTimeEncoder), None
             except exceptions.UnrecoverableActorFailure as e:
                 raise InvalidTemplate(e)
 
