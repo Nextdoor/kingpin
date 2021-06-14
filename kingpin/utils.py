@@ -58,6 +58,7 @@ STATIC_PATH_NAME = 'static'
 # THREADPOOL_SIZE = 10
 # THREADPOOL = futures.ThreadPoolExecutor(THREADPOOL_SIZE)
 
+
 def str_to_class(string):
     """Method that converts a string name into a usable Class name
 
