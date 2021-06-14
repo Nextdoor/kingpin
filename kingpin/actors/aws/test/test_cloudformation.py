@@ -447,6 +447,31 @@ class TestCreate(testing.AsyncTestCase):
             OnFailure='DELETE')
 
     @testing.gen_test
+    def test_create_stack_file_with_role_yaml(self):
+        stack = 'examples/test/aws.cloudformation/cf.integration.yaml'
+        actor = cloudformation.Create(
+            'Unit Test Action',
+            {'name': 'unit-test-cf',
+             'region': 'us-west-2',
+             'role_arn': 'test_role_arn',
+             'template': stack})
+        actor._wait_until_state = mock.MagicMock(name='_wait_until_state')
+        actor._wait_until_state.side_effect = [tornado_value(None)]
+        actor.cf3_conn.create_stack = mock.MagicMock(name='create_stack_mock')
+        actor.cf3_conn.create_stack.return_value = {'StackId': 'arn:123'}
+        ret = yield actor._create_stack(stack='test')
+        self.assertEqual(ret, 'arn:123')
+        actor.cf3_conn.create_stack.assert_called_with(
+            TemplateBody=mock.ANY,
+            EnableTerminationProtection=False,
+            Parameters=[],
+            RoleARN='test_role_arn',
+            TimeoutInMinutes=60,
+            Capabilities=[],
+            StackName='test',
+            OnFailure='DELETE')
+
+    @testing.gen_test
     def test_create_stack_file_with_termination_protection_true(self):
         stack = 'examples/test/aws.cloudformation/cf.integration.json'
         actor = cloudformation.Create(
