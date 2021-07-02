@@ -643,3 +643,48 @@ class TestBucket(testing.AsyncTestCase):
                 Tagging={'TagSet': [
                     {'Key': 'tag1', 'Value': 'v1'}
                 ]})])
+
+    @testing.gen_test
+    def test_set_notification_configurations_none(self):
+        self.actor._options['notification_configuration'] = None
+        yield self.actor._set_notification_configuration()
+        self.assertFalse(self.actor.s3_conn.put_bucket_notification_configuration.called)
+
+    @testing.gen_test
+    def test_set_notification_configurations(self):
+        self.actor._options['notification_configuration'] = {
+            "queueconfigurations": {
+                "queuearn": "arn:aws:sqs:us-east-1:1234567:test_sqs",
+                "events": ["s3:ObjectCreated:*"]
+            }
+        }
+        yield self.actor._set_notification_configuration()
+        self.actor.s3_conn.put_bucket_notification_configuration.assert_has_calls([
+            mock.call(
+                Bucket='test',
+                NotificationConfiguration={
+                    "Queueconfigurations": [{
+                        "Queuearn": "arn:aws:sqs:us-east-1:1234567:test_sqs",
+                        "Events": ["s3:ObjectCreated:*"]
+                    }]
+                }
+            )
+        ])
+
+    @testing.gen_test
+    def test_get_notification_configuration(self):
+        self.actor._bucket_exists = True
+        self.actor.s3_conn.get_bucket_notification_configuration.return_value = {
+            "Queueconfigurations": [{
+                "Queuearn": "arn:aws:sqs:us-east-1:1234567:test_sqs",
+                "Events": ["s3:ObjectCreated:*"]
+            }]
+        }
+        ret = yield self.actor._get_notification()
+        self.assertEqual(ret, {
+            "Queueconfigurations":
+                [{
+                    "Queuearn": "arn:aws:sqs:us-east-1:1234567:test_sqs",
+                    "Events": ["s3:ObjectCreated:*"]
+                }]
+        })

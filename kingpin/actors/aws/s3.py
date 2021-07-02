@@ -323,7 +323,19 @@ class LifecycleConfig(SchemaCompareBase):
                 'noncurrent_version_transitions': {
                     'type': 'array',
                     'itmes': {
-                        '$ref': '#/definitions/noncurrent_version_transition'
+                        'type': 'object',
+                        'required': ['storage_class'],
+                        'additionalProperties': False,
+                        'properties': {
+                            'noncurrent_days': {
+                                'type': ['string', 'integer'],
+                                'pattern': '^[0-9]+$',
+                            },
+                            'storage_class': {
+                                'type': 'string',
+                                'enum': ['GLACIER', 'STANDARD_IA']
+                            }
+                        }
                     }
                 },
                 'noncurrent_version_transition': {
@@ -378,6 +390,59 @@ class LifecycleConfig(SchemaCompareBase):
     }
 
 
+class NotificationConfiguration(SchemaCompareBase):
+
+    """Provides JSON-Schema based validation of the supplied Notification Config.
+
+   .. code-block:: json
+
+      {
+         "queueconfigurations": [
+             {
+                "queuearn": "ARN of the SQS queue",
+                "events": ["s3:ObjectCreated:*", "s3:ReducedRedundancyLostObject"],
+                "filter": {
+                    "key": {
+                        "filterrules:" [
+                            {
+                                "name": "prefix|suffix",
+                                "value": "string"
+                            }
+                        ]
+                    }
+                }
+             }
+        ]
+      }
+   """
+
+    SCHEMA = {
+        'type': ['object', 'null'],
+        'required': ['queueconfigurations'],
+        'properties': {
+            'queueconfigurations': {
+                'type': ['array'],
+                'items': {
+                    'type': 'object',
+                    'additionalProperties': False,
+                    'required': ['queuearn', 'events'],
+                    'properties': {
+                        'queuearn': {
+                            'type': 'string'
+                        },
+                        'events': {
+                            'type': 'array'
+                        },
+                        'filter': {
+                            'type': 'object'
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
 class TaggingConfig(SchemaCompareBase):
 
     """Provides JSON-Schema based validation of the supplied tagging config.
@@ -423,6 +488,7 @@ class Bucket(base.EnsurableAWSBaseActor):
       * Enable or Suspend Bucket Versioning.
         Note: It is impossible to actually _disable_ bucket versioning -- once
         it is enabled, you can only suspend it, or re-enable it.
+      * Enable Event Notification. (limited to SQS for now)
 
     **Note about Buckets with Files**
 
@@ -506,6 +572,19 @@ class Bucket(base.EnsurableAWSBaseActor):
       (bool, None): Whether or not to enable Versioning on the bucket. If
       "None", then we don't manage versioning either way. Default: None
 
+    :notification_configuration:
+    (:py:class:`NotificationConfiguration`, None)
+
+    If a dictionary is supplised, then it must conform to
+    :py:class:`NotificationConfiguration`, type and include mapping
+    queuearn & events
+
+    If an empty dictionary is supplied, then Kingpin will explicitly remove
+    any Notification Configuration from the bucket.
+
+    Finally, If None is supplies, Kingoin will ignore the checks entire on
+    this portion of the bucket configuration
+
     **Examples**
 
     .. code-block:: json
@@ -534,6 +613,14 @@ class Bucket(base.EnsurableAWSBaseActor):
              {"key": "my_key", "value": "billing-grp-1"},
            ],
            "versioning": true,
+           "notification_configuration": {
+              "queueconfigurations": [
+                {
+                  queuearn: arn:aws:sqs:us-east-1:1234567:some_sqs,
+                  events: ['s3:ObjectCreated:*']
+                }
+              ]
+           }
          }
        }
 
@@ -570,6 +657,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         'versioning': ((bool, None), None,
                        ('Desired state of versioning on the bucket: '
                         'true/false')),
+        'notification_configuration': (NotificationConfiguration, None, '')
     }
 
     unmanaged_options = ['name', 'region']
@@ -1133,3 +1221,61 @@ class Bucket(base.EnsurableAWSBaseActor):
             self.s3_conn.put_bucket_tagging,
             Bucket=self.option('name'),
             Tagging={'TagSet': tagset})
+
+    @gen.coroutine
+    def _get_notification_configuration(self):
+        if self.option('notification_configuration') is None:
+            raise gen.Return(None)
+
+        if not self._bucket_exists:
+            raise gen.Return(None)
+
+        try:
+            raw = yield self.api_call(
+                self.s3_conn.get_bucket_notification_configuration,
+                Bucket=self.option('name'))
+        except ClientError as e:
+            if 'NoSuchBucketNotificationConfiguration' in str(e):
+                raise gen.Return([])
+            raise
+
+        return gen.Return(raw)
+
+    @gen.coroutine
+    def _compare_notification_configuration(self):
+        new = self.option('notification_configuration')
+        if new is None:
+            self.log.debug('No Notification Configuration')
+            raise gen.Return(True)
+
+        exist = yield self._get_notification_configuration()
+
+        diff = utils.diff_dicts(exist, new)
+
+        if not diff:
+            self.log.debug('Notification Configurations match')
+            raise gen.Return(True)
+
+        self.log.info('Bucket Notification Configuration '
+                      'differs from Amazons:')
+        for line in diff.split('\n'):
+            self.log.info('Diff: %s' % line)
+
+        raise gen.Return(False)
+
+    @gen.coroutine
+    @dry('Would have added notification configurations')
+    def _set_notification_configuration(self):
+        configs = self.option('notification_configuration')
+
+        if configs is None:
+            self.log.debug('No Notification Configurations')
+            raise gen.Return(None)
+
+        config_list = self._snake_to_camel(
+            self.option('notification_configuration'))
+        self.log.info('Updating Bucket Notification Configuration')
+        yield self.api_call(
+            self.s3_conn.put_bucket_notification_configuration,
+            Bucket=self.option('name'),
+            NotificationConfiguration=config_list)
