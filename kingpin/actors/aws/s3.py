@@ -323,19 +323,7 @@ class LifecycleConfig(SchemaCompareBase):
                 'noncurrent_version_transitions': {
                     'type': 'array',
                     'itmes': {
-                        'type': 'object',
-                        'required': ['storage_class'],
-                        'additionalProperties': False,
-                        'properties': {
-                            'noncurrent_days': {
-                                'type': ['string', 'integer'],
-                                'pattern': '^[0-9]+$',
-                            },
-                            'storage_class': {
-                                'type': 'string',
-                                'enum': ['GLACIER', 'STANDARD_IA']
-                            }
-                        }
+                        '$ref': '#/definitions/noncurrent_version_transition'
                     }
                 },
                 'noncurrent_version_transition': {
