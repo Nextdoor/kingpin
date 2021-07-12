@@ -661,7 +661,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_set_notification_configurations_with_valid_configs(self):
         self.actor._options['notification_configuration'] = {
             "queueconfigurations": [{
-                "queuearn": "arn:aws:sqs:us-east-1:1234567:test_sqs",
+                "queue_arn": "arn:aws:sqs:us-east-1:1234567:test_sqs",
                 "events": ["s3:ObjectCreated:*"]
             }]
         }
@@ -674,13 +674,48 @@ class TestBucket(testing.AsyncTestCase):
                     Bucket='test',
                     NotificationConfiguration={
                         "Queueconfigurations": [{
-                            "Queuearn":
+                            "QueueArn":
                                 "arn:aws:sqs:us-east-1:1234567:test_sqs",
                             "Events": ["s3:ObjectCreated:*"]
                         }]
                     }
                 )
             ])
+
+    @testing.gen_test
+    def test_set_notification_configurations_with_multiple_configs(self):
+        self.actor._options['notification_configuration'] = {
+            "queueconfigurations": [
+                {
+                    "queue_arn": "arn:aws:sqs:us-east-1:1:test1_sqs",
+                    "events": ["s3:ObjectCreated:*"]
+                },
+                {
+                    "queue_arn": "arn:aws:sqs:us-east-1:1:test2_sqs",
+                    "events": ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
+                }
+            ]
+        }
+        yield self.actor._set_notification_configuration()
+        self.actor \
+            .s3_conn \
+            .put_bucket_notification_configuration \
+            .assert_has_calls([mock.call(
+                Bucket='test',
+                NotificationConfiguration={
+                    "Queueconfigurations": [
+                        {
+                            "QueueArn": "arn:aws:sqs:us-east-1:1:test1_sqs",
+                            "Events": ["s3:ObjectCreated:*"]
+                        },
+                        {
+                            "QueueArn": "arn:aws:sqs:us-east-1:1:test2_sqs",
+                            "Events": ["s3:ObjectCreated:*",
+                                       "s3:ObjectRemoved:*"]
+                        }
+                    ]
+                }
+            )])
 
     @testing.gen_test
     def test_set_notification_configurations_no_configs(self):
@@ -715,10 +750,13 @@ class TestBucket(testing.AsyncTestCase):
         ret = yield self.actor._get_notification_configuration()
         log.debug(ret)
         self.assertEqual(type(ret), dict)
-        self.assertEqual(ret, {'queueconfigurations': [{
-            "queuearn": "arn:aws:sqs",
-            "events": ["s3:ObjectCreated:*"]
-        }]})
+        self.assertEqual(ret,
+                         {'QueueConfigurations': [
+                             {
+                                 "QueueArn": "arn:aws:sqs",
+                                 "Events": ["s3:ObjectCreated:*"]
+                             }
+                         ]})
 
     @testing.gen_test
     def test_get_notification_configuration_no_bucket(self):
@@ -752,7 +790,7 @@ class TestBucket(testing.AsyncTestCase):
     def test_compare_notification_configuration_with_new_config(self):
         self.actor._options['notification_configuration'] = {
             "queueconfigurations": [{
-                "queuearn":
+                "queue_arn":
                     "arn:aws:sqs:us-east-1:1234567:test_sqs",
                 "events": ["s3:ObjectCreated:*"]
             }]
@@ -768,10 +806,10 @@ class TestBucket(testing.AsyncTestCase):
     def test_compare_notification_configuration_with_no_updated_config(self):
         self.actor._bucket_exists = True
         self.actor._options['notification_configuration'] = {
-            "queueconfigurations": [{
-                "queuearn":
+            "QueueConfigurations": [{
+                "QueueArn":
                     "arn:aws:sqs:us-east-1:1234567:test_sqs",
-                "events": ["s3:ObjectCreated:*"]
+                "Events": ["s3:ObjectCreated:*"]
             }]
         }
         self.actor\

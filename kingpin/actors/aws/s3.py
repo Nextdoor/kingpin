@@ -387,18 +387,8 @@ class NotificationConfiguration(SchemaCompareBase):
       {
          "queueconfigurations": [
              {
-                "queuearn": "ARN of the SQS queue",
+                "queue_arn": "ARN of the SQS queue",
                 "events": ["s3:ObjectCreated:*"],
-                "filter": {
-                    "key": {
-                        "filterrules:" [
-                            {
-                                "name": "prefix|suffix",
-                                "value": "string"
-                            }
-                        ]
-                    }
-                }
              }
         ]
       }
@@ -415,14 +405,11 @@ class NotificationConfiguration(SchemaCompareBase):
                     'additionalProperties': False,
                     'required': ['queuearn', 'events'],
                     'properties': {
-                        'queuearn': {
+                        'queue_arn': {
                             'type': 'string'
                         },
                         'events': {
                             'type': 'array'
-                        },
-                        'filter': {
-                            'type': 'object'
                         }
                     }
                 }
@@ -604,8 +591,11 @@ class Bucket(base.EnsurableAWSBaseActor):
            "notification_configuration": {
               "queueconfigurations": [
                 {
-                  "queuearn": "arn:aws:sqs:us-east-1:1234567:some_sqs",
-                  "events": ["s3:ObjectCreated:*"]
+                  "queue_arn": "arn:aws:sqs:us-east-1:1234567:some_sqs",
+                  "events": [
+                                "s3:ObjectCreated:*",
+                                "s3:ObjectRemoved*"
+                            ]
                 }
               ]
            }
@@ -1222,18 +1212,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             self.s3_conn.get_bucket_notification_configuration,
             Bucket=self.option('name'))
 
-        configurations = {}
-        for config_type in raw.keys():
-            # Limiting to only QueueConfigurations for now
-            if config_type == 'QueueConfigurations':
-                queue_configs = []
-                for config in raw['QueueConfigurations']:
-                    config_dict = {}
-                    for k, v in config.items():
-                        config_dict[k.lower()] = v
-                    queue_configs.append(config_dict)
-                configurations['queueconfigurations'] = queue_configs
-        raise gen.Return(configurations)
+        raise gen.Return(raw)
 
     @gen.coroutine
     def _compare_notification_configuration(self):
