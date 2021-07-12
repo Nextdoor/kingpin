@@ -388,7 +388,7 @@ class NotificationConfiguration(SchemaCompareBase):
          "queueconfigurations": [
              {
                 "queuearn": "ARN of the SQS queue",
-                "events": ["s3:ObjectCreated:*", "s3:ReducedRedundancyLostObject"],
+                "events": ["s3:ObjectCreated:*"],
                 "filter": {
                     "key": {
                         "filterrules:" [
@@ -561,17 +561,17 @@ class Bucket(base.EnsurableAWSBaseActor):
       "None", then we don't manage versioning either way. Default: None
 
     :notification_configuration:
-    (:py:class:`NotificationConfiguration`, None)
+      (:py:class:`NotificationConfiguration`, None)
 
-    If a dictionary is supplised, then it must conform to
-    :py:class:`NotificationConfiguration`, type and include mapping
-    queuearn & events
+      If a dictionary is supplised, then it must conform to
+      :py:class:`NotificationConfiguration`, type and include mapping
+      queuearn & events
 
-    If an empty dictionary is supplied, then Kingpin will explicitly remove
-    any Notification Configuration from the bucket.
+      If an empty dictionary is supplied, then Kingpin will explicitly remove
+      any Notification Configuration from the bucket.
 
-    Finally, If None is supplies, Kingoin will ignore the checks entire on
-    this portion of the bucket configuration
+      Finally, If None is supplies, Kingoin will ignore the checks entire on
+      this portion of the bucket configuration
 
     **Examples**
 
@@ -604,8 +604,8 @@ class Bucket(base.EnsurableAWSBaseActor):
            "notification_configuration": {
               "queueconfigurations": [
                 {
-                  queuearn: arn:aws:sqs:us-east-1:1234567:some_sqs,
-                  events: ['s3:ObjectCreated:*']
+                  "queuearn": "arn:aws:sqs:us-east-1:1234567:some_sqs",
+                  "events": ["s3:ObjectCreated:*"]
                 }
               ]
            }
@@ -1218,16 +1218,22 @@ class Bucket(base.EnsurableAWSBaseActor):
         if not self._bucket_exists:
             raise gen.Return(None)
 
-        try:
-            raw = yield self.api_call(
-                self.s3_conn.get_bucket_notification_configuration,
-                Bucket=self.option('name'))
-        except ClientError as e:
-            if 'NoSuchBucketNotificationConfiguration' in str(e):
-                raise gen.Return([])
-            raise
+        raw = yield self.api_call(
+            self.s3_conn.get_bucket_notification_configuration,
+            Bucket=self.option('name'))
 
-        return gen.Return(raw)
+        configurations = {}
+        for config_type in raw.keys():
+            # Limiting to only QueueConfigurations for now
+            if config_type == 'QueueConfigurations':
+                queue_configs = []
+                for config in raw['QueueConfigurations']:
+                    config_dict = {}
+                    for k, v in config.items():
+                        config_dict[k.lower()] = v
+                    queue_configs.append(config_dict)
+                configurations['queueconfigurations'] = queue_configs
+        raise gen.Return(configurations)
 
     @gen.coroutine
     def _compare_notification_configuration(self):
@@ -1237,7 +1243,6 @@ class Bucket(base.EnsurableAWSBaseActor):
             raise gen.Return(True)
 
         exist = yield self._get_notification_configuration()
-
         diff = utils.diff_dicts(exist, new)
 
         if not diff:
