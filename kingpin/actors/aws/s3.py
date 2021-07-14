@@ -409,7 +409,8 @@ class NotificationConfiguration(SchemaCompareBase):
                             'type': 'string'
                         },
                         'events': {
-                            'type': 'array'
+                            'type': 'array',
+                            'items': {'type': 'string'}
                         }
                     }
                 }
