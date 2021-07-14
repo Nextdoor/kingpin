@@ -385,7 +385,7 @@ class NotificationConfiguration(SchemaCompareBase):
    .. code-block:: json
 
       {
-         "queueconfigurations": [
+         "queue_configurations": [
              {
                 "queue_arn": "ARN of the SQS queue",
                 "events": ["s3:ObjectCreated:*"],
@@ -396,14 +396,14 @@ class NotificationConfiguration(SchemaCompareBase):
 
     SCHEMA = {
         'type': ['object', 'null'],
-        'required': ['queueconfigurations'],
+        'required': ['queue_configurations'],
         'properties': {
-            'queueconfigurations': {
+            'queue_configurations': {
                 'type': ['array'],
                 'items': {
                     'type': 'object',
                     'additionalProperties': False,
-                    'required': ['queuearn', 'events'],
+                    'required': ['queue_arn', 'events'],
                     'properties': {
                         'queue_arn': {
                             'type': 'string'
@@ -589,7 +589,7 @@ class Bucket(base.EnsurableAWSBaseActor):
            ],
            "versioning": true,
            "notification_configuration": {
-              "queueconfigurations": [
+              "queue_configurations": [
                 {
                   "queue_arn": "arn:aws:sqs:us-east-1:1234567:some_sqs",
                   "events": [

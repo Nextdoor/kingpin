@@ -53,7 +53,7 @@ class TestBucket(testing.AsyncTestCase):
                 'versioning': False,
                 'tags': [],
                 'notification_configuration': {
-                    'queueconfigurations': []
+                    'queue_configurations': []
                 }
             })
         self.actor.s3_conn = mock.MagicMock()
@@ -660,7 +660,7 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_set_notification_configurations_with_valid_configs(self):
         self.actor._options['notification_configuration'] = {
-            "queueconfigurations": [{
+            "queue_configurations": [{
                 "queue_arn": "arn:aws:sqs:us-east-1:1234567:test_sqs",
                 "events": ["s3:ObjectCreated:*"]
             }]
@@ -673,7 +673,7 @@ class TestBucket(testing.AsyncTestCase):
                 mock.call(
                     Bucket='test',
                     NotificationConfiguration={
-                        "Queueconfigurations": [{
+                        "QueueConfigurations": [{
                             "QueueArn":
                                 "arn:aws:sqs:us-east-1:1234567:test_sqs",
                             "Events": ["s3:ObjectCreated:*"]
@@ -685,7 +685,7 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_set_notification_configurations_with_multiple_configs(self):
         self.actor._options['notification_configuration'] = {
-            "queueconfigurations": [
+            "queue_configurations": [
                 {
                     "queue_arn": "arn:aws:sqs:us-east-1:1:test1_sqs",
                     "events": ["s3:ObjectCreated:*"]
@@ -703,7 +703,7 @@ class TestBucket(testing.AsyncTestCase):
             .assert_has_calls([mock.call(
                 Bucket='test',
                 NotificationConfiguration={
-                    "Queueconfigurations": [
+                    "QueueConfigurations": [
                         {
                             "QueueArn": "arn:aws:sqs:us-east-1:1:test1_sqs",
                             "Events": ["s3:ObjectCreated:*"]
@@ -720,7 +720,7 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_set_notification_configurations_no_configs(self):
         self.actor._options['notification_configuration'] = {
-            "queueconfigurations": []
+            "queue_configurations": []
         }
         yield self.actor._set_notification_configuration()
         self.actor.s3_conn\
@@ -789,7 +789,7 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_compare_notification_configuration_with_new_config(self):
         self.actor._options['notification_configuration'] = {
-            "queueconfigurations": [{
+            "queue_configurations": [{
                 "queue_arn":
                     "arn:aws:sqs:us-east-1:1234567:test_sqs",
                 "events": ["s3:ObjectCreated:*"]
