@@ -748,7 +748,6 @@ class TestBucket(testing.AsyncTestCase):
                 }]
             }
         ret = yield self.actor._get_notification_configuration()
-        log.debug(ret)
         self.assertEqual(type(ret), dict)
         self.assertEqual(ret,
                          {'QueueConfigurations': [
