@@ -662,6 +662,14 @@ class Bucket(base.EnsurableAWSBaseActor):
         if self.access_block is not None:
             self.access_block = self._snake_to_camel(self.access_block)
 
+        # If the NotificationConfiguration is anything but None, we parse
+        # it and pre-build the rules.
+        self.notification_configuration = \
+            self.option('notification_configuration')
+        if self.notification_configuration is not None:
+            self.notification_configuration = \
+                self._snake_to_camel(self.notification_configuration)
+
         # Start out assuming the bucket doesn't exist. The _precache() method
         # will populate this with True if the bucket does exist.
         self._bucket_exists = False
@@ -1203,7 +1211,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
     @gen.coroutine
     def _get_notification_configuration(self):
-        if self.option('notification_configuration') is None:
+        if self.notification_configuration is None:
             raise gen.Return(None)
 
         if not self._bucket_exists:
@@ -1217,7 +1225,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
     @gen.coroutine
     def _compare_notification_configuration(self):
-        new = self.option('notification_configuration')
+        new = self.notification_configuration
         if new is None:
             self.log.debug('No Notification Configuration')
             raise gen.Return(True)
@@ -1239,16 +1247,12 @@ class Bucket(base.EnsurableAWSBaseActor):
     @gen.coroutine
     @dry('Would have added notification configurations')
     def _set_notification_configuration(self):
-        configs = self.option('notification_configuration')
-
-        if configs is None:
+        if self.notification_configuration is None:
             self.log.debug('No Notification Configurations')
             raise gen.Return(None)
 
-        config_list = self._snake_to_camel(
-            self.option('notification_configuration'))
         self.log.info('Updating Bucket Notification Configuration')
         yield self.api_call(
             self.s3_conn.put_bucket_notification_configuration,
             Bucket=self.option('name'),
-            NotificationConfiguration=config_list)
+            NotificationConfiguration=self.notification_configuration)

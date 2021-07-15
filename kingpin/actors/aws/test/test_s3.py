@@ -648,8 +648,28 @@ class TestBucket(testing.AsyncTestCase):
                 ]})])
 
     @testing.gen_test
+    def test_snake_to_camelcase_for_notification_configuration(self):
+        notification_configuration_snake_case = {
+            "queue_configurations": [{
+                "queue_arn":
+                    "arn:aws:sqs:us-east-1:1234567:test_sqs",
+                "events": ["s3:ObjectCreated:*"]
+            }]
+        }
+
+        notification_configuration_camel_case = \
+            self.actor._snake_to_camel(notification_configuration_snake_case)
+
+        self.assertEqual(notification_configuration_camel_case,
+                         {"QueueConfigurations": [{
+                             "QueueArn":
+                                 "arn:aws:sqs:us-east-1:1234567:test_sqs",
+                             "Events": ["s3:ObjectCreated:*"]
+                         }]})
+
+    @testing.gen_test
     def test_set_notification_configurations_none(self):
-        self.actor._options['notification_configuration'] = None
+        self.actor.notification_configuration = None
         yield self.actor._set_notification_configuration()
         self.assertFalse(
             self.actor
@@ -659,10 +679,10 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_set_notification_configurations_with_valid_configs(self):
-        self.actor._options['notification_configuration'] = {
-            "queue_configurations": [{
-                "queue_arn": "arn:aws:sqs:us-east-1:1234567:test_sqs",
-                "events": ["s3:ObjectCreated:*"]
+        self.actor.notification_configuration = {
+            "QueueConfigurations": [{
+                "QueueArn": "arn:aws:sqs:us-east-1:1234567:test_sqs",
+                "Events": ["s3:ObjectCreated:*"]
             }]
         }
         yield self.actor._set_notification_configuration()
@@ -684,15 +704,15 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_set_notification_configurations_with_multiple_configs(self):
-        self.actor._options['notification_configuration'] = {
-            "queue_configurations": [
+        self.actor.notification_configuration = {
+            "QueueConfigurations": [
                 {
-                    "queue_arn": "arn:aws:sqs:us-east-1:1:test1_sqs",
-                    "events": ["s3:ObjectCreated:*"]
+                    "QueueArn": "arn:aws:sqs:us-east-1:1:test1_sqs",
+                    "Events": ["s3:ObjectCreated:*"]
                 },
                 {
-                    "queue_arn": "arn:aws:sqs:us-east-1:1:test2_sqs",
-                    "events": ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
+                    "QueueArn": "arn:aws:sqs:us-east-1:1:test2_sqs",
+                    "Events": ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
                 }
             ]
         }
@@ -719,8 +739,8 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_set_notification_configurations_no_configs(self):
-        self.actor._options['notification_configuration'] = {
-            "queue_configurations": []
+        self.actor.notification_configuration = {
+            "QueueConfigurations": []
         }
         yield self.actor._set_notification_configuration()
         self.actor.s3_conn\
@@ -729,8 +749,7 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_set_notification_configurations_empty_queue_configs(self):
-        self.actor._options['notification_configuration'] = {
-        }
+        self.actor.notification_configuration = {}
         yield self.actor._set_notification_configuration()
         self.actor\
             .s3_conn\
@@ -764,34 +783,19 @@ class TestBucket(testing.AsyncTestCase):
         self.assertEqual(ret, None)
 
     @testing.gen_test
-    def test_get_notification_configuration_with_no_existing_configs(self):
-        self.actor._bucket_exists = True
-        # empty NotificationConfiguration dict
-        self.actor\
-            .s3_conn\
-            .get_bucket_notification_configuration\
-            .return_value = {}
-        ret = yield self.actor._get_notification_configuration()
-        self.assertEqual(ret, {})
-
-    @testing.gen_test
     def test_get_notification_configuration_with_no_config(self):
         self.actor._bucket_exists = True
-        self.actor._options["notification_configuration"] = None
-        self.actor\
-            .s3_conn\
-            .get_bucket_notification_configuration\
-            .return_value = {}
+        self.actor.notification_configuration = None
         ret = yield self.actor._get_notification_configuration()
         self.assertEqual(ret, None)
 
     @testing.gen_test
     def test_compare_notification_configuration_with_new_config(self):
-        self.actor._options['notification_configuration'] = {
-            "queue_configurations": [{
-                "queue_arn":
+        self.actor.notification_configuration = {
+            "QueueConfigurations": [{
+                "QueueArn":
                     "arn:aws:sqs:us-east-1:1234567:test_sqs",
-                "events": ["s3:ObjectCreated:*"]
+                "Events": ["s3:ObjectCreated:*"]
             }]
         }
         self.actor\
@@ -804,7 +808,7 @@ class TestBucket(testing.AsyncTestCase):
     @testing.gen_test
     def test_compare_notification_configuration_with_no_updated_config(self):
         self.actor._bucket_exists = True
-        self.actor._options['notification_configuration'] = {
+        self.actor.notification_configuration = {
             "QueueConfigurations": [{
                 "QueueArn":
                     "arn:aws:sqs:us-east-1:1234567:test_sqs",
@@ -825,7 +829,7 @@ class TestBucket(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_compare_notification_configuration_with_no_config(self):
-        self.actor._options['notification_configuration'] = None
+        self.actor.notification_configuration = None
         self.actor\
             .s3_conn\
             .get_bucket_notification_configuration\
