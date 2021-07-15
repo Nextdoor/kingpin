@@ -1239,7 +1239,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         self.log.info('Bucket Notification Configuration differs:')
         self.log.info(new)
-        self.log(exist)
+        self.log.info(exist)
         for line in diff.split('\n'):
             self.log.info('Diff: %s' % line)
 
