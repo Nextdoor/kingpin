@@ -1237,8 +1237,9 @@ class Bucket(base.EnsurableAWSBaseActor):
             self.log.debug('Notification Configurations match')
             raise gen.Return(True)
 
-        self.log.info('Bucket Notification Configuration '
-                      'differs from Amazons:')
+        self.log.info('Bucket Notification Configuration differs:')
+        self.log.info(new)
+        self.log(exist)
         for line in diff.split('\n'):
             self.log.info('Diff: %s' % line)
 
