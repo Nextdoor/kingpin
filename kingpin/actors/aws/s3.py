@@ -1221,7 +1221,13 @@ class Bucket(base.EnsurableAWSBaseActor):
             self.s3_conn.get_bucket_notification_configuration,
             Bucket=self.option('name'))
 
-        raise gen.Return(raw)
+        existing_configurations = {}
+        for configuration in ['TopicConfigurations',
+                              'QueueConfigurations',
+                              'LambdaFunctionConfigurations']:
+            if configuration in raw:
+                existing_configurations[configuration] = raw[configuration]
+        raise gen.Return(existing_configurations)
 
     @gen.coroutine
     def _compare_notification_configuration(self):
@@ -1238,8 +1244,6 @@ class Bucket(base.EnsurableAWSBaseActor):
             raise gen.Return(True)
 
         self.log.info('Bucket Notification Configuration differs:')
-        self.log.info(new)
-        self.log.info(exist)
         for line in diff.split('\n'):
             self.log.info('Diff: %s' % line)
 
