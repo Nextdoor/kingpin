@@ -47,55 +47,138 @@ class ServiceNotFound(exceptions.RecoverableActorFailure):
     """Failure to find an ECS Service."""
 
 
-# http://boto3.readthedocs.io/en/latest/reference/services/ecs.html
+# https://github.com/awslabs/amazon-ecs-intellisense-schema/blob/mainline/src/model/schema/schema.json
 TASK_DEFINITION_SCHEMA = {
     'type': 'object',
-    'required': ['family', 'containerDefinitions'],
+    'required': [
+        'family',
+        'containerDefinitions'
+    ],
     'properties': {
-        'family': {'type': 'string'},
-        'networkMode': {'type': 'string'},
+        'family': {
+            'type': 'string'
+        },
+        'taskRoleArn': {
+            'type': 'string'
+        },
+        'executionRoleArn': {
+            'type': 'string'
+        },
+        'networkMode': {
+            'type': 'string',
+            'enum': [
+                'bridge',
+                'host',
+                'awsvpc',
+                'none'
+            ]
+        },
         'containerDefinitions': {
             'type': 'array',
             'items': {
                 'type': 'object',
                 'properties': {
-                    'name': {'type': 'string'},
-                    'image': {'type': 'string'},
-                    'cpu': {'type': 'number'},
-                    'memory': {'type': 'number'},
-                    'memoryReservation': {'type': 'number'},
+                    'name': {
+                        'type': 'string'
+                    },
+                    'image': {
+                        'type': 'string'
+                    },
+                    'repositoryCredentials': {
+                        'type': 'object',
+                        'properties': {
+                            'credentialsParameter': {
+                                'type': 'string'
+                            }
+                        },
+                        'required': [
+                            'credentialsParameter'
+                        ]
+                    },
+                    'cpu': {
+                        'type': 'integer'
+                    },
+                    'memory': {
+                        'type': 'integer'
+                    },
+                    'memoryReservation': {
+                        'type': 'integer'
+                    },
                     'links': {
                         'type': 'array',
-                        'items': {'type': 'string'}
+                        'items': {
+                            'type': 'string'
+                        }
                     },
                     'portMappings': {
                         'type': 'array',
                         'items': {
                             'type': 'object',
                             'properties': {
-                                'containerPort': {'type': 'number'},
-                                'hostPort': {'type': 'number'},
-                                'protocol': {'type': 'string'}
+                                'containerPort': {
+                                    'type': 'integer'
+                                },
+                                'hostPort': {
+                                    'type': 'integer'
+                                },
+                                'protocol': {
+                                    'type': 'string',
+                                    'enum': [
+                                        'tcp',
+                                        'udp'
+                                    ]
+                                }
                             }
                         }
                     },
-                    'essential': {'type': 'boolean'},
+                    'essential': {
+                        'type': 'boolean'
+                    },
                     'entryPoint': {
                         'type': 'array',
-                        'items': {'type': 'string'}
+                        'items': {
+                            'type': 'string'
+                        }
                     },
                     'command': {
                         'type': 'array',
-                        'items': {'type': 'string'}
+                        'items': {
+                            'type': 'string'
+                        }
                     },
                     'environment': {
                         'type': 'array',
                         'items': {
                             'type': 'object',
                             'properties': {
-                                'name': {'type': 'string'},
-                                'value': {'type': 'string'}
+                                'name': {
+                                    'type': 'string'
+                                },
+                                'value': {
+                                    'type': 'string'
+                                }
                             }
+                        }
+                    },
+                    'environmentFiles': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'value': {
+                                    'type': 'string'
+                                },
+                                'type': {
+                                    'type': 'string',
+                                    'enum': [
+                                        's3'
+                                    ]
+                                }
+                            },
+                            'required': [
+                                'value',
+                                'type'
+                            ]
                         }
                     },
                     'mountPoints': {
@@ -103,19 +186,15 @@ TASK_DEFINITION_SCHEMA = {
                         'items': {
                             'type': 'object',
                             'properties': {
-                                'sourceVolume': {'type': 'string'},
-                                'containerPath': {'type': 'string'},
-                                'readOnly': {'type': 'boolean'}
-                            }
-                        }
-                    },
-                    'systemControls': {
-                        'type': 'array',
-                        'items': {
-                            'type': 'object',
-                            'properties': {
-                                'namespace': {'type': 'string'},
-                                'value': {'type': 'string'}
+                                'sourceVolume': {
+                                    'type': 'string'
+                                },
+                                'containerPath': {
+                                    'type': 'string'
+                                },
+                                'readOnly': {
+                                    'type': 'boolean'
+                                }
                             }
                         }
                     },
@@ -124,55 +203,388 @@ TASK_DEFINITION_SCHEMA = {
                         'items': {
                             'type': 'object',
                             'properties': {
-                                'sourceContainer': {'type': 'string'},
-                                'readOnly': {'type': 'boolean'}
+                                'sourceContainer': {
+                                    'type': 'string'
+                                },
+                                'readOnly': {
+                                    'type': 'boolean'
+                                }
                             }
                         }
                     },
-                    'hostname': {'type': 'string'},
-                    'user': {'type': 'string'},
-                    'workingDirectory': {'type': 'string'},
-                    'disableNetworking': {'type': 'boolean'},
-                    'privileged': {'type': 'boolean'},
-                    'readonlyRootFilesystem': {'type': 'boolean'},
+                    'linuxParameters': {
+                        'type': 'object',
+                        'properties': {
+                            'capabilities': {
+                                'type': 'object',
+                                'properties': {
+                                    'add': {
+                                        'type': 'array',
+                                        'items': {
+                                            'type': 'string'
+                                        }
+                                    },
+                                    'drop': {
+                                        'type': 'array',
+                                        'items': {
+                                            'type': 'string'
+                                        }
+                                    }
+                                }
+                            },
+                            'devices': {
+                                'type': 'array',
+                                'items': {
+                                    'type': 'object',
+                                    'properties': {
+                                        'hostPath': {
+                                            'type': 'string'
+                                        },
+                                        'containerPath': {
+                                            'type': 'string'
+                                        },
+                                        'permissions': {
+                                            'type': 'array',
+                                            'items': {
+                                                'type': 'string',
+                                                'enum': [
+                                                    'read',
+                                                    'write',
+                                                    'mknod'
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    'required': [
+                                        'hostPath'
+                                    ]
+                                }
+                            },
+                            'initProcessEnabled': {
+                                'type': 'boolean'
+                            },
+                            'sharedMemorySize': {
+                                'type': 'integer'
+                            },
+                            'tmpfs': {
+                                'type': 'array',
+                                'items': {
+                                    'type': 'object',
+                                    'properties': {
+                                        'containerPath': {
+                                            'type': 'string'
+                                        },
+                                        'size': {
+                                            'type': 'integer'
+                                        },
+                                        'mountOptions': {
+                                            'type': 'array',
+                                            'items': {
+                                                'type': 'string'
+                                            }
+                                        }
+                                    },
+                                    'required': [
+                                        'containerPath',
+                                        'size'
+                                    ]
+                                }
+                            },
+                            'maxSwap': {
+                                'type': 'integer'
+                            },
+                            'swappiness': {
+                                'type': 'integer'
+                            }
+                        }
+                    },
+                    'secrets': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'name': {
+                                    'type': 'string'
+                                },
+                                'valueFrom': {
+                                    'type': 'string'
+                                }
+                            },
+                            'required': [
+                                'name',
+                                'valueFrom'
+                            ]
+                        }
+                    },
+                    'dependsOn': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'containerName': {
+                                    'type': 'string'
+                                },
+                                'condition': {
+                                    'type': 'string',
+                                    'enum': [
+                                        'START',
+                                        'COMPLETE',
+                                        'SUCCESS',
+                                        'HEALTHY'
+                                    ]
+                                }
+                            },
+                            'required': [
+                                'containerName',
+                                'condition'
+                            ]
+                        }
+                    },
+                    'startTimeout': {
+                        'type': 'integer'
+                    },
+                    'stopTimeout': {
+                        'type': 'integer'
+                    },
+                    'hostname': {
+                        'type': 'string'
+                    },
+                    'user': {
+                        'type': 'string'
+                    },
+                    'workingDirectory': {
+                        'type': 'string'
+                    },
+                    'disableNetworking': {
+                        'type': 'boolean'
+                    },
+                    'privileged': {
+                        'type': 'boolean'
+                    },
+                    'readonlyRootFilesystem': {
+                        'type': 'boolean'
+                    },
                     'dnsServers': {
                         'type': 'array',
-                        'items': {'type': 'string'}
+                        'items': {
+                            'type': 'string'
+                        }
                     },
                     'dnsSearchDomains': {
                         'type': 'array',
-                        'items': {'type': 'string'}
+                        'items': {
+                            'type': 'string'
+                        }
                     },
                     'extraHosts': {
                         'type': 'array',
                         'items': {
                             'type': 'object',
                             'properties': {
-                                'hostname': {'type': 'string'},
-                                'ipAddress': {'type': 'string'}
-                            }
+                                'hostname': {
+                                    'type': 'string'
+                                },
+                                'ipAddress': {
+                                    'type': 'string'
+                                }
+                            },
+                            'required': [
+                                'hostname',
+                                'ipAddress'
+                            ]
                         }
                     },
                     'dockerSecurityOptions': {
                         'type': 'array',
-                        'items': {'type': 'string'}
+                        'items': {
+                            'type': 'string'
+                        }
                     },
-                    'dockerLabels': {'type': 'object'},
+                    'interactive': {
+                        'type': 'boolean'
+                    },
+                    'pseudoTerminal': {
+                        'type': 'boolean'
+                    },
+                    'dockerLabels': {
+                        'type': 'object',
+                        'properties': {
+                            'insert-key': {
+                                'type': 'string'
+                            }
+                        }
+                    },
                     'ulimits': {
                         'type': 'array',
                         'items': {
                             'type': 'object',
-                            'required': ['name', 'softLimit', 'hardLimit'],
                             'properties': {
-                                'name': {'type': 'string'},
-                                'softLimit': {'type': 'number'},
-                                'hardLimit': {'type': 'number'}
+                                'name': {
+                                    'type': 'string',
+                                    'enum': [
+                                        'core',
+                                        'cpu',
+                                        'data',
+                                        'fsize',
+                                        'locks',
+                                        'memlock',
+                                        'msgqueue',
+                                        'nice',
+                                        'nofile',
+                                        'nproc',
+                                        'rss',
+                                        'rtprio',
+                                        'rttime',
+                                        'sigpending',
+                                        'stack'
+                                    ]
+                                },
+                                'softLimit': {
+                                    'type': 'integer'
+                                },
+                                'hardLimit': {
+                                    'type': 'integer'
+                                }
+                            },
+                            'required': [
+                                'name',
+                                'softLimit',
+                                'hardLimit'
+                            ]
+                        }
+                    },
+                    'logConfiguration': {
+                        'type': 'object',
+                        'properties': {
+                            'logDriver': {
+                                'type': 'string',
+                                'enum': [
+                                    'json-file',
+                                    'syslog',
+                                    'journald',
+                                    'gelf',
+                                    'fluentd',
+                                    'awslogs',
+                                    'splunk',
+                                    'awsfirelens'
+                                ]
+                            },
+                            'options': {
+                                'type': 'object',
+                                'properties': {
+                                    'insert-key': {
+                                        'type': 'string'
+                                    }
+                                }
+                            },
+                            'secretOptions': {
+                                'type': 'array',
+                                'items': {
+                                    'type': 'object',
+                                    'properties': {
+                                        'name': {
+                                            'type': 'string'
+                                        },
+                                        'valueFrom': {
+                                            'type': 'string'
+                                        }
+                                    },
+                                    'required': [
+                                        'name',
+                                        'valueFrom'
+                                    ]
+                                }
+                            }
+                        },
+                        'required': [
+                            'logDriver'
+                        ]
+                    },
+                    'healthCheck': {
+                        'type': 'object',
+                        'properties': {
+                            'command': {
+                                'type': 'array',
+                                'items': {
+                                    'type': 'string'
+                                }
+                            },
+                            'interval': {
+                                'type': 'integer'
+                            },
+                            'timeout': {
+                                'type': 'integer'
+                            },
+                            'retries': {
+                                'type': 'integer'
+                            },
+                            'startPeriod': {
+                                'type': 'integer'
+                            }
+                        },
+                        'required': [
+                            'command'
+                        ]
+                    },
+                    'systemControls': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'namespace': {
+                                    'type': 'string'
+                                },
+                                'value': {
+                                    'type': 'string'
+                                }
                             }
                         }
                     },
-                    'logConfiguration': {'type': 'object'},
-                    'logDriver': {'type': 'string'},
-                    'options': {'type': 'object'}
+                    'resourceRequirements': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'value': {
+                                    'type': 'string'
+                                },
+                                'type': {
+                                    'type': 'string',
+                                    'enum': [
+                                        'GPU',
+                                        'InferenceAccelerator'
+                                    ]
+                                }
+                            },
+                            'required': [
+                                'value',
+                                'type'
+                            ]
+                        }
+                    },
+                    'firelensConfiguration': {
+                        'type': 'object',
+                        'properties': {
+                            'type': {
+                                'type': 'string',
+                                'enum': [
+                                    'fluentd',
+                                    'fluentbit'
+                                ]
+                            },
+                            'options': {
+                                'type': 'object',
+                                'properties': {
+                                    'insert-key': {
+                                        'type': 'string'
+                                    }
+                                }
+                            }
+                        },
+                        'required': [
+                            'type'
+                        ]
+                    }
                 }
             }
         },
@@ -181,24 +593,210 @@ TASK_DEFINITION_SCHEMA = {
             'items': {
                 'type': 'object',
                 'properties': {
-                    'name': {'type': 'string'},
+                    'name': {
+                        'type': 'string'
+                    },
                     'host': {
                         'type': 'object',
                         'properties': {
-                            'sourcePath': {'type': 'string'}
+                            'sourcePath': {
+                                'type': 'string'
+                            }
                         }
+                    },
+                    'dockerVolumeConfiguration': {
+                        'type': 'object',
+                        'properties': {
+                            'scope': {
+                                'type': 'string',
+                                'enum': [
+                                    'task',
+                                    'shared'
+                                ]
+                            },
+                            'autoprovision': {
+                                'type': 'boolean'
+                            },
+                            'driver': {
+                                'type': 'string'
+                            },
+                            'driverOpts': {
+                                'type': 'object',
+                                'properties': {
+                                    'insert-key': {
+                                        'type': 'string'
+                                    }
+                                }
+                            },
+                            'labels': {
+                                'type': 'object',
+                                'properties': {
+                                    'insert-key': {
+                                        'type': 'string'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    'efsVolumeConfiguration': {
+                        'type': 'object',
+                        'properties': {
+                            'fileSystemId': {
+                                'type': 'string'
+                            },
+                            'rootDirectory': {
+                                'type': 'string'
+                            },
+                            'transitEncryption': {
+                                'type': 'string',
+                                'enum': [
+                                    'ENABLED',
+                                    'DISABLED'
+                                ]
+                            },
+                            'transitEncryptionPort': {
+                                'type': 'integer'
+                            },
+                            'authorizationConfig': {
+                                'type': 'object',
+                                'properties': {
+                                    'accessPointId': {
+                                        'type': 'string'
+                                    },
+                                    'iam': {
+                                        'type': 'string',
+                                        'enum': [
+                                            'ENABLED',
+                                            'DISABLED'
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        'required': [
+                            'fileSystemId'
+                        ]
                     }
                 }
             }
+        },
+        'placementConstraints': {
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'type': {
+                        'type': 'string',
+                        'enum': [
+                            'memberOf'
+                        ]
+                    },
+                    'expression': {
+                        'type': 'string'
+                    }
+                }
+            }
+        },
+        'requiresCompatibilities': {
+            'type': 'array',
+            'items': {
+                'type': 'string',
+                'enum': [
+                    'EC2',
+                    'FARGATE'
+                ]
+            }
+        },
+        'cpu': {
+            'type': 'string'
+        },
+        'memory': {
+            'type': 'string'
         },
         'tags': {
             'type': 'array',
             'items': {
                 'type': 'object',
                 'properties': {
-                    'key': {'type': 'string'},
-                    'value': {'type': 'string'}
+                    'key': {
+                        'type': 'string',
+                        'maxLength': 128,
+                        'minLength': 1,
+                        'pattern': '^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$'
+                    },
+                    'value': {
+                        'type': 'string',
+                        'maxLength': 256,
+                        'minLength': 0,
+                        'pattern': '^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$'
+                    }
                 }
+            },
+            'maxLength': 50,
+            'minLength': 0
+        },
+        'pidMode': {
+            'type': 'string',
+            'enum': [
+                'host',
+                'task'
+            ]
+        },
+        'ipcMode': {
+            'type': 'string',
+            'enum': [
+                'host',
+                'task',
+                'none'
+            ]
+        },
+        'proxyConfiguration': {
+            'type': 'object',
+            'properties': {
+                'type': {
+                    'type': 'string',
+                    'enum': [
+                        'APPMESH'
+                    ]
+                },
+                'containerName': {
+                    'type': 'string'
+                },
+                'properties': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'name': {
+                                'type': 'string'
+                            },
+                            'value': {
+                                'type': 'string'
+                            }
+                        }
+                    }
+                }
+            },
+            'required': [
+                'containerName'
+            ]
+        },
+        'inferenceAccelerators': {
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'deviceName': {
+                        'type': 'string'
+                    },
+                    'deviceType': {
+                        'type': 'string'
+                    }
+                },
+                'required': [
+                    'deviceName',
+                    'deviceType'
+                ]
             }
         }
     }
@@ -361,7 +959,8 @@ class ECSBaseActor(base.AWSBaseActor):
         raise gen.Return(task_definitions)
 
     @staticmethod
-    def _load_task_definition(task_definition_file, tokens, default_tokens={}):
+    def _load_task_definition(task_definition_file, tokens,
+                              default_tokens=None):
         """Loads and verifies a task definition template file, interpolates
         tokens, and optionally default tokens which may contain environment
         variables.
@@ -380,6 +979,7 @@ class ECSBaseActor(base.AWSBaseActor):
             return None
 
         # Defined Kingpin tokens will override environment variables.
+        default_tokens = default_tokens or {}
         final_tokens = default_tokens.copy()
         final_tokens.update(tokens)
 
