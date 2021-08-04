@@ -126,7 +126,7 @@ class TestUtils(unittest.TestCase):
         examples = '%s/../../examples' % dirname
         simple = '%s/simple.json' % examples
         ret = utils.convert_script_to_dict(simple, {})
-        self.assertEqual(type(ret), dict)
+        self.assertIsInstance(ret, dict)
 
         # Should work with file instance also
         dirname, filename = os.path.split(os.path.abspath(__file__))
@@ -134,7 +134,7 @@ class TestUtils(unittest.TestCase):
         simple = '%s/simple.json' % examples
         instance = open(simple)
         ret = utils.convert_script_to_dict(instance, {})
-        self.assertEqual(type(ret), dict)
+        self.assertIsInstance(ret, dict)
 
         # Should definitly support YAML as well
         dirname, filename = os.path.split(os.path.abspath(__file__))
@@ -142,7 +142,7 @@ class TestUtils(unittest.TestCase):
         simple = '%s/simple.yaml' % examples
         instance = open(simple)
         ret = utils.convert_script_to_dict(instance, {})
-        self.assertEqual(type(ret), dict)
+        self.assertIsInstance(ret, dict)
 
     def test_convert_script_to_dict_bad_name(self):
         instance = io.StringIO()  # Empty buffer will fail demjson.

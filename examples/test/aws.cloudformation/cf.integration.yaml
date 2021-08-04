@@ -1,0 +1,30 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Stupid-simple CloudFormation template for Kingpin Integration Testing.
+Parameters:
+  BucketName:
+    Type: String
+  BucketPassword:
+    Type: String
+    NoEcho: true
+  DefaultParam:
+    Type: String
+    Default: DefaultValue
+  Metadata:
+    Type: String
+Conditions: {}
+Resources:
+  IntegrationTestBucket:
+    Type: AWS::S3::Bucket
+    Metadata:
+      Test:
+        Ref: Metadata
+    Properties:
+      BucketName: !Ref BucketName
+      Tags:
+      - Key: DefaultParam
+        Value:
+          Ref: DefaultParam
+      - Key: Kingpin
+        Value:
+          Ref: BucketName

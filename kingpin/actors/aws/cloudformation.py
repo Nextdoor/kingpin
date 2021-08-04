@@ -18,6 +18,9 @@
 """
 
 import json
+from json import JSONEncoder
+
+import datetime
 import logging
 import re
 import uuid
@@ -39,6 +42,12 @@ from kingpin.constants import SchemaCompareBase, StringCompareBase
 log = logging.getLogger(__name__)
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'
+
+
+class DateEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (datetime.date)):
+            return obj.isoformat()
 
 
 # This executor is used by the tornado.concurrent.run_on_executor()
@@ -267,7 +276,11 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         else:
             # The template is provided inline.
             try:
-                return json.dumps(self._parse_policy_json(template)), None
+                return (
+                    json.dumps(self._parse_policy_json(
+                        template), cls=DateEncoder),
+                    None
+                )
             except exceptions.UnrecoverableActorFailure as e:
                 raise InvalidTemplate(e)
 

@@ -9,7 +9,9 @@ simplejson
 jsonschema
 jsonpickle
 demjson
-PyYAML
+
+# Used to parse CFN yaml, which has a few edge cases PyYaml doesn't parse by default
+cfn-flip
 
 # Colorize the log output!
 rainbow_logging_handler
