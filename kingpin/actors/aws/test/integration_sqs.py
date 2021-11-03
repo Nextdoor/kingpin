@@ -117,7 +117,7 @@ class IntegrationSQS(testing.AsyncTestCase):
     @attr('aws', 'integration')
     @testing.gen_test(timeout=120)  # Delete actor sleeps and retries.
     def integration_03c_delete_fake_queue(self):
-        settings.SQS_RETRY_DELAY = 0
+        sqs.SQS_RETRY_DELAY = 0
         importlib.reload(sqs)
         actor = sqs.Delete('Delete %s' % self.queue_name,
                            {'name': 'totally-fake-queue',

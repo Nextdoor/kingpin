@@ -1,4 +1,3 @@
-from boto import exception as boto_exception
 from botocore import exceptions as botocore_exceptions
 from tornado import concurrent
 from tornado import gen
@@ -12,8 +11,6 @@ class ApiCallQueue:
     """
     Handles queueing up and sending AWS api calls serially,
     with exponential backoff when there is throttling.
-
-    Supports both boto2 and boto3.
 
     Invoke the `call` method to queue up a new API call.
     """
@@ -31,18 +28,10 @@ class ApiCallQueue:
         # We don't have a delay until we first get throttled.
         self.delay = 0
 
-        # There are a number of different rate limiting messages
-        # boto2 can return when rate limits are reached, depending
-        # on which apis are used.
-        self.boto2_throttle_strings = (
-            'Throttling',
-            'Rate exceeded',
-            'reached max retries',
-        )
 
     @gen.coroutine
     def call(self, api_function, *args, **kwargs):
-        """Call a boto2 or boto3 api function.
+        """Call a boto3 api function.
 
         Simply invoke this with an api method and its args and kwargs.
 
@@ -100,7 +89,7 @@ class ApiCallQueue:
         If the api function returns a response cleanly, this will return it.
         If the api function raises an exception, this raises it up.
 
-        For as long as the api function returns a boto2 or boto3
+        For as long as the api function returns a boto3
         rate limiting exception, this will backoff and try again.
         """
         while True:
@@ -108,14 +97,6 @@ class ApiCallQueue:
                 result = yield self._thread(api_function, *args, **kwargs)
                 self._decrease_delay()
                 raise gen.Return(result)
-            except boto_exception.BotoServerError as e:
-                # Boto2 exception.
-                if e.error_code in self.boto2_throttle_strings:
-                    self._increase_delay()
-                    yield gen.sleep(self.delay)
-                else:
-                    self._decrease_delay()
-                    raise e
             except botocore_exceptions.ClientError as e:
                 # Boto3 exception.
                 if e.response['Error']['Code'] == 'Throttling':

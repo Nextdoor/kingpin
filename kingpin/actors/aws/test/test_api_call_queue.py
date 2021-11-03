@@ -1,7 +1,6 @@
 import logging
 import time
 
-from boto import exception as boto_exception
 from botocore import exceptions as botocore_exceptions
 from tornado import concurrent
 from tornado import gen
@@ -13,19 +12,6 @@ log = logging.getLogger(__name__)
 
 
 class TestApiCallQueue(testing.AsyncTestCase):
-    boto2_exception = boto_exception.BotoServerError(
-        '400', 'Bad request',
-        {'Error': {'Code': 'Bad request'}})
-    boto2_throttle_exception_1 = boto_exception.BotoServerError(
-        '429', 'Rate limit',
-        {'Error': {'Code': 'Throttling'}})
-    boto2_throttle_exception_2 = boto_exception.BotoServerError(
-        '429', 'Rate limit',
-        {'Error': {'Code': 'Rate exceeded'}})
-    boto2_throttle_exception_3 = boto_exception.BotoServerError(
-        '429', 'Rate limit',
-        {'Error': {'Code': 'reached max retries'}})
-
     boto3_exception = botocore_exceptions.ClientError(
         {'Error': {'Code': 'Bad request'}}, 'Test')
     boto3_throttle_exception = botocore_exceptions.ClientError(
@@ -125,25 +111,6 @@ class TestApiCallQueue(testing.AsyncTestCase):
             raise gen.Return('exception')
 
         @gen.coroutine
-        def _call_with_exception_after_boto2_rate_limit():
-            """
-            First rate limit, then raise an exception.
-            This should take:
-                call delay * 2 + min rate limiting delay * 1
-            """
-            try:
-                yield self.api_call_queue.call(
-                    self._mock_api_function_sync,
-                    exception=[
-                        self.boto2_throttle_exception_1,
-                        self.boto2_exception],
-                    delay=0.05)
-            except Exception as e:
-                self.assertEqual(self.boto2_exception, e)
-
-            raise gen.Return('exception')
-
-        @gen.coroutine
         def _call_with_exception_after_boto3_rate_limit():
             """
             First rate limit, then raise an exception.
@@ -170,8 +137,6 @@ class TestApiCallQueue(testing.AsyncTestCase):
             # Should take 0.05s.
             _call_without_exception(),
             # Should take 0.05s + 0.05s + 0.05s.
-            _call_with_exception_after_boto2_rate_limit(),
-            # Should take 0.05s + 0.05s + 0.05s.
             _call_with_exception_after_boto3_rate_limit(),
         ]
 
@@ -180,42 +145,11 @@ class TestApiCallQueue(testing.AsyncTestCase):
         stop = time.time()
         run_time = stop - start
 
-        self.assertTrue(0.45 <= run_time < 0.55)
+        self.assertTrue(0.30 <= run_time < 0.45)
         self.assertEqual(
             results,
             ['no exception', 'exception', 'no exception',
              'exception', 'exception'])
-
-    @testing.gen_test
-    def test_rate_limiting_boto2(self):
-        """
-        Test that rate limiting with boto2 works.
-        """
-        # Each one of these will raise a throttling exception, then succeed.
-        # Between calls, each should delay for 1 cycle of `delay_min`.
-        # Delay min is 0.05s, so total runtime should be ~0.15s.
-        api_call_queue_calls = [
-            self.api_call_queue.call(
-                self._mock_api_function_sync,
-                result=1,
-                exception=[self.boto2_throttle_exception_1]),
-            self.api_call_queue.call(
-                self._mock_api_function_sync,
-                result=2,
-                exception=[self.boto2_throttle_exception_2]),
-            self.api_call_queue.call(
-                self._mock_api_function_sync,
-                result=3,
-                exception=[self.boto2_throttle_exception_3]),
-        ]
-
-        start = time.time()
-        results = yield gen.multi(api_call_queue_calls)
-        stop = time.time()
-        run_time = stop - start
-
-        self.assertTrue(0.15 <= run_time < 0.25)
-        self.assertEqual(results, [1, 2, 3])
 
     @testing.gen_test
     def test_rate_limiting_boto3(self):
@@ -266,7 +200,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
                 self._mock_api_function_sync,
                 result=result,
                 exception=[
-                    self.boto2_throttle_exception_1,
+                    self.boto3_throttle_exception,
                     self.boto3_throttle_exception])
 
         api_call_queue_calls = [

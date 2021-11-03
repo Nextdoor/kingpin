@@ -39,19 +39,12 @@ import urllib.parse
 import urllib.error
 import re
 
-from boto import exception as boto_exception
-from boto import utils as boto_utils
 from boto3 import exceptions as boto3_exceptions
 from botocore import exceptions as botocore_exceptions
-from retrying import retry
+from botocore import config as botocore_config
 from tornado import concurrent
 from tornado import gen
 from tornado import ioloop
-import boto.cloudformation
-import boto.ec2
-import boto.ec2.elb
-import boto.iam
-import boto.sqs
 import boto3
 
 from kingpin import utils
@@ -115,7 +108,8 @@ class AWSBaseActor(base.BaseActor):
         # sure things worked!
         try:
             # Establish connection objects that don't require a region
-            self.iam_conn = boto.iam.connection.IAMConnection(
+            self.iam_conn = boto3.client(
+                'iam',
                 aws_access_key_id=key,
                 aws_secret_access_key=secret)
         except boto.exception.NoAuthHandlerFound:
@@ -142,47 +136,44 @@ class AWSBaseActor(base.BaseActor):
             self.log.warning('Converting zone "%s" to region "%s".' % (
                 zone, region))
 
-        region_names = [r.name for r in boto.ec2.elb.regions()]
+        # Generate our common config options that will be passed into the boto3
+        # client constructors...
+        boto_config = botocore_config.Config(
+            region_name=region,
+            retries={
+                "mode": "adaptive",
+            },
+        )
+
+        # Get the list of available AWS Region Names
+        region_names = [r['RegionName'] for r in boto3.client('ec2').describe_regions().get('Regions', [])]
         if region not in region_names:
             err = ('Region "%s" not found. Available regions: %s' %
                    (region, region_names))
             raise exceptions.InvalidOptions(err)
 
-        self.ec2_conn = boto.ec2.connect_to_region(
-            region,
-            aws_access_key_id=key,
-            aws_secret_access_key=secret)
         self.ecs_conn = boto3.client(
             'ecs',
-            region_name=region,
-            aws_access_key_id=key,
-            aws_secret_access_key=secret)
-        self.elb_conn = boto.ec2.elb.connect_to_region(
-            region,
-            aws_access_key_id=key,
-            aws_secret_access_key=secret)
-        self.elbv2_conn = boto3.client(
-            'elbv2',
-            region_name=region,
+            config=boto_config,
             aws_access_key_id=key,
             aws_secret_access_key=secret)
         self.cf3_conn = boto3.client(
             'cloudformation',
-            region_name=region,
+            config=boto_config,
             aws_access_key_id=key,
             aws_secret_access_key=secret)
-        self.sqs_conn = boto.sqs.connect_to_region(
+        self.sqs_conn = boto3.client(
+            'sqs',
             region,
             aws_access_key_id=key,
             aws_secret_access_key=secret)
         self.s3_conn = boto3.client(
             's3',
-            region_name=region,
+            config=boto_config,
             aws_access_key_id=key,
             aws_secret_access_key=secret)
 
     @concurrent.run_on_executor
-    @retry(**aws_settings.RETRYING_SETTINGS)
     @utils.exception_logger
     def api_call(self, api_function, *args, **kwargs):
         """Execute `api_function` in a concurrent thread.
@@ -194,8 +185,7 @@ class AWSBaseActor(base.BaseActor):
         """
         try:
             return api_function(*args, **kwargs)
-        except (boto_exception.BotoServerError,
-                boto3_exceptions.Boto3Error) as e:
+        except boto3_exceptions.Boto3Error as e:
             raise self._wrap_boto_exception(e)
 
     @gen.coroutine
@@ -257,100 +247,6 @@ class AWSBaseActor(base.BaseActor):
             return exceptions.RecoverableActorFailure(
                 'Boto3 had a failure: %s' % e)
         return e
-
-    @gen.coroutine
-    def _find_elb(self, name):
-        """Return an ELB with the matching name.
-
-        Must find exactly 1 match. Zones are limited by the AWS credentials.
-
-        Args:
-            name: String-name of the ELB to search for
-
-        Returns:
-            A single ELB reference object
-
-        Raises:
-            ELBNotFound
-        """
-        self.log.info('Searching for ELB "%s"' % name)
-
-        try:
-            elbs = yield self.api_call(self.elb_conn.get_all_load_balancers,
-                                       load_balancer_names=name)
-        except boto_exception.BotoServerError as e:
-            msg = '%s: %s' % (e.error_code, str(e))
-            log.error('Received exception: %s' % msg)
-
-            if e.status == 400:
-                raise ELBNotFound(msg)
-
-            raise
-
-        self.log.debug('ELBs found: %s' % elbs)
-
-        if len(elbs) != 1:
-            raise ELBNotFound('Expected to find exactly 1 ELB. Found %s: %s'
-                              % (len(elbs), elbs))
-
-        raise gen.Return(elbs[0])
-
-    @gen.coroutine
-    def _find_target_group(self, arn):
-        """Returns an ELBv2 Target Group with the matching name.
-
-        Args:
-            name: String-name of the Target Group to search for
-
-        Returns:
-            A single Target Group reference object
-
-        Raises:
-            ELBNotFound
-        """
-        self.log.info('Searching for Target Group "%s"' % arn)
-
-        try:
-            trgts = yield self.api_call(self.elbv2_conn.describe_target_groups,
-                                        Names=[arn])
-        except botocore_exceptions.ClientError as e:
-            raise exceptions.UnrecoverableActorFailure(str(e))
-
-        arns = [t['TargetGroupArn'] for t in trgts['TargetGroups']]
-
-        if len(arns) != 1:
-            raise ELBNotFound(
-                'Expected to find exactly 1 Target Group. Found %s: %s'
-                % (len(arns), arns))
-
-        raise gen.Return(arns[0])
-
-    @gen.coroutine
-    def _get_meta_data(self, key):
-        """Get AWS meta data for current instance.
-
-        http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/
-        ec2-instance-metadata.html
-        """
-
-        meta = yield self.api_call(boto_utils.get_instance_metadata,
-                                   timeout=1, num_retries=2)
-        if not meta:
-            raise InvalidMetaData('No metadata available. Not AWS instance?')
-
-        data = meta.get(key, None)
-        if not data:
-            raise InvalidMetaData('Metadata for key `%s` is not available')
-
-        raise gen.Return(data)
-
-    def _policy_doc_to_dict(self, policy):
-        """Converts a Boto UUEncoded Policy document to a Dict.
-
-        args:
-            policy: The policy string returned by Boto
-        """
-        return json.loads(urllib.parse.unquote(policy))
 
     def _parse_policy_json(self, policy):
         """Parse a single JSON file into an Amazon policy.

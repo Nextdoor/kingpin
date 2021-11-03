@@ -1789,7 +1789,7 @@ class TestGetSortedNewLogEvents(testing.AsyncTestCase):
 
 
 def _mock_task_actor():
-    settings.ECS_RETRY_ATTEMPTS = 0
+    ecs.ECS_RETRY_ATTEMPTS = 0
     importlib.reload(ecs_actor)
     base_actor = 'kingpin.actors.aws.ecs.ECSBaseActor'
     load_task_definition = base_actor + '._load_task_definition'
@@ -1802,7 +1802,7 @@ def _mock_task_actor():
 
 
 def _mock_service_actor():
-    settings.ECS_RETRY_ATTEMPTS = 0
+    ecs.ECS_RETRY_ATTEMPTS = 0
     importlib.reload(ecs_actor)
     base_actor = 'kingpin.actors.aws.ecs.ECSBaseActor'
     load_task_definition = base_actor + '._load_task_definition'

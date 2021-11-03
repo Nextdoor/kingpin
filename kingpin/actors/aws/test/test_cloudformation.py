@@ -57,7 +57,6 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         super(TestCloudFormationBaseActor, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
-        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
         importlib.reload(cloudformation)
 
         self.actor = cloudformation.CloudFormationBaseActor(
@@ -400,7 +399,6 @@ class TestCreate(testing.AsyncTestCase):
         super(TestCreate, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
-        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
         importlib.reload(cloudformation)
         # Need to recreate the api call queues between tests
         # because nose creates a new ioloop per test run.
@@ -625,7 +623,6 @@ class TestDelete(testing.AsyncTestCase):
         super(TestDelete, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
-        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
         importlib.reload(cloudformation)
         # Need to recreate the api call queues between tests
         # because nose creates a new ioloop per test run.
@@ -673,7 +670,6 @@ class TestStack(testing.AsyncTestCase):
         super(TestStack, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
-        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
         importlib.reload(cloudformation)
         # Need to recreate the api call queues between tests
         # because nose creates a new ioloop per test run.

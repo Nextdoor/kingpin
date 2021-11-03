@@ -19,7 +19,7 @@
 
 import logging
 
-from boto.exception import BotoServerError
+from botocore.exceptions import ClientError
 from tornado import concurrent
 from tornado import gen
 
@@ -104,7 +104,7 @@ class UploadCert(base.IAMBaseActor):
     def _execute(self):
         """Gather all the cert data and upload it.
 
-        The `boto` library requires actual cert contents, but this actor
+        The `boto3` library requires actual cert contents, but this actor
         expects paths to files.
         """
         # Gather needed cert data
@@ -165,7 +165,7 @@ class DeleteCert(base.IAMBaseActor):
         self.log.debug('Searching for cert "%s"...' % name)
         try:
             yield self.api_call(self.iam_conn.get_server_certificate, name)
-        except BotoServerError as e:
+        except ClientError as e:
             raise exceptions.UnrecoverableActorFailure(
                 'Could not find cert %s. Reason: %s' % (name, e))
 

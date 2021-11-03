@@ -34,6 +34,9 @@ log = logging.getLogger(__name__)
 
 __author__ = 'Willem Van Eck <willem@nextdoor.com>'
 
+ECS_RETRY_ATTEMPTS = 3
+ECS_RETRY_DELAY = 5
+
 
 class ECSAPIException(exceptions.RecoverableActorFailure):
     """A failure from the ECS API."""
@@ -590,8 +593,8 @@ class RunTask(ECSBaseActor):
 
     @gen.coroutine
     @utils.retry(excs=ECSAPIException,
-                 retries=settings.ECS_RETRY_ATTEMPTS,
-                 delay=settings.ECS_RETRY_DELAY)
+                 retries=ECS_RETRY_ATTEMPTS,
+                 delay=ECS_RETRY_DELAY)
     def _tasks_done(self, tasks):
         """Checks if tasks are done.
 
@@ -1222,8 +1225,8 @@ class Service(ECSBaseActor):
 
     @gen.coroutine
     @utils.retry(excs=exceptions.RecoverableActorFailure,
-                 retries=settings.ECS_RETRY_ATTEMPTS,
-                 delay=settings.ECS_RETRY_DELAY)
+                 retries=ECS_RETRY_ATTEMPTS,
+                 delay=ECS_RETRY_DELAY)
     def _is_service_updated(self, service_name, task_definition_name):
         """Checks if service's state updates successfully.
         Meant to be called in a wait-loop.

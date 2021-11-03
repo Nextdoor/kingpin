@@ -1,5 +1,8 @@
 HERE = $(shell pwd)
-BIN = $(HERE)/bin
+
+VENV_CMD := python3 -m venv
+VENV_DIR := $(HERE)/.venv
+PYTHON   := $(VENV_DIR)/bin/python
 
 BUILD_DIRS = bin .build build include lib lib64 man share package *.egg
 
@@ -11,33 +14,47 @@ INTEGRATION_TESTS ?= aws,rightscale,http,rollbar,slack,spotinst
 # Hack to ensure we get 100% unit test coverage
 export URLLIB_DEBUG=true
 
+.PHONY: all
 all: build
-build: .build
 
-.build: requirements.test.txt
-	python setup.py install
-	pip install -r requirements.test.txt
-	touch .build
+.PHONY: venv
+venv: $(VENV_DIR)
 
+$(VENV_DIR): requirements.txt requirements.test.txt
+	$(VENV_CMD) $(VENV_DIR) && \
+		$(VENV_DIR)/bin/pip install -r requirements.test.txt && \
+		$(VENV_DIR)/bin/pip install -r requirements.txt && \
+		touch $(VENV_DIR)
+
+.PHONY: build
+build: $(VENV_DIR)
+	$(PYTHON) setup.py install
+
+.PHONY: clean
 clean:
 	find . -type f -name '*.pyc' -exec rm "{}" \;
 	rm -f kingpin.zip
 	rm -rf $(BUILD_DIRS)
-	$(MAKE) -C docs clean
+	PATH=$(VENV_DIR)/bin:$(PATH) $(MAKE) -C docs clean
 
-test: build docs
-	python3 setup.py test pep8 pyflakes
+.PHONY: test
+#test: build docs
+test:
+	$(PYTHON) setup.py test pep8 pyflakes
 	# A few simple dry-tests of yaml and json scripts to make sure that the
 	# full commandline actually works.
-	PYTHONPATH=$(HERE) python kingpin/bin/deploy.py --dry --script examples/test/sleep.json
-	PYTHONPATH=$(HERE) python kingpin/bin/deploy.py --dry --script examples/test/sleep.yaml
+	PYTHONPATH=$(HERE) $(PYTHON) kingpin/bin/deploy.py --dry --script examples/test/sleep.json
+	PYTHONPATH=$(HERE) $(PYTHON) kingpin/bin/deploy.py --dry --script examples/test/sleep.yaml
 
+.PHONY: integration
 integration: build
+	. .venv/bin/activate
 	INTEGRATION_TESTS=$(INTEGRATION_TESTS) PYFLAKES_NODOCTEST=True \
-		python3 setup.py integration pep8 pyflakes
+		$(PYTHON) setup.py integration pep8 pyflakes
 
+.PHONY: pack
 pack: kingpin.zip
-	python kingpin.zip --help 2>&1 >/dev/null && echo Success || echo Fail
+	$(PYTHON) kingpin.zip --help 2>&1 >/dev/null && echo Success || echo Fail
 
 kingpin.zip:
 	rm -rf zip
@@ -50,4 +67,4 @@ kingpin.zip:
 	rm -rf zip
 
 docs:
-	$(MAKE) -C docs html
+	PATH=$(VENV_DIR)/bin:$(PATH) $(MAKE) -C docs html

@@ -22,17 +22,6 @@ Elastic Container Service (ECS)
    :members:
    :exclude-members: ECSBaseActor
 
-Elastic Load Balancing (ELB)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. automodule:: kingpin.actors.aws.elb
-   :noindex:
-   :members:
-   :exclude-members: CertNotFound, p2f, ELBBaseActor
-
-.. automodule:: kingpin.actors.aws.elbv2
-   :noindex:
-   :members:
-
 Identity and Access Management (IAM)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. automodule:: kingpin.actors.aws.iam

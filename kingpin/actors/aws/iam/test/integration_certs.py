@@ -10,7 +10,7 @@ from kingpin.actors.aws import iam
 __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 
 log = logging.getLogger(__name__)
-logging.getLogger('boto').setLevel(logging.INFO)
+logging.getLogger('boto3').setLevel(logging.INFO)
 
 
 class IntegrationIAMCerts(testing.AsyncTestCase):

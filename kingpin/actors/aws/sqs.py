@@ -45,6 +45,8 @@ __author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
 # do this.
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
+SQS_RETRY_DELAY = 30
+
 
 class QueueNotFound(exceptions.RecoverableActorFailure):
 
@@ -243,7 +245,7 @@ class Delete(SQSBaseActor):
         raise gen.Return(ok)
 
     @gen.coroutine
-    @utils.retry(QueueNotFound, delay=aws_settings.SQS_RETRY_DELAY)
+    @utils.retry(QueueNotFound, delay=SQS_RETRY_DELAY)
     def _execute(self):
         """Executes an actor and yields the results when its finished.
 

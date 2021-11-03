@@ -6,7 +6,6 @@ import logging
 
 from tornado import testing
 
-# from kingpin.actors import exceptions
 from kingpin.actors.aws import cloudformation
 
 __author__ = 'Matt Wise <matt@nextdoor.com>'

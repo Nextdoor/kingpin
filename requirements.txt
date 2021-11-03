@@ -19,22 +19,9 @@ rainbow_logging_handler
 # tornado rest client
 tornado_rest_client==1.0.0
 
-# Used for retrying non-asynchronous methods
-retrying
-
-# kingpin.actors.rightscale
-#
-# NOTE: Version specified in the setup.py file
-# NOTE: mock is used inside the rightscale actor
-# NOTE: python-rightscale requires ConfigParser but it is not in the requirements file
-python-rightscale==1.0.1
-mock==1.0.1
-
 # kingpin.actors.aws
-boto>=2.32.1
-
-# kingpin.actors.aws.ecs
 # kingpin.actors.aws.cloudformation
+# kingpin.actors.aws.ecs
 boto3>=1.9.46
 
 # Used to turn snake_case into CamelCase

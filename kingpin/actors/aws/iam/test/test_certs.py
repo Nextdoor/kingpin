@@ -1,6 +1,6 @@
 import logging
 
-from boto.exception import BotoServerError
+from botocore import exceptions as botocore_exceptions
 from tornado import testing
 import mock
 
@@ -18,7 +18,6 @@ class TestUploadCert(testing.AsyncTestCase):
         super(TestUploadCert, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
-        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
         importlib.reload(certs)
 
     @testing.gen_test
@@ -74,7 +73,6 @@ class TestDeleteCert(testing.AsyncTestCase):
         super(TestDeleteCert, self).setUp()
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
-        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
         importlib.reload(certs)
 
     @testing.gen_test(timeout=60)
@@ -87,7 +85,9 @@ class TestDeleteCert(testing.AsyncTestCase):
         actor.iam_conn.get_server_certificate.assert_called_with('test')
         self.assertEqual(actor.iam_conn.get_server_certificate.call_count, 1)
 
-        err = BotoServerError('400', 'Broken!')
+        err = botocore_exceptions.ClientError(
+            {'Error': {'Code': '400'}}
+        )
         actor.iam_conn.get_server_certificate.side_effect = err
 
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
