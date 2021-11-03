@@ -147,9 +147,8 @@ class TestApiCallQueue(testing.AsyncTestCase):
 
         self.assertTrue(0.30 <= run_time < 0.45)
         self.assertEqual(
-            results,
-            ['no exception', 'exception', 'no exception',
-             'exception', 'exception'])
+            ['no exception', 'exception', 'no exception', 'exception'],
+            results)
 
     @testing.gen_test
     def test_rate_limiting_boto3(self):

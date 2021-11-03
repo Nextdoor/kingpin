@@ -1,7 +1,4 @@
 import logging
-import urllib.request
-import urllib.parse
-import urllib.error
 import json
 
 from botocore.stub import Stubber
@@ -596,6 +593,7 @@ class TestUser(testing.AsyncTestCase):
     @testing.gen_test
     def test_add_user_to_group_500(self):
         self.iam_stubber.add_client_error('add_user_to_group', 500, 'Yikes!')
+        self.iam_stubber.activate()
         with self.assertRaises(exceptions.RecoverableActorFailure):
             yield self.actor._add_user_to_group('test', 'group')
         self.iam_stubber.assert_no_pending_responses()

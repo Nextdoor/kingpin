@@ -104,54 +104,44 @@ class AWSBaseActor(base.BaseActor):
             key = aws_settings.AWS_ACCESS_KEY_ID
             secret = aws_settings.AWS_SECRET_ACCESS_KEY
 
-        # On our first simple IAM connection, test the credentials and make
-        # sure things worked!
-        try:
-            # Establish connection objects that don't require a region
-            self.iam_conn = boto3.client(
-                'iam',
-                aws_access_key_id=key,
-                aws_secret_access_key=secret)
-        except boto.exception.NoAuthHandlerFound:
-            raise exceptions.InvalidCredentials(
-                'AWS settings imported but not all credentials are supplied. '
-                'AWS_ACCESS_KEY_ID: %s, AWS_SECRET_ACCESS_KEY: %s' % (
-                    aws_settings.AWS_ACCESS_KEY_ID,
-                    aws_settings.AWS_SECRET_ACCESS_KEY))
+        # Establish connection objects that don't require a region
+        self.iam_conn = boto3.client(
+            'iam',
+            aws_access_key_id=key,
+            aws_secret_access_key=secret)
 
         # Establish region-specific connection objects.
-        region = self.option('region')
-        if not region:
+        self.region = self.option('region')
+        if not self.region:
             return
 
         # In case a zone was provided instead of region we can convert
         # it on the fly
-        zone_check = re.match(r'(.*[0-9])([a-z]*)$', region)
+        zone_check = re.match(r'(.*[0-9])([a-z]*)$', self.region)
 
         if zone_check and zone_check.group(2):
-            zone = region  # Only saving this for the log below
+            zone = self.region  # Only saving this for the log below
 
             # Set the fixed region
-            region = zone_check.group(1)
+            self.region = zone_check.group(1)
             self.log.warning('Converting zone "%s" to region "%s".' % (
-                zone, region))
+                zone, self.region))
+
+        # Get the list of available AWS Region Names
+        region_names = [r['RegionName'] for r in boto3.client('ec2').describe_regions().get('Regions', [])]
+        if self.region not in region_names:
+            err = ('Region "%s" not found. Available regions: %s' %
+                   (self.region, region_names))
+            raise exceptions.InvalidOptions(err)
 
         # Generate our common config options that will be passed into the boto3
         # client constructors...
         boto_config = botocore_config.Config(
-            region_name=region,
+            region_name=self.region,
             retries={
                 "mode": "adaptive",
             },
         )
-
-        # Get the list of available AWS Region Names
-        region_names = [r['RegionName'] for r in boto3.client('ec2').describe_regions().get('Regions', [])]
-        if region not in region_names:
-            err = ('Region "%s" not found. Available regions: %s' %
-                   (region, region_names))
-            raise exceptions.InvalidOptions(err)
-
         self.ecs_conn = boto3.client(
             'ecs',
             config=boto_config,
@@ -164,7 +154,7 @@ class AWSBaseActor(base.BaseActor):
             aws_secret_access_key=secret)
         self.sqs_conn = boto3.client(
             'sqs',
-            region,
+            config=boto_config,
             aws_access_key_id=key,
             aws_secret_access_key=secret)
         self.s3_conn = boto3.client(
@@ -218,32 +208,13 @@ class AWSBaseActor(base.BaseActor):
         queue = NAMED_API_CALL_QUEUES[queue_name]
         try:
             result = yield queue.call(api_function, *args, **kwargs)
-        except (boto_exception.BotoServerError,
-                boto3_exceptions.Boto3Error) as e:
+        except boto3_exceptions.Boto3Error as e:
             raise self._wrap_boto_exception(e)
         else:
             raise gen.Return(result)
 
     def _wrap_boto_exception(self, e):
-        if isinstance(e, boto_exception.BotoServerError):
-            # If we're using temporary IAM credentials, when those expire we
-            # can get back a blank 400 from Amazon. This is confusing, but it
-            # happens because of https://github.com/boto/boto/issues/898. In
-            # most cases, these temporary IAM creds can be re-loaded by
-            # reaching out to the AWS API (for example, if we're using an IAM
-            # Instance Profile role), so thats what Boto tries to do. However,
-            # if you're using short-term creds (say from SAML auth'd logins),
-            # then this fails and Boto returns a blank 400.
-            if (e.status == 400 and
-                    e.reason == 'Bad Request' and
-                    e.error_code is None):
-                msg = 'Access credentials have expired'
-                return exceptions.InvalidCredentials(msg)
-
-            msg = '%s: %s' % (e.error_code, str(e))
-            if e.status == 403:
-                return exceptions.InvalidCredentials(msg)
-        elif isinstance(e, boto3_exceptions.Boto3Error):
+        if isinstance(e, boto3_exceptions.Boto3Error):
             return exceptions.RecoverableActorFailure(
                 'Boto3 had a failure: %s' % e)
         return e

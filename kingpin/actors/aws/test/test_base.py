@@ -1,10 +1,7 @@
 import logging
 
-from boto.exception import NoAuthHandlerFound
-from boto.exception import BotoServerError
-from boto import utils
+from botocore import stub
 from tornado import testing
-import botocore.exceptions
 import mock
 
 from kingpin.actors import exceptions
@@ -55,12 +52,6 @@ class TestBase(testing.AsyncTestCase):
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         importlib.reload(base)
 
-    @mock.patch('boto.iam.connection.IAMConnection')
-    def test_missing_auth(self, mock_iam):
-        mock_iam.side_effect = NoAuthHandlerFound('bad')
-        with self.assertRaises(exceptions.InvalidCredentials):
-            base.AWSBaseActor('Unit Test Action', {'region': 'fail'})
-
     def test_region_check(self):
         with self.assertRaises(exceptions.InvalidOptions):
             base.AWSBaseActor('Unit Test Action', {'region': 'fail'})
@@ -68,61 +59,7 @@ class TestBase(testing.AsyncTestCase):
     def test_zone_check(self):
         actor = base.AWSBaseActor('Unit Test Action',
                                   {'region': 'us-west-1d'})
-        self.assertEqual(actor.ecs_conn.region.name, 'us-west-1')
-
-    @testing.gen_test
-    def test_api_call_queue_400(self):
-        actor = base.AWSBaseActor('Unit Test Action', {})
-        actor.elb_conn = mock.Mock()
-        actor.elb_conn.get_all_load_balancers = mock.MagicMock()
-        exc = BotoServerError(400, 'Bad Request')
-        actor.elb_conn.get_all_load_balancers.side_effect = exc
-
-        with self.assertRaises(exceptions.InvalidCredentials):
-            yield actor.api_call_with_queueing(
-                actor.elb_conn.get_all_load_balancers,
-                queue_name='get_all_load_balancers')
-
-    @testing.gen_test
-    def test_api_call_queue_403(self):
-        actor = base.AWSBaseActor('Unit Test Action', {})
-        actor.elb_conn = mock.Mock()
-        actor.elb_conn.get_all_load_balancers = mock.MagicMock()
-        exc = BotoServerError(403, 'The security token')
-        actor.elb_conn.get_all_load_balancers.side_effect = exc
-
-        with self.assertRaises(exceptions.InvalidCredentials):
-            yield actor.api_call_with_queueing(
-                actor.elb_conn.get_all_load_balancers,
-                queue_name='get_all_load_balancers')
-
-    @testing.gen_test
-    def test_policy_doc_to_dict(self):
-        policy_str = ''.join([
-            '%7B%22Version%22%3A%20%222012-10-17%22%2C%20',
-            '%22Statement%22%3A%20%5B%7B%22Action%22%3A%20%5B',
-            '%22s3%3ACreate%2A%22%2C%20%22s3%3AGet%2A%22%2C%20',
-            '%22s3%3APut%2A%22%2C%20%22s3%3AList%2A%22%5D%2C%20',
-            '%22Resource%22%3A%20%5B',
-            '%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%2F%2A%22%2C%20',
-            '%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%22%5D%2C%20',
-            '%22Effect%22%3A%20%22Allow%22%7D%5D%7D'])
-        policy_dict = {
-            'Version': '2012-10-17',
-            'Statement': [
-                {'Action': [
-                    's3:Create*',
-                    's3:Get*',
-                    's3:Put*',
-                    's3:List*'],
-                 'Resource': [
-                    'arn:aws:s3:::kingpin*/*',
-                    'arn:aws:s3:::kingpin*'],
-                 'Effect': 'Allow'}]}
-
-        actor = base.AWSBaseActor('Unit Test Action', {})
-        ret = actor._policy_doc_to_dict(policy_str)
-        self.assertEqual(ret, policy_dict)
+        self.assertEqual(actor.region, 'us-west-1')
 
     @testing.gen_test
     def test_parse_policy_json(self):
