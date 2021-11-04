@@ -33,7 +33,7 @@ from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Matt Wise <matt@nextdoor.com>'
+__author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 class BaseGroupActor(base.BaseActor):
@@ -51,8 +51,8 @@ class BaseGroupActor(base.BaseActor):
     default_timeout = None
 
     all_options = {
-        'contexts': ((dict, str, list), [], "List of contextual hashes."),
-        'acts': (list, REQUIRED, "Array of actor definitions.")
+        "contexts": ((dict, str, list), [], "List of contextual hashes."),
+        "acts": (list, REQUIRED, "Array of actor definitions."),
     }
 
     # Override the BaseActor strict_init_context setting. Since there may be
@@ -89,20 +89,22 @@ class BaseGroupActor(base.BaseActor):
         super(BaseGroupActor, self).__init__(*args, **kwargs)
 
         # DEPRECATE IN v0.5.0
-        if type(self.option('contexts')) == dict:
+        if type(self.option("contexts")) == dict:
             try:
-                filename = self.option('contexts').get('file', '')
+                filename = self.option("contexts").get("file", "")
                 open(filename)
             except IOError as e:
-                self.log.error('Option `contexts` must have valid `file`. '
-                               'Received: %s' % filename)
+                self.log.error(
+                    "Option `contexts` must have valid `file`. "
+                    "Received: %s" % filename
+                )
                 raise exceptions.InvalidOptions(e)
         # END DEPRECATION
 
         # Pre-initialize all of our actions!
         self._actions = self._build_actions()
 
-    def get_orgchart(self, parent=''):
+    def get_orgchart(self, parent=""):
         """Generate an orgchart for all the `acts` specified."""
 
         ret = super(BaseGroupActor, self).get_orgchart(parent=parent)
@@ -127,21 +129,20 @@ class BaseGroupActor(base.BaseActor):
         passed into this actors 'init_context' are also passed into the
         actors that we're intantiating.
         """
-        contexts = self.option('contexts')
+        contexts = self.option("contexts")
         if not contexts:
             return self._build_action_group(self._init_context)
 
         # If the data passed into the 'contexts' is a list of dicts, we take it
         # as is and do nothing to it.
         if type(contexts) == list:
-            context_data = self.option('contexts')
+            context_data = self.option("contexts")
         # DEPRECATE IN v0.5.0
         elif type(contexts) == dict:
-            context_string = open(contexts['file']).read()
+            context_string = open(contexts["file"]).read()
             context_string = kp_utils.populate_with_tokens(
-                string=context_string,
-                tokens=contexts.get('tokens', {}),
-                strict=True)
+                string=context_string, tokens=contexts.get("tokens", {}), strict=True
+            )
             context_data = demjson.decode(context_string)
         # END DEPRECATION
 
@@ -150,18 +151,16 @@ class BaseGroupActor(base.BaseActor):
         # missing tokens. We use the "init tokens" that made it into this actor
         # as available token substitutions.
         elif isinstance(contexts, str):
-            context_data = kp_utils.convert_script_to_dict(
-                contexts, self._init_tokens)
+            context_data = kp_utils.convert_script_to_dict(contexts, self._init_tokens)
 
         actions = []
         for context in context_data:
-            combined_context = dict(list(self._init_context.items()) +
-                                    list(context.items()))
-            self.log.debug('Inherited context %s' %
-                           list(self._init_context.items()))
-            self.log.debug('Specified context %s' % list(context.items()))
-            self.log.debug('Building acts with parameters: %s' %
-                           combined_context)
+            combined_context = dict(
+                list(self._init_context.items()) + list(context.items())
+            )
+            self.log.debug("Inherited context %s" % list(self._init_context.items()))
+            self.log.debug("Specified context %s" % list(context.items()))
+            self.log.debug("Building acts with parameters: %s" % combined_context)
             for action in self._build_action_group(context=combined_context):
                 actions.append(action)
 
@@ -178,13 +177,13 @@ class BaseGroupActor(base.BaseActor):
             A list of references to <actor objects>.
         """
         actions = []
-        self.log.debug('Building %s actors' % len(self.option('acts')))
-        for act in self.option('acts'):
-            act['init_context'] = context.copy()
-            act['init_tokens'] = self._init_tokens.copy()
+        self.log.debug("Building %s actors" % len(self.option("acts")))
+        for act in self.option("acts"):
+            act["init_context"] = context.copy()
+            act["init_tokens"] = self._init_tokens.copy()
             actor = utils.get_actor(act, dry=self._dry)
             actions.append(actor)
-            self.log.debug('Actor %s built' % actor)
+            self.log.debug("Actor %s built" % actor)
         return actions
 
     def _get_exc_type(self, exc_list):
@@ -216,7 +215,7 @@ class BaseGroupActor(base.BaseActor):
         If an actor execution fails in _run_actions(), then that exception is
         raised up the stack.
         """
-        self.log.info('Beginning %s actions' % len(self._actions))
+        self.log.info("Beginning %s actions" % len(self._actions))
         yield self._run_actions()
         raise gen.Return()
 
@@ -347,18 +346,22 @@ class Sync(BaseGroupActor):
                 yield act.execute()
             except exceptions.ActorException as e:
                 if self._dry:
-                    self.log.error('%s failed: %s' % (act._desc, str(e)))
-                    self.log.warning('Continuing since this is a dry run.')
+                    self.log.error("%s failed: %s" % (act._desc, str(e)))
+                    self.log.warning("Continuing since this is a dry run.")
                     errors.append(e)
                 else:
-                    self.log.error('Aborting sequential execution because '
-                                   '"%s" failed' % act._desc)
+                    self.log.error(
+                        "Aborting sequential execution because "
+                        '"%s" failed' % act._desc
+                    )
                     raise
 
         if errors:
             ExcType = self._get_exc_type(errors)
-            raise ExcType('Exceptions raised by %s of %s actors in "%s".' % (
-                          len(errors), len(self._actions), self._desc))
+            raise ExcType(
+                'Exceptions raised by %s of %s actors in "%s".'
+                % (len(errors), len(self._actions), self._desc)
+            )
 
 
 class Async(BaseGroupActor):
@@ -438,9 +441,9 @@ class Async(BaseGroupActor):
     """
 
     all_options = {
-        'concurrency': (int, 0, "Max number of concurrent executions."),
-        'contexts': ((dict, str, list), [], "List of contextual hashes."),
-        'acts': (list, REQUIRED, "Array of actor definitions.")
+        "concurrency": (int, 0, "Max number of concurrent executions."),
+        "contexts": ((dict, str, list), [], "List of contextual hashes."),
+        "acts": (list, REQUIRED, "Array of actor definitions."),
     }
 
     @gen.coroutine
@@ -459,29 +462,31 @@ class Async(BaseGroupActor):
         # finish.
         tasks = []
 
-        if self.option('concurrency'):
-            self.log.info('Concurrency set to %s' % self.option('concurrency'))
+        if self.option("concurrency"):
+            self.log.info("Concurrency set to %s" % self.option("concurrency"))
 
         for act in self._actions:
             tasks.append(act.execute())
 
-            if not self.option('concurrency'):
+            if not self.option("concurrency"):
                 # No concurrency limit - continue the loop without checks.
                 continue
 
             running_tasks = len([t for t in tasks if not t.done()])
 
-            if running_tasks < self.option('concurrency'):
+            if running_tasks < self.option("concurrency"):
                 # We can queue more tasks, continue the loop to add one more.
                 continue
 
-            self.log.debug('Concurrency saturated. Waiting...')
-            while running_tasks >= self.option('concurrency'):
+            self.log.debug("Concurrency saturated. Waiting...")
+            while running_tasks >= self.option("concurrency"):
                 yield gen.moment
                 running_tasks = len([t for t in tasks if not t.done()])
 
-            self.log.debug('Concurrency desaturated: %s<%s. Continuing.' % (
-                running_tasks, self.option('concurrency')))
+            self.log.debug(
+                "Concurrency desaturated: %s<%s. Continuing."
+                % (running_tasks, self.option("concurrency"))
+            )
 
         # Now that we've fired them off, we walk through them one-by-one and
         # check on their status. If they've raised an exception, we catch it
@@ -500,5 +505,7 @@ class Async(BaseGroupActor):
         # handled printing out the log message with the failure.
         if errors:
             ExcType = self._get_exc_type(errors)
-            raise ExcType('Exceptions raised by %s of %s actors in "%s".' % (
-                          len(errors), len(self._actions), self._desc))
+            raise ExcType(
+                'Exceptions raised by %s of %s actors in "%s".'
+                % (len(errors), len(self._actions), self._desc)
+            )

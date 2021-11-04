@@ -28,7 +28,6 @@ class ApiCallQueue:
         # We don't have a delay until we first get throttled.
         self.delay = 0
 
-
     @gen.coroutine
     def call(self, api_function, *args, **kwargs):
         """Call a boto3 api function.
@@ -99,7 +98,7 @@ class ApiCallQueue:
                 raise gen.Return(result)
             except botocore_exceptions.ClientError as e:
                 # Boto3 exception.
-                if e.response['Error']['Code'] == 'Throttling':
+                if e.response["Error"]["Code"] == "Throttling":
                     self._increase_delay()
                     yield gen.sleep(self.delay)
                 else:

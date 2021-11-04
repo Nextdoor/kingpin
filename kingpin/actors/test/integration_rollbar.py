@@ -10,7 +10,7 @@ from kingpin.actors import exceptions
 import importlib
 
 
-__author__ = 'Matt Wise <matt@nextdoor.com>'
+__author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 class IntegrationRollbarDeploy(testing.AsyncTestCase):
@@ -25,72 +25,89 @@ class IntegrationRollbarDeploy(testing.AsyncTestCase):
 
     integration = True
 
-    @attr('rollbar', 'integration')
+    @attr("rollbar", "integration")
     @testing.gen_test(timeout=60)
     def integration_test_1a_init_without_environment_creds(self):
         # Un-set the token now and make sure the init fails
         rollbar.TOKEN = None
         with self.assertRaises(exceptions.InvalidCredentials):
             rollbar.Deploy(
-                'Unit Test Action',
-                {'environment': 'kingpin-integration-testing',
-                 'revision': version.__version__,
-                 'local_username': 'Kingpin Integration Testing',
-                 'comment': 'Integration Tests Are Good, MmmKay'})
+                "Unit Test Action",
+                {
+                    "environment": "kingpin-integration-testing",
+                    "revision": version.__version__,
+                    "local_username": "Kingpin Integration Testing",
+                    "comment": "Integration Tests Are Good, MmmKay",
+                },
+            )
 
         # Reload the rollbar package so it gets our environment variable back.
         importlib.reload(rollbar)
 
-    @attr('rollbar', 'integration', 'dry')
+    @attr("rollbar", "integration", "dry")
     @testing.gen_test(timeout=60)
     def integration_test_2a_execute_with_invalid_creds(self):
         actor = rollbar.Deploy(
-            'Unit Test Action',
-            {'environment': 'kingpin-integration-testing',
-             'revision': version.__version__,
-             'local_username': 'Kingpin Integration Testing',
-             'comment': 'Integration Tests Are Good, MmmKay'}, dry=True)
+            "Unit Test Action",
+            {
+                "environment": "kingpin-integration-testing",
+                "revision": version.__version__,
+                "local_username": "Kingpin Integration Testing",
+                "comment": "Integration Tests Are Good, MmmKay",
+            },
+            dry=True,
+        )
 
         # Valid response test
-        actor._token = 'Invalid'
+        actor._token = "Invalid"
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
-    @attr('rollbar', 'integration', 'dry')
+    @attr("rollbar", "integration", "dry")
     @testing.gen_test(timeout=60)
     def integration_test_2b_execute_dry(self):
         actor = rollbar.Deploy(
-            'Unit Test Action',
-            {'environment': 'kingpin-integration-testing',
-             'revision': version.__version__,
-             'local_username': 'Kingpin Integration Testing',
-             'comment': 'This should never appear in Rollbar'}, dry=True)
+            "Unit Test Action",
+            {
+                "environment": "kingpin-integration-testing",
+                "revision": version.__version__,
+                "local_username": "Kingpin Integration Testing",
+                "comment": "This should never appear in Rollbar",
+            },
+            dry=True,
+        )
         res = yield actor.execute()
         self.assertEqual(res, None)
 
-    @attr('rollbar', 'integration')
+    @attr("rollbar", "integration")
     @testing.gen_test(timeout=60)
     def integration_test_2c_execute_real(self):
         actor = rollbar.Deploy(
-            'Unit Test Action',
-            {'environment': 'kingpin-integration-testing',
-             'revision': version.__version__,
-             'local_username': 'Kingpin Integration Testing',
-             'comment': 'Integration Tests Are Good, MmmKay'})
+            "Unit Test Action",
+            {
+                "environment": "kingpin-integration-testing",
+                "revision": version.__version__,
+                "local_username": "Kingpin Integration Testing",
+                "comment": "Integration Tests Are Good, MmmKay",
+            },
+        )
 
         res = yield actor.execute()
         self.assertEqual(res, None)
 
-    @attr('rollbar', 'integration')
+    @attr("rollbar", "integration")
     @testing.gen_test(timeout=60)
     def integration_test_2d_execute_real_with_rollbar_username(self):
         actor = rollbar.Deploy(
-            'Unit Test Action',
-            {'environment': 'kingpin-integration-testing',
-             'revision': version.__version__,
-             'local_username': 'Kingpin Integration Testing',
-             'rollbar_username': 'Kingpin Integration Username',
-             'comment': 'Now, with a rollbar_username too!'})
+            "Unit Test Action",
+            {
+                "environment": "kingpin-integration-testing",
+                "revision": version.__version__,
+                "local_username": "Kingpin Integration Testing",
+                "rollbar_username": "Kingpin Integration Username",
+                "comment": "Now, with a rollbar_username too!",
+            },
+        )
 
         res = yield actor.execute()
         self.assertEqual(res, None)

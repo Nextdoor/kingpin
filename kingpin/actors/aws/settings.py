@@ -22,12 +22,12 @@ Common settings used by many of the `kingpin.actors.aws` modules.
 
 import os
 
-__author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
+__author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 
 # By default, this means that Boto will make HTTP calls at instantiation time
 # to determine whether or not credentials are available from the metadata
 # service.
 #
 # During tests, we mock these out to blank strings to prevent these calls.
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', None)
-AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', None)
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", None)
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", None)

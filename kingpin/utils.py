@@ -42,12 +42,12 @@ import rainbow_logging_handler
 from kingpin import exceptions
 
 
-__author__ = 'Matt Wise (matt@nextdoor.com)'
+__author__ = "Matt Wise (matt@nextdoor.com)"
 
 log = logging.getLogger(__name__)
 
 # Constants for some of the utilities below
-STATIC_PATH_NAME = 'static'
+STATIC_PATH_NAME = "static"
 
 # Disable the global threadpool defined here to try to narrow down the random
 # unit test failures regarding the IOError. Instead, instantiating a new
@@ -77,15 +77,15 @@ def str_to_class(string):
     """
     # Split the string up. The last element is the Class, the rest is
     # the package name.
-    string_elements = string.split('.')
+    string_elements = string.split(".")
     class_name = string_elements.pop()
-    module_name = '.'.join(string_elements)
+    module_name = ".".join(string_elements)
 
     m = importlib.import_module(module_name)
     return getattr(m, class_name)
 
 
-def setup_root_logger(level='warn', syslog=None, color=False):
+def setup_root_logger(level="warn", syslog=None, color=False):
     """Configures the root logger.
 
     Args:
@@ -99,7 +99,7 @@ def setup_root_logger(level='warn', syslog=None, color=False):
     """
 
     # Get the logging level string -> object
-    level = 'logging.%s' % level.upper()
+    level = "logging.%s" % level.upper()
     level_obj = str_to_class(level)
 
     # Get our logger
@@ -118,28 +118,26 @@ def setup_root_logger(level='warn', syslog=None, color=False):
 
         handler = rainbow_logging_handler.RainbowLoggingHandler(
             sys.stdout,
-
             # Disable colorization of the 'info' log statements. If the code is
             # run in an environment like Jenkins, the background is white, and
             # we don't want to force these log lines to be white as well.
-            color_message_info=(None, None, False)
+            color_message_info=(None, None, False),
         )
     else:
         handler = logging.StreamHandler()
 
     # Get our PID .. used below in the log line format.
-    details = ''
+    details = ""
     if level_obj <= 10:
-        details = str(os.getpid()) + ' [%(name)-40s] [%(funcName)-20s]'
+        details = str(os.getpid()) + " [%(name)-40s] [%(funcName)-20s]"
 
     # If syslog enabled, then override the logging handler to go to syslog.
-    asctime = '%(asctime)-10s '
+    asctime = "%(asctime)-10s "
     if syslog is not None:
-        asctime = ''
-        handler = handlers.SysLogHandler(address=('127.0.0.1', 514),
-                                         facility=syslog)
+        asctime = ""
+        handler = handlers.SysLogHandler(address=("127.0.0.1", 514), facility=syslog)
 
-    fmt = asctime + '%(levelname)-8s ' + details + ' %(message)s'
+    fmt = asctime + "%(levelname)-8s " + details + " %(message)s"
     formatter = logging.Formatter(fmt)
 
     # Append the formatter to the handler, then set the handler as our default
@@ -181,14 +179,18 @@ def exception_logger(func):
     allows us to throw a log entry with the full traceback before raising the
     exception.
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            log.debug('Exception caught in %s(%s, %s): %s' %
-                      (func, args, kwargs, e), exc_info=1)
+            log.debug(
+                "Exception caught in %s(%s, %s): %s" % (func, args, kwargs, e),
+                exc_info=1,
+            )
             raise
+
     return wrapper
 
 
@@ -210,6 +212,7 @@ def retry(excs, retries=3, delay=0.25):
         retries: The number of times to try the operation in total.
         delay: Time (in seconds) to wait between retries
     """
+
     def _retry_on_exc(f):
         def wrapper(*args, **kwargs):
             i = 1
@@ -217,23 +220,26 @@ def retry(excs, retries=3, delay=0.25):
                 try:
                     # Don't log the first time..
                     if i > 1:
-                        log.debug('Try (%s/%s) of %s(%s, %s)' %
-                                  (i, retries, f, args, kwargs))
+                        log.debug(
+                            "Try (%s/%s) of %s(%s, %s)" % (i, retries, f, args, kwargs)
+                        )
                     ret = yield gen.coroutine(f)(*args, **kwargs)
-                    log.debug('Result: %s' % ret)
+                    log.debug("Result: %s" % ret)
                     raise gen.Return(ret)
                 except excs as e:
-                    log.error('Exception raised on try %s: %s' % (i, e))
+                    log.error("Exception raised on try %s: %s" % (i, e))
 
                     if i >= retries:
-                        log.debug('Raising exception: %s' % e)
+                        log.debug("Raising exception: %s" % e)
                         raise e
 
                     i += 1
-                    log.debug('Retrying in %s...' % delay)
+                    log.debug("Retrying in %s..." % delay)
                     yield tornado_sleep(delay)
-                log.debug('Retrying..')
+                log.debug("Retrying..")
+
         return wrapper
+
     return _retry_on_exc
 
 
@@ -247,9 +253,15 @@ def tornado_sleep(seconds=1.0):
     yield gen.sleep(seconds)
 
 
-def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
-                         strict=True, escape_sequence='\\',
-                         remove_escape_sequence=True):
+def populate_with_tokens(
+    string,
+    tokens,
+    left_wrapper="%",
+    right_wrapper="%",
+    strict=True,
+    escape_sequence="\\",
+    remove_escape_sequence=True,
+):
     """Insert token variables into the string.
 
     Will match any token wrapped in '%'s and replace it with the value of that
@@ -280,34 +292,37 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
         for k, v in tokens.items():
 
             if type(v) not in allowed_types:
-                log.warning('Token %s=%s is not in allowed types: %s' % (
-                    k, v, allowed_types))
+                log.warning(
+                    "Token %s=%s is not in allowed types: %s" % (k, v, allowed_types)
+                )
                 continue
 
             string = string.replace(
-                ('%s%s%s' % (left_wrapper, k, right_wrapper)), str(v))
+                ("%s%s%s" % (left_wrapper, k, right_wrapper)), str(v)
+            )
 
     tokens_with_default = re.finditer(
-        r'{0}(([\w]+)[|]([^{1}]+)){1}'.format(left_wrapper, right_wrapper),
-        string)
+        r"{0}(([\w]+)[|]([^{1}]+)){1}".format(left_wrapper, right_wrapper), string
+    )
     for match, key, default in (m.groups() for m in tokens_with_default):
         value = tokens.get(key, default)
         string = string.replace(
-            '%s%s%s' % (left_wrapper, match, right_wrapper), str(value))
+            "%s%s%s" % (left_wrapper, match, right_wrapper), str(value)
+        )
 
     # Slashes need to be escaped properly because they are a
     # part of the regex syntax.
-    escape_sequence = escape_sequence.replace('\\', '\\\\')
-    escape_pattern = r'({0}{1})([\w]+)({0}{2})'.format(
-        escape_sequence,
-        left_wrapper,
-        right_wrapper)
+    escape_sequence = escape_sequence.replace("\\", "\\\\")
+    escape_pattern = r"({0}{1})([\w]+)({0}{2})".format(
+        escape_sequence, left_wrapper, right_wrapper
+    )
 
     # If we are strict, we check if we missed anything. If we did, raise an
     # exception.
     if strict:
-        missed_tokens = list(set(re.findall(r'%s[\w]+%s' %
-                                 (left_wrapper, right_wrapper), string)))
+        missed_tokens = list(
+            set(re.findall(r"%s[\w]+%s" % (left_wrapper, right_wrapper), string))
+        )
 
         # Remove the escaped tokens from the missing tokens
         escape_findings = re.finditer(escape_pattern, string)
@@ -317,15 +332,15 @@ def populate_with_tokens(string, tokens, left_wrapper='%', right_wrapper='%',
 
         if missed_tokens:
             raise LookupError(
-                'Found un-matched tokens in JSON string: %s' % missed_tokens)
+                "Found un-matched tokens in JSON string: %s" % missed_tokens
+            )
 
     # Find text that's between the wrappers and escape sequence and
     # replace with just the wrappers and text.
     if remove_escape_sequence:
         string = re.sub(
-            escape_pattern,
-            r'{0}\2{1}'.format(left_wrapper, right_wrapper),
-            string)
+            escape_pattern, r"{0}\2{1}".format(left_wrapper, right_wrapper), string
+        )
     return string
 
 
@@ -346,7 +361,7 @@ def convert_script_to_dict(script_file, tokens):
         kingpin.exceptions.InvalidScript
     """
 
-    filename = ''
+    filename = ""
     try:
         if isinstance(script_file, IOBase):
             filename = script_file.name
@@ -355,33 +370,31 @@ def convert_script_to_dict(script_file, tokens):
             filename = script_file
             instance = io.open(script_file)
     except IOError as e:
-        raise exceptions.InvalidScript('Error reading script %s: %s' %
-                                       (script_file, e))
+        raise exceptions.InvalidScript("Error reading script %s: %s" % (script_file, e))
 
-    log.debug('Reading %s' % filename)
+    log.debug("Reading %s" % filename)
     raw = instance.read()
     parsed = populate_with_tokens(raw, tokens)
 
     # If the file ends with .json, use demjson to read it. If it ends with
     # .yml/.yaml, use PyYAML. If neither, error.
-    suffix = filename.split('.')[-1].strip().lower()
+    suffix = filename.split(".")[-1].strip().lower()
 
     try:
-        if suffix == 'json':
+        if suffix == "json":
             decoded = demjson.decode(parsed)
-        elif suffix in ('yml', 'yaml'):
+        elif suffix in ("yml", "yaml"):
             decoded = cfn_tools.load_yaml(parsed)
             if decoded is None:
-                raise exceptions.InvalidScript(
-                    'Invalid YAML in `%s`' % filename)
+                raise exceptions.InvalidScript("Invalid YAML in `%s`" % filename)
         else:
-            raise exceptions.InvalidScriptName(
-                'Invalid file extension: %s' % suffix)
+            raise exceptions.InvalidScriptName("Invalid file extension: %s" % suffix)
     except demjson.JSONError as e:
         # demjson exceptions have `pretty_description()` method with
         # much more useful info.
-        raise exceptions.InvalidScript('JSON in `%s` has an error: %s' % (
-            filename, e.pretty_description()))
+        raise exceptions.InvalidScript(
+            "JSON in `%s` has an error: %s" % (filename, e.pretty_description())
+        )
     return decoded
 
 
@@ -484,7 +497,7 @@ def diff_dicts(dict1, dict2):
     dict2 = pprint.pformat(dict2).splitlines()
 
     # Remove unicode identifiers.
-    dict1 = [line.replace('u\'', '\'') for line in dict1]
-    dict2 = [line.replace('u\'', '\'') for line in dict2]
+    dict1 = [line.replace("u'", "'") for line in dict1]
+    dict2 = [line.replace("u'", "'") for line in dict2]
 
-    return '\n'.join(difflib.unified_diff(dict1, dict2, n=2))
+    return "\n".join(difflib.unified_diff(dict1, dict2, n=2))

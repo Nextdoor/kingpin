@@ -46,15 +46,15 @@ from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Charles McLaughlin <charles@nextdoor.com>'
+__author__ = "Charles McLaughlin <charles@nextdoor.com>"
 
-API_CONTENT_TYPE = 'application/x-www-form-urlencoded'
-API_URL = 'https://metrics-api.librato.com/v1/'
-ANNOTATIONS_URL = API_URL + 'annotations/'
-METRICS_URL = API_URL + 'metrics'  # Used to test auth
+API_CONTENT_TYPE = "application/x-www-form-urlencoded"
+API_URL = "https://metrics-api.librato.com/v1/"
+ANNOTATIONS_URL = API_URL + "annotations/"
+METRICS_URL = API_URL + "metrics"  # Used to test auth
 
-TOKEN = os.getenv('LIBRATO_TOKEN', None)
-EMAIL = os.getenv('LIBRATO_EMAIL', None)
+TOKEN = os.getenv("LIBRATO_TOKEN", None)
+EMAIL = os.getenv("LIBRATO_EMAIL", None)
 
 
 class Annotation(base.HTTPBaseActor):
@@ -93,9 +93,9 @@ class Annotation(base.HTTPBaseActor):
     """
 
     all_options = {
-        'title': (str, REQUIRED, "Annotation title"),
-        'description': (str, REQUIRED, "Annotation description"),
-        'name': (str, REQUIRED, "Name of the metric to annotate")
+        "title": (str, REQUIRED, "Annotation title"),
+        "description": (str, REQUIRED, "Annotation description"),
+        "name": (str, REQUIRED, "Name of the metric to annotate"),
     }
 
     desc = "Sending Annotation to {name}"
@@ -106,11 +106,13 @@ class Annotation(base.HTTPBaseActor):
 
         if not TOKEN:
             raise exceptions.InvalidCredentials(
-                'Missing the "LIBRATO_TOKEN" environment variable.')
+                'Missing the "LIBRATO_TOKEN" environment variable.'
+            )
 
         if not EMAIL:
             raise exceptions.InvalidCredentials(
-                'Missing the "LIBRATO_EMAIL" environment variable.')
+                'Missing the "LIBRATO_EMAIL" environment variable.'
+            )
 
     @gen.coroutine
     @utils.retry(excs=(httpclient.HTTPError), retries=3)
@@ -121,12 +123,10 @@ class Annotation(base.HTTPBaseActor):
         except httpclient.HTTPError as e:
             if e.code == 400:
                 # "HTTPError: HTTP 400: Bad Request"
-                raise exceptions.BadRequest(
-                    'Check your JSON inputs.')
+                raise exceptions.BadRequest("Check your JSON inputs.")
             if e.code == 401:
                 # "The authentication you provided is invalid."
-                raise exceptions.InvalidCredentials(
-                    'Librato authentication failed.')
+                raise exceptions.InvalidCredentials("Librato authentication failed.")
             raise
 
         raise gen.Return(res)
@@ -139,23 +139,39 @@ class Annotation(base.HTTPBaseActor):
         """
 
         if self._dry:
-            self.log.info('Testing Librato auth, skipping annotation')
-            msg = ("Would have annotated metric "
-                   "'%s' with title:'%s', description:'%s'")
-            self.log.info(msg % (self.option('name'), self.option('title'),
-                                 self.option('description')))
+            self.log.info("Testing Librato auth, skipping annotation")
+            msg = (
+                "Would have annotated metric " "'%s' with title:'%s', description:'%s'"
+            )
+            self.log.info(
+                msg
+                % (
+                    self.option("name"),
+                    self.option("title"),
+                    self.option("description"),
+                )
+            )
             yield self._fetch_wrapper(
-                METRICS_URL, auth_username=EMAIL, auth_password=TOKEN)
+                METRICS_URL, auth_username=EMAIL, auth_password=TOKEN
+            )
         else:
             self.log.info(
-                "Annotating metric '%s' with title:'%s', description:'%s'" % (
-                    self.option('name'), self.option('title'),
-                    self.option('description')))
-            url = ANNOTATIONS_URL + self.option('name')
+                "Annotating metric '%s' with title:'%s', description:'%s'"
+                % (
+                    self.option("name"),
+                    self.option("title"),
+                    self.option("description"),
+                )
+            )
+            url = ANNOTATIONS_URL + self.option("name")
             args = urllib.parse.urlencode(
-                {'title': self.option('title'),
-                 'description': self.option('description')})
+                {
+                    "title": self.option("title"),
+                    "description": self.option("description"),
+                }
+            )
 
-            yield self._fetch_wrapper(url, post=args,
-                                      auth_username=EMAIL, auth_password=TOKEN)
+            yield self._fetch_wrapper(
+                url, post=args, auth_username=EMAIL, auth_password=TOKEN
+            )
         raise gen.Return()

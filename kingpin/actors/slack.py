@@ -45,27 +45,26 @@ from kingpin.actors import exceptions
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Matt Wise <matt@nextdoor.com>'
+__author__ = "Matt Wise <matt@nextdoor.com>"
 
 
-TOKEN = os.getenv('SLACK_TOKEN', None)
-NAME = os.getenv('SLACK_NAME', 'Kingpin')
+TOKEN = os.getenv("SLACK_TOKEN", None)
+NAME = os.getenv("SLACK_NAME", "Kingpin")
 
 
 class SlackAPI(api.RestConsumer):
 
-    _ENDPOINT = 'https://api.slack.com'
+    _ENDPOINT = "https://api.slack.com"
     _CONFIG = {
-        'attrs': {
-            'auth_test': {
-                'path': '/api/auth.test',
-                'http_methods': {'post': {}},
+        "attrs": {
+            "auth_test": {
+                "path": "/api/auth.test",
+                "http_methods": {"post": {}},
             },
-            'chat_postMessage': {
-                'path': '/api/chat.postMessage',
-                'http_methods': {'post': {}},
-            }
-
+            "chat_postMessage": {
+                "path": "/api/chat.postMessage",
+                "http_methods": {"post": {}},
+            },
         }
     }
 
@@ -80,11 +79,10 @@ class SlackBase(base.BaseActor):
 
         if not TOKEN:
             raise exceptions.InvalidCredentials(
-                'Missing the "SLACK_TOKEN" environment variable.')
+                'Missing the "SLACK_TOKEN" environment variable.'
+            )
 
-        rest_client = api.SimpleTokenRestClient(
-            tokens={'token': TOKEN}
-        )
+        rest_client = api.SimpleTokenRestClient(tokens={"token": TOKEN})
         self._slack_client = SlackAPI(client=rest_client)
 
     def _check_results(self, result):
@@ -102,10 +100,11 @@ class SlackBase(base.BaseActor):
             RecoverableActorException on any other value
         """
         try:
-            ok = result.get('ok', False)
+            ok = result.get("ok", False)
         except AttributeError:
             raise exceptions.UnrecoverableActorFailure(
-                'An unexpected Slack API failure occured: %s' % result)
+                "An unexpected Slack API failure occured: %s" % result
+            )
 
         if ok:
             return
@@ -115,11 +114,11 @@ class SlackBase(base.BaseActor):
 
         # If we know what kind fo error it is, we'll return a more accurate
         # exception type.
-        if result['error'] == 'invalid_auth':
+        if result["error"] == "invalid_auth":
             exc = exceptions.InvalidCredentials
 
         # Finally, raise our exception
-        raise exc('Slack API Error: %s' % result['error'])
+        raise exc("Slack API Error: %s" % result["error"])
 
 
 class Message(SlackBase):
@@ -155,44 +154,48 @@ class Message(SlackBase):
     """
 
     all_options = {
-        'channel': ((str, list), REQUIRED, 'Slack channel or a list of names'),
-        'message': (str, REQUIRED, 'Message to send')
+        "channel": ((str, list), REQUIRED, "Slack channel or a list of names"),
+        "message": (str, REQUIRED, "Message to send"),
     }
 
     desc = "Sending Message to {channel}"
 
     @gen.coroutine
     def _execute(self):
-        self.log.info('Sending message "%s" to Slack channel "%s"' %
-                      (self.option('message'), self.option('channel')))
+        self.log.info(
+            'Sending message "%s" to Slack channel "%s"'
+            % (self.option("message"), self.option("channel"))
+        )
 
         if self._dry:
             # Check if our authentication creds are valid
             auth_ok = yield self._slack_client.auth_test().http_post()
             self._check_results(auth_ok)
 
-            self.log.info('API Credentials verified, skipping send.')
+            self.log.info("API Credentials verified, skipping send.")
             raise gen.Return()
 
         # If only one channel was supplied as string then prepare the list
-        if type(self.option('channel')) == list:
-            channels = self.option('channel')
+        if type(self.option("channel")) == list:
+            channels = self.option("channel")
         else:
-            channels = re.split('[, ]+', self.option('channel'))
+            channels = re.split("[, ]+", self.option("channel"))
 
         posts = []
         for channel in channels:
-            self.log.debug('Posting to %s' % channel)
+            self.log.debug("Posting to %s" % channel)
             # Finally, send the message and check our return value
-            posts.append(self._slack_client.chat_postMessage().http_post(
-                channel=channel,
-                text=self.option('message'),
-                username=NAME,
-                parse='none',
-                link_names=1,
-                unfurl_links=True,
-                unfurl_media=True
-            ))
+            posts.append(
+                self._slack_client.chat_postMessage().http_post(
+                    channel=channel,
+                    text=self.option("message"),
+                    username=NAME,
+                    parse="none",
+                    link_names=1,
+                    unfurl_links=True,
+                    unfurl_media=True,
+                )
+            )
 
         results = yield posts
         for res in results:

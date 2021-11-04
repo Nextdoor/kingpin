@@ -46,31 +46,30 @@ from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Charles McLaughlin <charles@nextdoor.com>'
+__author__ = "Charles McLaughlin <charles@nextdoor.com>"
 
-ACCOUNT = os.getenv('PACKAGECLOUD_ACCOUNT', None)
-TOKEN = os.getenv('PACKAGECLOUD_TOKEN', None)
+ACCOUNT = os.getenv("PACKAGECLOUD_ACCOUNT", None)
+TOKEN = os.getenv("PACKAGECLOUD_TOKEN", None)
 
 
 class PackagecloudAPI(api.RestConsumer):
 
-    ENDPOINT = 'https://packagecloud.io/api/v1/'
+    ENDPOINT = "https://packagecloud.io/api/v1/"
     CONFIG = {
-        'attrs': {
-            'packages': {
-                'path': ('repos/%account%/%repo%/packages.json'
-                         '?per_page={}'.format(sys.maxsize)),
-                'http_methods': {'get': {}}
+        "attrs": {
+            "packages": {
+                "path": (
+                    "repos/%account%/%repo%/packages.json"
+                    "?per_page={}".format(sys.maxsize)
+                ),
+                "http_methods": {"get": {}},
             },
-            'delete': {
-                'path': 'repos/%account%/%repo%/%distro_version%/%filename%',
-                'http_methods': {'delete': {}}
+            "delete": {
+                "path": "repos/%account%/%repo%/%distro_version%/%filename%",
+                "http_methods": {"delete": {}},
             },
         },
-        'auth': {
-            'user': TOKEN,
-            'pass': ''
-        }
+        "auth": {"user": TOKEN, "pass": ""},
     }
 
 
@@ -84,11 +83,13 @@ class PackagecloudBase(base.BaseActor):
 
         if not ACCOUNT:
             raise exceptions.InvalidCredentials(
-                'Missing the "PACKAGECLOUD_ACCOUNT" environment variable.')
+                'Missing the "PACKAGECLOUD_ACCOUNT" environment variable.'
+            )
 
         if not TOKEN:
             raise exceptions.InvalidCredentials(
-                'Missing the "PACKAGECLOUD_TOKEN" environment variable.')
+                'Missing the "PACKAGECLOUD_TOKEN" environment variable.'
+            )
 
         rest_client = api.RestClient(timeout=120)
         self._packagecloud_client = PackagecloudAPI(client=rest_client)
@@ -104,7 +105,8 @@ class PackagecloudBase(base.BaseActor):
             A hash of the packages.
         """
         packages = yield self._packagecloud_client.packages(
-            token=TOKEN, account=ACCOUNT, repo=repo).http_get()
+            token=TOKEN, account=ACCOUNT, repo=repo
+        ).http_get()
         raise gen.Return(packages)
 
     def _get_package_versions(self, name, packages):
@@ -117,15 +119,20 @@ class PackagecloudBase(base.BaseActor):
         Returns:
             A hash of package versions sorted by creation date
         """
-        versions = [{
-            'created_at': datetime.datetime.strptime(
-                package['created_at'], '%Y-%m-%dT%H:%M:%S.%fZ'),
-            'distro_version': package['distro_version'],
-            'filename': package['package_html_url'].split('/')[-1],
-            'name': package['name']
-        } for package in packages if package['name'] == name]
+        versions = [
+            {
+                "created_at": datetime.datetime.strptime(
+                    package["created_at"], "%Y-%m-%dT%H:%M:%S.%fZ"
+                ),
+                "distro_version": package["distro_version"],
+                "filename": package["package_html_url"].split("/")[-1],
+                "name": package["name"],
+            }
+            for package in packages
+            if package["name"] == name
+        ]
 
-        versions.sort(key=lambda x: x.get('created_at'), reverse=False)
+        versions.sort(key=lambda x: x.get("created_at"), reverse=False)
         return versions
 
     def _filter_packages(self, regex, packages):
@@ -137,19 +144,21 @@ class PackagecloudBase(base.BaseActor):
 
         Returns:
             A list of unique package names that match the delete pattern.
-            """
+        """
         pattern = re.compile(regex)
-        packages_list_to_delete = {package['name'] for package in packages
-                                   if pattern.match(package['name'])}
+        packages_list_to_delete = {
+            package["name"] for package in packages if pattern.match(package["name"])
+        }
 
-        self.log.debug('List of packages matching regex (%s): %s' %
-                       (regex, packages_list_to_delete))
+        self.log.debug(
+            "List of packages matching regex (%s): %s"
+            % (regex, packages_list_to_delete)
+        )
 
         return packages_list_to_delete
 
     @gen.coroutine
-    def _delete(self, regex, repo, older_than=0,
-                number_to_keep=0):
+    def _delete(self, regex, repo, older_than=0, number_to_keep=0):
         """Generic packagecloud delete method, optionally supporting deleting
         old packages by date and/or keeping a certain number of packages.
 
@@ -168,8 +177,7 @@ class PackagecloudBase(base.BaseActor):
 
         # Loop through each unique package to delete
         for name in packages_list_to_delete:
-            package_versions = self._get_package_versions(
-                name, all_packages)
+            package_versions = self._get_package_versions(name, all_packages)
 
             # Create a tally of the packages we delete -- usd to give the user
             # a final helpful log statement about the work we did.
@@ -179,8 +187,7 @@ class PackagecloudBase(base.BaseActor):
             # the repo -- this variable will then be counted down as we loop,
             # to prevent us from deleting more than 'number_to_keep' packages.
             number_in_repo = len(package_versions)
-            self.log.debug('Scanning %s versions (%s)' %
-                           (name, number_in_repo))
+            self.log.debug("Scanning %s versions (%s)" % (name, number_in_repo))
 
             for package in package_versions:
                 # Safety check -- if there aren't more than the number_to_keep
@@ -189,8 +196,9 @@ class PackagecloudBase(base.BaseActor):
                 # packages_list_to_delete.
                 if number_in_repo <= number_to_keep:
                     self.log.debug(
-                        '%s has only %s package versions left, skipping'
-                        % (name, number_in_repo))
+                        "%s has only %s package versions left, skipping"
+                        % (name, number_in_repo)
+                    )
                     break
 
                 # If older_than (time in seconds) was supplied, figure out how
@@ -198,30 +206,34 @@ class PackagecloudBase(base.BaseActor):
                 # younger than allowed_age (in seconds), then skip to the next
                 # package version in the set.
                 if older_than:
-                    package_age = (datetime.datetime.now() -
-                                   package['created_at'])
+                    package_age = datetime.datetime.now() - package["created_at"]
                     allowed_age = datetime.timedelta(seconds=older_than)
                     if package_age <= allowed_age:
                         self.log.debug(
-                            '%s/%s is only %s old, skipping deletion' %
-                            (package['distro_version'],
-                             package['name'], package_age))
+                            "%s/%s is only %s old, skipping deletion"
+                            % (package["distro_version"], package["name"], package_age)
+                        )
                         continue
 
                 # Finally if we got here, then we have enough packages left in
                 # the repo, AND (optionally) this package is older than our
                 # cutoff age... so delete the package.
-                msg = '%s/%s/%s' % (
-                    repo, package['distro_version'], package['filename'])
+                msg = "%s/%s/%s" % (
+                    repo,
+                    package["distro_version"],
+                    package["filename"],
+                )
                 if self._dry:
-                    self.log.info('Would have deleted %s' % msg)
+                    self.log.info("Would have deleted %s" % msg)
                 else:
-                    self.log.info('Deleting %s' % msg)
+                    self.log.info("Deleting %s" % msg)
 
                     yield self._packagecloud_client.delete(
-                        token=TOKEN, account=ACCOUNT, repo=repo,
-                        distro_version=package['distro_version'],
-                        filename=package['filename']
+                        token=TOKEN,
+                        account=ACCOUNT,
+                        repo=repo,
+                        distro_version=package["distro_version"],
+                        filename=package["filename"],
                     ).http_delete()
 
                 # Decrement list of packages to track how many are left
@@ -238,14 +250,16 @@ class PackagecloudBase(base.BaseActor):
                 packages_deleted.append(package)
 
             # Print out the packages that were not deleted and left in the repo
-            all_files = ['%s/%s' %
-                         (package['distro_version'], package['filename'])
-                         for package in package_versions]
-            deleted_files = ['%s/%s' %
-                             (package['distro_version'], package['filename'])
-                             for package in packages_deleted]
+            all_files = [
+                "%s/%s" % (package["distro_version"], package["filename"])
+                for package in package_versions
+            ]
+            deleted_files = [
+                "%s/%s" % (package["distro_version"], package["filename"])
+                for package in packages_deleted
+            ]
             files_left = list(set(all_files) - set(deleted_files))
-            self.log.debug('%s remaining packages: %s' % (name, files_left))
+            self.log.debug("%s remaining packages: %s" % (name, files_left))
 
         raise gen.Return(all_packages_deleted)
 
@@ -289,15 +303,13 @@ class Delete(PackagecloudBase):
     """
 
     all_options = {
-        'number_to_keep': (
-            int, 0,
-            'Keep at least this number of each package'),
-        'packages_to_delete': (
-            str, REQUIRED,
-            'Regex of packages to delete, e.g. pkg1|pkg2'),
-        'repo': (
-            str, REQUIRED,
-            'Which packagecloud repo to delete from'),
+        "number_to_keep": (int, 0, "Keep at least this number of each package"),
+        "packages_to_delete": (
+            str,
+            REQUIRED,
+            "Regex of packages to delete, e.g. pkg1|pkg2",
+        ),
+        "repo": (str, REQUIRED, "Which packagecloud repo to delete from"),
     }
 
     desc = "Deleting {repo}/{packages_to_delete} (keeping {number_to_keep})"
@@ -307,18 +319,18 @@ class Delete(PackagecloudBase):
         super(Delete, self).__init__(*args, **kwargs)
 
         try:
-            re.compile(self.option('packages_to_delete'))
+            re.compile(self.option("packages_to_delete"))
         except re.error:
-            raise exceptions.InvalidOptions(
-                'packages_to_delete is an invalid regex')
+            raise exceptions.InvalidOptions("packages_to_delete is an invalid regex")
 
     @gen.coroutine
     def _execute(self):
         """Deletes all packages that match the `packages_to_delete` pattern"""
         yield self._delete(
-            regex=self.option('packages_to_delete'),
-            number_to_keep=self.option('number_to_keep'),
-            repo=self.option('repo'))
+            regex=self.option("packages_to_delete"),
+            number_to_keep=self.option("number_to_keep"),
+            repo=self.option("repo"),
+        )
 
 
 class DeleteByDate(PackagecloudBase):
@@ -360,17 +372,18 @@ class DeleteByDate(PackagecloudBase):
     """
 
     all_options = {
-        'number_to_keep': (
-            int, 0,
-            'Keep at least this number of each package'),
-        'older_than': (
-            int, REQUIRED,
-            'Delete packages created before this number of seconds'),
-        'packages_to_delete': (
-            str, REQUIRED,
-            'Regex of packages to delete, e.g. pkg1|pkg2'),
-        'repo': (str, REQUIRED,
-                 'Which packagecloud repo to delete from')
+        "number_to_keep": (int, 0, "Keep at least this number of each package"),
+        "older_than": (
+            int,
+            REQUIRED,
+            "Delete packages created before this number of seconds",
+        ),
+        "packages_to_delete": (
+            str,
+            REQUIRED,
+            "Regex of packages to delete, e.g. pkg1|pkg2",
+        ),
+        "repo": (str, REQUIRED, "Which packagecloud repo to delete from"),
     }
 
     desc = "Deleting {repo}/{packages_to_delete} older than {older_than}"
@@ -378,10 +391,11 @@ class DeleteByDate(PackagecloudBase):
     @gen.coroutine
     def _execute(self):
         yield self._delete(
-            regex=self.option('packages_to_delete'),
-            number_to_keep=self.option('number_to_keep'),
-            older_than=self.option('older_than'),
-            repo=self.option('repo'))
+            regex=self.option("packages_to_delete"),
+            number_to_keep=self.option("number_to_keep"),
+            older_than=self.option("older_than"),
+            repo=self.option("repo"),
+        )
 
 
 class WaitForPackage(PackagecloudBase):
@@ -420,14 +434,10 @@ class WaitForPackage(PackagecloudBase):
     """
 
     all_options = {
-        'name': (
-            str, REQUIRED, 'Name of the package to search for as a regex'),
-        'version': (
-            str, '.*', 'Version of the package to search for as a regex'),
-        'repo': (
-            str, REQUIRED, 'Which packagecloud repo to search'),
-        'sleep': (
-            int, 10, 'Number of seconds to sleep for between each search')
+        "name": (str, REQUIRED, "Name of the package to search for as a regex"),
+        "version": (str, ".*", "Version of the package to search for as a regex"),
+        "repo": (str, REQUIRED, "Which packagecloud repo to search"),
+        "sleep": (int, 10, "Number of seconds to sleep for between each search"),
     }
 
     desc = "Waiting for {repo}/{name}@{version} (up to {sleep}s)"
@@ -437,16 +447,14 @@ class WaitForPackage(PackagecloudBase):
         super(WaitForPackage, self).__init__(*args, **kwargs)
 
         try:
-            re.compile(self.option('name'))
+            re.compile(self.option("name"))
         except re.error:
-            raise exceptions.InvalidOptions(
-                'name is an invalid regex')
+            raise exceptions.InvalidOptions("name is an invalid regex")
 
         try:
-            re.compile(self.option('version'))
+            re.compile(self.option("version"))
         except re.error:
-            raise exceptions.InvalidOptions(
-                'version is an invalid regex')
+            raise exceptions.InvalidOptions("version is an invalid regex")
 
     @gen.coroutine
     def _search(self, repo, name, version):
@@ -462,14 +470,16 @@ class WaitForPackage(PackagecloudBase):
         """
 
         all_packages = yield self._get_all_packages(repo=repo)
-        self.log.debug('Found all packages: %s' % all_packages)
+        self.log.debug("Found all packages: %s" % all_packages)
 
         name_pattern = re.compile(name)
         version_pattern = re.compile(version)
 
-        matched_packages = [p for p in all_packages
-                            if name_pattern.match(p['name']) and
-                            version_pattern.match(p['version'])]
+        matched_packages = [
+            p
+            for p in all_packages
+            if name_pattern.match(p["name"]) and version_pattern.match(p["version"])
+        ]
 
         raise gen.Return(matched_packages)
 
@@ -477,18 +487,19 @@ class WaitForPackage(PackagecloudBase):
     def _execute(self):
         """Execute method for the WaitForPackage actor"""
         while True:
-            self.log.info('Searching for %s %s...' %
-                          (self.option('name'), self.option('version')))
+            self.log.info(
+                "Searching for %s %s..." % (self.option("name"), self.option("version"))
+            )
 
             matched_packages = yield self._search(
-                repo=self.option('repo'),
-                name=self.option('name'),
-                version=self.option('version'))
+                repo=self.option("repo"),
+                name=self.option("name"),
+                version=self.option("version"),
+            )
 
             if len(matched_packages) > 0:
-                self.log.info('Found it!')
+                self.log.info("Found it!")
                 raise gen.Return()
 
-            self.log.debug('Not found, sleeping for (%s)'
-                           % self.option('sleep'))
-            yield gen.sleep(self.option('sleep'))
+            self.log.debug("Not found, sleeping for (%s)" % self.option("sleep"))
+            yield gen.sleep(self.option("sleep"))

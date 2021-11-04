@@ -8,10 +8,10 @@ from tornado import testing
 
 from kingpin.actors.aws import cloudformation
 
-__author__ = 'Matt Wise <matt@nextdoor.com>'
+__author__ = "Matt Wise <matt@nextdoor.com>"
 
 log = logging.getLogger(__name__)
-logging.getLogger('boto').setLevel(logging.INFO)
+logging.getLogger("boto").setLevel(logging.INFO)
 
 UUID = uuid.uuid4().hex
 
@@ -39,52 +39,55 @@ class IntegrationCreate(testing.AsyncTestCase):
 
     integration = True
 
-    region = 'us-east-1'
-    bucket_name = 'kingpin-%s' % UUID
+    region = "us-east-1"
+    bucket_name = "kingpin-%s" % UUID
 
-    @attr('aws', 'integration')
+    @attr("aws", "integration")
     @testing.gen_test(timeout=600)
     def integration_01_create_stack(self):
         actor = cloudformation.Create(
-            'Create Stack',
-            {'region': self.region,
-             'name': self.bucket_name,
-             'template':
-                 'examples/test/aws.cloudformation/cf.integration.json',
-             'parameters': {
-                 'BucketName': self.bucket_name,
-                 'BucketPassword': UUID,
-                 'Metadata': UUID,
-             }})
+            "Create Stack",
+            {
+                "region": self.region,
+                "name": self.bucket_name,
+                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "parameters": {
+                    "BucketName": self.bucket_name,
+                    "BucketPassword": UUID,
+                    "Metadata": UUID,
+                },
+            },
+        )
 
         done = yield actor.execute()
         self.assertEqual(done, None)
 
-    @attr('aws', 'integration')
+    @attr("aws", "integration")
     @testing.gen_test(timeout=60)
     def integration_02_create_duplicate_stack_should_fail(self):
         actor = cloudformation.Create(
-            'Create Stack',
-            {'region': self.region,
-             'name': self.bucket_name,
-             'template':
-                 'examples/test/aws.cloudformation/cf.integration.json',
-             'parameters': {
-                 'BucketName': self.bucket_name,
-                 'BucketPassword': UUID,
-                 'Metadata': UUID,
-             }})
+            "Create Stack",
+            {
+                "region": self.region,
+                "name": self.bucket_name,
+                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "parameters": {
+                    "BucketName": self.bucket_name,
+                    "BucketPassword": UUID,
+                    "Metadata": UUID,
+                },
+            },
+        )
 
         with self.assertRaises(cloudformation.StackAlreadyExists):
             yield actor.execute()
 
-    @attr('aws', 'integration')
+    @attr("aws", "integration")
     @testing.gen_test(timeout=600)
     def integration_03_delete_stack(self):
         actor = cloudformation.Delete(
-            'Delete Stack',
-            {'region': self.region,
-             'name': self.bucket_name})
+            "Delete Stack", {"region": self.region, "name": self.bucket_name}
+        )
 
         done = yield actor.execute()
         self.assertEqual(done, None)
@@ -114,48 +117,50 @@ class IntegrationStack(testing.AsyncTestCase):
 
     integration = True
 
-    region = 'us-east-1'
-    bucket_name = 'kingpin-stack-%s' % UUID
+    region = "us-east-1"
+    bucket_name = "kingpin-stack-%s" % UUID
 
-    @attr('aws', 'integration')
+    @attr("aws", "integration")
     @testing.gen_test(timeout=600)
     def integration_01a_ensure_stack(self):
         actor = cloudformation.Stack(
             options={
-                'region': self.region,
-                'state': 'present',
-                'name': self.bucket_name,
-                'template':
-                    'examples/test/aws.cloudformation/cf.integration.json',
-                'parameters': {
-                    'BucketName': self.bucket_name,
-                    'BucketPassword': UUID,
-                    'Metadata': UUID
-                }})
+                "region": self.region,
+                "state": "present",
+                "name": self.bucket_name,
+                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "parameters": {
+                    "BucketName": self.bucket_name,
+                    "BucketPassword": UUID,
+                    "Metadata": UUID,
+                },
+            }
+        )
 
         done = yield actor.execute()
         self.assertEqual(done, None)
 
-    @attr('aws', 'integration')
+    @attr("aws", "integration")
     @testing.gen_test(timeout=600)
     def integration_01b_ensure_stack_still_there(self):
         actor = cloudformation.Stack(
             options={
-                'region': self.region,
-                'state': 'present',
-                'name': self.bucket_name,
-                'template':
-                    'examples/test/aws.cloudformation/cf.integration.json',
-                'parameters': {
-                    'BucketName': self.bucket_name,
-                    'BucketPassword': UUID,
-                    'Metadata': UUID
-                }})
+                "region": self.region,
+                "state": "present",
+                "name": self.bucket_name,
+                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "parameters": {
+                    "BucketName": self.bucket_name,
+                    "BucketPassword": UUID,
+                    "Metadata": UUID,
+                },
+            }
+        )
 
         done = yield actor.execute()
         self.assertEqual(done, None)
 
-    @attr('aws', 'integration')
+    @attr("aws", "integration")
     @testing.gen_test(timeout=600)
     def integration_02_changing_password_should_be_a_noop(self):
         #  This should pretty much do nothing.. if it did trigger a ChangeSet,
@@ -164,112 +169,118 @@ class IntegrationStack(testing.AsyncTestCase):
         #  that no stack change was made.
         actor = cloudformation.Stack(
             options={
-                'region': self.region,
-                'state': 'present',
-                'name': self.bucket_name,
-                'template':
-                    'examples/test/aws.cloudformation/cf.integration.json',
-                'parameters': {
-                    'BucketName': self.bucket_name,
-                    'BucketPassword': 'test',
-                    'Metadata': UUID
-                }})
+                "region": self.region,
+                "state": "present",
+                "name": self.bucket_name,
+                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "parameters": {
+                    "BucketName": self.bucket_name,
+                    "BucketPassword": "test",
+                    "Metadata": UUID,
+                },
+            }
+        )
 
         done = yield actor.execute()
         self.assertEqual(done, None)
 
-    @attr('aws', 'integration')
+    @attr("aws", "integration")
     @testing.gen_test(timeout=600)
     def integration_03_update_by_overriding_default(self):
         actor = cloudformation.Stack(
             options={
-                'region': self.region,
-                'state': 'present',
-                'name': self.bucket_name,
-                'template':
-                    'examples/test/aws.cloudformation/cf.integration.json',
-                'parameters': {
-                    'BucketName': self.bucket_name,
-                    'BucketPassword': UUID,
-                    'DefaultParam': 'OverriddenValue',
-                    'Metadata': UUID
-                }})
+                "region": self.region,
+                "state": "present",
+                "name": self.bucket_name,
+                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "parameters": {
+                    "BucketName": self.bucket_name,
+                    "BucketPassword": UUID,
+                    "DefaultParam": "OverriddenValue",
+                    "Metadata": UUID,
+                },
+            }
+        )
 
         done = yield actor.execute()
         self.assertEqual(done, None)
 
-    @attr('aws', 'integration')
+    @attr("aws", "integration")
     @testing.gen_test(timeout=600)
     def integration_04a_update_bucket_name(self):
         actor = cloudformation.Stack(
             options={
-                'region': self.region,
-                'state': 'present',
-                'name': self.bucket_name,
-                'template':
-                    'examples/test/aws.cloudformation/cf.integration.json',
-                'parameters': {
-                    'BucketName': '%s-updated' % self.bucket_name,
-                    'BucketPassword': UUID,
-                    'Metadata': UUID
-                }})
+                "region": self.region,
+                "state": "present",
+                "name": self.bucket_name,
+                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "parameters": {
+                    "BucketName": "%s-updated" % self.bucket_name,
+                    "BucketPassword": UUID,
+                    "Metadata": UUID,
+                },
+            }
+        )
 
         done = yield actor.execute()
         self.assertEqual(done, None)
 
-    @attr('aws', 'integration')
+    @attr("aws", "integration")
     @testing.gen_test(timeout=600)
     def integration_04b_update_bucket_name_second_time_should_work(self):
         actor = cloudformation.Stack(
             options={
-                'region': self.region,
-                'state': 'present',
-                'name': self.bucket_name,
-                'template':
-                    'examples/test/aws.cloudformation/cf.integration.json',
-                'parameters': {
-                    'BucketName': '%s-updated' % self.bucket_name,
-                    'BucketPassword': UUID,
-                    'Metadata': UUID
-                }})
+                "region": self.region,
+                "state": "present",
+                "name": self.bucket_name,
+                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "parameters": {
+                    "BucketName": "%s-updated" % self.bucket_name,
+                    "BucketPassword": UUID,
+                    "Metadata": UUID,
+                },
+            }
+        )
 
         done = yield actor.execute()
         self.assertEqual(done, None)
 
-    @attr('aws', 'integration')
+    @attr("aws", "integration")
     @testing.gen_test(timeout=600)
     def integration_05a_delete_stack(self):
         actor = cloudformation.Stack(
             options={
-                'region': self.region,
-                'state': 'absent',
-                'name': self.bucket_name,
-                'template':
-                    'examples/test/aws.cloudformation/cf.integration.json',
-                'parameters': {
-                    'BucketName': '%s-updated' % self.bucket_name,
-                    'BucketPassword': UUID,
-                    'Metadata': UUID
-                }})
+                "region": self.region,
+                "state": "absent",
+                "name": self.bucket_name,
+                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "parameters": {
+                    "BucketName": "%s-updated" % self.bucket_name,
+                    "BucketPassword": UUID,
+                    "Metadata": UUID,
+                },
+            }
+        )
 
         done = yield actor.execute()
         self.assertEqual(done, None)
 
-    @attr('aws', 'integration')
+    @attr("aws", "integration")
     @testing.gen_test(timeout=600)
     def integration_05b_ensure_stack_absent(self):
         actor = cloudformation.Stack(
             options={
-                'region': self.region,
-                'state': 'absent',
-                'name': self.bucket_name,
-                'template':
-                    'examples/test/aws.cloudformation/cf.integration.json',
-                'parameters': {
-                    'BucketName': '%s-updated' % self.bucket_name,
-                    'BucketPassword': UUID,
-                    'Metadata': UUID
-                }})
+                "region": self.region,
+                "state": "absent",
+                "name": self.bucket_name,
+                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "parameters": {
+                    "BucketName": "%s-updated" % self.bucket_name,
+                    "BucketPassword": UUID,
+                    "Metadata": UUID,
+                },
+            }
+        )
 
         done = yield actor.execute()
         self.assertEqual(done, None)

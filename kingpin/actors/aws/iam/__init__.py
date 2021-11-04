@@ -37,7 +37,7 @@ from kingpin.actors.aws.iam.entities import User, Group, Role, InstanceProfile
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
+__author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 
 # Quiet down PyFlakes
 User

@@ -25,7 +25,7 @@ from kingpin.actors.aws import base
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
+__author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 
 
 # This executor is used by the tornado.concurrent.run_on_executor()

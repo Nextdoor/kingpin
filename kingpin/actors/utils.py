@@ -30,7 +30,7 @@ from kingpin.actors import exceptions
 log = logging.getLogger(__name__)
 
 
-__author__ = 'Matt Wise <matt@nextdoor.com>'
+__author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 def dry(dry_message):
@@ -73,6 +73,7 @@ def dry(dry_message):
             raise gen.Return(ret)
 
         return wrapper
+
     return _skip_on_dry
 
 
@@ -101,10 +102,12 @@ def timer(f):
 
         # Log the finished execution time
         exec_time = "%.2f" % (time.time() - start_time)
-        self.log.debug('%s.%s() execution time: %ss' %
-                       (self._type, f.__name__, exec_time))
+        self.log.debug(
+            "%s.%s() execution time: %ss" % (self._type, f.__name__, exec_time)
+        )
 
         raise gen.Return(ret)
+
     return _wrap_in_timer
 
 
@@ -134,17 +137,16 @@ def get_actor(config, dry):
 
     # Get the name of the actor, and pull it out of the config because its
     # not a valid kwarg for an Actor object.
-    actor_string = config.pop('actor')
+    actor_string = config.pop("actor")
 
     # Create a copy of the config dict, but strip out the tokens. They likely
     # contain credentials! This is used purely for this debug message below.
     #
     # Known actors that do this are misc.Macro, group.Sync, group.Async
     clean_config = config.copy()
-    clean_config['init_tokens'] = '<hidden>'
+    clean_config["init_tokens"] = "<hidden>"
 
-    log.debug('Building Actor "%s" with args: %s' %
-              (actor_string, clean_config))
+    log.debug('Building Actor "%s" with args: %s' % (actor_string, clean_config))
     ActorClass = get_actor_class(actor_string)
     return ActorClass(dry=dry, **config)
 
@@ -162,7 +164,7 @@ def get_actor_class(actor):
 
     # Try to load our local actors up first. Assume that the
     # 'kingpin.actors.' prefix was not included in the name.
-    for prefix in ['kingpin.actors.', '', 'actors.']:
+    for prefix in ["kingpin.actors.", "", "actors."]:
         full_actor = prefix + actor
         try:
             return utils.str_to_class(full_actor)

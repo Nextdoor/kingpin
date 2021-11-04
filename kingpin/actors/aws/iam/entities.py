@@ -33,7 +33,7 @@ from kingpin.constants import STATE
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Matt Wise <matt@nextdoor.com>'
+__author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 # This executor is used by the tornado.concurrent.run_on_executor()
@@ -59,11 +59,13 @@ class EntityBaseActor(base.IAMBaseActor):
     """
 
     all_options = {
-        'name': (str, REQUIRED, 'The name of the user.'),
-        'state': (STATE, 'present',
-                  'Desired state of the User: present/absent'),
-        'inline_policies': ((str, list), None,
-                            'List of inline policy JSON files to apply.')
+        "name": (str, REQUIRED, "The name of the user."),
+        "state": (STATE, "present", "Desired state of the User: present/absent"),
+        "inline_policies": (
+            (str, list),
+            None,
+            "List of inline policy JSON files to apply.",
+        ),
     }
 
     def __init__(self, *args, **kwargs):
@@ -83,7 +85,7 @@ class EntityBaseActor(base.IAMBaseActor):
 
         # The "text name" of the entity type. This is either:
         #  User, Group, Role, InstanceProfiles
-        self.entity_name = 'Base'
+        self.entity_name = "Base"
 
         self.create_entity = None
         self.delete_entity = None
@@ -95,7 +97,7 @@ class EntityBaseActor(base.IAMBaseActor):
 
     @property
     def entity_kwarg_name(self):
-        return f'{self.entity_name.capitalize()}Name'
+        return f"{self.entity_name.capitalize()}Name"
 
     def _generate_policy_name(self, policy):
         """Generates an Amazon-friendly Policy name from a filename.
@@ -117,15 +119,15 @@ class EntityBaseActor(base.IAMBaseActor):
         name = os.path.splitext(policy)[0]
 
         # If theres a leading slash, strip it
-        name = name.lstrip('/')
+        name = name.lstrip("/")
 
         # Replace slashes with dashes instead
-        name = name.replace('/', '-')
-        name = name.replace('\\', '-')
+        name = name.replace("/", "-")
+        name = name.replace("\\", "-")
 
         # Strip out any non-allowed characters that made it through
-        name = name.replace('*', '')
-        name = name.replace('?', '')
+        name = name.replace("*", "")
+        name = name.replace("?", "")
 
         return name
 
@@ -163,8 +165,9 @@ class EntityBaseActor(base.IAMBaseActor):
             p_name = self._generate_policy_name(policy)
             self.inline_policies[p_name] = self._parse_policy_json(policy)
 
-            self.log.debug('Parsed policy %s: %s' %
-                           (p_name, self.inline_policies[p_name]))
+            self.log.debug(
+                "Parsed policy %s: %s" % (p_name, self.inline_policies[p_name])
+            )
 
     @gen.coroutine
     def _get_entity_policies(self, name):
@@ -185,24 +188,34 @@ class EntityBaseActor(base.IAMBaseActor):
         # catch that and silently move on.
         policy_names = []
         try:
-            self.log.debug('Searching for any inline policies for %s' % name)
-            ret = yield self.api_call(self.list_entity_policies, **{self.entity_kwarg_name: name})
-            policy_names = ret.get('PolicyNames', [])
+            self.log.debug("Searching for any inline policies for %s" % name)
+            ret = yield self.api_call(
+                self.list_entity_policies, **{self.entity_kwarg_name: name}
+            )
+            policy_names = ret.get("PolicyNames", [])
         except ClientError as e:
-            if 'NoSuchEntity' in str(e):
+            if "NoSuchEntity" in str(e):
                 # The user doesn't exist.. likely in a dry run. Return no
                 # policies.
                 policy_names = []
             else:
                 raise exceptions.RecoverableActorFailure(
-                    'An unexpected API error occurred: %s' % e)
+                    "An unexpected API error occurred: %s" % e
+                )
 
         # Iterate through all of the named policies and fire off
         # get-requests, but don't yield on them yet.
         tasks = []
         for p_name in policy_names:
-            tasks.append((p_name,
-                          self.api_call(self.get_entity_policy, **{self.entity_kwarg_name: name, 'PolicyName': p_name})))
+            tasks.append(
+                (
+                    p_name,
+                    self.api_call(
+                        self.get_entity_policy,
+                        **{self.entity_kwarg_name: name, "PolicyName": p_name},
+                    ),
+                )
+            )
 
         # Now that we've fired off all the calls, we walk through each yielded
         # result, parse the returned policy, and append it to our policies
@@ -213,15 +226,16 @@ class EntityBaseActor(base.IAMBaseActor):
                 raw = yield p_task
             except ClientError as e:
                 raise exceptions.RecoverableActorFailure(
-                    'An unexpected API error occurred downloading '
-                    'policy %s: %s' % (p_name, e))
+                    "An unexpected API error occurred downloading "
+                    "policy %s: %s" % (p_name, e)
+                )
 
             # Convert the uuencoded doc string into a dict
-            p_doc = raw.get('PolicyDocument', {})
+            p_doc = raw.get("PolicyDocument", {})
 
             # Store the converted document under the policy name key
             policies[p_name] = p_doc
-            self.log.debug('Got policy %s/%s: %s' % (name, p_name, p_doc))
+            self.log.debug("Got policy %s/%s: %s" % (name, p_name, p_doc))
 
         raise gen.Return(policies)
 
@@ -244,8 +258,7 @@ class EntityBaseActor(base.IAMBaseActor):
         # First, push any policies that we have listed, but aren't in the
         # entity
         tasks = []
-        for policy in (set(self.inline_policies.keys()) -
-                       set(existing_policies.keys())):
+        for policy in set(self.inline_policies.keys()) - set(existing_policies.keys()):
             policy_doc = self.inline_policies[policy]
             tasks.append(self._put_entity_policy(name, policy, policy_doc))
         yield tasks
@@ -254,23 +267,21 @@ class EntityBaseActor(base.IAMBaseActor):
         # already attached to the entity profile? Lets make sure each one of
         # those matches the policy we have here, and update it if necessary.
         tasks = []
-        for policy in (set(self.inline_policies.keys()) &
-                       set(existing_policies.keys())):
+        for policy in set(self.inline_policies.keys()) & set(existing_policies.keys()):
             new = self.inline_policies[policy]
             exist = existing_policies[policy]
             diff = utils.diff_dicts(exist, new)
             if diff:
-                self.log.info('Policy %s differs from Amazons:' % policy)
-                for line in diff.split('\n'):
-                    self.log.info('Diff: %s' % line)
+                self.log.info("Policy %s differs from Amazons:" % policy)
+                for line in diff.split("\n"):
+                    self.log.info("Diff: %s" % line)
                 policy_doc = self.inline_policies[policy]
                 tasks.append(self._put_entity_policy(name, policy, policy_doc))
         yield tasks
 
         # Purge any policies we found in AWS that were not listed in our actor
         tasks = []
-        for policy in (set(existing_policies.keys()) -
-                       set(self.inline_policies.keys())):
+        for policy in set(existing_policies.keys()) - set(self.inline_policies.keys()):
             tasks.append(self._delete_entity_policy(name, policy))
         yield tasks
 
@@ -283,20 +294,26 @@ class EntityBaseActor(base.IAMBaseActor):
             policy_name: The entity policy name
         """
         if self._dry:
-            self.log.warning('Would delete policy %s from %s %s' %
-                             (policy_name, self.entity_name, name))
+            self.log.warning(
+                "Would delete policy %s from %s %s"
+                % (policy_name, self.entity_name, name)
+            )
             raise gen.Return()
 
-        self.log.info('Deleting policy %s from %s %s' %
-                      (policy_name, self.entity_name, name))
+        self.log.info(
+            "Deleting policy %s from %s %s" % (policy_name, self.entity_name, name)
+        )
         try:
             ret = yield self.api_call(
-                self.delete_entity_policy, **{self.entity_kwarg_name: name, 'PolicyName': policy_name})
-            self.log.debug('Policy %s deleted: %s' % (policy_name, ret))
+                self.delete_entity_policy,
+                **{self.entity_kwarg_name: name, "PolicyName": policy_name},
+            )
+            self.log.debug("Policy %s deleted: %s" % (policy_name, ret))
         except ClientError as e:
-            if 'NoSuchEntity' not in str(e):
+            if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
-                    'An unexpected API error occurred: %s' % e)
+                    "An unexpected API error occurred: %s" % e
+                )
 
     @gen.coroutine
     def _put_entity_policy(self, name, policy_name, policy_doc):
@@ -308,21 +325,28 @@ class EntityBaseActor(base.IAMBaseActor):
             policy_doc: The ploicy document object itself
         """
         if self._dry:
-            self.log.warning('Would push policy %s to %s %s' % (policy_name, self.entity_name, name))
+            self.log.warning(
+                "Would push policy %s to %s %s" % (policy_name, self.entity_name, name)
+            )
             raise gen.Return()
 
-        self.log.info('Pushing policy %s to %s %s' % (policy_name, self.entity_name, name))
+        self.log.info(
+            "Pushing policy %s to %s %s" % (policy_name, self.entity_name, name)
+        )
         try:
             ret = yield self.api_call(
                 self.put_entity_policy,
-                **{self.entity_kwarg_name: name,
-                   'PolicyName': policy_name,
-                   'PolicyDocument': json.dumps(policy_doc)
-                   })
-            self.log.debug('Policy %s pushed: %s' % (policy_name, ret))
+                **{
+                    self.entity_kwarg_name: name,
+                    "PolicyName": policy_name,
+                    "PolicyDocument": json.dumps(policy_doc),
+                },
+            )
+            self.log.debug("Policy %s pushed: %s" % (policy_name, ret))
         except ClientError as e:
             raise exceptions.RecoverableActorFailure(
-                'An unexpected API error occurred: %s' % e)
+                "An unexpected API error occurred: %s" % e
+            )
 
     @gen.coroutine
     def _get_entity(self, name):
@@ -334,15 +358,16 @@ class EntityBaseActor(base.IAMBaseActor):
         args:
             name: The IAM Entity Name
         """
-        self.log.debug('Searching for %s %s' % (self.entity_name, name))
+        self.log.debug("Searching for %s %s" % (self.entity_name, name))
 
         try:
             ret = yield self.api_call(self.get_entity, **{self.entity_kwarg_name: name})
         except ClientError as e:
-            if 'NoSuchEntity' in str(e):
+            if "NoSuchEntity" in str(e):
                 raise gen.Return()
             raise exceptions.RecoverableActorFailure(
-                'An unexpected API error occurred: %s' % e)
+                "An unexpected API error occurred: %s" % e
+            )
 
         raise gen.Return(ret.get(self.entity_name))
 
@@ -358,18 +383,17 @@ class EntityBaseActor(base.IAMBaseActor):
             name: The IAM User Name
             state: 'present' or 'absent'
         """
-        self.log.info('Ensuring that %s %s is %s' %
-                      (self.entity_name, name, state))
+        self.log.info("Ensuring that %s %s is %s" % (self.entity_name, name, state))
 
         entity = yield self._get_entity(name)
 
-        if entity and state == 'present':
+        if entity and state == "present":
             raise gen.Return()
-        elif not entity and state == 'present':
+        elif not entity and state == "present":
             yield self._create_entity(name)
-        elif entity and state == 'absent':
+        elif entity and state == "absent":
             yield self._delete_entity(name)
-        elif not entity and state == 'absent':
+        elif not entity and state == "absent":
             raise gen.Return()
 
     @gen.coroutine
@@ -382,22 +406,27 @@ class EntityBaseActor(base.IAMBaseActor):
             name: The IAM Entity Name
         """
         if self._dry:
-            self.log.warning('Would create %s %s' % (self.entity_name, name))
+            self.log.warning("Would create %s %s" % (self.entity_name, name))
             raise gen.Return()
 
         try:
             ret = yield self.api_call(
-                self.create_entity, **{self.entity_kwarg_name: name})
+                self.create_entity, **{self.entity_kwarg_name: name}
+            )
         except ClientError as e:
-            if 'EntityAlreadyExists' in str(e):
+            if "EntityAlreadyExists" in str(e):
                 self.log.warning(
-                    '%s %s already exists, skipping creation.' %
-                    (self.entity_name, name))
+                    "%s %s already exists, skipping creation."
+                    % (self.entity_name, name)
+                )
                 raise gen.Return()
             raise exceptions.RecoverableActorFailure(
-                'An unexpected API error occurred: %s' % e)
+                "An unexpected API error occurred: %s" % e
+            )
 
-        self.log.info('%s %s created' % (self.entity_name, ret[self.entity_name]['Arn']))
+        self.log.info(
+            "%s %s created" % (self.entity_name, ret[self.entity_name]["Arn"])
+        )
 
     @gen.coroutine
     def _delete_entity(self, name):
@@ -409,7 +438,7 @@ class EntityBaseActor(base.IAMBaseActor):
             name: The IAM Entity Name
         """
         if self._dry:
-            self.log.warning('Would delete %s %s' % (self.entity_name, name))
+            self.log.warning("Would delete %s %s" % (self.entity_name, name))
             raise gen.Return()
 
         try:
@@ -423,13 +452,14 @@ class EntityBaseActor(base.IAMBaseActor):
 
             # Now delete the entity
             yield self.api_call(self.delete_entity, **{self.entity_kwarg_name: name})
-            self.log.info('%s %s deleted' % (self.entity_name, name))
+            self.log.info("%s %s deleted" % (self.entity_name, name))
         except ClientError as e:
-            if 'NoSuchEntity' in str(e):
-                self.log.warning('%s %s doesn\'t exist' % (self.entity_name, name))
+            if "NoSuchEntity" in str(e):
+                self.log.warning("%s %s doesn't exist" % (self.entity_name, name))
                 raise gen.Return()
             raise exceptions.RecoverableActorFailure(
-               'An unexpected API error occurred: %s' % e)
+                "An unexpected API error occurred: %s" % e
+            )
 
     @gen.coroutine
     def _add_user_to_group(self, name, group):
@@ -440,15 +470,18 @@ class EntityBaseActor(base.IAMBaseActor):
             group: group name
         """
         if self._dry:
-            self.log.warning('Would have added %s to %s' % (name, group))
+            self.log.warning("Would have added %s to %s" % (name, group))
             raise gen.Return()
 
         try:
-            self.log.info('Adding %s to %s' % (name, group))
-            yield self.api_call(self.iam_conn.add_user_to_group, GroupName=group, UserName=name)
+            self.log.info("Adding %s to %s" % (name, group))
+            yield self.api_call(
+                self.iam_conn.add_user_to_group, GroupName=group, UserName=name
+            )
         except ClientError as e:
             raise exceptions.RecoverableActorFailure(
-                'An unexpected API error occurred: %s' % e)
+                "An unexpected API error occurred: %s" % e
+            )
 
     @gen.coroutine
     def _remove_user_from_group(self, name, group):
@@ -459,16 +492,18 @@ class EntityBaseActor(base.IAMBaseActor):
             group: group name
         """
         if self._dry:
-            self.log.warning('Would have removed %s from %s' % (name, group))
+            self.log.warning("Would have removed %s from %s" % (name, group))
             raise gen.Return()
 
         try:
-            self.log.info('Removing %s from %s' % (name, group))
-            yield self.api_call(self.iam_conn.remove_user_from_group,
-                                GroupName=group, UserName=name)
+            self.log.info("Removing %s from %s" % (name, group))
+            yield self.api_call(
+                self.iam_conn.remove_user_from_group, GroupName=group, UserName=name
+            )
         except ClientError as e:
             raise exceptions.RecoverableActorFailure(
-                'An unexpected API error occurred: %s' % e)
+                "An unexpected API error occurred: %s" % e
+            )
 
 
 class User(EntityBaseActor):
@@ -526,12 +561,14 @@ class User(EntityBaseActor):
     """
 
     all_options = {
-        'name': (str, REQUIRED, 'The name of the user.'),
-        'state': (STATE, 'present',
-                  'Desired state of the User: present/absent'),
-        'groups': ((str, list), None, 'List of groups to add the user to.'),
-        'inline_policies': ((str, list), None,
-                            'List of inline policy JSON files to apply.')
+        "name": (str, REQUIRED, "The name of the user."),
+        "state": (STATE, "present", "Desired state of the User: present/absent"),
+        "groups": ((str, list), None, "List of groups to add the user to."),
+        "inline_policies": (
+            (str, list),
+            None,
+            "List of inline policy JSON files to apply.",
+        ),
     }
 
     desc = "IAM User {name}"
@@ -539,7 +576,7 @@ class User(EntityBaseActor):
     def __init__(self, *args, **kwargs):
         super(User, self).__init__(*args, **kwargs)
 
-        self.entity_name = 'User'
+        self.entity_name = "User"
         self.create_entity = self.iam_conn.create_user
         self.delete_entity = self.iam_conn.delete_user
         self.delete_entity_policy = self.iam_conn.delete_user_policy
@@ -549,7 +586,7 @@ class User(EntityBaseActor):
         self.put_entity_policy = self.iam_conn.put_user_policy
 
         # Parse the supplied inline policies
-        self._parse_inline_policies(self.option('inline_policies'))
+        self._parse_inline_policies(self.option("inline_policies"))
 
     @gen.coroutine
     def _ensure_groups(self, name, groups):
@@ -564,15 +601,18 @@ class User(EntityBaseActor):
 
         current_groups = set()
         try:
-            res = yield self.api_call(self.iam_conn.list_groups_for_user, **{self.entity_kwarg_name: name})
-            current_groups = {g['GroupName'] for g in res.get('Groups', [])}
+            res = yield self.api_call(
+                self.iam_conn.list_groups_for_user, **{self.entity_kwarg_name: name}
+            )
+            current_groups = {g["GroupName"] for g in res.get("Groups", [])}
         except ClientError as e:
             # If the error is a 404, then the user doesn't exist and we can
             # assume that the mappings don't exist at all. We leave the
             # existing_mappings list alone. For any other error, raise.
-            if 'NoSuchEntity' not in str(e):
+            if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
-                    'An unexpected API error occurred: %s' % e)
+                    "An unexpected API error occurred: %s" % e
+                )
 
         # Find any groups that we're not already a member of, and add us
         tasks = []
@@ -593,15 +633,15 @@ class User(EntityBaseActor):
 
     @gen.coroutine
     def _execute(self):
-        name = self.option('name')
-        state = self.option('state')
-        groups = self.option('groups')
+        name = self.option("name")
+        state = self.option("state")
+        groups = self.option("groups")
 
         yield self._ensure_entity(name, state)
-        if state == 'absent':
+        if state == "absent":
             raise gen.Return()
 
-        if self.option('inline_policies') is not None:
+        if self.option("inline_policies") is not None:
             yield self._ensure_inline_policies(name)
 
         if groups is not None:
@@ -665,12 +705,14 @@ class Group(EntityBaseActor):
     """
 
     all_options = {
-        'name': (str, REQUIRED, 'The name of the group.'),
-        'force': (bool, False, 'Forcefully delete the group.'),
-        'state': (STATE, 'present',
-                  'Desired state of the group: present/absent'),
-        'inline_policies': ((str, list), None,
-                            'List of inline policy JSON files to apply.')
+        "name": (str, REQUIRED, "The name of the group."),
+        "force": (bool, False, "Forcefully delete the group."),
+        "state": (STATE, "present", "Desired state of the group: present/absent"),
+        "inline_policies": (
+            (str, list),
+            None,
+            "List of inline policy JSON files to apply.",
+        ),
     }
 
     desc = "IAM Group {name}"
@@ -678,7 +720,7 @@ class Group(EntityBaseActor):
     def __init__(self, *args, **kwargs):
         super(Group, self).__init__(*args, **kwargs)
 
-        self.entity_name = 'group'
+        self.entity_name = "group"
         self.create_entity = self.iam_conn.create_group
         self.delete_entity = self.iam_conn.delete_group
         self.delete_entity_policy = self.iam_conn.delete_group_policy
@@ -688,7 +730,7 @@ class Group(EntityBaseActor):
         self.put_entity_policy = self.iam_conn.put_group_policy
 
         # Parse the supplied inline policies
-        self._parse_inline_policies(self.option('inline_policies'))
+        self._parse_inline_policies(self.option("inline_policies"))
 
     @gen.coroutine
     def _get_group_users(self, name):
@@ -702,12 +744,15 @@ class Group(EntityBaseActor):
         """
         users = []
         try:
-            raw = yield self.api_call(self.iam_conn.get_group, **{self.entity_kwarg_name: name})
-            users = [user['UserName'] for user in raw.get('Users', [])]
+            raw = yield self.api_call(
+                self.iam_conn.get_group, **{self.entity_kwarg_name: name}
+            )
+            users = [user["UserName"] for user in raw.get("Users", [])]
         except ClientError as e:
-            if 'NoSuchEntity' not in str(e):
+            if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
-                    'An unexpected API error occurred: %s' % e)
+                    "An unexpected API error occurred: %s" % e
+                )
 
         raise gen.Return(users)
 
@@ -725,10 +770,14 @@ class Group(EntityBaseActor):
         users = yield self._get_group_users(name)
 
         if not force and users:
-            self.log.warning(('Will not be able to delete this group '
-                              'without first removing all of its members. '
-                              'Use the `force` option to purge all members.'))
-            self.log.warning('Group members: %s' % ', '.join(users))
+            self.log.warning(
+                (
+                    "Will not be able to delete this group "
+                    "without first removing all of its members. "
+                    "Use the `force` option to purge all members."
+                )
+            )
+            self.log.warning("Group members: %s" % ", ".join(users))
 
         if not force:
             raise gen.Return()
@@ -740,18 +789,18 @@ class Group(EntityBaseActor):
 
     @gen.coroutine
     def _execute(self):
-        name = self.option('name')
-        state = self.option('state')
-        force = self.option('force')
+        name = self.option("name")
+        state = self.option("state")
+        force = self.option("force")
 
-        if state == 'absent':
+        if state == "absent":
             yield self._purge_group_users(name, force)
 
         yield self._ensure_entity(name, state)
-        if state == 'absent':
+        if state == "absent":
             raise gen.Return()
 
-        if self.option('inline_policies') is not None:
+        if self.option("inline_policies") is not None:
             yield self._ensure_inline_policies(name)
 
         raise gen.Return()
@@ -814,14 +863,18 @@ class Role(EntityBaseActor):
     """
 
     all_options = {
-        'name': (str, REQUIRED, 'The name of the role.'),
-        'state': (STATE, 'present',
-                  'Desired state of the group: present/absent'),
-        'inline_policies': ((str, list), None,
-                            'List of inline policy JSON files to apply.'),
-        'assume_role_policy_document': (str, None,
-                                        ('The policy that grants an entity'
-                                         'permission to assume the role'))
+        "name": (str, REQUIRED, "The name of the role."),
+        "state": (STATE, "present", "Desired state of the group: present/absent"),
+        "inline_policies": (
+            (str, list),
+            None,
+            "List of inline policy JSON files to apply.",
+        ),
+        "assume_role_policy_document": (
+            str,
+            None,
+            ("The policy that grants an entity" "permission to assume the role"),
+        ),
     }
 
     desc = "IAM Role {name}"
@@ -829,7 +882,7 @@ class Role(EntityBaseActor):
     def __init__(self, *args, **kwargs):
         super(Role, self).__init__(*args, **kwargs)
 
-        self.entity_name = 'Role'
+        self.entity_name = "Role"
         self.create_entity = self.iam_conn.create_role
         self.delete_entity = self.iam_conn.delete_role
         self.delete_entity_policy = self.iam_conn.delete_role_policy
@@ -839,12 +892,13 @@ class Role(EntityBaseActor):
         self.put_entity_policy = self.iam_conn.put_role_policy
 
         # Pre-parse the supplied inline policies
-        self._parse_inline_policies(self.option('inline_policies'))
+        self._parse_inline_policies(self.option("inline_policies"))
 
         # Pre-parse the Assume Role Policy Document if it was supplied
-        if self.option('assume_role_policy_document') is not None:
+        if self.option("assume_role_policy_document") is not None:
             self.assume_role_policy_doc = self._parse_policy_json(
-                self.option('assume_role_policy_document'))
+                self.option("assume_role_policy_document")
+            )
 
     @gen.coroutine
     def _ensure_assume_role_doc(self, name):
@@ -866,42 +920,43 @@ class Role(EntityBaseActor):
             raise gen.Return()
 
         # Parse the raw data into a dict we can compare
-        exist = entity.get('AssumeRolePolicyDocument', {})
+        exist = entity.get("AssumeRolePolicyDocument", {})
         new = self.assume_role_policy_doc
 
         # Now diff it against our desired policy. If no diff, then quietly
         # return.
         diff = utils.diff_dicts(exist, new)
         if not diff:
-            self.log.debug('Assume Role Policy documents match')
+            self.log.debug("Assume Role Policy documents match")
             raise gen.Return()
 
-        self.log.info('Assume Role Policy differs from Amazons:')
-        for line in diff.split('\n'):
-            self.log.info('Diff: %s' % line)
+        self.log.info("Assume Role Policy differs from Amazons:")
+        for line in diff.split("\n"):
+            self.log.info("Diff: %s" % line)
 
         if self._dry:
-            self.log.warning('Would have updated the Assume Role Policy Doc')
+            self.log.warning("Would have updated the Assume Role Policy Doc")
             raise gen.Return()
 
-        self.log.info('Updating the Assume Role Policy Document')
+        self.log.info("Updating the Assume Role Policy Document")
         yield self.api_call(
             self.iam_conn.update_assume_role_policy,
-            **{self.entity_kwarg_name: name, 'PolicyDocument': json.dumps(new)})
+            **{self.entity_kwarg_name: name, "PolicyDocument": json.dumps(new)},
+        )
 
     @gen.coroutine
     def _execute(self):
-        name = self.option('name')
-        state = self.option('state')
+        name = self.option("name")
+        state = self.option("state")
 
         yield self._ensure_entity(name, state)
-        if state == 'absent':
+        if state == "absent":
             raise gen.Return()
 
-        if self.option('inline_policies') is not None:
+        if self.option("inline_policies") is not None:
             yield self._ensure_inline_policies(name)
 
-        if self.option('assume_role_policy_document') is not None:
+        if self.option("assume_role_policy_document") is not None:
             yield self._ensure_assume_role_doc(name)
 
         raise gen.Return()
@@ -950,10 +1005,9 @@ class InstanceProfile(EntityBaseActor):
     """
 
     all_options = {
-        'name': (str, REQUIRED, 'The name of the instance profile.'),
-        'state': (STATE, 'present',
-                  'Desired state of the group: present/absent'),
-        'role': (str, None, 'Name of an IAM Role to assign')
+        "name": (str, REQUIRED, "The name of the instance profile."),
+        "state": (STATE, "present", "Desired state of the group: present/absent"),
+        "role": (str, None, "Name of an IAM Role to assign"),
     }
 
     desc = "InstanceProfile {name}"
@@ -961,14 +1015,14 @@ class InstanceProfile(EntityBaseActor):
     def __init__(self, *args, **kwargs):
         super(InstanceProfile, self).__init__(*args, **kwargs)
 
-        self.entity_name = 'InstanceProfile'
+        self.entity_name = "InstanceProfile"
         self.create_entity = self.iam_conn.create_instance_profile
         self.delete_entity = self.iam_conn.delete_instance_profile
         self.get_entity = self.iam_conn.get_instance_profile
 
     @property
     def entity_kwarg_name(self):
-        return 'InstanceProfileName'
+        return "InstanceProfileName"
 
     @gen.coroutine
     def _add_role(self, name, role):
@@ -979,17 +1033,20 @@ class InstanceProfile(EntityBaseActor):
             role: The name of the role to assign to the profile
         """
         if self._dry:
-            self.log.warning('Would add role %s from %s' % (role, name))
+            self.log.warning("Would add role %s from %s" % (role, name))
             raise gen.Return()
 
         try:
-            self.log.info('Adding role %s to %s' % (role, name))
-            yield self.api_call(self.iam_conn.add_role_to_instance_profile,
-                                **{self.entity_kwarg_name: name, 'RoleName': role})
+            self.log.info("Adding role %s to %s" % (role, name))
+            yield self.api_call(
+                self.iam_conn.add_role_to_instance_profile,
+                **{self.entity_kwarg_name: name, "RoleName": role},
+            )
         except ClientError as e:
-            if 'NoSuchEntity' not in str(e):
+            if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
-                    'An unexpected API error occurred: %s' % e)
+                    "An unexpected API error occurred: %s" % e
+                )
 
     @gen.coroutine
     def _remove_role(self, name, role):
@@ -1000,18 +1057,20 @@ class InstanceProfile(EntityBaseActor):
             role: The name of the role to remove
         """
         if self._dry:
-            self.log.warning('Would remove role %s from %s' % (role, name))
+            self.log.warning("Would remove role %s from %s" % (role, name))
             raise gen.Return()
 
         try:
-            self.log.info('Removing role %s from %s' % (role, name))
+            self.log.info("Removing role %s from %s" % (role, name))
             yield self.api_call(
                 self.iam_conn.remove_role_from_instance_profile,
-                **{self.entity_kwarg_name: name, 'RoleName': role})
+                **{self.entity_kwarg_name: name, "RoleName": role},
+            )
         except ClientError as e:
-            if 'NoSuchEntity' not in str(e):
+            if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
-                    'An unexpected API error occurred: %s' % e)
+                    "An unexpected API error occurred: %s" % e
+                )
 
     @gen.coroutine
     def _ensure_role(self, name, role):
@@ -1025,15 +1084,15 @@ class InstanceProfile(EntityBaseActor):
         """
         existing = None
         try:
-            raw = yield self.api_call(self.iam_conn.get_instance_profile, InstanceProfileName=name)
-            existing = (raw['InstanceProfile']
-                           ['Roles']
-                           [0]
-                           ['RoleName'])
+            raw = yield self.api_call(
+                self.iam_conn.get_instance_profile, InstanceProfileName=name
+            )
+            existing = raw["InstanceProfile"]["Roles"][0]["RoleName"]
         except ClientError as e:
-            if 'NoSuchEntity' not in str(e):
+            if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
-                    'An unexpected API error occurred: %s' % e)
+                    "An unexpected API error occurred: %s" % e
+                )
         except (IndexError, KeyError):
             # Profile is not a member of any roles
             pass
@@ -1053,12 +1112,12 @@ class InstanceProfile(EntityBaseActor):
 
     @gen.coroutine
     def _execute(self):
-        name = self.option('name')
-        state = self.option('state')
-        role = self.option('role')
+        name = self.option("name")
+        state = self.option("state")
+        role = self.option("role")
 
         yield self._ensure_entity(name, state)
-        if state == 'absent':
+        if state == "absent":
             raise gen.Return()
 
         if role is not None:

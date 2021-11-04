@@ -9,8 +9,6 @@ Full Module Docs
    :members:
 .. automodule:: kingpin.actors.aws.settings
    :members:
-.. automodule:: kingpin.actors.aws.sqs
-   :members:
 .. automodule:: kingpin.actors.aws.s3
    :members:
 .. automodule:: kingpin.actors.base

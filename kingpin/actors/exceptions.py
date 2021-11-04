@@ -83,4 +83,4 @@ class UnparseableResponseFromEndpoint(UnrecoverableActorFailure):
 
 class BadRequest(RecoverableActorFailure):
 
-    """An action failed due to a HTTP 400 error likely due to bad input. """
+    """An action failed due to a HTTP 400 error likely due to bad input."""

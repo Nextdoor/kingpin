@@ -13,9 +13,11 @@ log = logging.getLogger(__name__)
 
 class TestApiCallQueue(testing.AsyncTestCase):
     boto3_exception = botocore_exceptions.ClientError(
-        {'Error': {'Code': 'Bad request'}}, 'Test')
+        {"Error": {"Code": "Bad request"}}, "Test"
+    )
     boto3_throttle_exception = botocore_exceptions.ClientError(
-        {'Error': {'Code': 'Throttling'}}, 'Test')
+        {"Error": {"Code": "Throttling"}}, "Test"
+    )
 
     def setUp(self):
         super(TestApiCallQueue, self).setUp()
@@ -29,7 +31,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
     def test_plain_call(self):
         """Test that a single api call through the queue works."""
         result = yield self.api_call_queue.call(self._mock_api_function_sync)
-        self.assertEqual(result, 'OK')
+        self.assertEqual(result, "OK")
 
     @testing.gen_test
     def test_concurrent_calls_with_delay(self):
@@ -41,15 +43,20 @@ class TestApiCallQueue(testing.AsyncTestCase):
         """
         api_call_queue_calls = [
             self.api_call_queue.call(
-                self._mock_api_function_sync, result=1, delay=0.05),
+                self._mock_api_function_sync, result=1, delay=0.05
+            ),
             self.api_call_queue.call(
-                self._mock_api_function_sync, result=2, delay=0.05),
+                self._mock_api_function_sync, result=2, delay=0.05
+            ),
             self.api_call_queue.call(
-                self._mock_api_function_sync, result=3, delay=0.05),
+                self._mock_api_function_sync, result=3, delay=0.05
+            ),
             self.api_call_queue.call(
-                self._mock_api_function_sync, result=4, delay=0.05),
+                self._mock_api_function_sync, result=4, delay=0.05
+            ),
             self.api_call_queue.call(
-                self._mock_api_function_sync, result=5, delay=0.05),
+                self._mock_api_function_sync, result=5, delay=0.05
+            ),
         ]
 
         start = time.time()
@@ -69,7 +76,8 @@ class TestApiCallQueue(testing.AsyncTestCase):
         """
         futures = [
             self.api_call_queue.call(
-                self._mock_api_function_sync, result=1, delay=0.05),
+                self._mock_api_function_sync, result=1, delay=0.05
+            ),
             self._mock_api_function_async(result=2, delay=0.05),
             self._mock_api_function_async(result=3, delay=0.05),
             self._mock_api_function_async(result=4, delay=0.05),
@@ -94,21 +102,21 @@ class TestApiCallQueue(testing.AsyncTestCase):
         @gen.coroutine
         def _call_without_exception():
             result = yield self.api_call_queue.call(
-                self._mock_api_function_sync, delay=0.05)
-            self.assertEqual(result, 'OK')
-            raise gen.Return('no exception')
+                self._mock_api_function_sync, delay=0.05
+            )
+            self.assertEqual(result, "OK")
+            raise gen.Return("no exception")
 
         @gen.coroutine
         def _call_with_exception():
-            err = ValueError('test exception')
+            err = ValueError("test exception")
             try:
                 yield self.api_call_queue.call(
-                    self._mock_api_function_sync,
-                    exception=err,
-                    delay=0.05)
+                    self._mock_api_function_sync, exception=err, delay=0.05
+                )
             except Exception as e:
                 self.assertEqual(err, e)
-            raise gen.Return('exception')
+            raise gen.Return("exception")
 
         @gen.coroutine
         def _call_with_exception_after_boto3_rate_limit():
@@ -120,14 +128,13 @@ class TestApiCallQueue(testing.AsyncTestCase):
             try:
                 yield self.api_call_queue.call(
                     self._mock_api_function_sync,
-                    exception=[
-                        self.boto3_throttle_exception,
-                        self.boto3_exception],
-                    delay=0.05)
+                    exception=[self.boto3_throttle_exception, self.boto3_exception],
+                    delay=0.05,
+                )
             except Exception as e:
                 self.assertEqual(self.boto3_exception, e)
 
-            raise gen.Return('exception')
+            raise gen.Return("exception")
 
         call_wrappers = [
             # Should take 0.05s.
@@ -147,8 +154,8 @@ class TestApiCallQueue(testing.AsyncTestCase):
 
         self.assertTrue(0.30 <= run_time < 0.45)
         self.assertEqual(
-            ['no exception', 'exception', 'no exception', 'exception'],
-            results)
+            ["no exception", "exception", "no exception", "exception"], results
+        )
 
     @testing.gen_test
     def test_rate_limiting_boto3(self):
@@ -162,15 +169,18 @@ class TestApiCallQueue(testing.AsyncTestCase):
             self.api_call_queue.call(
                 self._mock_api_function_sync,
                 result=1,
-                exception=[self.boto3_throttle_exception]),
+                exception=[self.boto3_throttle_exception],
+            ),
             self.api_call_queue.call(
                 self._mock_api_function_sync,
                 result=2,
-                exception=[self.boto3_throttle_exception]),
+                exception=[self.boto3_throttle_exception],
+            ),
             self.api_call_queue.call(
                 self._mock_api_function_sync,
                 result=3,
-                exception=[self.boto3_throttle_exception]),
+                exception=[self.boto3_throttle_exception],
+            ),
         ]
 
         start = time.time()
@@ -200,7 +210,9 @@ class TestApiCallQueue(testing.AsyncTestCase):
                 result=result,
                 exception=[
                     self.boto3_throttle_exception,
-                    self.boto3_throttle_exception])
+                    self.boto3_throttle_exception,
+                ],
+            )
 
         api_call_queue_calls = [
             _throttle_twice(result=1),
@@ -213,9 +225,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
 
         # Delay should be up one step total: delay_min.
 
-        self.assertEqual(
-            self.api_call_queue.delay,
-            self.api_call_queue.delay_min)
+        self.assertEqual(self.api_call_queue.delay, self.api_call_queue.delay_min)
         self.assertTrue(0.15 <= run_time < 0.25)
         self.assertEqual(results, [1])
 
@@ -232,9 +242,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
 
         # Delay should be up two steps total: delay_min * 2.
 
-        self.assertEqual(
-            self.api_call_queue.delay,
-            self.api_call_queue.delay_min * 2)
+        self.assertEqual(self.api_call_queue.delay, self.api_call_queue.delay_min * 2)
         self.assertTrue(0.35 <= run_time < 0.45)
         self.assertEqual(results, [2])
 
@@ -254,21 +262,16 @@ class TestApiCallQueue(testing.AsyncTestCase):
         # but total runtime should be ~0.5s:
         # (0delay_min * 2 + delay_max + delay_max).
 
-        self.assertEqual(
-            self.api_call_queue.delay,
-            self.api_call_queue.delay_min * 2)
+        self.assertEqual(self.api_call_queue.delay, self.api_call_queue.delay_min * 2)
         self.assertTrue(0.5 <= run_time < 0.6)
         self.assertEqual(results, [3])
 
         # Now do it with successes to step back down.
 
         api_call_queue_calls = [
-            self.api_call_queue.call(
-                self._mock_api_function_sync, result=4),
-            self.api_call_queue.call(
-                self._mock_api_function_sync, result=5),
-            self.api_call_queue.call(
-                self._mock_api_function_sync, result=6),
+            self.api_call_queue.call(self._mock_api_function_sync, result=4),
+            self.api_call_queue.call(self._mock_api_function_sync, result=5),
+            self.api_call_queue.call(self._mock_api_function_sync, result=6),
         ]
 
         start = time.time()
@@ -284,9 +287,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
         self.assertTrue(0.15 <= run_time < 0.25)
         self.assertEqual(results, [4, 5, 6])
 
-    def _mock_api_function_sync(self, result='OK',
-                                exception=None,
-                                delay=None):
+    def _mock_api_function_sync(self, result="OK", exception=None, delay=None):
         """
         Mock a synchronous call to AWS.
 

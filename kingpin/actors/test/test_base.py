@@ -18,7 +18,7 @@ import mock
 # unpredictable super() behavior:
 #
 #  http://thomas-cokelaer.info/blog/2011/09/382/
-os.environ['URLLIB_DEBUG'] = '1'
+os.environ["URLLIB_DEBUG"] = "1"
 
 from kingpin import utils
 from kingpin.actors import base
@@ -27,7 +27,7 @@ from kingpin.actors.test.helper import mock_tornado
 from kingpin.constants import REQUIRED, STATE
 
 
-__author__ = 'Matt Wise <matt@nextdoor.com>'
+__author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 class FakeHTTPClientClass(object):
@@ -45,12 +45,12 @@ class FakeHTTPClientClass(object):
 class FakeEnsurableBaseActor(base.EnsurableBaseActor):
 
     all_options = {
-        'name': (str, REQUIRED, 'Name of thing'),
-        'description': (str, None, 'Some description'),
-        'unmanaged': (str, None, 'some unmanaged option')
+        "name": (str, REQUIRED, "Name of thing"),
+        "description": (str, None, "Some description"),
+        "unmanaged": (str, None, "some unmanaged option"),
     }
 
-    unmanaged_options = ['unmanaged']
+    unmanaged_options = ["unmanaged"]
 
     @gen.coroutine
     def _precache(self):
@@ -59,11 +59,11 @@ class FakeEnsurableBaseActor(base.EnsurableBaseActor):
         yield super(FakeEnsurableBaseActor, self)._precache()
 
         # These do not match -- so we'll trigger the setters
-        self.state = 'absent'
+        self.state = "absent"
         self.name = "Old name"
 
         # This matches the desired description on purpose.
-        self.description = 'Some description'
+        self.description = "Some description"
 
         # Start out with no calls recorded
         self.set_state_called = False
@@ -84,7 +84,7 @@ class FakeEnsurableBaseActor(base.EnsurableBaseActor):
 
     @gen.coroutine
     def _set_name(self):
-        self.name = self.option('name')
+        self.name = self.option("name")
         self.set_name_called = True
 
     @gen.coroutine
@@ -94,7 +94,7 @@ class FakeEnsurableBaseActor(base.EnsurableBaseActor):
     @gen.coroutine
     def _compare_name(self):
         exist = yield self._get_name()
-        new = self.option('name')
+        new = self.option("name")
         raise gen.Return(exist == new)
 
     @gen.coroutine
@@ -107,7 +107,6 @@ class FakeEnsurableBaseActor(base.EnsurableBaseActor):
 
 
 class TestBaseActor(testing.AsyncTestCase):
-
     @gen.coroutine
     def true(self):
         yield utils.tornado_sleep(0.01)
@@ -122,7 +121,7 @@ class TestBaseActor(testing.AsyncTestCase):
         super(TestBaseActor, self).setUp()
 
         # Create a BaseActor object
-        self.actor = base.BaseActor('Unit Test Action', {})
+        self.actor = base.BaseActor("Unit Test Action", {})
 
         # Mock out the actors ._execute() method so that we have something to
         # test
@@ -130,12 +129,12 @@ class TestBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_user_defined_desc(self):
-        self.assertEqual('Unit Test Action', str(self.actor))
+        self.assertEqual("Unit Test Action", str(self.actor))
 
     @testing.gen_test
     def test_default_desc(self):
         self.actor._desc = None
-        self.assertEqual('kingpin.actors.base.BaseActor', str(self.actor))
+        self.assertEqual("kingpin.actors.base.BaseActor", str(self.actor))
 
     @testing.gen_test
     def test_timer(self):
@@ -150,7 +149,7 @@ class TestBaseActor(testing.AsyncTestCase):
 
         # Search for a logged message. Don't explicitly set the execution time
         # because some computers and compilers are slow.
-        msg = 'kingpin.actors.base.BaseActor.execute() execution time'
+        msg = "kingpin.actors.base.BaseActor.execute() execution time"
         msg_is_in_calls = False
         for call in self.actor.log.debug.mock_calls:
             if msg in str(call):
@@ -161,7 +160,7 @@ class TestBaseActor(testing.AsyncTestCase):
     def test_timeout(self):
         # Create a quick mock.. so we can track whether or not API calls were
         # actually made.
-        tracker = mock.MagicMock(name='tracker')
+        tracker = mock.MagicMock(name="tracker")
 
         # Create a function and wrap it in our timeout
         @gen.coroutine
@@ -193,85 +192,88 @@ class TestBaseActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_httplib_debugging(self):
         # Get the logger now and validate that its level was set right
-        requests_logger = logging.getLogger('requests.packages.urllib3')
+        requests_logger = logging.getLogger("requests.packages.urllib3")
         self.assertEqual(10, requests_logger.level)
 
     def test_validate_options(self):
-        self.actor.all_options = {'test': (str, REQUIRED, '')}
-        self.actor._options = {'a': 'b'}
+        self.actor.all_options = {"test": (str, REQUIRED, "")}
+        self.actor._options = {"a": "b"}
         with self.assertRaises(exceptions.InvalidOptions):
             ret = self.actor._validate_options()
 
-        self.actor.all_options = {'test': (str, REQUIRED, '')}
-        self.actor._options = {'test': 'b'}
+        self.actor.all_options = {"test": (str, REQUIRED, "")}
+        self.actor._options = {"test": "b"}
         ret = self.actor._validate_options()
         self.assertEqual(None, ret)
 
-        self.actor.all_options = {'test': (bool, REQUIRED, '')}
-        self.actor._options = {'test': 'junk_text'}
+        self.actor.all_options = {"test": (bool, REQUIRED, "")}
+        self.actor._options = {"test": "junk_text"}
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor._validate_options()
 
-        self.actor.all_options = {'test': (str, REQUIRED, ''),
-                                  'test2': (str, REQUIRED, '')}
-        self.actor._options = {'test': 'b', 'test2': 'b'}
+        self.actor.all_options = {
+            "test": (str, REQUIRED, ""),
+            "test2": (str, REQUIRED, ""),
+        }
+        self.actor._options = {"test": "b", "test2": "b"}
         ret = self.actor._validate_options()
         self.assertEqual(None, ret)
 
         # The STATE type requires either 'present' or 'absent' to be passed in.
-        self.actor.all_options = {'test': (STATE, REQUIRED, '')}
-        self.actor._options = {'test': 'present'}
+        self.actor.all_options = {"test": (STATE, REQUIRED, "")}
+        self.actor._options = {"test": "present"}
         ret = self.actor._validate_options()
         self.assertEqual(None, ret)
 
-        self.actor._options = {'test': 'absent'}
+        self.actor._options = {"test": "absent"}
         ret = self.actor._validate_options()
         self.assertEqual(None, ret)
 
         with self.assertRaises(exceptions.InvalidOptions):
-            self.actor._options = {'test': 'abse'}
+            self.actor._options = {"test": "abse"}
             ret = self.actor._validate_options()
 
     def test_validation_issues(self):
-        self.actor.all_options = {'needed': (str, REQUIRED, ''),
-                                  'optional': (str, '', '')}
+        self.actor.all_options = {
+            "needed": (str, REQUIRED, ""),
+            "optional": (str, "", ""),
+        }
 
         # Requirement not satisfied
-        self.actor._options = {'optional': 'b'}
+        self.actor._options = {"optional": "b"}
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor._validate_options()
 
         # Invalid option type:
-        self.actor._options = {'needed': 1, 'optional': 'b'}
+        self.actor._options = {"needed": 1, "optional": "b"}
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor._validate_options()
 
         # Unexpected option passed
-        self.actor._options = {'needed': 'a', 'unexpected': 'b'}
+        self.actor._options = {"needed": "a", "unexpected": "b"}
         # Should work w/out raising an exception.
         self.actor._validate_options()
 
     def test_validate_defaults(self):
         # Default is not a permitted type
-        self.actor.all_options = {'name': (str, False, 'String!')}
+        self.actor.all_options = {"name": (str, False, "String!")}
         self.actor._setup_defaults()
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor._validate_options()
 
     @testing.gen_test
     def test_option(self):
-        self.actor._options['foo'] = 'bar'
-        opt = self.actor.option('foo')
-        self.assertEqual(opt, 'bar')
+        self.actor._options["foo"] = "bar"
+        opt = self.actor.option("foo")
+        self.assertEqual(opt, "bar")
 
     def test_readfile(self):
         with self.assertRaises(exceptions.InvalidOptions):
-            self.actor.readfile('notfound')
+            self.actor.readfile("notfound")
 
-        open_patcher = mock.patch('%s.open' % self.actor.__module__,
-                                  create=True)
+        open_patcher = mock.patch("%s.open" % self.actor.__module__, create=True)
         with open_patcher as mock_open:
-            self.actor.readfile('somefile')
+            self.actor.readfile("somefile")
             self.assertEqual(mock_open.call_count, 1)
             # using __enter__ here because it's opened as a context manager.
             self.assertEqual(mock_open().__enter__().read.call_count, 1)
@@ -282,32 +284,32 @@ class TestBaseActor(testing.AsyncTestCase):
         self.assertEqual(res, True)
 
     def test_str2bool(self):
-        self.assertEqual(True, self.actor.str2bool('true'))
-        self.assertEqual(True, self.actor.str2bool('junk text'))
-        self.assertEqual(True, self.actor.str2bool('1'))
+        self.assertEqual(True, self.actor.str2bool("true"))
+        self.assertEqual(True, self.actor.str2bool("junk text"))
+        self.assertEqual(True, self.actor.str2bool("1"))
         self.assertEqual(True, self.actor.str2bool(True))
-        self.assertEqual(False, self.actor.str2bool('false'))
-        self.assertEqual(False, self.actor.str2bool('0'))
+        self.assertEqual(False, self.actor.str2bool("false"))
+        self.assertEqual(False, self.actor.str2bool("0"))
         self.assertEqual(False, self.actor.str2bool(False))
 
     def test_str2bool_strict(self):
-        self.assertEqual(True, self.actor.str2bool('true'))
+        self.assertEqual(True, self.actor.str2bool("true"))
         self.assertEqual(False, self.actor.str2bool(False))
         with self.assertRaises(exceptions.InvalidOptions):
-            self.actor.str2bool('Junk', strict=True)
+            self.actor.str2bool("Junk", strict=True)
 
     @testing.gen_test
     def test_check_condition(self):
         conditions = {
-            'FOobar': True,
-            'True': True,
-            'TRUE': True,
+            "FOobar": True,
+            "True": True,
+            "TRUE": True,
             1: True,
-            '1': True,
+            "1": True,
             0: False,
-            '0': False,
-            'False': False,
-            'FALSE': False,
+            "0": False,
+            "False": False,
+            "FALSE": False,
         }
         for value, should_execute in list(conditions.items()):
             self.actor._condition = value
@@ -316,12 +318,16 @@ class TestBaseActor(testing.AsyncTestCase):
             str_value = json.dumps(value)
             if should_execute:
                 self.assertEqual(
-                    self.actor._execute._call_count, 1,
-                    'Value `%s` should allow actor execution' % str_value)
+                    self.actor._execute._call_count,
+                    1,
+                    "Value `%s` should allow actor execution" % str_value,
+                )
             else:
                 self.assertEqual(
-                    self.actor._execute._call_count, 0,
-                    'Value `%s` should not allow actor execution' % str_value)
+                    self.actor._execute._call_count,
+                    0,
+                    "Value `%s` should not allow actor execution" % str_value,
+                )
 
     @testing.gen_test
     def test_execute_fail(self):
@@ -333,7 +339,7 @@ class TestBaseActor(testing.AsyncTestCase):
     def test_execute_catches_expected_exception(self):
         @gen.coroutine
         def raise_exc():
-            raise exceptions.ActorException('Test')
+            raise exceptions.ActorException("Test")
 
         self.actor._execute = raise_exc
         with self.assertRaises(exceptions.ActorException):
@@ -343,7 +349,7 @@ class TestBaseActor(testing.AsyncTestCase):
     def test_execute_catches_unexpected_exception(self):
         @gen.coroutine
         def raise_exc():
-            raise Exception('Test')
+            raise Exception("Test")
 
         self.actor._execute = raise_exc
         with self.assertRaises(exceptions.ActorException):
@@ -353,7 +359,7 @@ class TestBaseActor(testing.AsyncTestCase):
     def test_execute_with_warn_on_failure(self):
         @gen.coroutine
         def raise_exc():
-            raise exceptions.RecoverableActorFailure('should just warn')
+            raise exceptions.RecoverableActorFailure("should just warn")
 
         self.actor._execute = raise_exc
 
@@ -367,79 +373,79 @@ class TestBaseActor(testing.AsyncTestCase):
         self.assertEqual(res, None)
 
     def test_fill_in_contexts_desc(self):
-        base.BaseActor.all_options = {
-            'test_opt': (str, REQUIRED, 'Test option')
-        }
+        base.BaseActor.all_options = {"test_opt": (str, REQUIRED, "Test option")}
 
         self.actor = base.BaseActor(
-            desc='Unit Test Action - {NAME}',
-            options={'test_opt': 'Foo bar'},
-            condition='{NAME}',
-            init_context={'NAME': 'TEST'})
-        self.assertEqual('Unit Test Action - TEST', self.actor._desc)
-        self.assertEqual('TEST', self.actor._condition)
+            desc="Unit Test Action - {NAME}",
+            options={"test_opt": "Foo bar"},
+            condition="{NAME}",
+            init_context={"NAME": "TEST"},
+        )
+        self.assertEqual("Unit Test Action - TEST", self.actor._desc)
+        self.assertEqual("TEST", self.actor._condition)
 
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor = base.BaseActor(
-                desc='Unit Test Action',
-                options={'test_opt': 'Foo {BAZ} bar'},
-                init_context={})
+                desc="Unit Test Action",
+                options={"test_opt": "Foo {BAZ} bar"},
+                init_context={},
+            )
 
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor = base.BaseActor(
-                desc='Unit Test Action - {NAME}',
-                options={},
-                init_context={})
+                desc="Unit Test Action - {NAME}", options={}, init_context={}
+            )
 
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor = base.BaseActor(
-                desc='Unit Test Action',
-                options={'test_opt': 'Foo bar'},
-                condition='{NAME}',
-                init_context={})
+                desc="Unit Test Action",
+                options={"test_opt": "Foo bar"},
+                condition="{NAME}",
+                init_context={},
+            )
 
         # Reset the all options so we dont break other tests
         base.BaseActor.all_options = {}
 
     def test_fill_in_contexts_options(self):
-        base.BaseActor.all_options = {
-            'test_opt': (str, REQUIRED, 'Test option')
-        }
+        base.BaseActor.all_options = {"test_opt": (str, REQUIRED, "Test option")}
 
         self.actor = base.BaseActor(
-            desc='Unit Test Action',
-            options={'test_opt': 'Foo bar - {NAME}'},
-            init_context={'NAME': 'TEST'})
-        self.assertEqual('Foo bar - TEST', self.actor.option('test_opt'))
+            desc="Unit Test Action",
+            options={"test_opt": "Foo bar - {NAME}"},
+            init_context={"NAME": "TEST"},
+        )
+        self.assertEqual("Foo bar - TEST", self.actor.option("test_opt"))
 
         # Reset the all options so we dont break other tests
         base.BaseActor.all_options = {}
 
     def test_fill_in_contexts_options_escape(self):
-        base.BaseActor.all_options = {
-            'test_opt': (str, REQUIRED, 'Test option')
-        }
+        base.BaseActor.all_options = {"test_opt": (str, REQUIRED, "Test option")}
 
         self.actor = base.BaseActor(
-            desc='Unit Test Action',
-            options={'test_opt': 'Foo bar - \{NAME\}'},
-            init_context={'NAME': 'TEST'})
-        self.assertEqual('Foo bar - {NAME}', self.actor.option('test_opt'))
+            desc="Unit Test Action",
+            options={"test_opt": "Foo bar - \{NAME\}"},
+            init_context={"NAME": "TEST"},
+        )
+        self.assertEqual("Foo bar - {NAME}", self.actor.option("test_opt"))
 
         # Reset the all options so we dont break other tests
         base.BaseActor.all_options = {}
 
 
 class TestEnsurableBaseActor(testing.AsyncTestCase):
-
     def setUp(self):
         super(TestEnsurableBaseActor, self).setUp()
         self.actor = FakeEnsurableBaseActor(
-            'Unit Test Actor',
-            {'name': 'new name',
-             'state': 'present',
-             'unmanaged': 'nothing happens with this',
-             'description': 'Some description'})
+            "Unit Test Actor",
+            {
+                "name": "new name",
+                "state": "present",
+                "unmanaged": "nothing happens with this",
+                "description": "Some description",
+            },
+        )
 
     @testing.gen_test
     def test_precache(self):
@@ -463,7 +469,7 @@ class TestEnsurableBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_absent(self):
-        self.actor._options['state'] = 'absent'
+        self.actor._options["state"] = "absent"
         yield self.actor._execute()
 
         # Make sure that the set_name and set_state were NOT called
@@ -479,10 +485,9 @@ class TestEnsurableBaseActor(testing.AsyncTestCase):
 
 
 class TestHTTPBaseActor(testing.AsyncTestCase):
-
     def setUp(self):
         super(TestHTTPBaseActor, self).setUp()
-        self.actor = base.HTTPBaseActor('Unit Test Action', {})
+        self.actor = base.HTTPBaseActor("Unit Test Action", {})
 
     @testing.gen_test
     def test_get_http_client(self):
@@ -490,89 +495,88 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
         self.assertEqual(simple_httpclient.SimpleAsyncHTTPClient, type(ret))
 
     def test_get_method(self):
-        self.assertEqual('POST', self.actor._get_method('foobar'))
-        self.assertEqual('POST', self.actor._get_method('True'))
-        self.assertEqual('POST', self.actor._get_method(''))
-        self.assertEqual('GET', self.actor._get_method(None))
+        self.assertEqual("POST", self.actor._get_method("foobar"))
+        self.assertEqual("POST", self.actor._get_method("True"))
+        self.assertEqual("POST", self.actor._get_method(""))
+        self.assertEqual("GET", self.actor._get_method(None))
 
     @testing.gen_test
     def test_generate_escaped_url(self):
-        result = self.actor._generate_escaped_url('http://unittest',
-                                                  {'foo': 'bar'})
-        self.assertEqual('http://unittest?foo=bar', result)
+        result = self.actor._generate_escaped_url("http://unittest", {"foo": "bar"})
+        self.assertEqual("http://unittest?foo=bar", result)
 
-        result = self.actor._generate_escaped_url('http://unittest',
-                                                  {'foo': True})
-        self.assertEqual('http://unittest?foo=true', result)
+        result = self.actor._generate_escaped_url("http://unittest", {"foo": True})
+        self.assertEqual("http://unittest?foo=true", result)
 
         result = self.actor._generate_escaped_url(
-            'http://unittest',
-            {'foo': 'bar', 'xyz': 'abc'})
-        self.assertEqual('http://unittest?foo=bar&xyz=abc', result)
+            "http://unittest", {"foo": "bar", "xyz": "abc"}
+        )
+        self.assertEqual("http://unittest?foo=bar&xyz=abc", result)
 
         result = self.actor._generate_escaped_url(
-            'http://unittest',
-            {'foo': 'bar baz', 'xyz': 'abc'})
-        self.assertEqual('http://unittest?foo=bar+baz&xyz=abc', result)
+            "http://unittest", {"foo": "bar baz", "xyz": "abc"}
+        )
+        self.assertEqual("http://unittest?foo=bar+baz&xyz=abc", result)
 
     @testing.gen_test
     def test_fetch(self):
         # Test with valid JSON
-        response_dict = {'foo': 'asdf'}
+        response_dict = {"foo": "asdf"}
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
-            httpclient.HTTPRequest('/'), code=200,
-            buffer=io.StringIO(response_body))
+            httpclient.HTTPRequest("/"), code=200, buffer=io.StringIO(response_body)
+        )
 
-        with mock.patch.object(self.actor, '_get_http_client') as m:
+        with mock.patch.object(self.actor, "_get_http_client") as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
 
-            response = yield self.actor._fetch('/')
+            response = yield self.actor._fetch("/")
             self.assertEqual(response_dict, response)
 
         # Test with completely invalid JSON
         response_body = "Something bad happened"
         http_response = httpclient.HTTPResponse(
-            httpclient.HTTPRequest('/'), code=200,
-            buffer=io.StringIO(response_body))
+            httpclient.HTTPRequest("/"), code=200, buffer=io.StringIO(response_body)
+        )
 
-        with mock.patch.object(self.actor, '_get_http_client') as m:
+        with mock.patch.object(self.actor, "_get_http_client") as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
 
             with self.assertRaises(exceptions.UnparseableResponseFromEndpoint):
-                yield self.actor._fetch('/')
+                yield self.actor._fetch("/")
 
     @testing.gen_test
     def test_fetch_with_auth(self):
-        response_dict = {'foo': 'asdf'}
+        response_dict = {"foo": "asdf"}
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
-            httpclient.HTTPRequest('/'), code=200,
-            buffer=io.StringIO(response_body))
+            httpclient.HTTPRequest("/"), code=200, buffer=io.StringIO(response_body)
+        )
 
-        with mock.patch.object(self.actor, '_get_http_client') as m:
+        with mock.patch.object(self.actor, "_get_http_client") as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
 
-            yield self.actor._fetch('/', auth_username='foo',
-                                    auth_password='bar')
-            self.assertEqual(m.return_value.request.auth_username, 'foo')
-            self.assertEqual(m.return_value.request.auth_password, 'bar')
+            yield self.actor._fetch("/", auth_username="foo", auth_password="bar")
+            self.assertEqual(m.return_value.request.auth_username, "foo")
+            self.assertEqual(m.return_value.request.auth_password, "bar")
 
 
 class TestActualEnsurableBaseActor(testing.AsyncTestCase):
-
     def setUp(self):
 
         super(TestActualEnsurableBaseActor, self).setUp()
         self.actor = base.EnsurableBaseActor(
-            'Unit Test Actor',
-            {'name': 'new name',
-             'state': 'present',
-             'unmanaged': 'nothing happens with this',
-             'description': 'Some description'})
+            "Unit Test Actor",
+            {
+                "name": "new name",
+                "state": "present",
+                "unmanaged": "nothing happens with this",
+                "description": "Some description",
+            },
+        )
 
     @testing.gen_test
     def test_set_state(self):

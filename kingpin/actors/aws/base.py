@@ -56,7 +56,7 @@ from kingpin.actors.aws import settings as aws_settings
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
+__author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
@@ -81,9 +81,7 @@ class AWSBaseActor(base.BaseActor):
     ioloop = ioloop.IOLoop.current()
     executor = EXECUTOR
 
-    all_options = {
-        'region': (str, None, 'AWS Region (or zone) to connect to.')
-    }
+    all_options = {"region": (str, None, "AWS Region (or zone) to connect to.")}
 
     def __init__(self, *args, **kwargs):
         """Check for required settings."""
@@ -99,19 +97,17 @@ class AWSBaseActor(base.BaseActor):
         # In the event though that someone has explicitly set the AWS access
         # keys in the environment (either for the purposes of a unit test, or
         # because they wanted to), we use those values.
-        if (aws_settings.AWS_ACCESS_KEY_ID and
-                aws_settings.AWS_SECRET_ACCESS_KEY):
+        if aws_settings.AWS_ACCESS_KEY_ID and aws_settings.AWS_SECRET_ACCESS_KEY:
             key = aws_settings.AWS_ACCESS_KEY_ID
             secret = aws_settings.AWS_SECRET_ACCESS_KEY
 
         # Establish connection objects that don't require a region
         self.iam_conn = boto3.client(
-            'iam',
-            aws_access_key_id=key,
-            aws_secret_access_key=secret)
+            "iam", aws_access_key_id=key, aws_secret_access_key=secret
+        )
 
         # Establish region-specific connection objects.
-        self.region = self.option('region')
+        self.region = self.option("region")
         if not self.region:
             return
 
@@ -124,25 +120,29 @@ class AWSBaseActor(base.BaseActor):
             },
         )
         self.ecs_conn = boto3.client(
-            'ecs',
+            "ecs",
             config=boto_config,
             aws_access_key_id=key,
-            aws_secret_access_key=secret)
+            aws_secret_access_key=secret,
+        )
         self.cf3_conn = boto3.client(
-            'cloudformation',
+            "cloudformation",
             config=boto_config,
             aws_access_key_id=key,
-            aws_secret_access_key=secret)
+            aws_secret_access_key=secret,
+        )
         self.sqs_conn = boto3.client(
-            'sqs',
+            "sqs",
             config=boto_config,
             aws_access_key_id=key,
-            aws_secret_access_key=secret)
+            aws_secret_access_key=secret,
+        )
         self.s3_conn = boto3.client(
-            's3',
+            "s3",
             config=boto_config,
             aws_access_key_id=key,
-            aws_secret_access_key=secret)
+            aws_secret_access_key=secret,
+        )
 
     @concurrent.run_on_executor
     @utils.exception_logger
@@ -161,8 +161,7 @@ class AWSBaseActor(base.BaseActor):
 
     @gen.coroutine
     @utils.exception_logger
-    def api_call_with_queueing(self, api_function,
-                               queue_name, *args, **kwargs):
+    def api_call_with_queueing(self, api_function, queue_name, *args, **kwargs):
         """
         Execute `api_function` in a serialized queue.
 
@@ -184,8 +183,7 @@ class AWSBaseActor(base.BaseActor):
             >>>     ec2_conn.get_all_zones, queue_name='get_all_zones')
         """
         if queue_name not in NAMED_API_CALL_QUEUES:
-            NAMED_API_CALL_QUEUES[queue_name] = (
-                api_call_queue.ApiCallQueue())
+            NAMED_API_CALL_QUEUES[queue_name] = api_call_queue.ApiCallQueue()
         queue = NAMED_API_CALL_QUEUES[queue_name]
         try:
             result = yield queue.call(api_function, *args, **kwargs)
@@ -196,8 +194,7 @@ class AWSBaseActor(base.BaseActor):
 
     def _wrap_boto_exception(self, e):
         if isinstance(e, boto3_exceptions.Boto3Error):
-            return exceptions.RecoverableActorFailure(
-                'Boto3 had a failure: %s' % e)
+            return exceptions.RecoverableActorFailure("Boto3 had a failure: %s" % e)
         return e
 
     def _parse_policy_json(self, policy):
@@ -220,14 +217,16 @@ class AWSBaseActor(base.BaseActor):
 
         # Run through any supplied Inline IAM Policies and verify that they're
         # not corrupt very early on.
-        self.log.debug('Parsing and validating %s' % policy)
+        self.log.debug("Parsing and validating %s" % policy)
 
         try:
-            p_doc = utils.convert_script_to_dict(script_file=policy,
-                                                 tokens=self._init_tokens)
+            p_doc = utils.convert_script_to_dict(
+                script_file=policy, tokens=self._init_tokens
+            )
         except kingpin_exceptions.InvalidScript as e:
-            raise exceptions.UnrecoverableActorFailure('Error parsing %s: %s' %
-                                                       (policy, e))
+            raise exceptions.UnrecoverableActorFailure(
+                "Error parsing %s: %s" % (policy, e)
+            )
 
         return p_doc
 

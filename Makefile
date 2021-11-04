@@ -1,10 +1,19 @@
 HERE = $(shell pwd)
 
-VENV_CMD := python3 -m venv
-VENV_DIR := $(HERE)/.venv
-PYTHON   := $(VENV_DIR)/bin/python
+VENV_CMD    := python3 -m venv
+VENV_DIR    := $(HERE)/.venv
+PYBLACK_BIN := $(VENV_DIR)/bin/black
+PYTHON      := $(VENV_DIR)/bin/python
 
 BUILD_DIRS = bin .build build include lib lib64 man share package *.egg
+
+# Are we DRY? Automatically default us to DRY.
+DRY ?= true
+ifeq ($(DRY),false)
+  PYBLACK := $(PYBLACK_BIN)
+else
+  PYBLACK := $(PYBLACK_BIN) --diff --check
+endif
 
 .PHONY: all build clean test docs
 
@@ -30,6 +39,9 @@ $(VENV_DIR): requirements.txt requirements.test.txt
 build: $(VENV_DIR)
 	$(PYTHON) setup.py install
 
+pyblack:
+	$(PYBLACK) kingpin 
+
 .PHONY: clean
 clean:
 	find . -type f -name '*.pyc' -exec rm "{}" \;
@@ -38,9 +50,8 @@ clean:
 	PATH=$(VENV_DIR)/bin:$(PATH) $(MAKE) -C docs clean
 
 .PHONY: test
-#test: build docs
-test:
-	$(PYTHON) setup.py test pep8 pyflakes
+test: build docs
+	$(PYTHON) setup.py test pyblack pyflakes
 	# A few simple dry-tests of yaml and json scripts to make sure that the
 	# full commandline actually works.
 	PYTHONPATH=$(HERE) $(PYTHON) kingpin/bin/deploy.py --dry --script examples/test/sleep.json
@@ -50,7 +61,7 @@ test:
 integration: build
 	. .venv/bin/activate
 	INTEGRATION_TESTS=$(INTEGRATION_TESTS) PYFLAKES_NODOCTEST=True \
-		$(PYTHON) setup.py integration pep8 pyflakes
+		$(PYTHON) setup.py integration pyblack
 
 .PHONY: pack
 pack: kingpin.zip
