@@ -30,7 +30,9 @@ all: build
 venv: $(VENV_DIR)
 
 $(VENV_DIR): requirements.txt requirements.test.txt
+	$(VENV_CMD) --help
 	$(VENV_CMD) $(VENV_DIR) && \
+		find $(VENV_DIR) && \
 		$(VENV_DIR)/bin/pip install -r requirements.test.txt && \
 		$(VENV_DIR)/bin/pip install -r requirements.txt && \
 		touch $(VENV_DIR)
