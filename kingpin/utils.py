@@ -22,9 +22,9 @@ Common package for utility functions.
 from logging import handlers
 import difflib
 import datetime
-import demjson
 import functools
 import importlib
+import json
 import logging
 import os
 import pprint
@@ -32,6 +32,7 @@ import re
 import sys
 import io
 from io import IOBase
+from json.decoder import JSONDecodeError
 import cfn_tools
 
 from tornado import gen
@@ -376,24 +377,22 @@ def convert_script_to_dict(script_file, tokens):
     raw = instance.read()
     parsed = populate_with_tokens(raw, tokens)
 
-    # If the file ends with .json, use demjson to read it. If it ends with
+    # If the file ends with .json, use json to read it. If it ends with
     # .yml/.yaml, use PyYAML. If neither, error.
     suffix = filename.split(".")[-1].strip().lower()
 
     try:
         if suffix == "json":
-            decoded = demjson.decode(parsed)
+            decoded = json.loads(parsed)
         elif suffix in ("yml", "yaml"):
             decoded = cfn_tools.load_yaml(parsed)
             if decoded is None:
                 raise exceptions.InvalidScript("Invalid YAML in `%s`" % filename)
         else:
             raise exceptions.InvalidScriptName("Invalid file extension: %s" % suffix)
-    except demjson.JSONError as e:
-        # demjson exceptions have `pretty_description()` method with
-        # much more useful info.
+    except JSONDecodeError as e:
         raise exceptions.InvalidScript(
-            "JSON in `%s` has an error: %s" % (filename, e.pretty_description())
+            "JSON in `%s` has an error: %s" % (filename, str(e))
         )
     return decoded
 

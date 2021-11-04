@@ -8,7 +8,6 @@ tornado==6.0.4
 simplejson
 jsonschema
 jsonpickle
-demjson
 
 # Used to parse CFN yaml, which has a few edge cases PyYaml doesn't parse by default
 cfn-flip

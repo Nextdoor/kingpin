@@ -23,7 +23,7 @@ or asynchronous stages.
 import logging
 
 from tornado import gen
-import demjson
+import json
 
 from kingpin import utils as kp_utils
 from kingpin.actors import base
@@ -143,7 +143,7 @@ class BaseGroupActor(base.BaseActor):
             context_string = kp_utils.populate_with_tokens(
                 string=context_string, tokens=contexts.get("tokens", {}), strict=True
             )
-            context_data = demjson.decode(context_string)
+            context_data = json.loads(context_string)
         # END DEPRECATION
 
         # If the data passed in is a string, it must be a pointer to a file

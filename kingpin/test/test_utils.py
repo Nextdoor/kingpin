@@ -143,7 +143,7 @@ class TestUtils(unittest.TestCase):
         self.assertIsInstance(ret, dict)
 
     def test_convert_script_to_dict_bad_name(self):
-        instance = io.StringIO()  # Empty buffer will fail demjson.
+        instance = io.StringIO()  # Empty buffer will fail json
         instance.name = "Somefile.HAHA"
 
         with self.assertRaises(exceptions.InvalidScriptName):

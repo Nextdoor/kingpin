@@ -1,4 +1,4 @@
-import demjson
+import json
 import os
 
 import unittest
@@ -15,25 +15,25 @@ class TestSchema(unittest.TestCase):
         self.examples = "%s/../../examples" % dirname
 
     def test_validate_with_simple_json(self):
-        json = demjson.decode(open("%s/simple.json" % self.examples).read())
-        ret = schema.validate(json)
+        j = json.loads(open("%s/simple.json" % self.examples).read())
+        ret = schema.validate(j)
         self.assertEqual(None, ret)
 
     def test_validate_with_complex_json(self):
-        json = demjson.decode(open("%s/complex.json" % self.examples).read())
-        ret = schema.validate(json)
+        j = json.loads(open("%s/complex.json" % self.examples).read())
+        ret = schema.validate(j)
         self.assertEqual(None, ret)
 
     def test_validate_with_invalid_json(self):
-        json = {"this": "is", "invalid": "ok"}
+        j = {"this": "is", "invalid": "ok"}
         with self.assertRaises(exceptions.InvalidScript):
-            schema.validate(json)
+            schema.validate(j)
 
     def test_validate_with_array_syntax(self):
-        json = [{"actor": "some actor"}]
-        schema.validate(json)
+        j = [{"actor": "some actor"}]
+        schema.validate(j)
 
     def test_validate_with_invalid_array(self):
-        json = [{"garbage": "json"}]
+        j = [{"garbage": "json"}]
         with self.assertRaises(exceptions.InvalidScript):
-            schema.validate(json)
+            schema.validate(j)

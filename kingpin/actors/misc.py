@@ -71,9 +71,7 @@ class Macro(base.BaseActor):
     **Parse JSON/YAML**
 
     Kingpin JSON/YAML has 2 passes at its validity. Script syntax must be
-    valid, with the exception of a few useful deviations allowed by `demjson
-    <http://deron.meranda.us/python/demjson/>`_ parser. Main
-    one being the permission of inline comments via ``/* this */`` syntax.
+    valid clean JSON.
 
     The second pass is validating the Schema. The script will be validated
     for schema-conformity as one of the first things that happens at load-time

@@ -151,6 +151,7 @@ class AWSBaseActor(base.BaseActor):
 
         Example:
             >>> zones = yield thread(ec2_conn.get_all_zones)
+
         This allows execution of any function in a thread without having
         to write a wrapper method that is decorated with run_on_executor()
         """
