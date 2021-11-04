@@ -64,7 +64,7 @@ credentials are all correct.
 
 .. code-block:: bash
 
-    HIPCHAT_TOKEN=<xxx> RIGHTSCALE_TOKEN=<xxx> INTEGRATION_TESTS=<comma separated list> make integration
+    HIPCHAT_TOKEN=<xxx> INTEGRATION_TESTS=<comma separated list> make integration
 
     ...
     integration_02a_clone (integration_server_array.IntegrationServerArray) ... ok

@@ -32,8 +32,6 @@ simple as this:
 
 .. code-block:: bash
 
-    $ export RIGHTSCALE_TOKEN=xyz
-    $ export RIGHTSCALE_ENDPOINT=https://us-3.rightscale.com
     $ (.venv)$ kingpin -s examples/simple.json -d
     2014-09-01 21:18:09,022 INFO      [main stage (DRY Mode)] Beginning
     2014-09-01 21:18:09,022 INFO      [stage 1 (DRY Mode)] Beginning
@@ -97,7 +95,7 @@ The schema is simple. We take a single JSON or YAML object that has a few
 fields:
 
 -  ``actor`` - A text-string describing the name of the Actor package
-   and class. For example, ``rightscale.server_array.Clone``, or ``misc.Sleep``.
+   and class. For example, ``misc.Sleep``
 -  ``condition`` - A bool or string that indicates whether or not to
    execute this actor. Most commonly used with a token variable for its value.
 -  ``desc`` - A text-string describing the name of the stage or action.
