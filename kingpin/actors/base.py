@@ -809,10 +809,10 @@ class HTTPBaseActor(BaseActor):
         """
 
         # Remove keys from the arguments where the value is None
-        args = dict((k, v) for k, v in args.items() if v)
+        args = dict((k, v) for k, v in list(args.items()) if v)
 
         # Convert all Bool values to lowercase strings
-        for key, value in args.items():
+        for key, value in list(args.items()):
             if type(value) is bool:
                 args[key] = str(value).lower()
 

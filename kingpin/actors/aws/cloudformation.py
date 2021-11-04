@@ -1073,7 +1073,7 @@ class Stack(CloudFormationBaseActor):
         filtered_remote = []
         for param in remote:
             filtered_param = {}
-            for k, v in param.items():
+            for k, v in list(param.items()):
                 if k != "ResolvedValue":
                     filtered_param[k] = v
             filtered_remote.append(filtered_param)

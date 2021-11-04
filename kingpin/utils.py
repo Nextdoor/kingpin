@@ -289,7 +289,7 @@ def populate_with_tokens(
     # etc), then skip this.
     allowed_types = (str, str, bool, int, float)
     if tokens:
-        for k, v in tokens.items():
+        for k, v in list(tokens.items()):
 
             if type(v) not in allowed_types:
                 log.warning(

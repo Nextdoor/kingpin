@@ -662,7 +662,9 @@ class Bucket(base.EnsurableAWSBaseActor):
         if isinstance(data, list):
             return [self._snake_to_camel(v) for v in data]
         elif isinstance(data, dict):
-            return dict((camelize(k), self._snake_to_camel(v)) for k, v in data.items())
+            return dict(
+                (camelize(k), self._snake_to_camel(v)) for k, v in list(data.items())
+            )
         else:
             return data
 
