@@ -10,6 +10,7 @@ env:
 before_install:
   - sudo rm -f /etc/boto.cfg
 install:
+  - pip install pip --upgrade
   - make build
 script: make test
 before_deploy:
