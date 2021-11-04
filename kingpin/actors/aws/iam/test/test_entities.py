@@ -1098,6 +1098,70 @@ class TestInstanceProfile(testing.AsyncTestCase):
         self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
+    def test_ensure_role_with_no_role_set_and_is_missing_correctly(self):
+        self.iam_stubber.add_response(
+            # API Call
+            'get_instance_profile',
+            # Response
+            {'InstanceProfile':
+                 {'Arn': 'arn:aws:iam::...:instance-profile/...',
+                  'CreateDate': datetime(2016, 9, 28, 19, 23, 4),
+                  'InstanceProfileId': '...................',
+                  'InstanceProfileName': 'test',
+                  'Path': '/',
+                  'Roles': [],
+                  'Tags': [],
+                  },
+             },
+
+            # Call Params
+            {'InstanceProfileName': 'test'}
+        )
+        self.iam_stubber.activate()
+        yield self.actor._ensure_role('test', None)
+        self.iam_stubber.assert_no_pending_responses()
+
+    @testing.gen_test
+    def test_ensure_role_existing_role_but_want_none(self):
+        self.iam_stubber.add_response(
+            # API Call
+            'get_instance_profile',
+            # Response
+            {'InstanceProfile':
+                 {'Arn': 'arn:aws:iam::...:instance-profile/...',
+                  'CreateDate': datetime(2016, 9, 28, 19, 23, 4),
+                  'InstanceProfileId': '...................',
+                  'InstanceProfileName': 'test',
+                  'Path': '/',
+                  'Roles': [
+                      {'Arn': '......................................',
+                       'AssumeRolePolicyDocument': '{}',
+                       'CreateDate': datetime(2016, 9, 28, 19, 23, 4),
+                       'Path': '/',
+                       'RoleId': '.....................',
+                       'RoleName': 'wrong-role'}
+                  ],
+                  'Tags': [],
+                  },
+             },
+
+            # Call Params
+            {'InstanceProfileName': 'test'}
+        )
+
+        self.iam_stubber.add_response(
+            # API Call
+            'remove_role_from_instance_profile',
+            # Response
+            {},
+            # Call Params
+            {'InstanceProfileName': 'test', 'RoleName': 'wrong-role'}
+        )
+        self.iam_stubber.activate()
+        yield self.actor._ensure_role('test', None)
+        self.iam_stubber.assert_no_pending_responses()
+
+    @testing.gen_test
     def test_ensure_role_not_matching(self):
         self.iam_stubber.add_response(
             # API Call

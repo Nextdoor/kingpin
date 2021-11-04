@@ -1,7 +1,9 @@
 import logging
 
+from boto3 import exceptions as boto3_exceptions
 from botocore import stub
 from tornado import testing
+import botocore.exceptions
 import mock
 
 from kingpin.actors import exceptions
@@ -51,6 +53,24 @@ class TestBase(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = 'unit-test'
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         importlib.reload(base)
+
+    @testing.gen_test
+    def test_api_call_raises_client_exception(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        stubber = stub.Stubber(actor.iam_conn)
+        stubber.add_client_error('list_roles', 400, 'Error')
+        stubber.activate()
+        with self.assertRaises(botocore.exceptions.ClientError):
+            yield actor.api_call(actor.iam_conn.list_roles)
+        stubber.assert_no_pending_responses()
+
+    @testing.gen_test
+    def test_api_call_raises_boto3_core_exception(self):
+        actor = base.AWSBaseActor('Unit Test Action', {})
+        actor.iam_conn = mock.MagicMock()
+        actor.iam_conn.list_roles.side_effect = boto3_exceptions.Boto3Error
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield actor.api_call(actor.iam_conn.list_roles)
 
     @testing.gen_test
     def test_parse_policy_json(self):

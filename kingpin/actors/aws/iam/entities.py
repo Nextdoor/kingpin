@@ -196,8 +196,6 @@ class EntityBaseActor(base.IAMBaseActor):
             else:
                 raise exceptions.RecoverableActorFailure(
                     'An unexpected API error occurred: %s' % e)
-        except TypeError:
-            pass
 
         # Iterate through all of the named policies and fire off
         # get-requests, but don't yield on them yet.
@@ -582,7 +580,7 @@ class User(EntityBaseActor):
             for new_group in set(groups) - current_groups:
                 tasks.append(self._add_user_to_group(name, new_group))
         except StopIteration:
-            pass
+            pass  # pragma: no cover
 
         yield tasks
 
@@ -710,9 +708,6 @@ class Group(EntityBaseActor):
             if 'NoSuchEntity' not in str(e):
                 raise exceptions.RecoverableActorFailure(
                     'An unexpected API error occurred: %s' % e)
-        except KeyError:
-            # No users!
-            users = []
 
         raise gen.Return(users)
 
@@ -1048,8 +1043,8 @@ class InstanceProfile(EntityBaseActor):
         elif existing and not role:
             try:
                 yield self._remove_role(name, existing)
-            except StopIteration:
-                return
+            except StopIteration:  # pragma: no cover
+                return  # pragma: no cover
         elif not existing and role:
             yield self._add_role(name, role)
         elif existing != role:

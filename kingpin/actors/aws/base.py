@@ -189,7 +189,7 @@ class AWSBaseActor(base.BaseActor):
         queue = NAMED_API_CALL_QUEUES[queue_name]
         try:
             result = yield queue.call(api_function, *args, **kwargs)
-        except boto3_exceptions.Boto3Error as e:
+        except botocore_exceptions.ClientError as e:
             raise self._wrap_boto_exception(e)
         else:
             raise gen.Return(result)
