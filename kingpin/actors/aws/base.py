@@ -32,12 +32,7 @@ _Note, these can be skipped only if you have a .aws/credentials file in place._
   Your AWS secret
 """
 
-import json
 import logging
-import urllib.request
-import urllib.parse
-import urllib.error
-import re
 
 from boto3 import exceptions as boto3_exceptions
 from botocore import exceptions as botocore_exceptions
