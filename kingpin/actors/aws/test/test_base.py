@@ -52,15 +52,6 @@ class TestBase(testing.AsyncTestCase):
         settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
         importlib.reload(base)
 
-    def test_region_check(self):
-        with self.assertRaises(exceptions.InvalidOptions):
-            base.AWSBaseActor('Unit Test Action', {'region': 'fail'})
-
-    def test_zone_check(self):
-        actor = base.AWSBaseActor('Unit Test Action',
-                                  {'region': 'us-west-1d'})
-        self.assertEqual(actor.region, 'us-west-1')
-
     @testing.gen_test
     def test_parse_policy_json(self):
         actor = base.AWSBaseActor('Unit Test Action', {})

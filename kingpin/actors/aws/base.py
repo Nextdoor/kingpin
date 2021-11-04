@@ -115,25 +115,6 @@ class AWSBaseActor(base.BaseActor):
         if not self.region:
             return
 
-        # In case a zone was provided instead of region we can convert
-        # it on the fly
-        zone_check = re.match(r'(.*[0-9])([a-z]*)$', self.region)
-
-        if zone_check and zone_check.group(2):
-            zone = self.region  # Only saving this for the log below
-
-            # Set the fixed region
-            self.region = zone_check.group(1)
-            self.log.warning('Converting zone "%s" to region "%s".' % (
-                zone, self.region))
-
-        # Get the list of available AWS Region Names
-        region_names = [r['RegionName'] for r in boto3.client('ec2').describe_regions().get('Regions', [])]
-        if self.region not in region_names:
-            err = ('Region "%s" not found. Available regions: %s' %
-                   (self.region, region_names))
-            raise exceptions.InvalidOptions(err)
-
         # Generate our common config options that will be passed into the boto3
         # client constructors...
         boto_config = botocore_config.Config(
