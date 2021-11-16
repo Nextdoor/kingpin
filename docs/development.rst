@@ -64,7 +64,7 @@ credentials are all correct.
 
 .. code-block:: bash
 
-    HIPCHAT_TOKEN=<xxx> RIGHTSCALE_TOKEN=<xxx> INTEGRATION_TESTS=<comma separated list> make integration
+    HIPCHAT_TOKEN=<xxx> INTEGRATION_TESTS=<comma separated list> make integration
 
     ...
     integration_02a_clone (integration_server_array.IntegrationServerArray) ... ok
@@ -118,7 +118,6 @@ suites. See below for the list.
 
 * aws
 * librato
-* rightscale
 * http
 * hipchat
 * pingdom
@@ -137,21 +136,8 @@ Class/Object Architecture
     +-- deployment.Deployer
         | Executes a deployment based on the supplied DSL.
         |
-        +-- actors.rightscale
-        |   | RightScale Cloud Management Actor
-        |   |
-        |   +-- server_array
-        |       +-- Clone
-        |       +-- Destroy
-        |       +-- Execute
-        |       +-- Launch
-        |       +-- Update
-        |
         +-- actors.aws
         |   | Amazon Web Services Actor
-        |   |
-        |   +-- elb
-        |   |   +-- WaitUntilHealthy
         |   |
         |   +-- sqs
         |       +-- Create
@@ -305,10 +291,10 @@ All logging (when using :ref:`self.log`) are passed through a custom
 All Actors *must* support a ``dry`` run flag. The codepath thats executed when
 ``_execute()`` is yielded should be as wet as possible without actually making
 any changes. For example, if you have an actor that checks the state of an
-Amazon ELB (*hint see* :py:mod:`kingpin.actors.aws.elb.WaitUntilHealthy`), you
-would want the actor to actually search Amazons API for the ELB, actually check
-the number of instances that are healthy in the ELB, and then fake a return
-value so that the rest of the script can be tested.
+CloudFormaion stack (*hint see*
+:py:mod:`kingpin.actors.aws.cloudformation.Stack`), you would want the actor to
+actually search Amazons API for the CFN stack, check its current state,
+compare the desired and actual templates, etc.
 
 .. _all_options:
 

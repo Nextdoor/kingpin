@@ -13,7 +13,8 @@ from kingpin.actors import librato
 
 
 class FakeHTTPClientClass(object):
-    '''Fake HTTPClient object for testing'''
+    """Fake HTTPClient object for testing"""
+
     response_value = None
 
     @gen.coroutine
@@ -22,7 +23,8 @@ class FakeHTTPClientClass(object):
 
 
 class FakeExceptionRaisingHTTPClientClass(object):
-    '''Fake HTTPClient object for testing'''
+    """Fake HTTPClient object for testing"""
+
     response_value = None
 
     @gen.coroutine
@@ -36,8 +38,8 @@ class TestLibratoAnnotation(testing.AsyncTestCase):
     def setUp(self, *args, **kwargs):
         # For most tests, mock out the TOKEN
         super(TestLibratoAnnotation, self).setUp()
-        librato.TOKEN = 'Unittest'
-        librato.EMAIL = 'Unittest'
+        librato.TOKEN = "Unittest"
+        librato.EMAIL = "Unittest"
 
     @testing.gen_test
     def test_init_without_token(self):
@@ -45,10 +47,9 @@ class TestLibratoAnnotation(testing.AsyncTestCase):
         librato.TOKEN = None
         with self.assertRaises(exceptions.InvalidCredentials):
             librato.Annotation(
-                'Unit Test Action',
-                {'title': 'unittest',
-                 'description': 'unittest',
-                 'name': 'unittest'})
+                "Unit Test Action",
+                {"title": "unittest", "description": "unittest", "name": "unittest"},
+            )
 
     @testing.gen_test
     def test_init_without_email(self):
@@ -56,23 +57,20 @@ class TestLibratoAnnotation(testing.AsyncTestCase):
         librato.EMAIL = None
         with self.assertRaises(exceptions.InvalidCredentials):
             librato.Annotation(
-                'Unit Test Action',
-                {'title': 'unittest',
-                 'description': 'unittest',
-                 'name': 'unittest'})
+                "Unit Test Action",
+                {"title": "unittest", "description": "unittest", "name": "unittest"},
+            )
 
     @testing.gen_test
     def test_execute_with_400(self):
         actor = librato.Annotation(
-            'Unit Test Action',
-            {'title': 'unittest',
-             'description': 'unittest',
-             'name': 'unittest'})
+            "Unit Test Action",
+            {"title": "unittest", "description": "unittest", "name": "unittest"},
+        )
 
-        http_response = httpclient.HTTPError(
-            code=400, response={})
+        http_response = httpclient.HTTPError(code=400, response={})
 
-        with mock.patch.object(actor, '_get_http_client') as m:
+        with mock.patch.object(actor, "_get_http_client") as m:
             m.return_value = FakeExceptionRaisingHTTPClientClass()
             m.return_value.response_value = http_response
 
@@ -82,15 +80,13 @@ class TestLibratoAnnotation(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute_with_401(self):
         actor = librato.Annotation(
-            'Unit Test Action',
-            {'title': 'unittest',
-             'description': 'unittest',
-             'name': 'unittest'})
+            "Unit Test Action",
+            {"title": "unittest", "description": "unittest", "name": "unittest"},
+        )
 
-        http_response = httpclient.HTTPError(
-            code=401, response={})
+        http_response = httpclient.HTTPError(code=401, response={})
 
-        with mock.patch.object(actor, '_get_http_client') as m:
+        with mock.patch.object(actor, "_get_http_client") as m:
             m.return_value = FakeExceptionRaisingHTTPClientClass()
             m.return_value.response_value = http_response
 
@@ -100,15 +96,13 @@ class TestLibratoAnnotation(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute_with_unknown_exception(self):
         actor = librato.Annotation(
-            'Unit Test Action',
-            {'title': 'unittest',
-             'description': 'unittest',
-             'name': 'unittest'})
+            "Unit Test Action",
+            {"title": "unittest", "description": "unittest", "name": "unittest"},
+        )
 
-        http_response = httpclient.HTTPError(
-            code=123, response={})
+        http_response = httpclient.HTTPError(code=123, response={})
 
-        with mock.patch.object(actor, '_get_http_client') as m:
+        with mock.patch.object(actor, "_get_http_client") as m:
             m.return_value = FakeExceptionRaisingHTTPClientClass()
             m.return_value.response_value = http_response
 
@@ -118,18 +112,17 @@ class TestLibratoAnnotation(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute(self):
         actor = librato.Annotation(
-            'Unit Test Action',
-            {'title': 'unittest',
-             'description': 'unittest',
-             'name': 'unittest'})
+            "Unit Test Action",
+            {"title": "unittest", "description": "unittest", "name": "unittest"},
+        )
 
-        response_dict = {'status': 'sent'}
+        response_dict = {"status": "sent"}
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
-            httpclient.HTTPRequest('/'), code=200,
-            buffer=io.StringIO(response_body))
+            httpclient.HTTPRequest("/"), code=200, buffer=io.StringIO(response_body)
+        )
 
-        with mock.patch.object(actor, '_get_http_client') as m:
+        with mock.patch.object(actor, "_get_http_client") as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._execute()
@@ -138,19 +131,18 @@ class TestLibratoAnnotation(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute_dry_mode_response(self):
         actor = librato.Annotation(
-            'Unit Test Action',
-            {'title': 'unittest',
-             'description': 'unittest',
-             'name': 'unittest'})
+            "Unit Test Action",
+            {"title": "unittest", "description": "unittest", "name": "unittest"},
+        )
         actor._dry = True
 
-        response_dict = {'status': 'sent'}
+        response_dict = {"status": "sent"}
         response_body = json.dumps(response_dict)
         http_response = httpclient.HTTPResponse(
-            httpclient.HTTPRequest('/'), code=200,
-            buffer=io.StringIO(response_body))
+            httpclient.HTTPRequest("/"), code=200, buffer=io.StringIO(response_body)
+        )
 
-        with mock.patch.object(actor, '_get_http_client') as m:
+        with mock.patch.object(actor, "_get_http_client") as m:
             m.return_value = FakeHTTPClientClass()
             m.return_value.response_value = http_response
             res = yield actor._execute()

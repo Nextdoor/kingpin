@@ -15,24 +15,6 @@ CloudFormation
    :members:
    :exclude-members: CloudFormationBaseActor, CloudFormationError, InvalidTemplate, StackAlreadyExists, StackNotFound
 
-Elastic Container Service (ECS)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. automodule:: kingpin.actors.aws.ecs
-   :noindex:
-   :members:
-   :exclude-members: ECSBaseActor
-
-Elastic Load Balancing (ELB)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. automodule:: kingpin.actors.aws.elb
-   :noindex:
-   :members:
-   :exclude-members: CertNotFound, p2f, ELBBaseActor
-
-.. automodule:: kingpin.actors.aws.elbv2
-   :noindex:
-   :members:
-
 Identity and Access Management (IAM)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. automodule:: kingpin.actors.aws.iam
@@ -46,10 +28,3 @@ Simple Storage Service (S3)
    :noindex:
    :members:
    :exclude-members: InvalidBucketConfig, S3BaseActor
-
-Simple Queue Service (SQS)
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. automodule:: kingpin.actors.aws.sqs
-   :noindex:
-   :members:
-   :exclude-members: QueueNotFound, QueueDeletionFailed

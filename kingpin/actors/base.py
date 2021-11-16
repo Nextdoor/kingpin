@@ -49,19 +49,19 @@ from kingpin.constants import REQUIRED, STATE
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Matt Wise <matt@nextdoor.com>'
+__author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 # If super-debug logging is enabled, then we turn on the URLLIB3 HTTP
 # request logging. This is extremely verbose and insecure, but useful
 # for troubleshooting. URLLIB3 is used by several actors (aws, rightscale),
 # so we do this setup here in the base actor class.
-if os.getenv('URLLIB_DEBUG', None):
+if os.getenv("URLLIB_DEBUG", None):
     utils.super_httplib_debug_logging()
 
 # Allow the user to override the default_timeout for all actors by setting an
 # environment variable
-DEFAULT_TIMEOUT = os.getenv('DEFAULT_TIMEOUT', 3600)
+DEFAULT_TIMEOUT = os.getenv("DEFAULT_TIMEOUT", 3600)
 
 
 class LogAdapter(logging.LoggerAdapter):
@@ -73,8 +73,7 @@ class LogAdapter(logging.LoggerAdapter):
     """
 
     def process(self, msg, kwargs):
-        return ('[%s%s] %s' % (self.extra['dry'], self.extra['desc'], msg),
-                kwargs)
+        return ("[%s%s] %s" % (self.extra["dry"], self.extra["desc"], msg), kwargs)
 
 
 class BaseActor(object):
@@ -104,8 +103,8 @@ class BaseActor(object):
     # Context separators. These define the left-and-right identifiers of a
     # 'contextual token' in the actor. By default this is { and }, so a
     # contextual token looks like '{KEY}'.
-    left_context_separator = '{'
-    right_context_separator = '}'
+    left_context_separator = "{"
+    right_context_separator = "}"
 
     # Ensure that at __init__ time, if the self._options dict is not completely
     # filled in properly (meaning there are no left-over {KEY}'s), we throw an
@@ -117,9 +116,17 @@ class BaseActor(object):
     # escaped.
     remove_escape_sequence = True
 
-    def __init__(self, desc=None, options={}, dry=False, warn_on_failure=False,
-                 condition=True, init_context={}, init_tokens={},
-                 timeout=None):
+    def __init__(
+        self,
+        desc=None,
+        options={},
+        dry=False,
+        warn_on_failure=False,
+        condition=True,
+        init_context={},
+        init_tokens={},
+        timeout=None,
+    ):
         """Initializes the Actor.
 
         Args:
@@ -138,7 +145,7 @@ class BaseActor(object):
             some custom tokens. Set generally by the misc.Macro actor.
             timeout: (Str/Int/Float) Timeout in seconds for the actor.
         """
-        self._type = '%s.%s' % (self.__module__, self.__class__.__name__)
+        self._type = "%s.%s" % (self.__module__, self.__class__.__name__)
         self._options = options
         self._desc = desc
         self._dry = dry
@@ -156,18 +163,20 @@ class BaseActor(object):
         self._fill_in_contexts(
             context=self._init_context,
             strict=self.strict_init_context,
-            remove_escape_sequence=self.remove_escape_sequence)
+            remove_escape_sequence=self.remove_escape_sequence,
+        )
 
         self._setup_log()
         self._setup_defaults()
         self._validate_options()  # Relies on _setup_log() above
 
         # Fill in any options with the supplied initialization context. Be
-        self.log.debug('Initialized (warn_on_failure=%s, '
-                       'strict_init_context=%s,'
-                       'remove_escape_sequence=%s)' %
-                       (warn_on_failure, self.strict_init_context,
-                        self.remove_escape_sequence))
+        self.log.debug(
+            "Initialized (warn_on_failure=%s, "
+            "strict_init_context=%s,"
+            "remove_escape_sequence=%s)"
+            % (warn_on_failure, self.strict_init_context, self.remove_escape_sequence)
+        )
 
     def __repr__(self):
         """Returns a nice name/description of the actor.
@@ -188,11 +197,11 @@ class BaseActor(object):
 
     def _setup_log(self):
         """Create a customized logging object based on the LogAdapter."""
-        name = '%s.%s' % (self.__module__, self.__class__.__name__)
+        name = "%s.%s" % (self.__module__, self.__class__.__name__)
         logger = logging.getLogger(name)
-        dry_str = 'DRY: ' if self._dry else ''
+        dry_str = "DRY: " if self._dry else ""
 
-        self.log = LogAdapter(logger, {'desc': self, 'dry': dry_str})
+        self.log = LogAdapter(logger, {"desc": self, "dry": dry_str})
 
     def _setup_defaults(self):
         """Populate options with defaults if they aren't set."""
@@ -214,24 +223,26 @@ class BaseActor(object):
         """
 
         # Loop through all_options, and find the required ones
-        required = [opt_name
-                    for (opt_name, definition) in
-                    list(self.all_options.items())
-                    if definition[1] is REQUIRED]
+        required = [
+            opt_name
+            for (opt_name, definition) in list(self.all_options.items())
+            if definition[1] is REQUIRED
+        ]
 
-        self.log.debug('Checking for required options: %s' % required)
+        self.log.debug("Checking for required options: %s" % required)
         option_errors = []
         option_warnings = []
         for opt in required:
             if opt not in self._options:
                 description = self.all_options[opt][2]
-                option_errors.append('Option "%s" is required: %s' % (
-                                     opt, description))
+                option_errors.append('Option "%s" is required: %s' % (opt, description))
 
         for opt, value in list(self._options.items()):
             if opt not in self.all_options:
-                option_warnings.append('Option "%s" is not expected by %s.' % (
-                    opt, self.__class__.__name__))
+                option_warnings.append(
+                    'Option "%s" is not expected by %s.'
+                    % (opt, self.__class__.__name__)
+                )
                 continue
 
             expected_type = self.all_options[opt][0]
@@ -243,7 +254,7 @@ class BaseActor(object):
 
             # If the expected_type has an attribute 'valid', then verify that
             # the option passed in is one of those valid options.
-            if hasattr(expected_type, 'validate'):
+            if hasattr(expected_type, "validate"):
                 try:
                     expected_type.validate(value)
                     continue
@@ -262,7 +273,10 @@ class BaseActor(object):
 
             if not (value is None or isinstance(value, expected_type)):
                 message = 'Option "%s" has to be %s and is %s.' % (
-                    opt, expected_type, type(value))
+                    opt,
+                    expected_type,
+                    type(value),
+                )
                 option_errors.append(message)
 
         for w in option_warnings:
@@ -272,7 +286,8 @@ class BaseActor(object):
             for e in option_errors:
                 self.log.critical(e)
             raise exceptions.InvalidOptions(
-                'Found %s issue(s) with passed options.' % len(option_errors))
+                "Found %s issue(s) with passed options." % len(option_errors)
+            )
 
     def option(self, name):
         """Return the value for a given Actor option."""
@@ -314,8 +329,9 @@ class BaseActor(object):
         """
 
         # Get our timeout setting, or fallback to the default
-        self.log.debug('%s.%s() deadline: %s(s)' %
-                       (self._type, f.__name__, self._timeout))
+        self.log.debug(
+            "%s.%s() deadline: %s(s)" % (self._type, f.__name__, self._timeout)
+        )
 
         # Get our Future object but don't yield on it yet, This starts the
         # execution, but allows us to wrap it below with the
@@ -335,10 +351,14 @@ class BaseActor(object):
         # Now we yield on the gen_with_timeout function
         try:
             ret = yield gen.with_timeout(
-                deadline, fut, quiet_exceptions=(exceptions.ActorTimedOut))
+                deadline, fut, quiet_exceptions=(exceptions.ActorTimedOut)
+            )
         except gen.TimeoutError:
-            msg = ('%s.%s() execution exceeded deadline: %ss' %
-                   (self._type, f.__name__, self._timeout))
+            msg = "%s.%s() execution exceeded deadline: %ss" % (
+                self._type,
+                f.__name__,
+                self._timeout,
+            )
             self.log.error(msg)
             raise exceptions.ActorTimedOut(msg)
 
@@ -356,16 +376,16 @@ class BaseActor(object):
         returns:
             A boolean
         """
-        false = ('no', 'false', 'f', '0')
-        true = ('yes', 'true', 't', '1')
+        false = ("no", "false", "f", "0")
+        true = ("yes", "true", "t", "1")
 
         string = str(v).lower()
 
         if strict:
             if string not in true and string not in false:
                 raise exceptions.InvalidOptions(
-                    'Expected [%s, %s] but got: %s' %
-                    (true, false, string))
+                    "Expected [%s, %s] but got: %s" % (true, false, string)
+                )
 
         return string not in false
 
@@ -378,12 +398,10 @@ class BaseActor(object):
         """
 
         check = self.str2bool(self._condition)
-        self.log.debug('Condition %s evaluates to %s' % (
-            self._condition, check))
+        self.log.debug("Condition %s evaluates to %s" % (self._condition, check))
         return check
 
-    def _fill_in_contexts(self, context={}, strict=True,
-                          remove_escape_sequence=True):
+    def _fill_in_contexts(self, context={}, strict=True, remove_escape_sequence=True):
         """Parses self._options and updates it with the supplied context.
 
         Parses the objects self._options dict (by converting it into a JSON
@@ -406,9 +424,10 @@ class BaseActor(object):
                 self.left_context_separator,
                 self.right_context_separator,
                 strict=strict,
-                remove_escape_sequence=remove_escape_sequence)
+                remove_escape_sequence=remove_escape_sequence,
+            )
         except LookupError as e:
-            msg = 'Context for description failed: %s' % e
+            msg = "Context for description failed: %s" % e
             raise exceptions.InvalidOptions(msg)
 
         # Inject contexts into condition
@@ -419,9 +438,10 @@ class BaseActor(object):
                 self.left_context_separator,
                 self.right_context_separator,
                 strict=strict,
-                remove_escape_sequence=remove_escape_sequence)
+                remove_escape_sequence=remove_escape_sequence,
+            )
         except LookupError as e:
-            msg = 'Context for condition failed: %s' % e
+            msg = "Context for condition failed: %s" % e
             raise exceptions.InvalidOptions(msg)
 
         # Convert our self._options dict into a string for fast parsing
@@ -438,16 +458,17 @@ class BaseActor(object):
                 self.left_context_separator,
                 self.right_context_separator,
                 strict=strict,
-                escape_sequence='\\\\',
-                remove_escape_sequence=remove_escape_sequence)
+                escape_sequence="\\\\",
+                remove_escape_sequence=remove_escape_sequence,
+            )
         except LookupError as e:
-            msg = 'Context for options failed: %s' % e
+            msg = "Context for options failed: %s" % e
             raise exceptions.InvalidOptions(msg)
 
         # Finally, convert the string back into a dict and store it.
         self._options = json.loads(new_options_string)
 
-    def get_orgchart(self, parent=''):
+    def get_orgchart(self, parent=""):
         """Construct organizational chart describing this actor.
 
         Return a list of actors handled by this actor. Most actors will return
@@ -461,13 +482,15 @@ class BaseActor(object):
           parent_id: organizational relationship. Same as `id` above.
         """
 
-        return [{
-            'id': str(id(self)),
-            'desc': self._desc,
-            'class': self.__class__.__name__,
-            # 'options': self._options,  # May include tokens & ENV vars
-            'parent_id': parent,
-        }]
+        return [
+            {
+                "id": str(id(self)),
+                "desc": self._desc,
+                "class": self.__class__.__name__,
+                # 'options': self._options,  # May include tokens & ENV vars
+                "parent_id": parent,
+            }
+        ]
 
     @gen.coroutine
     @timer
@@ -490,15 +513,14 @@ class BaseActor(object):
         Raises:
             gen.Return(result)
         """
-        self.log.debug('Beginning')
+        self.log.debug("Beginning")
 
         # Any exception thats raised by an actors _execute() method will
         # automatically cause actor failure and we return right away.
         result = None
 
         if not self._check_condition():
-            self.log.warning('Skipping execution. Condition: %s' %
-                             self._condition)
+            self.log.warning("Skipping execution. Condition: %s" % self._condition)
             raise gen.Return()
 
         try:
@@ -514,22 +536,24 @@ class BaseActor(object):
             # Otherwise - flag this failure as a warning, and continue
             self.log.warning(e)
             self.log.warning(
-                'Continuing execution even though a failure was '
-                'detected (warn_on_failure=%s)' % self._warn_on_failure)
+                "Continuing execution even though a failure was "
+                "detected (warn_on_failure=%s)" % self._warn_on_failure
+            )
         except Exception as e:
             # We don't like general exception catch clauses like this, but
             # because actors can be written by third parties and automatically
             # imported, its impossible for us to catch every exception
             # possible. This is a failsafe thats meant to throw a strong
             # warning.
-            log.critical('Unexpected exception caught! '
-                         'Please contact the author (%s) and provide them '
-                         'with this stacktrace' %
-                         sys.modules[self.__module__].__author__)
+            log.critical(
+                "Unexpected exception caught! "
+                "Please contact the author (%s) and provide them "
+                "with this stacktrace" % sys.modules[self.__module__].__author__
+            )
             self.log.exception(e)
             raise exceptions.ActorException(e)
         else:
-            self.log.debug('Finished successfully, return value: %s' % result)
+            self.log.debug("Finished successfully, return value: %s" % result)
 
         # If we got here, we're exiting the actor cleanly and moving on.
         raise gen.Return(result)
@@ -613,8 +637,11 @@ class EnsurableBaseActor(BaseActor):
 
     def __init__(self, *args, **kwargs):
         # The 'state' parameter is a given, so make sure its set,
-        self.all_options['state'] = (
-            STATE, 'present', 'Desired state: present or absent')
+        self.all_options["state"] = (
+            STATE,
+            "present",
+            "Desired state: present or absent",
+        )
 
         # Now go ahead and validate all of the user inputs the normal way
         super(EnsurableBaseActor, self).__init__(*args, **kwargs)
@@ -640,22 +667,25 @@ class EnsurableBaseActor(BaseActor):
         self.getters = {}
         self.comparers = {}
         for option in self._ensurable_options:
-            setter = '_set_%s' % option
-            getter = '_get_%s' % option
-            comparer = '_compare_%s' % option
+            setter = "_set_%s" % option
+            getter = "_get_%s" % option
+            comparer = "_compare_%s" % option
 
             if not self._is_method(getter) or not self._is_method(setter):
                 raise exceptions.UnrecoverableActorFailure(
-                    'Invalid Actor Code Detected in %s: '
-                    'Unable to find required methods: %s, %s'
-                    % (self.__class__.__name__, setter, getter))
+                    "Invalid Actor Code Detected in %s: "
+                    "Unable to find required methods: %s, %s"
+                    % (self.__class__.__name__, setter, getter)
+                )
 
             if not self._is_method(comparer):
+
                 @gen.coroutine
                 def _comparer(option=option):
                     existing = yield self.getters[option]()
                     new = self.option(option)
                     raise gen.Return(existing == new)
+
                 setattr(self, comparer, _comparer)
                 # self.log.debug('Creating dynamic method %s' % comparer)
 
@@ -679,11 +709,11 @@ class EnsurableBaseActor(BaseActor):
 
     @gen.coroutine
     def _get_state(self):
-        raise NotImplementedError('_get_state is required for Ensurable')
+        raise NotImplementedError("_get_state is required for Ensurable")
 
     @gen.coroutine
     def _set_state(self):
-        raise NotImplementedError('_set_state is required for Ensurable')
+        raise NotImplementedError("_set_state is required for Ensurable")
 
     @gen.coroutine
     def _ensure(self, option):
@@ -714,15 +744,15 @@ class EnsurableBaseActor(BaseActor):
         """
         yield self._precache()
 
-        yield self._ensure('state')
+        yield self._ensure("state")
 
-        if self.option('state') == 'absent':
+        if self.option("state") == "absent":
             raise gen.Return()
 
         for option in self._ensurable_options:
             # We've already managed state .. so make sure we skip the state
             # option and only manage the others.
-            if option != 'state':
+            if option != "state":
                 yield self._ensure(option)
 
 
@@ -758,9 +788,9 @@ class HTTPBaseActor(BaseActor):
         """
         # If there is no post data, set the request method to GET
         if post is not None:
-            return 'POST'
+            return "POST"
         else:
-            return 'GET'
+            return "GET"
 
     def _generate_escaped_url(self, url, args):
         """Takes in a dictionary of arguments and returns a URL line.
@@ -779,16 +809,16 @@ class HTTPBaseActor(BaseActor):
         """
 
         # Remove keys from the arguments where the value is None
-        args = dict((k, v) for k, v in args.items() if v)
+        args = dict((k, v) for k, v in list(args.items()) if v)
 
         # Convert all Bool values to lowercase strings
-        for key, value in args.items():
+        for key, value in list(args.items()):
             if type(value) is bool:
                 args[key] = str(value).lower()
 
         # Now generate the URL
         full_url = httputil.url_concat(url, sorted(args.items()))
-        self.log.debug('Generated URL: %s' % full_url)
+        self.log.debug("Generated URL: %s" % full_url)
 
         return full_url
 
@@ -807,7 +837,7 @@ class HTTPBaseActor(BaseActor):
         """
 
         # Generate the full request URL and log out what we're doing...
-        self.log.debug('Making HTTP request to %s with data: %s' % (url, post))
+        self.log.debug("Making HTTP request to %s with data: %s" % (url, post))
 
         # Create the http_request object
         http_client = self._get_http_client()
@@ -819,7 +849,8 @@ class HTTPBaseActor(BaseActor):
             auth_username=auth_username,
             auth_password=auth_password,
             follow_redirects=True,
-            max_redirects=10)
+            max_redirects=10,
+        )
 
         # Execute the request and raise any exception. Exceptions are not
         # caught here because they are unique to the API endpoints, and thus
@@ -830,7 +861,8 @@ class HTTPBaseActor(BaseActor):
             body = json.loads(http_response.body)
         except ValueError as e:
             raise exceptions.UnparseableResponseFromEndpoint(
-                'Unable to parse response from remote API as JSON: %s' % e)
+                "Unable to parse response from remote API as JSON: %s" % e
+            )
 
         # Receive a successful return
         raise gen.Return(body)

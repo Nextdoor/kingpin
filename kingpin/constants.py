@@ -17,7 +17,7 @@ import jsonschema
 from kingpin.actors import exceptions
 
 
-__author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
+__author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 
 
 class REQUIRED(object):
@@ -40,7 +40,8 @@ class StringCompareBase(object):
     def validate(self, option):
         if option not in self.valid:
             raise exceptions.InvalidOptions(
-                '%s not valid, use: %s' % (option, self.valid))
+                "%s not valid, use: %s" % (option, self.valid)
+            )
 
 
 class STATE(StringCompareBase):
@@ -51,7 +52,7 @@ class STATE(StringCompareBase):
     idempotent and used to ensure some state of a resource.
     """
 
-    valid = ('present', 'absent')
+    valid = ("present", "absent")
 
 
 class SchemaCompareBase(object):
@@ -66,4 +67,5 @@ class SchemaCompareBase(object):
             jsonschema.Draft4Validator(self.SCHEMA).validate(option)
         except jsonschema.exceptions.ValidationError as e:
             raise exceptions.InvalidOptions(
-                'Supplied parameter does not match schema: %s' % e)
+                "Supplied parameter does not match schema: %s" % e
+            )

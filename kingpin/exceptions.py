@@ -15,7 +15,7 @@
 
 class KingpinException(Exception):
 
-    """Base Exception """
+    """Base Exception"""
 
 
 class InvalidScript(KingpinException):

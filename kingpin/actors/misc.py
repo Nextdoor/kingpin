@@ -48,23 +48,20 @@ from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
-__author__ = ('Matt Wise <matt@nextdoor.com>, '
-              'Mikhail Simin <mikhail@nextdoor.com>')
+__author__ = "Matt Wise <matt@nextdoor.com>, " "Mikhail Simin <mikhail@nextdoor.com>"
 
 
 class Note(base.BaseActor):
 
     """Print any message to log."""
 
-    all_options = {
-        'message': (str, REQUIRED, 'Message to log.')
-    }
+    all_options = {"message": (str, REQUIRED, "Message to log.")}
 
     desc = "Info Log"
 
     @gen.coroutine
     def _execute(self):
-        self.log.info(self.option('message'))
+        self.log.info(self.option("message"))
 
 
 class Macro(base.BaseActor):
@@ -74,9 +71,7 @@ class Macro(base.BaseActor):
     **Parse JSON/YAML**
 
     Kingpin JSON/YAML has 2 passes at its validity. Script syntax must be
-    valid, with the exception of a few useful deviations allowed by `demjson
-    <http://deron.meranda.us/python/demjson/>`_ parser. Main
-    one being the permission of inline comments via ``/* this */`` syntax.
+    valid clean JSON.
 
     The second pass is validating the Schema. The script will be validated
     for schema-conformity as one of the first things that happens at load-time
@@ -140,10 +135,13 @@ class Macro(base.BaseActor):
     default_timeout = None
 
     all_options = {
-        'macro': (str, REQUIRED,
-                  "Path to a Kingpin script. http(s)://, file:///, "
-                  "absolute or relative file paths."),
-        'tokens': (dict, {}, "Tokens passed into the JSON file.")
+        "macro": (
+            str,
+            REQUIRED,
+            "Path to a Kingpin script. http(s)://, file:///, "
+            "absolute or relative file paths.",
+        ),
+        "tokens": (dict, {}, "Tokens passed into the JSON file."),
     }
 
     desc = "Macro: {macro}"
@@ -159,13 +157,13 @@ class Macro(base.BaseActor):
         # Temporary check that macro is a local file.
         self._check_macro()
 
-        self.log.info('Preparing actors from %s' % self.option('macro'))
+        self.log.info("Preparing actors from %s" % self.option("macro"))
 
         # Take the "init tokens" that were supplied to this actor by its parent
         # and merge them with the explicitly defined tokens in the actor
         # definition itself. Give priority to the explicitly defined tokens on
         # any conflicts.
-        self._init_tokens.update(self.option('tokens'))
+        self._init_tokens.update(self.option("tokens"))
 
         # Copy the tmp file / download a remote macro
         macro_file = self._get_macro()
@@ -181,22 +179,22 @@ class Macro(base.BaseActor):
         # this Macro actor. No try/catch here
         if type(config) == list:
             # List is a Sync group actor
-            self.initial_actor = group.Sync(options={'acts': config},
-                                            dry=self._dry)
+            self.initial_actor = group.Sync(options={"acts": config}, dry=self._dry)
         else:
             # After the schema has been checked, pass in whatever tokens _we_
             # got, off to the soon-to-be-created actor.
-            config['init_tokens'] = self._init_tokens.copy()
+            config["init_tokens"] = self._init_tokens.copy()
 
             self.initial_actor = actor_utils.get_actor(config, dry=self._dry)
 
     def _check_macro(self):
         """For now we are limiting the functionality."""
 
-        prohibited = ('ftp://',)
-        if self.option('macro').startswith(prohibited):
+        prohibited = ("ftp://",)
+        if self.option("macro").startswith(prohibited):
             raise exceptions.UnrecoverableActorFailure(
-                'Macro actor is cannot handle ftp fetching yet..')
+                "Macro actor is cannot handle ftp fetching yet.."
+            )
 
     def _get_macro(self):
         """Return a buffer to the macro file.
@@ -205,26 +203,25 @@ class Macro(base.BaseActor):
         open the local file and return a buffer to that file.
         """
 
-        remote = ('http://', 'https://')
-        if self.option('macro').startswith(remote):
+        remote = ("http://", "https://")
+        if self.option("macro").startswith(remote):
             client = httpclient.HTTPClient()
             try:
-                R = client.fetch(self.option('macro'))
+                R = client.fetch(self.option("macro"))
             except Exception as e:
                 raise exceptions.UnrecoverableActorFailure(e)
             finally:
                 client.close()
             buf = io.StringIO()
             # Set buffer representation for debug printing.
-            buf.__repr__ = lambda: (
-                'In-memory file from: %s' % self.option('macro'))
+            buf.__repr__ = lambda: ("In-memory file from: %s" % self.option("macro"))
             buf.write(R.body)
             buf.seek(0)
             client.close()
             return buf
 
         try:
-            instance = open(self.option('macro'))
+            instance = open(self.option("macro"))
         except IOError as e:
             raise exceptions.UnrecoverableActorFailure(e)
         return instance
@@ -246,24 +243,24 @@ class Macro(base.BaseActor):
             UnrecoverableActorFailure -
                 if parsing script or inserting env vars fails.
         """
-        self.log.debug('Parsing %s' % script_file)
+        self.log.debug("Parsing %s" % script_file)
         try:
             return utils.convert_script_to_dict(
-                script_file=script_file,
-                tokens=self._init_tokens)
+                script_file=script_file, tokens=self._init_tokens
+            )
         except (kingpin_exceptions.InvalidScript, LookupError) as e:
             raise exceptions.UnrecoverableActorFailure(e)
 
     def _check_schema(self, config):
         # Run the dict through our schema validator quickly
-        self.log.debug('Validating schema for %s' % self.option('macro'))
+        self.log.debug("Validating schema for %s" % self.option("macro"))
         try:
             schema.validate(config)
         except kingpin_exceptions.InvalidScript as e:
-            self.log.critical('Invalid Schema.')
+            self.log.critical("Invalid Schema.")
             raise exceptions.UnrecoverableActorFailure(e)
 
-    def get_orgchart(self, parent=''):
+    def get_orgchart(self, parent=""):
         """Return orgchart including the actor inside of the macro file."""
         ret = super(Macro, self).get_orgchart(parent=parent)
         macro = self.initial_actor.get_orgchart(parent=str(id(self)))
@@ -302,8 +299,7 @@ class Sleep(base.BaseActor):
     """
 
     all_options = {
-        'sleep': ((int, float, str), REQUIRED,
-                  'Number of seconds to do nothing.')
+        "sleep": ((int, float, str), REQUIRED, "Number of seconds to do nothing.")
     }
 
     desc = "Sleep {sleep}s"
@@ -312,9 +308,9 @@ class Sleep(base.BaseActor):
     def _execute(self):
         """Executes an actor and yields the results when its finished."""
 
-        self.log.debug('Sleeping for %s seconds' % self.option('sleep'))
+        self.log.debug("Sleeping for %s seconds" % self.option("sleep"))
 
-        sleep = self.option('sleep')
+        sleep = self.option("sleep")
 
         if isinstance(sleep, str):
             sleep = float(sleep)
@@ -367,20 +363,19 @@ class GenericHTTP(base.HTTPBaseActor):
     """
 
     all_options = {
-        'url': (str, REQUIRED, 'Domain name + query string to fetch'),
-        'data': (dict, {}, 'Data to attach as a POST query'),
-        'data-json': (dict, {}, 'JSON data to attach as POST query'),
-        'username': (str, '', 'HTTPAuth username'),
-        'password': (str, '', 'HTTPAuth password')
+        "url": (str, REQUIRED, "Domain name + query string to fetch"),
+        "data": (dict, {}, "Data to attach as a POST query"),
+        "data-json": (dict, {}, "JSON data to attach as POST query"),
+        "username": (str, "", "HTTPAuth username"),
+        "password": (str, "", "HTTPAuth password"),
     }
 
     @gen.coroutine
     def _execute_dry(self):
-        is_post = bool(self.option('data'))
-        method = ['GET', 'POST'][is_post]
+        is_post = bool(self.option("data"))
+        method = ["GET", "POST"][is_post]
 
-        self.log.info("Would do a %s request to %s"
-                      % (method, self.option('url')))
+        self.log.info("Would do a %s request to %s" % (method, self.option("url")))
         raise gen.Return()
 
     @gen.coroutine
@@ -392,18 +387,18 @@ class GenericHTTP(base.HTTPBaseActor):
         # Only generate a JSON text string if a populated dict was passed to
         # data-json.
         datajson = None
-        if self.option('data-json'):
-            datajson = json.dumps(self.option('data-json'))
+        if self.option("data-json"):
+            datajson = json.dumps(self.option("data-json"))
 
-        escaped_post = (
-            urllib.parse.urlencode(self.option('data')) or
-            datajson or None)
+        escaped_post = urllib.parse.urlencode(self.option("data")) or datajson or None
 
         try:
-            yield self._fetch(self.option('url'),
-                              post=escaped_post,
-                              auth_username=self.option('username'),
-                              auth_password=self.option('password'))
+            yield self._fetch(
+                self.option("url"),
+                post=escaped_post,
+                auth_username=self.option("username"),
+                auth_password=self.option("password"),
+            )
         except httpclient.HTTPError as e:
             if e.code == 401:
                 raise exceptions.InvalidCredentials(e.message)

@@ -1,10 +1,8 @@
 import logging
-import urllib.request
-import urllib.parse
-import urllib.error
 import json
 
-from boto.exception import BotoServerError
+from botocore.stub import Stubber
+from datetime import datetime
 from tornado import testing
 from tornado import gen
 import mock
@@ -24,135 +22,140 @@ def tornado_value(*args):
 
 
 class TestEntityBaseActor(testing.AsyncTestCase):
-
     def setUp(self):
         super(TestEntityBaseActor, self).setUp()
-        settings.AWS_ACCESS_KEY_ID = 'unit-test'
-        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
-        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        settings.AWS_ACCESS_KEY_ID = "unit-test"
+        settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
         self.actor = entities.EntityBaseActor(
-            'Unit Test',
-            {'name': 'test',
-             'state': 'present',
-             'inline_policies': 'examples/aws.iam.user/s3_example.json'})
-
-        iam_mock = mock.Mock()
-        self.actor.iam_conn = iam_mock
+            "Unit Test",
+            {
+                "name": "test",
+                "state": "present",
+                "inline_policies": "examples/aws.iam.user/s3_example.json",
+            },
+        )
+        self.iam_stubber = Stubber(self.actor.iam_conn)
 
         # The base class defines these as None -- but in order to test them, we
         # need to have more realistic and trackable method names.
-        self.actor.entity_name = 'base'
-        self.actor.create_entity = iam_mock.create_base
-        self.actor.delete_entity = iam_mock.delete_base
-        self.actor.delete_entity_policy = iam_mock.delete_base_policy
-        self.actor.get_all_entities = iam_mock.get_all_bases
-        self.actor.get_all_entity_policies = iam_mock.get_all_base_policies
-        self.actor.get_entity_policy = iam_mock.get_base_policy
-        self.actor.put_entity_policy = iam_mock.put_base_policy
+        self.actor.entity_name = "User"
+        self.actor.create_entity = self.actor.iam_conn.create_user
+        self.actor.delete_entity = self.actor.iam_conn.delete_user
+        self.actor.delete_entity_policy = self.actor.iam_conn.delete_user_policy
+        self.actor.get_entity = self.actor.iam_conn.get_user
+        self.actor.list_entity_policies = self.actor.iam_conn.list_user_policies
+        self.actor.get_entity_policy = self.actor.iam_conn.get_user_policy
+        self.actor.put_entity_policy = self.actor.iam_conn.put_user_policy
 
         # Pretend like we're a more full featured actor (User/Group/Role) that
         # has inline policies. This could be abstracted differently by making
         # another BaseActor for Users/Groups/Roles thats separate from
         # InstanceProfiles -- but for now this will do.
-        self.actor._parse_inline_policies(self.actor.option('inline_policies'))
+        self.actor._parse_inline_policies(self.actor.option("inline_policies"))
 
     @testing.gen_test
     def test_generate_policy_name(self):
-        name = '/some-?funky*-directory/with.my.policy.json'
+        name = "/some-?funky*-directory/with.my.policy.json"
         parsed = self.actor._generate_policy_name(name)
-        self.assertEqual(parsed, 'some-funky-directory-with.my.policy')
+        self.assertEqual(parsed, "some-funky-directory-with.my.policy")
+
+    @testing.gen_test
+    def test_get_entity_policies_500(self):
+        self.iam_stubber = Stubber(self.actor.iam_conn)
+        self.iam_stubber.add_client_error("list_user_policies", "500", "Server Error!")
+        self.iam_stubber.activate()
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._get_entity_policies("test")
+
+    @testing.gen_test
+    def test_get_entity_policies_400(self):
+        # Next, what if the entity doesn't exist at all?
+        self.iam_stubber = Stubber(self.actor.iam_conn)
+        self.iam_stubber.add_client_error("list_user_policies", "400", "NoSuchEntity")
+        self.iam_stubber.activate()
+        ret = yield self.actor._get_entity_policies("test")
+        self.assertEqual(ret, {})
+
+    @testing.gen_test
+    def test_get_entities_other_500(self):
+        self.iam_stubber.add_client_error("list_user_policies", "400", "NoSuchEntity")
+        self.iam_stubber = Stubber(self.actor.iam_conn)
+        self.iam_stubber.add_response(
+            # API Call
+            "list_user_policies",
+            # Response
+            {"PolicyNames": ["test1", "test2", "test3"]},
+            # Call Params
+            {"UserName": "test"},
+        )
+
+        self.iam_stubber.add_client_error("get_user_policy", "500", "SomeError")
+        self.iam_stubber.activate()
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._get_entity_policies("test")
 
     @testing.gen_test
     def test_get_entity_policies(self):
-        policy_str = ''.join([
-            '%7B%22Version%22%3A%20%222012-10-17%22%2C%20',
-            '%22Statement%22%3A%20%5B%7B%22Action%22%3A%20%5B',
-            '%22s3%3ACreate%2A%22%2C%20%22s3%3AGet%2A%22%2C%20',
-            '%22s3%3APut%2A%22%2C%20%22s3%3AList%2A%22%5D%2C%20',
-            '%22Resource%22%3A%20%5B',
-            '%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%2F%2A%22%2C%20',
-            '%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%22%5D%2C%20',
-            '%22Effect%22%3A%20%22Allow%22%7D%5D%7D'])
+        policy_str = "".join(
+            [
+                "%7B%22Version%22%3A%20%222012-10-17%22%2C%20",
+                "%22Statement%22%3A%20%5B%7B%22Action%22%3A%20%5B",
+                "%22s3%3ACreate%2A%22%2C%20%22s3%3AGet%2A%22%2C%20",
+                "%22s3%3APut%2A%22%2C%20%22s3%3AList%2A%22%5D%2C%20",
+                "%22Resource%22%3A%20%5B",
+                "%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%2F%2A%22%2C%20",
+                "%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%22%5D%2C%20",
+                "%22Effect%22%3A%20%22Allow%22%7D%5D%7D",
+            ]
+        )
         policy_dict = {
-            'Version': '2012-10-17',
-            'Statement': [
-                {'Action': [
-                    's3:Create*',
-                    's3:Get*',
-                    's3:Put*',
-                    's3:List*'],
-                 'Resource': [
-                    'arn:aws:s3:::kingpin*/*',
-                    'arn:aws:s3:::kingpin*'],
-                 'Effect': 'Allow'}]}
-
-        # First test, throw an exception getting the entity policies..
-        a = self.actor
-        a.iam_conn.get_all_base_policies.side_effect = BotoServerError(
-            500, 'Yikes!')
-        with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._get_entity_policies('test')
-
-        # Next, what if the entity doesn't exist at all?
-        a.iam_conn.get_all_base_policies.side_effect = BotoServerError(
-            404, 'User does not exist!')
-        ret = yield self.actor._get_entity_policies('test')
-        self.assertEqual(ret, {})
-
-        # What if self.get_all_entity_policies raises a TypeError because its
-        # set to None (or not set at all)?
-        a.iam_conn.get_all_base_policies.side_effect = TypeError(
-            'NoneType is not callable')
-        ret = yield self.actor._get_entity_policies('test')
-        self.assertEqual(ret, {})
-
-        # Now unset the side effect so we can do a real test
-        self.actor.iam_conn.get_all_base_policies.side_effect = None
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Action": ["s3:Create*", "s3:Get*", "s3:Put*", "s3:List*"],
+                    "Resource": ["arn:aws:s3:::kingpin*/*", "arn:aws:s3:::kingpin*"],
+                    "Effect": "Allow",
+                }
+            ],
+        }
 
         # Return a list of entity policy names...
-        policies = {
-            'list_base_policies_response': {
-                'list_base_policies_result': {
-                    'policy_names': ['test1', 'test2', 'test3']
-                }
-            }
-        }
-        self.actor.iam_conn.get_all_base_policies.return_value = policies
+        fake_pols = ["test1", "test2", "test3"]
+        self.iam_stubber.add_response(
+            # API Call
+            "list_user_policies",
+            # Response
+            {"PolicyNames": fake_pols},
+            # Call Params
+            {"UserName": "test"},
+        )
 
-        # Now mock out the policy responses too -- each request for a policy
-        # will return a single copy of the policy_str above.
-        self.actor.iam_conn.get_base_policy.return_value = {
-            'get_base_policy_response': {
-                'get_base_policy_result': {
-                    'policy_document': policy_str,
-                }
-            }
-        }
+        for pol in fake_pols:
+            self.iam_stubber.add_response(
+                # API Call
+                "get_user_policy",
+                # Response
+                {"UserName": "test", "PolicyName": pol, "PolicyDocument": policy_str},
+                # Call Params
+                {"UserName": "test", "PolicyName": pol},
+            )
 
         # Finally, make the call and see if we get all the policies
-        ret = yield self.actor._get_entity_policies('test')
+        self.iam_stubber.activate()
+        ret = yield self.actor._get_entity_policies("test")
         self.assertEqual(len(ret), 3)
-        self.assertEqual(ret['test1'], policy_dict)
-        self.assertEqual(ret['test2'], policy_dict)
-        self.assertEqual(ret['test3'], policy_dict)
-
-        # One final test.. make sure we raise an exception if any of the get
-        # entity policy calls fail.
-        self.actor.iam_conn.get_base_policy.side_effect = BotoServerError(
-            500, 'Yikes!')
-        with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._get_entity_policies('test')
+        self.assertEqual(ret["test1"], policy_dict)
+        self.assertEqual(ret["test2"], policy_dict)
+        self.assertEqual(ret["test3"], policy_dict)
 
     @testing.gen_test
     def test_parse_inline_policies(self):
-        parsed_policy = self.actor.inline_policies[
-            'examples-aws.iam.user-s3_example'
-        ]
-        self.assertEqual(parsed_policy['Version'], '2012-10-17')
+        parsed_policy = self.actor.inline_policies["examples-aws.iam.user-s3_example"]
+        self.assertEqual(parsed_policy["Version"], "2012-10-17")
 
     @testing.gen_test
     def test_parse_inline_policies_none(self):
@@ -164,8 +167,8 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         # First, pretend like there are a few policies in place and we're not
         # passing any in, however we are purging policies we don't manage.
         fake_pol = {
-            'Policy1': {'junk': 'policy'},
-            'Policy2': {'more': 'junk'},
+            "Policy1": {"junk": "policy"},
+            "Policy2": {"more": "junk"},
         }
         self.actor._get_entity_policies = mock.MagicMock()
         self.actor._get_entity_policies.side_effect = [tornado_value(fake_pol)]
@@ -173,123 +176,151 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         # Mock out the delete_entity_policy and put_entity_policy methods
         self.actor._delete_entity_policy = mock.MagicMock()
         self.actor._delete_entity_policy.side_effect = [
-            tornado_value(None), tornado_value(None)
+            tornado_value(None),
+            tornado_value(None),
         ]
         self.actor._put_entity_policy = mock.MagicMock()
         self.actor._put_entity_policy.side_effect = [tornado_value(None)]
 
         # Ensure that the new policy was pushed, and the old policies were
         # deleted
-        yield self.actor._ensure_inline_policies('test')
+        yield self.actor._ensure_inline_policies("test")
         self.assertEqual(1, self.actor._put_entity_policy.call_count)
-        self.actor._delete_entity_policy.assert_has_calls([
-            mock.call('test', 'Policy1'),
-            mock.call('test', 'Policy2'),
-        ], any_order=True)
+        self.actor._delete_entity_policy.assert_has_calls(
+            [
+                mock.call("test", "Policy1"),
+                mock.call("test", "Policy2"),
+            ],
+            any_order=True,
+        )
 
     @testing.gen_test
     def test_ensure_inline_policies_updated(self):
         # First, pretend like there are a few policies in place and we're not
         # passing any in, however we are purging policies we don't manage.
         fake_pol = {
-            'Policy1': {'junk': 'policy'},
-            'examples-aws.iam.user-s3_example': {'more': 'junk'},
+            "Policy1": {"junk": "policy"},
+            "examples-aws.iam.user-s3_example": {"more": "junk"},
         }
         self.actor._get_entity_policies = mock.MagicMock()
         self.actor._get_entity_policies.side_effect = [tornado_value(fake_pol)]
         self.actor._put_entity_policy = mock.MagicMock()
         self.actor._put_entity_policy.side_effect = [tornado_value(None)]
 
-        yield self.actor._ensure_inline_policies('test')
+        self.iam_stubber.add_response(
+            # API Call
+            "delete_user_policy",
+            # Response
+            {},
+            # Call Params
+            {"UserName": "test", "PolicyName": "Policy1"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._ensure_inline_policies("test")
         self.assertEqual(1, self.actor._put_entity_policy.call_count)
 
     @testing.gen_test
     def test_delete_entity_policy_dry(self):
         self.actor._dry = True
-        yield self.actor._delete_entity_policy('test', 'test-policy')
-        self.assertFalse(self.actor.iam_conn.delete_base_policy.called)
+        self.iam_stubber.activate()
+        yield self.actor._delete_entity_policy("test", "test-policy")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_delete_entity_policy(self):
-        yield self.actor._delete_entity_policy('test', 'test-policy')
-        self.assertTrue(self.actor.iam_conn.delete_base_policy.called)
+        self.iam_stubber.add_response(
+            # API Call
+            "delete_user_policy",
+            # Response
+            {},
+            # Call Params
+            {"UserName": "test", "PolicyName": "test-policy"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._delete_entity_policy("test", "test-policy")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_delete_entity_policy_exception(self):
-        self.actor.iam_conn.delete_base_policy.side_effect = BotoServerError(
-            500, 'Yikes!')
+        self.iam_stubber.activate()
+        self.iam_stubber.add_client_error("delete_user_policy", 500, "Yikes!")
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._delete_entity_policy('test', 'test-policy')
+            yield self.actor._delete_entity_policy("test", "test-policy")
 
     @testing.gen_test
     def test_put_entity_policy_dry(self):
         self.actor._dry = True
-        yield self.actor._put_entity_policy('test', 'test-policy', {})
-        self.assertFalse(self.actor.iam_conn.put_base_policy.called)
+        self.iam_stubber.activate()
+        yield self.actor._put_entity_policy("test", "test-policy", {})
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_put_entity_policy(self):
-        yield self.actor._put_entity_policy('test', 'test-policy', {})
-        self.assertTrue(self.actor.iam_conn.put_base_policy.called)
+        self.iam_stubber.add_response(
+            # API CALL
+            "put_user_policy",
+            # Response
+            {},
+            # Call Params
+            {"UserName": "test", "PolicyName": "test-policy", "PolicyDocument": "{}"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._put_entity_policy("test", "test-policy", {})
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_put_entity_policy_exception(self):
-        self.actor.iam_conn.put_base_policy.side_effect = BotoServerError(
-            500, 'Yikes!')
+        self.iam_stubber.add_client_error("put_user_policy", 500, "Yikes!")
+        self.iam_stubber.activate()
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._put_entity_policy('test', 'test-policy', {})
+            yield self.actor._put_entity_policy("test", "test-policy", {})
+
+    @testing.gen_test
+    def test_get_entity_500(self):
+        # Test a random unexpected failure
+        self.iam_stubber.add_client_error("get_user", 500, "Yikes!")
+        self.iam_stubber.activate()
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._get_entity("test")
+        self.iam_stubber.assert_no_pending_responses()
+
+    @testing.gen_test
+    def test_get_entity_404(self):
+        # Test a random unexpected failure
+        self.iam_stubber.add_client_error("get_user", 404, "NoSuchEntity")
+        self.iam_stubber.activate()
+        ret = yield self.actor._get_entity("test")
+        self.assertIsNone(ret)
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_get_entity(self):
-        # Test a random unexpected failure
-        self.actor.iam_conn.get_all_bases.side_effect = BotoServerError(
-            500, 'Yikes!')
-        with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._get_entity('test')
-        self.assertTrue(self.actor.iam_conn.get_all_bases.called)
-        self.actor.iam_conn.get_all_bases.reset_mock()
-
-        # Reset the side effect to None, now we're going to use return_values
-        # instead
-        self.actor.iam_conn.get_all_bases.side_effect = None
-
         # Create some valid test user objects...
-        matching_entity = {
-            'path': '/', 'create_date': '2016-04-05T22:15:24Z',
-            'base_name': 'test', 'arn':
-            'arn:aws:iam::123123123123:base/test', 'base_id':
-            'AIDAXXCXXXXXXXXXAAC2E'}
-        not_matching_entity = {
-            'path': '/', 'create_date': '2016-04-05T22:15:24Z',
-            'base_name': 'some-other-base', 'arn':
-            'arn:aws:iam::123123123123:base/test', 'base_id':
-            'AIDAXXCXXXXXXXXXAAC2E'}
-
-        # Now, first test ... no 'matching' entity in the list
-        self.actor.iam_conn.get_all_bases.return_value = {
-            'list_bases_response': {
-                'list_bases_result': {
-                    'bases': [not_matching_entity, not_matching_entity]}}}
-        ret = yield self.actor._get_entity('test')
-        self.assertTrue(self.actor.iam_conn.get_all_bases.called)
-        self.actor.iam_conn.get_all_bases.reset_mock()
-        self.assertEqual(ret, None)
-
-        # Finally, lets return one matching and a non matching entity
-        self.actor.iam_conn.get_all_bases.return_value = {
-            'list_bases_response': {
-                'list_bases_result': {
-                    'bases': [not_matching_entity, matching_entity]}}}
-        ret = yield self.actor._get_entity('test')
-        self.assertTrue(self.actor.iam_conn.get_all_bases.called)
-        self.actor.iam_conn.get_all_bases.reset_mock()
-        self.assertEqual(ret, matching_entity)
+        self.iam_stubber.add_response(
+            # API Call
+            "get_user",
+            # Response
+            {
+                "User": {
+                    "Path": "/",
+                    "CreateDate": "2016-04-05T22:15:24Z",
+                    "UserName": "test",
+                    "UserId": "AIDAXXCXXXXXXXXXAAC2E",
+                    "Arn": "arn:aws:iam::123123123123:base/test",
+                }
+            },
+            # Call Params
+            {"UserName": "test"},
+        )
+        self.iam_stubber.activate()
+        ret = yield self.actor._get_entity("test")
+        self.assertEqual(ret["UserName"], "test")
 
     @testing.gen_test
     def test_ensure_entity(self):
-        create_mock = mock.MagicMock(name='_create_entity')
-        delete_mock = mock.MagicMock(name='_delete_entity')
-        get_mock = mock.MagicMock(name='_get_entity')
+        create_mock = mock.MagicMock(name="_create_entity")
+        delete_mock = mock.MagicMock(name="_delete_entity")
+        get_mock = mock.MagicMock(name="_get_entity")
         self.actor._create_entity = create_mock
         self.actor._delete_entity = delete_mock
         self.actor._get_entity = get_mock
@@ -299,24 +330,22 @@ class TestEntityBaseActor(testing.AsyncTestCase):
 
         # Mock out that the entity doesn't exist, and we're creating it
         self.actor._get_entity.side_effect = [tornado_value(None)]
-        yield self.actor._ensure_entity('test', 'present')
-        create_mock.assert_called_with('test')
+        yield self.actor._ensure_entity("test", "present")
+        create_mock.assert_called_with("test")
         self.assertFalse(delete_mock.called)
         create_mock.reset_mock()
         delete_mock.reset_mock()
 
         # Pretend like the entity already exists..
         entity = {
-            'get_base_response': {
-                'get_base_result': {'base': {'arn': 'fake_arn'}}
-            }
+            "get_base_response": {"get_base_result": {"base": {"arn": "fake_arn"}}}
         }
         self.actor._get_entity.side_effect = [tornado_value(entity)]
 
         # Now if we ask to create the entity, make sure we don't make those
         # calls since the entity already exists
         self.actor._get_entity.side_effect = [tornado_value(entity)]
-        yield self.actor._ensure_entity('test', 'present')
+        yield self.actor._ensure_entity("test", "present")
         self.assertFalse(create_mock.called)
         self.assertFalse(delete_mock.called)
         create_mock.reset_mock()
@@ -325,15 +354,15 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         # Since the entity is there, lets test deleting them.. do they get
         # deleted?
         self.actor._get_entity.side_effect = [tornado_value(entity)]
-        yield self.actor._ensure_entity('test', 'absent')
+        yield self.actor._ensure_entity("test", "absent")
         self.assertFalse(create_mock.called)
-        delete_mock.assert_called_with('test')
+        delete_mock.assert_called_with("test")
         create_mock.reset_mock()
         delete_mock.reset_mock()
 
         # If the entity doesn't exist, make sure we don't try to delete them
         self.actor._get_entity.side_effect = [tornado_value(None)]
-        yield self.actor._ensure_entity('test', 'absent')
+        yield self.actor._ensure_entity("test", "absent")
         self.assertFalse(create_mock.called)
         self.assertFalse(delete_mock.called)
         create_mock.reset_mock()
@@ -341,144 +370,195 @@ class TestEntityBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_delete_entity(self):
+        # stub out the get_entity_policies to return one policy name. This ensures that we first have to delete the
+        # policies from the entity, then tne entity.
+        self.iam_stubber.add_response(
+            # API Call
+            "list_user_policies",
+            # Response
+            {"PolicyNames": ["test"]},
+            # Call Params
+            {"UserName": "test"},
+        )
+        # Stub out getting the actual policy contents
+        self.iam_stubber.add_response(
+            # API Call
+            "get_user_policy",
+            # Response
+            {
+                "UserName": "test",
+                "PolicyName": "test",
+                "PolicyDocument": str(json.dumps({})),
+            },
+            # Call Params
+            {"UserName": "test", "PolicyName": "test"},
+        )
+
+        # Now stub out the delete call to that particular policy
+        self.iam_stubber.add_response(
+            # API Call
+            "delete_user_policy",
+            # Response
+            {},
+            # Call Params
+            {"UserName": "test", "PolicyName": "test"},
+        )
+
+        # Finally stub out the delete call to the user
+        self.iam_stubber.add_response(
+            # API Call
+            "delete_user",
+            # Response
+            {},
+            # Call Params
+            {"UserName": "test"},
+        )
         # Pretend it worked...
-        self.actor.iam_conn.delete_base.return_value = None
-        self.actor._get_entity_policies = mock.MagicMock()
-        self.actor._get_entity_policies.side_effect = [tornado_value(['test'])]
-        self.actor._delete_entity_policy = mock.MagicMock()
-        self.actor._delete_entity_policy.side_effect = [tornado_value(None)]
-        yield self.actor._delete_entity('test')
-        self.actor.iam_conn.delete_base.assert_called_with('test')
+        self.iam_stubber.activate()
+        yield self.actor._delete_entity("test")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_delete_entity_already_deleted(self):
         # Exception raised? Handle it!
         self.actor._get_entity_policies = mock.MagicMock()
         self.actor._get_entity_policies.side_effect = [tornado_value([])]
-        self.actor.iam_conn.delete_base.side_effect = BotoServerError(
-            404, 'User already gone!')
-        yield self.actor._delete_entity('test')
-        self.actor.iam_conn.delete_base.assert_called_with('test')
+        self.iam_stubber.add_client_error("delete_user", 400, "NoSuchEntity")
+        self.iam_stubber.activate()
+        yield self.actor._delete_entity("test")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_delete_entity_other_exception(self):
         # Exception raised? Handle it!
         self.actor._get_entity_policies = mock.MagicMock()
         self.actor._get_entity_policies.side_effect = [tornado_value([])]
-        self.actor.iam_conn.delete_base.side_effect = BotoServerError(
-            500, 'Yikes!')
+        self.iam_stubber.add_client_error("delete_user", 500, "Yikes!")
+        self.iam_stubber.activate()
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._delete_entity('test')
+            yield self.actor._delete_entity("test")
 
     @testing.gen_test
     def test_delete_entity_dry(self):
         # Make sure we did not call the delete function!
         self.actor._dry = True
-        self.actor.iam_conn.delete_base.return_value = None
-        yield self.actor._delete_entity('test')
-        self.assertFalse(self.actor.iam_conn.delete_base.called)
+        self.iam_stubber.activate()
+        yield self.actor._delete_entity("test")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_create_entity(self):
-        # Pretend it worked...
-        entity = {
-            'create_base_response': {
-                'create_base_result': {'base': {'arn': 'fake_arn'}}
-            }
-        }
-        self.actor.iam_conn.create_base.return_value = entity
-        yield self.actor._create_entity('test')
-        self.actor.iam_conn.create_base.assert_called_with('test')
+        self.iam_stubber.add_response(
+            # API Call
+            "create_user",
+            # Response,
+            {
+                "User": {
+                    "Arn": "arn:.................",
+                    "Path": "/",
+                    "UserName": "test",
+                    "UserId": "AQ..............C...",
+                    "CreateDate": datetime(2015, 1, 1),
+                }
+            },
+            # Call Params
+            {"UserName": "test"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._create_entity("test")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_create_entity_already_exists(self):
-        self.actor.iam_conn.create_base.side_effect = BotoServerError(
-            409, 'User already exists')
-        yield self.actor._create_entity('test')
-        self.actor.iam_conn.create_base.assert_called_with('test')
+        self.iam_stubber.add_client_error("create_user", 409, "EntityAlreadyExists")
+        self.iam_stubber.activate()
+        yield self.actor._create_entity("test")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_create_entity_other_exception(self):
-        self.actor.iam_conn.create_base.side_effect = BotoServerError(
-            500, 'Yikes!')
+        self.iam_stubber.add_client_error("create_user", 500, "ServerError")
+        self.iam_stubber.activate()
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._create_entity('test')
+            yield self.actor._create_entity("test")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_create_entity_dry(self):
         # Make sure we did not call the create function!
         self.actor._dry = True
-        yield self.actor._create_entity('test')
-        self.assertFalse(self.actor.iam_conn.create_base.called)
+        self.iam_stubber.activate()
+        yield self.actor._create_entity("test")
+        self.iam_stubber.assert_no_pending_responses()
 
 
 class TestUser(testing.AsyncTestCase):
-
     def setUp(self):
         super(TestUser, self).setUp()
-        settings.AWS_ACCESS_KEY_ID = 'unit-test'
-        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
-        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        settings.AWS_ACCESS_KEY_ID = "unit-test"
+        settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
         self.actor = entities.User(
-            'Unit Test',
-            {'name': 'test',
-             'state': 'present',
-             'inline_policies': 'examples/aws.iam.user/s3_example.json',
-             'groups': 'foo'})
+            "Unit Test",
+            {
+                "name": "test",
+                "state": "present",
+                "inline_policies": "examples/aws.iam.user/s3_example.json",
+                "groups": "foo",
+            },
+        )
 
-        iam_mock = mock.Mock()
-        self.actor.iam_conn = iam_mock
-
-        self.actor.create_entity = iam_mock.create_user
-        self.actor.delete_entity = iam_mock.delete_user
-        self.actor.delete_entity_policy = iam_mock.delete_user_policy
-        self.actor.get_all_entities = iam_mock.get_all_users
-        self.actor.get_all_entity_policies = iam_mock.get_all_user_policies
-        self.actor.get_entity_policy = iam_mock.get_user_policy
-        self.actor.put_entity_policy = iam_mock.put_user_policy
+        self.iam_stubber = Stubber(self.actor.iam_conn)
 
     @testing.gen_test
     def test_ensure_groups(self):
-        # Mock out a fake list of groups that the user is already attached to
-        fake_groups = {
-            'list_groups_for_user_response': {
-                'list_groups_for_user_result': {
-                    'groups': [
-                        {'path': '/', 'group_name': 'test-group-1'},
-                        {'path': '/', 'group_name': 'test-group-2'}
-                    ]
-                }
-            }
-        }
-        self.actor.iam_conn.get_groups_for_user.return_value = fake_groups
-
-        # Create mocks for the add/remove user group methods
-        self.actor._add_user_to_group = mock.MagicMock()
-        self.actor._remove_user_from_group = mock.MagicMock()
-
-        # Same as above, but now purge the unmanaged groups
-        self.actor._add_user_to_group.side_effect = [
-            tornado_value(None), tornado_value(None)]
-        self.actor._remove_user_from_group.side_effect = [
-            tornado_value(None), tornado_value(None)
-        ]
-        yield self.actor._ensure_groups('test', 'ng1')
-        self.actor._add_user_to_group.assert_has_calls([
-            mock.call('test', 'ng1')])
-        self.actor._remove_user_from_group.assert_has_calls([
-            mock.call('test', 'test-group-1'),
-            mock.call('test', 'test-group-2')],
-            any_order=True
+        # Stub out a fake list of groups that the user is already attached to
+        self.iam_stubber.add_response(
+            # API Call
+            "list_groups_for_user",
+            # Response
+            {
+                "Groups": [
+                    {
+                        "Path": "/",
+                        "GroupName": "test-group-1",
+                        "GroupId": "................",
+                        "Arn": "....................",
+                        "CreateDate": datetime(2015, 1, 1),
+                    },
+                ]
+            },
+            # Call Params
+            {"UserName": "test"},
         )
-        self.actor._add_user_to_group.reset_mock()
-        self.actor._remove_user_from_group.reset_mock()
+        self.iam_stubber.add_response(
+            # API Call
+            "add_user_to_group",
+            # Response
+            {},
+            # Call Params
+            {"UserName": "test", "GroupName": "ng1"},
+        )
+
+        # Now stub out the calls that are delete calls...
+        self.iam_stubber.add_response(
+            # API Call
+            "remove_user_from_group",
+            # Response
+            {},
+            # Call Params
+            {"UserName": "test", "GroupName": "test-group-1"},
+        )
+
+        self.iam_stubber.activate()
+        yield self.actor._ensure_groups("test", "ng1")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
-    def test_ensure_groups_with_exceptions(self):
+    def test_ensure_groups_with_not_yet_created_user(self):
         # Create mocks for the add/remove user group methods
         self.actor._add_user_to_group = mock.MagicMock()
         self.actor._add_user_to_group.side_effect = [tornado_value(None)]
@@ -488,67 +568,83 @@ class TestUser(testing.AsyncTestCase):
         # The user doesn't exist? No problem.. we'll move forward anyways and
         # assume we're in a dry run and the user hasn't been created, and thus
         # there are no groups.
-        self.actor.iam_conn.get_groups_for_user.side_effect = BotoServerError(
-            404, '')
-        yield self.actor._ensure_groups('test', ['ng1', 'ng2'])
-        self.actor._add_user_to_group.assert_has_calls([
-            mock.call('test', 'ng1'),
-            mock.call('test', 'ng2')
-        ], any_order=True)
+        self.iam_stubber.add_client_error("list_groups_for_user", 404, "NoSuchEntity")
+        self.iam_stubber.activate()
+        yield self.actor._ensure_groups("test", ["ng1", "ng2"])
+        self.actor._add_user_to_group.assert_has_calls(
+            [mock.call("test", "ng1"), mock.call("test", "ng2")], any_order=True
+        )
         self.assertFalse(self.actor._remove_user_from_group.called)
 
-        # Some other error happens? raise it!
-        self.actor.iam_conn.get_groups_for_user.side_effect = BotoServerError(
-            500, '')
+    @testing.gen_test
+    def test_ensure_groups_with_500(self):
+        self.iam_stubber.add_client_error("list_groups_for_user", 500, "Server Error")
+        self.iam_stubber.activate()
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._ensure_groups('test', ['ng1', 'ng2'])
+            yield self.actor._ensure_groups("test", ["ng1", "ng2"])
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_add_user_to_group(self):
-        self.actor.iam_conn.add_user_to_group.return_value = None
-        yield self.actor._add_user_to_group('test', 'group')
-        self.actor.iam_conn.add_user_to_group.assert_called_with(
-            'group', 'test')
+        self.iam_stubber.add_response(
+            # API Call
+            "add_user_to_group",
+            # Response
+            {},
+            # Call Params
+            {"GroupName": "group", "UserName": "test"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._add_user_to_group("test", "group")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_add_user_to_group_dry(self):
-        self.actor.iam_conn.add_user_to_group.return_value = None
+        self.iam_stubber.activate()
         self.actor._dry = True
-        yield self.actor._add_user_to_group('test', 'group')
-        self.assertFalse(self.actor.iam_conn.add_user_to_group.called)
+        yield self.actor._add_user_to_group("test", "group")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
-    def test_add_user_to_group_exception(self):
-        self.actor.iam_conn.add_user_to_group.side_effect = BotoServerError(
-            500, 'Yikes')
+    def test_add_user_to_group_500(self):
+        self.iam_stubber.add_client_error("add_user_to_group", 500, "Yikes!")
+        self.iam_stubber.activate()
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._add_user_to_group('test', 'group')
+            yield self.actor._add_user_to_group("test", "group")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_remove_user_from_group(self):
-        self.actor.iam_conn.remove_user_from_group.return_value = None
-        yield self.actor._remove_user_from_group('test', 'group')
-        self.actor.iam_conn.remove_user_from_group.assert_called_with(
-            'group', 'test')
+        self.iam_stubber.add_response(
+            # API Call
+            "remove_user_from_group",
+            # Response
+            {},
+            # Call Params
+            {"UserName": "test", "GroupName": "group"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._remove_user_from_group("test", "group")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_remove_user_from_group_dry(self):
-        self.actor.iam_conn.remove_user_from_group.return_value = None
+        self.iam_stubber.activate()
         self.actor._dry = True
-        yield self.actor._remove_user_from_group('test', 'group')
-        self.assertFalse(self.actor.iam_conn.remove_user_from_group.called)
+        yield self.actor._remove_user_from_group("test", "group")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
-    def test_remove_user_from_group_exception(self):
-        remove_group = self.actor.iam_conn.remove_user_from_group
-        remove_group.side_effect = BotoServerError(
-            500, 'Yikes')
+    def test_remove_user_from_group_500(self):
+        self.iam_stubber.add_client_error("remove_user_from_group", 500, "Yikes!")
+        self.iam_stubber.activate()
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._remove_user_from_group('test', 'group')
+            yield self.actor._remove_user_from_group("test", "group")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_execute_absent(self):
-        self.actor._options['state'] = 'absent'
+        self.actor._options["state"] = "absent"
         self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
         yield self.actor._execute()
@@ -569,8 +665,8 @@ class TestUser(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_present_no_policies_or_groups(self):
-        self.actor._options['inline_policies'] = None
-        self.actor._options['groups'] = None
+        self.actor._options["inline_policies"] = None
+        self.actor._options["groups"] = None
 
         self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
@@ -586,94 +682,133 @@ class TestUser(testing.AsyncTestCase):
 
 
 class TestGroup(testing.AsyncTestCase):
-
     def setUp(self):
         super(TestGroup, self).setUp()
-        settings.AWS_ACCESS_KEY_ID = 'unit-test'
-        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
-        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        settings.AWS_ACCESS_KEY_ID = "unit-test"
+        settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
         self.actor = entities.Group(
-            'Unit Test',
-            {'name': 'test',
-             'state': 'present',
-             'inline_policies': 'examples/aws.iam.user/s3_example.json'})
+            "Unit Test",
+            {
+                "name": "test",
+                "state": "present",
+                "inline_policies": "examples/aws.iam.user/s3_example.json",
+            },
+        )
 
-        iam_mock = mock.Mock()
-        self.actor.iam_conn = iam_mock
-
-        self.actor.create_entity = iam_mock.create_user
-        self.actor.delete_entity = iam_mock.delete_user
-        self.actor.delete_entity_policy = iam_mock.delete_user_policy
-        self.actor.get_all_entities = iam_mock.get_all_users
-        self.actor.get_all_entity_policies = iam_mock.get_all_user_policies
-        self.actor.get_entity_policy = iam_mock.get_user_policy
-        self.actor.put_entity_policy = iam_mock.put_user_policy
+        self.iam_stubber = Stubber(self.actor.iam_conn)
 
     @testing.gen_test
     def test_get_group_users(self):
-        fake_group = {
-            'get_group_response': {
-                'get_group_result': {
-                    'users': [
-                        {'user_name': 'group1'},
-                        {'user_name': 'group2'},
-                    ]
-                }
-            }
-        }
-        self.actor.iam_conn.get_group.return_value = fake_group
-        ret = yield self.actor._get_group_users('test')
-        self.assertEqual(ret, ['group1', 'group2'])
+        self.iam_stubber.add_response(
+            # API Call
+            "get_group",
+            # Response
+            {
+                "Group": {
+                    "GroupName": "test",
+                    "Path": "/",
+                    "Arn": ".........................",
+                    "GroupId": ".................",
+                    "CreateDate": datetime(2015, 1, 1),
+                },
+                "Users": [
+                    {
+                        "UserName": "user1",
+                        "UserId": ".............................",
+                        "Path": "/",
+                        "Arn": ".............................",
+                        "CreateDate": datetime(2015, 1, 1),
+                    },
+                    {
+                        "UserName": "user2",
+                        "UserId": ".............................",
+                        "Path": "/",
+                        "Arn": ".............................",
+                        "CreateDate": datetime(2015, 1, 1),
+                    },
+                ],
+            },
+            # Request
+            {"GroupName": "test"},
+        )
+        self.iam_stubber.activate()
+        ret = yield self.actor._get_group_users("test")
+        self.assertEqual(ret, ["user1", "user2"])
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
-    def test_get_group_users_exception(self):
-        self.actor.iam_conn.get_group.side_effect = BotoServerError(
-            500, 'Yikes')
+    def test_get_group_users_500(self):
+        self.iam_stubber.add_client_error("get_group", 500, "Yikes")
+        self.iam_stubber.activate()
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._get_group_users('test')
+            yield self.actor._get_group_users("test")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_get_group_users_no_users(self):
-        self.actor.iam_conn.get_group.return_value = {}
-        ret = yield self.actor._get_group_users('test')
+        self.iam_stubber.add_response(
+            # API Call
+            "get_group",
+            # Response
+            {
+                "Group": {
+                    "GroupName": "test",
+                    "Path": "/",
+                    "Arn": ".........................",
+                    "GroupId": ".................",
+                    "CreateDate": datetime(2015, 1, 1),
+                },
+                "Users": [],
+            },
+            # Request
+            {"GroupName": "test"},
+        )
+        self.iam_stubber.activate()
+        ret = yield self.actor._get_group_users("test")
         self.assertEqual(ret, [])
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_purge_group_users_false(self):
-        users = ['user1', 'user2']
+        users = ["user1", "user2"]
         self.actor._get_group_users = mock.MagicMock()
         self.actor._get_group_users.side_effect = [tornado_value(users)]
 
         self.actor._remove_user_from_group = mock.MagicMock()
         self.actor._remove_user_from_group.side_effect = [
-            tornado_value(None), tornado_value(None)]
+            tornado_value(None),
+            tornado_value(None),
+        ]
 
-        yield self.actor._purge_group_users('test', False)
+        yield self.actor._purge_group_users("test", False)
 
         self.assertFalse(self.actor._remove_user_from_group.called)
 
     @testing.gen_test
     def test_purge_group_users_true(self):
-        users = ['user1', 'user2']
+        users = ["user1", "user2"]
         self.actor._get_group_users = mock.MagicMock()
         self.actor._get_group_users.side_effect = [tornado_value(users)]
 
         self.actor._remove_user_from_group = mock.MagicMock()
         self.actor._remove_user_from_group.side_effect = [
-            tornado_value(None), tornado_value(None)]
+            tornado_value(None),
+            tornado_value(None),
+        ]
 
-        yield self.actor._purge_group_users('test', True)
+        yield self.actor._purge_group_users("test", True)
 
-        self.actor._remove_user_from_group.assert_has_calls([
-            mock.call('user1', 'test'), mock.call('user2', 'test')])
+        self.actor._remove_user_from_group.assert_has_calls(
+            [mock.call("user1", "test"), mock.call("user2", "test")]
+        )
 
     @testing.gen_test
     def test_execute_absent(self):
-        self.actor._options['state'] = 'absent'
+        self.actor._options["state"] = "absent"
         self.actor._purge_group_users = mock.MagicMock()
         self.actor._purge_group_users.side_effect = [tornado_value(None)]
         self.actor._ensure_entity = mock.MagicMock()
@@ -695,7 +830,7 @@ class TestGroup(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_present_no_policies_or_groups(self):
-        self.actor._options['inline_policies'] = None
+        self.actor._options["inline_policies"] = None
         self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_inline_policies = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
@@ -706,34 +841,25 @@ class TestGroup(testing.AsyncTestCase):
 
 
 class TestRole(testing.AsyncTestCase):
-
     def setUp(self):
         super(TestRole, self).setUp()
-        settings.AWS_ACCESS_KEY_ID = 'unit-test'
-        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
-        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        settings.AWS_ACCESS_KEY_ID = "unit-test"
+        settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
         self.actor = entities.Role(
-            'Unit Test',
-            {'name': 'test',
-             'state': 'present',
-             'assume_role_policy_document':
-                 'examples/aws.iam.role/lambda.json',
-             'inline_policies': 'examples/aws.iam.user/s3_example.json'})
+            "Unit Test",
+            {
+                "name": "test",
+                "state": "present",
+                "assume_role_policy_document": "examples/aws.iam.role/lambda.json",
+                "inline_policies": "examples/aws.iam.user/s3_example.json",
+            },
+        )
 
-        iam_mock = mock.Mock()
-        self.actor.iam_conn = iam_mock
-
-        self.actor.create_entity = iam_mock.create_role
-        self.actor.delete_entity = iam_mock.delete_role
-        self.actor.delete_entity_policy = iam_mock.delete_role_policy
-        self.actor.get_all_entities = iam_mock.list_roles
-        self.actor.get_all_entity_policies = iam_mock.list_role_policies
-        self.actor.get_entity_policy = iam_mock.get_role_policy
-        self.actor.put_entity_policy = iam_mock.put_role_policy
+        self.iam_stubber = Stubber(self.actor.iam_conn)
 
     @testing.gen_test
     def test_ensure_assume_role_doc_no_entity(self):
@@ -741,65 +867,129 @@ class TestRole(testing.AsyncTestCase):
         self.actor._get_entity = mock.MagicMock()
         self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
 
-        yield self.actor._ensure_assume_role_doc('test')
+        yield self.actor._ensure_assume_role_doc("test")
 
     @testing.gen_test
     def test_ensure_assume_role_doc_matches(self):
-        request = {
+        # This is the desired doc...
+        self.actor.assume_role_policy_doc = {
             "Version": "2012-10-17",
-            "Statement": [{"Effect": "Allow",
-                           "Principal": {"Service": "lambda.amazonaws.com"},
-                           "Action": "sts:AssumeRole"}]}
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {"Service": "lambda.amazonaws.com"},
+                    "Action": "sts:AssumeRole",
+                }
+            ],
+        }
 
-        lambda_string = urllib.request.pathname2url(json.dumps(request))
-        fake_entity = {'assume_role_policy_document': lambda_string}
-        self.actor._get_entity = mock.MagicMock()
-        self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
-        self.actor.iam_conn.update_assume_role_policy = mock.MagicMock()
-
-        yield self.actor._ensure_assume_role_doc('test')
-        self.assertFalse(self.actor.iam_conn.update_assume_role_policy.called)
+        self.iam_stubber.add_response(
+            # API Call
+            "get_role",
+            # Response
+            {
+                "Role": {
+                    "Arn": "....................................",
+                    "Path": "/",
+                    "RoleId": ".........................",
+                    "RoleName": "test",
+                    "CreateDate": datetime(2019, 2, 19, 21, 3, 20),
+                    "AssumeRolePolicyDocument": json.dumps(
+                        self.actor.assume_role_policy_doc
+                    ),
+                }
+            },
+            # Call Params
+            {"RoleName": "test"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._ensure_assume_role_doc("test")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_ensure_assume_role_doc_mismatch(self):
-        request = {
+        # This is the desired doc...
+        self.actor.assume_role_policy_doc = {
             "Version": "2012-10-17",
-            "Statement": [{"Effect": "Allow",
-                           "Principal": {"Service": "ec2.amazonaws.com"},
-                           "Action": "sts:AssumeRole"}]}
-        ec2_string = urllib.request.pathname2url(json.dumps(request))
-        fake_entity = {'assume_role_policy_document': ec2_string}
-        self.actor._get_entity = mock.MagicMock()
-        self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
-        self.actor.iam_conn.update_assume_role_policy = mock.MagicMock()
-        self.actor.iam_conn.update_assume_role_policy.side_effect = [
-            tornado_value(None)]
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {"Service": "ec2.amazonaws.com"},
+                    "Action": "sts:AssumeRole",
+                }
+            ],
+        }
 
-        yield self.actor._ensure_assume_role_doc('test')
-        self.assertTrue(self.actor.iam_conn.update_assume_role_policy.called)
+        self.iam_stubber.add_response(
+            # API Call
+            "get_role",
+            # Response
+            {
+                "Role": {
+                    "Arn": "....................................",
+                    "Path": "/",
+                    "RoleId": ".........................",
+                    "RoleName": "test",
+                    "CreateDate": datetime(2019, 2, 19, 21, 3, 20),
+                    "AssumeRolePolicyDocument": "{}",
+                }
+            },
+            # Call Params
+            {"RoleName": "test"},
+        )
+
+        self.iam_stubber.add_response(
+            # API Call
+            "update_assume_role_policy",
+            # Response
+            {},
+            # Call Params
+            {
+                "RoleName": "test",
+                "PolicyDocument": json.dumps(self.actor.assume_role_policy_doc),
+            },
+        )
+        self.iam_stubber.activate()
+        yield self.actor._ensure_assume_role_doc("test")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_ensure_assume_role_doc_mismatch_dry(self):
         self.actor._dry = True
-        request = {
+        self.actor.assume_role_policy_doc = {
             "Version": "2012-10-17",
-            "Statement": [{"Effect": "Allow",
-                           "Principal": {"Service": "ec2.amazonaws.com"},
-                           "Action": "sts:AssumeRole"}]}
-        ec2_string = urllib.request.pathname2url(json.dumps(request))
-        fake_entity = {'assume_role_policy_document': ec2_string}
-        self.actor._get_entity = mock.MagicMock()
-        self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
-        self.actor.iam_conn.update_assume_role_policy = mock.MagicMock()
-        self.actor.iam_conn.update_assume_role_policy.side_effect = [
-            tornado_value(None)]
-
-        yield self.actor._ensure_assume_role_doc('test')
-        self.assertFalse(self.actor.iam_conn.update_assume_role_policy.called)
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {"Service": "ec2.amazonaws.com"},
+                    "Action": "sts:AssumeRole",
+                }
+            ],
+        }
+        self.iam_stubber.add_response(
+            # API Call
+            "get_role",
+            # Response
+            {
+                "Role": {
+                    "Arn": "....................................",
+                    "Path": "/",
+                    "RoleId": ".........................",
+                    "RoleName": "test",
+                    "CreateDate": datetime(2019, 2, 19, 21, 3, 20),
+                    "AssumeRolePolicyDocument": "{}",
+                }
+            },
+            # Call Params
+            {"RoleName": "test"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._ensure_assume_role_doc("test")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_execute_absent(self):
-        self.actor._options['state'] = 'absent'
+        self.actor._options["state"] = "absent"
         self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
         self.actor._ensure_assume_role_doc = mock.MagicMock()
@@ -810,8 +1000,9 @@ class TestRole(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_no_policy(self):
-        self.actor._options['assume_role_policy_document'] = None
-
+        self.actor._options["assume_role_policy_document"] = None
+        self.actor._options["inline_policies"] = None
+        self.iam_stubber.activate()
         self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
         self.actor._ensure_assume_role_doc = mock.MagicMock()
@@ -819,191 +1010,324 @@ class TestRole(testing.AsyncTestCase):
         yield self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
         self.assertFalse(self.actor._ensure_assume_role_doc.called)
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_execute(self):
         self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._ensure_inline_policies = mock.MagicMock()
+        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
         self.actor._ensure_assume_role_doc = mock.MagicMock()
         self.actor._ensure_assume_role_doc.side_effect = [tornado_value(None)]
         yield self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
+        self.assertTrue(self.actor._ensure_inline_policies.called)
         self.assertTrue(self.actor._ensure_assume_role_doc.called)
 
 
 class TestInstanceProfile(testing.AsyncTestCase):
-
     def setUp(self):
         super(TestInstanceProfile, self).setUp()
-        settings.AWS_ACCESS_KEY_ID = 'unit-test'
-        settings.AWS_SECRET_ACCESS_KEY = 'unit-test'
-        settings.RETRYING_SETTINGS = {'stop_max_attempt_number': 1}
+        settings.AWS_ACCESS_KEY_ID = "unit-test"
+        settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
         self.actor = entities.InstanceProfile(
-            'Unit Test',
-            {'name': 'test',
-             'state': 'present',
-             'role': 'test'})
+            "Unit Test", {"name": "test", "state": "present", "role": "test"}
+        )
 
-        iam_mock = mock.Mock()
-        self.actor.iam_conn = iam_mock
-
-        self.actor.create_entity = iam_mock.create_instance_profile
-        self.actor.delete_entity = iam_mock.delete_instance_profile
-        self.actor.get_all_entities = iam_mock.list_instance_profiles
+        self.iam_stubber = Stubber(self.actor.iam_conn)
 
     @testing.gen_test
     def test_add_role(self):
-        yield self.actor._add_role('test', 'testrole')
-        self.actor.iam_conn.add_role_to_instance_profile.assert_has_calls(
-            [mock.call('test', 'testrole')])
+        self.iam_stubber.add_response(
+            # API Call
+            "add_role_to_instance_profile",
+            # Response
+            {},
+            # Call Params
+            {"InstanceProfileName": "test", "RoleName": "testrole"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._add_role("test", "testrole")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_add_role_409(self):
-        add_role = self.actor.iam_conn.add_role_to_instance_profile
-        add_role.side_effect = BotoServerError(409, 'Not there man!')
-        yield self.actor._add_role('test', 'testrole')
-        self.actor.iam_conn.add_role_to_instance_profile.assert_has_calls(
-            [mock.call('test', 'testrole')])
+        self.iam_stubber.add_client_error(
+            "add_role_to_instance_profile", 409, "NoSuchEntity"
+        )
+        self.iam_stubber.activate()
+        yield self.actor._add_role("test", "testrole")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_add_role_500(self):
-        add_role = self.actor.iam_conn.add_role_to_instance_profile
-        add_role.side_effect = BotoServerError(500, 'Yikes')
+        self.iam_stubber.add_client_error("add_role_to_instance_profile", 500, "Yikes")
+        self.iam_stubber.activate()
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._add_role('test', 'testrole')
+            yield self.actor._add_role("test", "testrole")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_add_role_dry(self):
         self.actor._dry = True
-        yield self.actor._add_role('test', 'testrole')
-        self.assertFalse(
-            self.actor.iam_conn.add_role_to_instance_profile.called)
+        self.iam_stubber.activate()
+        yield self.actor._add_role("test", "testrole")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_remove_role(self):
-        yield self.actor._remove_role('test', 'testrole')
-        self.actor.iam_conn.remove_role_from_instance_profile.assert_has_calls(
-            [mock.call('test', 'testrole')])
+        self.iam_stubber.add_response(
+            # API Call
+            "remove_role_from_instance_profile",
+            # Response
+            {},
+            # Call Params
+            {"InstanceProfileName": "test", "RoleName": "testrole"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._remove_role("test", "testrole")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_remove_role_404(self):
-        remove_role = self.actor.iam_conn.remove_role_from_instance_profile
-        remove_role.side_effect = BotoServerError(404, 'Not there man!')
-        yield self.actor._remove_role('test', 'testrole')
-        self.assertFalse(
-            self.actor.iam_conn.remove_role_to_instance_profile.called)
+        self.iam_stubber.add_client_error(
+            "remove_role_from_instance_profile", 404, "NoSuchEntity"
+        )
+        self.iam_stubber.activate()
+        yield self.actor._remove_role("test", "testrole")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_remove_role_500(self):
-        remove_role = self.actor.iam_conn.remove_role_from_instance_profile
-        remove_role.side_effect = BotoServerError(500, 'Yikes')
+        self.iam_stubber.add_client_error(
+            "remove_role_from_instance_profile", 500, "Yikes"
+        )
+        self.iam_stubber.activate()
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._remove_role('test', 'testrole')
+            yield self.actor._remove_role("test", "testrole")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_remove_role_dry(self):
         self.actor._dry = True
-        yield self.actor._remove_role('test', 'testrole')
-        self.assertFalse(
-            self.actor.iam_conn.remove_role_from_instance_profile.called)
+        self.iam_stubber.activate()
+        yield self.actor._remove_role("test", "testrole")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_ensure_role_matching(self):
-        fake_profile = {
-            'get_instance_profile_response': {
-                'get_instance_profile_result': {
-                    'instance_profile': {
-                        'roles': {
-                            'member': {
-                                'role_name': 'test-role'
-                            }
+        self.iam_stubber.add_response(
+            # API Call
+            "get_instance_profile",
+            # Response
+            {
+                "InstanceProfile": {
+                    "Arn": "arn:aws:iam::...:instance-profile/...",
+                    "CreateDate": datetime(2016, 9, 28, 19, 23, 4),
+                    "InstanceProfileId": "...................",
+                    "InstanceProfileName": "test",
+                    "Path": "/",
+                    "Roles": [
+                        {
+                            "Arn": "......................................",
+                            "AssumeRolePolicyDocument": "{}",
+                            "CreateDate": datetime(2016, 9, 28, 19, 23, 4),
+                            "Path": "/",
+                            "RoleId": ".....................",
+                            "RoleName": "test-role",
                         }
-                    }
-                }
-            }
-        }
-        self.actor.iam_conn.get_instance_profile.return_value = fake_profile
-        yield self.actor._ensure_role('test', 'test-role')
-        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
+                    ],
+                    "Tags": [],
+                },
+            },
+            # Call Params
+            {"InstanceProfileName": "test"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._ensure_role("test", "test-role")
+        self.iam_stubber.assert_no_pending_responses()
+
+    @testing.gen_test
+    def test_ensure_role_with_no_role_set_and_is_missing_correctly(self):
+        self.iam_stubber.add_response(
+            # API Call
+            "get_instance_profile",
+            # Response
+            {
+                "InstanceProfile": {
+                    "Arn": "arn:aws:iam::...:instance-profile/...",
+                    "CreateDate": datetime(2016, 9, 28, 19, 23, 4),
+                    "InstanceProfileId": "...................",
+                    "InstanceProfileName": "test",
+                    "Path": "/",
+                    "Roles": [],
+                    "Tags": [],
+                },
+            },
+            # Call Params
+            {"InstanceProfileName": "test"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._ensure_role("test", None)
+        self.iam_stubber.assert_no_pending_responses()
+
+    @testing.gen_test
+    def test_ensure_role_existing_role_but_want_none(self):
+        self.iam_stubber.add_response(
+            # API Call
+            "get_instance_profile",
+            # Response
+            {
+                "InstanceProfile": {
+                    "Arn": "arn:aws:iam::...:instance-profile/...",
+                    "CreateDate": datetime(2016, 9, 28, 19, 23, 4),
+                    "InstanceProfileId": "...................",
+                    "InstanceProfileName": "test",
+                    "Path": "/",
+                    "Roles": [
+                        {
+                            "Arn": "......................................",
+                            "AssumeRolePolicyDocument": "{}",
+                            "CreateDate": datetime(2016, 9, 28, 19, 23, 4),
+                            "Path": "/",
+                            "RoleId": ".....................",
+                            "RoleName": "wrong-role",
+                        }
+                    ],
+                    "Tags": [],
+                },
+            },
+            # Call Params
+            {"InstanceProfileName": "test"},
+        )
+
+        self.iam_stubber.add_response(
+            # API Call
+            "remove_role_from_instance_profile",
+            # Response
+            {},
+            # Call Params
+            {"InstanceProfileName": "test", "RoleName": "wrong-role"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._ensure_role("test", None)
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_ensure_role_not_matching(self):
-        fake_profile = {
-            'get_instance_profile_response': {
-                'get_instance_profile_result': {
-                    'instance_profile': {
-                        'roles': {
-                            'member': {
-                                'role_name': 'test-role'
-                            }
+        self.iam_stubber.add_response(
+            # API Call
+            "get_instance_profile",
+            # Response
+            {
+                "InstanceProfile": {
+                    "Arn": "arn:aws:iam::...:instance-profile/...",
+                    "CreateDate": datetime(2016, 9, 28, 19, 23, 4),
+                    "InstanceProfileId": "...................",
+                    "InstanceProfileName": "test",
+                    "Path": "/",
+                    "Roles": [
+                        {
+                            "Arn": "......................................",
+                            "AssumeRolePolicyDocument": "{}",
+                            "CreateDate": datetime(2016, 9, 28, 19, 23, 4),
+                            "Path": "/",
+                            "RoleId": ".....................",
+                            "RoleName": "wrong-role",
                         }
-                    }
-                }
-            }
-        }
-        self.actor.iam_conn.get_instance_profile.return_value = fake_profile
-        self.actor._add_role = mock.MagicMock()
-        self.actor._add_role.side_effect = [tornado_value(None)]
-        self.actor._remove_role = mock.MagicMock()
-        self.actor._remove_role.side_effect = [tornado_value(None)]
+                    ],
+                    "Tags": [],
+                },
+            },
+            # Call Params
+            {"InstanceProfileName": "test"},
+        )
 
-        yield self.actor._ensure_role('test', 'new-test-role')
-        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
-        self.actor._remove_role.assert_called_with('test', 'test-role')
-        self.actor._add_role.assert_called_with('test', 'new-test-role')
+        self.iam_stubber.add_response(
+            # API Call
+            "remove_role_from_instance_profile",
+            # Response
+            {},
+            # Call Params
+            {"InstanceProfileName": "test", "RoleName": "wrong-role"},
+        )
 
-        yield self.actor._ensure_role('test', None)
-        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
-        self.actor._remove_role.assert_called_with('test', 'test-role')
+        self.iam_stubber.add_response(
+            # API Call
+            "add_role_to_instance_profile",
+            # Response
+            {},
+            # Call Params
+            {"InstanceProfileName": "test", "RoleName": "test-role"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._ensure_role("test", "test-role")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_ensure_role_matching_404(self):
-        self.actor.iam_conn.get_instance_profile.side_effect = BotoServerError(
-            404, 'No profile')
-        self.actor._add_role = mock.MagicMock()
-        self.actor._add_role.side_effect = [tornado_value(None)]
-
-        yield self.actor._ensure_role('test', 'test-role')
-        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
-        self.actor._add_role.assert_called_with('test', 'test-role')
+        self.iam_stubber.add_client_error("get_instance_profile", 404, "NoSuchEntity")
+        self.iam_stubber.add_response(
+            # API Call
+            "add_role_to_instance_profile",
+            # Response
+            {},
+            # Call parms
+            {"InstanceProfileName": "test", "RoleName": "test-role"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._ensure_role("test", "test-role")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_ensure_role_matching_500(self):
-        self.actor.iam_conn.get_instance_profile.side_effect = BotoServerError(
-            500, 'Error')
-        self.actor._add_role = mock.MagicMock()
-        self.actor._add_role.side_effect = [tornado_value(None)]
-
+        self.iam_stubber.add_client_error("get_instance_profile", 500, "Yikes")
+        self.iam_stubber.activate()
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor._ensure_role('test', 'test-role')
-        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
+            yield self.actor._ensure_role("test", "test-role")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_ensure_role_matching_key_error(self):
-        self.actor.iam_conn.get_instance_profile.side_effect = KeyError('')
-        self.actor._add_role = mock.MagicMock()
-        self.actor._add_role.side_effect = [tornado_value(None)]
+        self.iam_stubber.add_response(
+            # API Call
+            "get_instance_profile",
+            # Response
+            {
+                "InstanceProfile": {
+                    "Arn": "arn:aws:iam::...:instance-profile/...",
+                    "CreateDate": datetime(2016, 9, 28, 19, 23, 4),
+                    "InstanceProfileId": "...................",
+                    "InstanceProfileName": "test",
+                    "Path": "/",
+                    "Roles": [],
+                    "Tags": [],
+                },
+            },
+            # Call Params
+            {"InstanceProfileName": "test"},
+        )
 
-        yield self.actor._ensure_role('test', 'test-role')
-        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
-        self.actor._add_role.assert_called_with('test', 'test-role')
-
-    @testing.gen_test
-    def test_ensure_role_matching_key_error_and_no_role(self):
-        self.actor.iam_conn.get_instance_profile.side_effect = KeyError('')
-        self.actor._add_role = mock.MagicMock()
-        self.actor._add_role.side_effect = [tornado_value(None)]
-
-        yield self.actor._ensure_role('test', None)
-        self.actor.iam_conn.get_instance_profile.assert_called_with('test')
+        self.iam_stubber.add_response(
+            # API Call
+            "add_role_to_instance_profile",
+            # Response
+            {},
+            # Call parms
+            {"InstanceProfileName": "test", "RoleName": "test-role"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._ensure_role("test", "test-role")
+        self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
     def test_execute_absent(self):
-        self.actor._options['state'] = 'absent'
+        self.actor._options["state"] = "absent"
         self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
         yield self.actor._execute()
@@ -1021,7 +1345,7 @@ class TestInstanceProfile(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_no_role(self):
-        self.actor._options['role'] = None
+        self.actor._options["role"] = None
         self.actor._ensure_entity = mock.MagicMock()
         self.actor._ensure_entity.side_effect = [tornado_value(None)]
         self.actor._ensure_role = mock.MagicMock()

@@ -46,32 +46,26 @@ from kingpin.actors import exceptions
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
+__author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 
 
-USER = os.getenv('PINGDOM_USER', None)
-PASS = os.getenv('PINGDOM_PASS', None)
-TOKEN = os.getenv('PINGDOM_TOKEN', None)
+USER = os.getenv("PINGDOM_USER", None)
+PASS = os.getenv("PINGDOM_PASS", None)
+TOKEN = os.getenv("PINGDOM_TOKEN", None)
 
 
 class PingdomAPI(api.RestConsumer):
 
-    _ENDPOINT = 'https://api.pingdom.com'
+    _ENDPOINT = "https://api.pingdom.com"
     _CONFIG = {
-        'attrs': {
-            'checks': {
-                'path': '/api/2.0/checks',
-                'http_methods': {'get': {}}
-            },
-            'check': {
-                'path': '/api/2.0/checks/%check_id%',
-                'http_methods': {'put': {}}
+        "attrs": {
+            "checks": {"path": "/api/2.0/checks", "http_methods": {"get": {}}},
+            "check": {
+                "path": "/api/2.0/checks/%check_id%",
+                "http_methods": {"put": {}},
             },
         },
-        'auth': {
-            'user': USER,
-            'pass': PASS
-        }
+        "auth": {"user": USER, "pass": PASS},
     }
 
 
@@ -80,7 +74,7 @@ class PingdomClient(api.RestClient):
     # The default exception handling is fine, but the Pingdom API uses a 599 to
     # represent a timeout on the backend of their service.
     _EXCEPTIONS = dict(api.RestClient.EXCEPTIONS)
-    _EXCEPTIONS[httpclient.HTTPError]['599'] = None
+    _EXCEPTIONS[httpclient.HTTPError]["599"] = None
 
 
 class PingdomBase(base.BaseActor):
@@ -88,16 +82,14 @@ class PingdomBase(base.BaseActor):
     """Simple Pingdom Abstract Base Object"""
 
     all_options = {
-        'name': (str, REQUIRED, 'Name of the check'),
+        "name": (str, REQUIRED, "Name of the check"),
     }
 
     def __init__(self, *args, **kwargs):
         """Check required environment variables."""
         super(PingdomBase, self).__init__(*args, **kwargs)
 
-        rest_client = PingdomClient(
-            headers={'App-Key': TOKEN}
-        )
+        rest_client = PingdomClient(headers={"App-Key": TOKEN})
         self._pingdom_client = PingdomAPI(client=rest_client)
 
     @gen.coroutine
@@ -110,13 +102,13 @@ class PingdomBase(base.BaseActor):
         Raises InvalidOptions if the check does not exist.
         """
         resp = yield self._pingdom_client.checks().http_get()
-        all_checks = resp['checks']
-        check = [c for c in all_checks
-                 if c['name'] == self.option('name')]
+        all_checks = resp["checks"]
+        check = [c for c in all_checks if c["name"] == self.option("name")]
 
         if not check:
             raise exceptions.InvalidOptions(
-                'Check name "%s" was not found.' % self.option('name'))
+                'Check name "%s" was not found.' % self.option("name")
+            )
 
         raise gen.Return(check[0])
 
@@ -155,13 +147,14 @@ class Pause(PingdomBase):
         check = yield self._get_check()
 
         if self._dry:
-            self.log.info('Would pause %s (%s) pingdom check.' % (
-                check['name'], check['hostname']))
+            self.log.info(
+                "Would pause %s (%s) pingdom check."
+                % (check["name"], check["hostname"])
+            )
             raise gen.Return()
 
-        self.log.info('Pausing %s' % check['name'])
-        yield self._pingdom_client.check(
-            check_id=check['id']).http_put(paused='true')
+        self.log.info("Pausing %s" % check["name"])
+        yield self._pingdom_client.check(check_id=check["id"]).http_put(paused="true")
 
 
 class Unpause(PingdomBase):
@@ -198,10 +191,11 @@ class Unpause(PingdomBase):
         check = yield self._get_check()
 
         if self._dry:
-            self.log.info('Would unpause %s (%s) pingdom check.' % (
-                check['name'], check['hostname']))
+            self.log.info(
+                "Would unpause %s (%s) pingdom check."
+                % (check["name"], check["hostname"])
+            )
             raise gen.Return()
 
-        self.log.info('Unpausing %s' % check['name'])
-        yield self._pingdom_client.check(
-            check_id=check['id']).http_put(paused='false')
+        self.log.info("Unpausing %s" % check["name"])
+        yield self._pingdom_client.check(check_id=check["id"]).http_put(paused="false")

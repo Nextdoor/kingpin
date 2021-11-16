@@ -8,7 +8,7 @@ from kingpin.actors import librato
 from kingpin.actors import exceptions
 
 
-__author__ = 'Charles McLaughlin <charles@nextdoor.com>'
+__author__ = "Charles McLaughlin <charles@nextdoor.com>"
 
 
 class IntegrationLibratoAnnotation(testing.AsyncTestCase):
@@ -23,80 +23,87 @@ class IntegrationLibratoAnnotation(testing.AsyncTestCase):
 
     integration = True
 
-    @attr('librato', 'integration', 'integration', 'dry')
+    @attr("librato", "integration", "integration", "dry")
     @testing.gen_test
     def integration_test_init_without_token(self):
         # Un-set auth token and make sure the init fails
         librato.TOKEN = None
         with self.assertRaises(exceptions.InvalidCredentials):
             librato.Annotation(
-                'Unit Test Action',
-                {'title': 'unittest',
-                 'description': 'unittest',
-                 'name': 'unittest'}, dry=True)
+                "Unit Test Action",
+                {"title": "unittest", "description": "unittest", "name": "unittest"},
+                dry=True,
+            )
 
-    @attr('librato', 'integration', 'dry')
+    @attr("librato", "integration", "dry")
     @testing.gen_test
     def integration_test_init_without_email(self):
         # Un-set auth email and make sure the init fails
         librato.EMAIL = None
         with self.assertRaises(exceptions.InvalidCredentials):
             librato.Annotation(
-                'Unit Test Action',
-                {'title': 'unittest',
-                 'description': 'unittest',
-                 'name': 'unittest'}, dry=True)
+                "Unit Test Action",
+                {"title": "unittest", "description": "unittest", "name": "unittest"},
+                dry=True,
+            )
 
-    @attr('librato', 'integration', 'dry')
+    @attr("librato", "integration", "dry")
     @testing.gen_test
     def integration_test_execute_with_invalid_token(self):
         # Set auth token to invalid value and make sure execute fails
-        librato.TOKEN = 'Invalid'
+        librato.TOKEN = "Invalid"
 
         actor = librato.Annotation(
-            'Unit Test Action',
-            {'title': 'unittest',
-             'description': 'unittest',
-             'name': 'unittest'}, dry=True)
+            "Unit Test Action",
+            {"title": "unittest", "description": "unittest", "name": "unittest"},
+            dry=True,
+        )
 
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
-    @attr('librato', 'integration', 'dry')
+    @attr("librato", "integration", "dry")
     @testing.gen_test
     def integration_test_execute_with_invalid_email(self):
         # Set auth email to invalid value and make sure execute fails
-        librato.EMAIL = 'Invalid'
+        librato.EMAIL = "Invalid"
 
         actor = librato.Annotation(
-            'Unit Test Action',
-            {'title': 'unittest',
-             'description': 'unittest',
-             'name': 'unittest'}, dry=True)
+            "Unit Test Action",
+            {"title": "unittest", "description": "unittest", "name": "unittest"},
+            dry=True,
+        )
 
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
-    @attr('librato', 'integration', 'dry')
+    @attr("librato", "integration", "dry")
     @testing.gen_test
     def integration_test_execute_dry(self):
         actor = librato.Annotation(
-            'Unit Test Action',
-            {'title': 'Kingpin Integration Testing',
-             'description': 'Executing integration tests',
-             'name': 'kingpin-integration-testing'}, dry=True)
+            "Unit Test Action",
+            {
+                "title": "Kingpin Integration Testing",
+                "description": "Executing integration tests",
+                "name": "kingpin-integration-testing",
+            },
+            dry=True,
+        )
 
         res = yield actor.execute()
         self.assertEqual(res, None)
 
-    @attr('librato', 'integration')
+    @attr("librato", "integration")
     @testing.gen_test
     def integration_test_execute(self):
         actor = librato.Annotation(
-            'Unit Test Action',
-            {'title': 'Kingpin Integration Testing',
-             'description': 'Executing integration tests',
-             'name': 'kingpin-integration-testing'})
+            "Unit Test Action",
+            {
+                "title": "Kingpin Integration Testing",
+                "description": "Executing integration tests",
+                "name": "kingpin-integration-testing",
+            },
+        )
 
         res = yield actor.execute()
         self.assertEqual(res, None)

@@ -1,16 +1,7 @@
-/***
- * Simple example policy that gives a particular Amazon region access
- * to put log files into a bucket.
- */
 {
     "Statement": [
         {
             "Action": [
-                /***
-                 * These are deliberately out of alphabetical order to ensure that
-                 * in our tests, we re-order when we do the comparison before just
-                 * re-pushing the policy.
-                 */
                 "s3:Put*",
                 "s3:Get*"
             ],

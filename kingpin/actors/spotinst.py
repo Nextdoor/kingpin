@@ -60,66 +60,66 @@ from kingpin.constants import SchemaCompareBase
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Matt Wise <matt@nextdoor.com>'
+__author__ = "Matt Wise <matt@nextdoor.com>"
 
-DEBUG = os.getenv('SPOTINST_DEBUG', False)
-TOKEN = os.getenv('SPOTINST_TOKEN', None)
-ACCOUNT_ID = os.getenv('SPOTINST_ACCOUNT_ID', None)
+DEBUG = os.getenv("SPOTINST_DEBUG", False)
+TOKEN = os.getenv("SPOTINST_TOKEN", None)
+ACCOUNT_ID = os.getenv("SPOTINST_ACCOUNT_ID", None)
 
 
 class SpotinstAPI(api.RestConsumer):
 
-    ENDPOINT = 'https://api.spotinst.io/'
+    ENDPOINT = "https://api.spotinst.io/"
     CONFIG = {
-        'attrs': {
-            'aws': {
-                'new': True,
-                'attrs': {
-                    'ec2': {
-                        'new': True,
-                        'attrs': {
-                            'list_groups': {
-                                'new': True,
-                                'path': 'aws/ec2/group?accountId=%account_id%',
-                                'http_methods': {'get': {}}
+        "attrs": {
+            "aws": {
+                "new": True,
+                "attrs": {
+                    "ec2": {
+                        "new": True,
+                        "attrs": {
+                            "list_groups": {
+                                "new": True,
+                                "path": "aws/ec2/group?accountId=%account_id%",
+                                "http_methods": {"get": {}},
                             },
-                            'create_group': {
-                                'new': True,
-                                'path': 'aws/ec2/group?accountId=%account_id%',
-                                'http_methods': {'post': {}}
+                            "create_group": {
+                                "new": True,
+                                "path": "aws/ec2/group?accountId=%account_id%",
+                                "http_methods": {"post": {}},
                             },
-                            'list_group': {
-                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',  # nopep8
-                                'http_methods': {'get': {}}
+                            "list_group": {
+                                "path": "aws/ec2/group/%id%?accountId=%account_id%",  # nopep8
+                                "http_methods": {"get": {}},
                             },
-                            'update_group': {
-                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',  # nopep8
-                                'http_methods': {'put': {}}
+                            "update_group": {
+                                "path": "aws/ec2/group/%id%?accountId=%account_id%",  # nopep8
+                                "http_methods": {"put": {}},
                             },
-                            'delete_group': {
-                                'path': 'aws/ec2/group/%id%?accountId=%account_id%',  # nopep8
-                                'http_methods': {'delete': {}}
+                            "delete_group": {
+                                "path": "aws/ec2/group/%id%?accountId=%account_id%",  # nopep8
+                                "http_methods": {"delete": {}},
                             },
-                            'group_status': {
-                                'path': 'aws/ec2/group/%id%/status?accountId=%account_id%',  # nopep8
-                                'http_methods': {'get': {}}
+                            "group_status": {
+                                "path": "aws/ec2/group/%id%/status?accountId=%account_id%",  # nopep8
+                                "http_methods": {"get": {}},
                             },
-                            'validate_group': {
-                                'new': True,
-                                'path': 'aws/ec2/group/validation?accountId=%account_id%',  # nopep8
-                                'http_methods': {'post': {}}
+                            "validate_group": {
+                                "new": True,
+                                "path": "aws/ec2/group/validation?accountId=%account_id%",  # nopep8
+                                "http_methods": {"post": {}},
                             },
-                            'roll': {
-                                'path': 'aws/ec2/group/%id%/roll?limit=50&accountId=%account_id%',  # nopep8
-                                'http_methods': {'put': {}, 'get': {}}
+                            "roll": {
+                                "path": "aws/ec2/group/%id%/roll?limit=50&accountId=%account_id%",  # nopep8
+                                "http_methods": {"put": {}, "get": {}},
                             },
-                            'roll_status': {
-                                'path': 'aws/ec2/group/%id%/roll/%roll_id%?accountId=%account_id%',  # nopep8
-                                'http_methods': {'get': {}}
+                            "roll_status": {
+                                "path": "aws/ec2/group/%id%/roll/%roll_id%?accountId=%account_id%",  # nopep8
+                                "http_methods": {"get": {}},
                             },
-                        }
+                        },
                     }
-                }
+                },
             }
         }
     }
@@ -152,31 +152,32 @@ class SpotinstException(exceptions.RecoverableActorFailure):
         then logs them out. It also adds them to the exception message so that
         you get something beyond '400 Bad Request'.
         """
-        log = logging.getLogger('%s.%s' % (self.__module__,
-                                           self.__class__.__name__))
+        log = logging.getLogger("%s.%s" % (self.__module__, self.__class__.__name__))
         try:
             error = json.loads(e.response.body)
         except AttributeError:
-            return 'Unknown error: %s' % e
+            return "Unknown error: %s" % e
 
-        msg_id = ('Request ID (%s) %s %s' % (error['request']['id'],
-                                             error['request']['method'],
-                                             error['request']['url']))
-        log.error('Error on %s' % msg_id)
+        msg_id = "Request ID (%s) %s %s" % (
+            error["request"]["id"],
+            error["request"]["method"],
+            error["request"]["url"],
+        )
+        log.error("Error on %s" % msg_id)
 
-        if 'error' in error['response']:
-            return 'Spotinst %s: %s' % (msg_id, error['response']['error'])
+        if "error" in error["response"]:
+            return "Spotinst %s: %s" % (msg_id, error["response"]["error"])
 
-        if 'errors' in error['response']:
+        if "errors" in error["response"]:
             msgs = []
-            for err in error['response']['errors']:
-                msg = '%s: %s' % (err['code'], err['message'])
+            for err in error["response"]["errors"]:
+                msg = "%s: %s" % (err["code"], err["message"])
                 msgs.append(msg)
                 log.error(msg)
-            return 'Spotinst %s: %s' % (msg_id, ', '.join(msgs))
+            return "Spotinst %s: %s" % (msg_id, ", ".join(msgs))
 
         # Fallback if we don't know what kind of error body this is
-        error_str = ('Spotinst %s: %s' % (msg_id, error['response']))
+        error_str = "Spotinst %s: %s" % (msg_id, error["response"])
         return error_str
 
 
@@ -189,18 +190,16 @@ class SpotinstRestClient(api.RestClient):
 
     EXCEPTIONS = {
         httpclient.HTTPError: {
-            '400': InvalidConfig,
-            '401': exceptions.InvalidCredentials,
-            '403': exceptions.InvalidCredentials,
-            '500': None,
-            '502': None,
-            '503': None,
-            '504': None,
-
+            "400": InvalidConfig,
+            "401": exceptions.InvalidCredentials,
+            "403": exceptions.InvalidCredentials,
+            "500": None,
+            "502": None,
+            "503": None,
+            "504": None,
             # Represents a standard HTTP Timeout
-            '599': None,
-
-            '': exceptions.BadRequest,
+            "599": None,
+            "": exceptions.BadRequest,
         }
     }
 
@@ -223,64 +222,57 @@ class ElastiGroupSchema(SchemaCompareBase):
     * Ensure that the `scaling.up` and `scaling.down` arrays are either `null`
       or contain at least **1** record.
     """
+
     SCHEMA = {
-        'type': 'object',
-        'additionalProperties': True,
-        'required': ['group'],
-        'properties': {
-            'group': {
-                'type': 'object',
-                'properties': {
-                    'compute': {
-                        'type': 'object',
-                        'properties': {
-                            'availabilityZones': {
-                                'type': 'array',
-                                'uniqueItems': True,
-                                'items': {
-                                    'type': 'object',
-                                    'required': ['name', 'subnetId'],
-                                    'additionalProperties': False,
-                                    'properties': {
-                                        'name': {'type': 'string'},
-                                        'subnetId': {'type': 'string'}
-                                    }
-                                }
+        "type": "object",
+        "additionalProperties": True,
+        "required": ["group"],
+        "properties": {
+            "group": {
+                "type": "object",
+                "properties": {
+                    "compute": {
+                        "type": "object",
+                        "properties": {
+                            "availabilityZones": {
+                                "type": "array",
+                                "uniqueItems": True,
+                                "items": {
+                                    "type": "object",
+                                    "required": ["name", "subnetId"],
+                                    "additionalProperties": False,
+                                    "properties": {
+                                        "name": {"type": "string"},
+                                        "subnetId": {"type": "string"},
+                                    },
+                                },
                             },
-                            'instanceTypes': {
-                                'type': 'object',
-                                'properties': {
-                                    'spot': {
-                                        'type': 'array',
-                                        'additionalItems': False,
-                                        'items': {
-                                            'type': 'string',
-                                            'not': {
-                                                'pattern': '^t2|hc1'
-                                            }
-                                        }
+                            "instanceTypes": {
+                                "type": "object",
+                                "properties": {
+                                    "spot": {
+                                        "type": "array",
+                                        "additionalItems": False,
+                                        "items": {
+                                            "type": "string",
+                                            "not": {"pattern": "^t2|hc1"},
+                                        },
                                     }
-                                }
-                            }
-                        }
+                                },
+                            },
+                        },
                     },
-                    'scaling': {
-                        'type': ['object', 'null'],
-                        'additionalProperties': False,
-                        'properties': {
-                            'up': {
-                                'type': ['null', 'array'],
-                                'minItems': 1
-                            },
-                            'down': {
-                                'type': ['null', 'array'],
-                                'minItems': 1
-                            },
-                        }
-                    }
-                }
+                    "scaling": {
+                        "type": ["object", "null"],
+                        "additionalProperties": False,
+                        "properties": {
+                            "up": {"type": ["null", "array"], "minItems": 1},
+                            "down": {"type": ["null", "array"], "minItems": 1},
+                        },
+                    },
+                },
             }
-        }
+        },
     }
 
 
@@ -293,26 +285,29 @@ class SpotinstBase(base.EnsurableBaseActor):
 
         if not TOKEN:
             raise exceptions.InvalidCredentials(
-                'Missing the "SPOTINST_TOKEN" environment variable.')
+                'Missing the "SPOTINST_TOKEN" environment variable.'
+            )
 
         if not DEBUG:
-            logging.getLogger('tornado_rest_client.api').setLevel('INFO')
+            logging.getLogger("tornado_rest_client.api").setLevel("INFO")
 
         # Figure out our account ID and set it.. Or this will end up falling
         # back to None if neither are set.
-        account_id = self._options.get('account_id')
+        account_id = self._options.get("account_id")
         if account_id is None:
             account_id = ACCOUNT_ID
 
         if account_id is None:
             raise exceptions.InvalidCredentials(
-                'Missing SPOTINST_ACCOUNT_ID or account_id parameter')
+                "Missing SPOTINST_ACCOUNT_ID or account_id parameter"
+            )
 
         rest_client = SpotinstRestClient(
             headers={
-                'Authorization': 'Bearer %s' % TOKEN,
-                'Content-Type': 'application/json',
-            })
+                "Authorization": "Bearer %s" % TOKEN,
+                "Content-Type": "application/json",
+            }
+        )
 
         self._client = SpotinstAPI(client=rest_client, account_id=account_id)
 
@@ -424,48 +419,70 @@ class ElastiGroup(SpotinstBase):
     """
 
     all_options = {
-        'name': (
-            str, REQUIRED, 'Name of the ElastiGroup to manage'),
-        'account_id': (
-            str, None, 'SpotInst Account ID'),
-        'config': (
-            str, None, 'Name of the file with the ElastiGroup config'),
-        'tokens': (
-            dict, {}, ('A flat dictionary of Key/Value pairs that can be '
-                       'swapped into the ElastiGroup template.')),
-        'roll_on_change': (
-            bool, False,
-            ('Roll out new instances upon any config change.')),
-        'roll_batch_size': (
-            (str, int), 20,
-            ('Indicates in percentage the amount of instances should be'
-             'replaced in each batch.')),
-        'roll_grace_period': (
-            (str, int), 600,
-            ('Indicates in seconds the timeout to wait until instance become'
-             'healthy in the ELB.')),
-        'wait_on_create': (
-            bool, False, 'Wait for the ElastiGroup to startup and stabalize'),
-        'wait_on_roll': (
-            bool, False, 'Wait on any changes to roll out to the nodes'),
+        "name": (str, REQUIRED, "Name of the ElastiGroup to manage"),
+        "account_id": (str, None, "SpotInst Account ID"),
+        "config": (str, None, "Name of the file with the ElastiGroup config"),
+        "tokens": (
+            dict,
+            {},
+            (
+                "A flat dictionary of Key/Value pairs that can be "
+                "swapped into the ElastiGroup template."
+            ),
+        ),
+        "roll_on_change": (
+            bool,
+            False,
+            ("Roll out new instances upon any config change."),
+        ),
+        "roll_batch_size": (
+            (str, int),
+            20,
+            (
+                "Indicates in percentage the amount of instances should be"
+                "replaced in each batch."
+            ),
+        ),
+        "roll_grace_period": (
+            (str, int),
+            600,
+            (
+                "Indicates in seconds the timeout to wait until instance become"
+                "healthy in the ELB."
+            ),
+        ),
+        "wait_on_create": (
+            bool,
+            False,
+            "Wait for the ElastiGroup to startup and stabalize",
+        ),
+        "wait_on_roll": (bool, False, "Wait on any changes to roll out to the nodes"),
     }
-    unmanaged_options = ['name', 'account_id', 'wait_on_roll',
-                         'wait_on_create', 'roll_on_change', 'roll_batch_size',
-                         'roll_grace_period', 'tokens']
+    unmanaged_options = [
+        "name",
+        "account_id",
+        "wait_on_roll",
+        "wait_on_create",
+        "roll_on_change",
+        "roll_batch_size",
+        "roll_grace_period",
+        "tokens",
+    ]
 
-    desc = 'ElastiGroup {name}'
+    desc = "ElastiGroup {name}"
 
     def __init__(self, *args, **kwargs):
         super(ElastiGroup, self).__init__(*args, **kwargs)
 
         # Quickly make sure that the roll_batch_size and roll_grace_period are
         # integers...
-        for key in ('roll_batch_size', 'roll_grace_period'):
+        for key in ("roll_batch_size", "roll_grace_period"):
             try:
                 self._options[key] = int(self._options[key])
             except ValueError:
                 raise exceptions.InvalidOptions(
-                    '%s (%s) must be an integer' % (key, self._options[key]))
+                    "%s (%s) must be an integer" % (key, self._options[key])
+                )
 
         # Parse the user-supplied ElastiGroup config, swap in any tokens, etc.
         self._config = self._parse_group_config()
@@ -484,36 +501,33 @@ class ElastiGroup(SpotinstBase):
         compilation time) are not included here. Instead, those will be
         evaluated in the self._precache() method.
         """
-        config = self.option('config')
+        config = self.option("config")
 
         if config is None:
             return None
 
-        self.log.debug('Parsing and validating %s' % config)
+        self.log.debug("Parsing and validating %s" % config)
 
         # Join the init_tokens the class was instantiated with and the explicit
         # tokens that the user supplied.
         tokens = dict(self._init_tokens)
-        tokens.update(self.option('tokens'))
+        tokens.update(self.option("tokens"))
 
         try:
-            parsed = utils.convert_script_to_dict(
-                script_file=config, tokens=tokens)
+            parsed = utils.convert_script_to_dict(script_file=config, tokens=tokens)
         except (kingpin_exceptions.InvalidScript, LookupError) as e:
-            raise exceptions.InvalidOptions(
-                'Error parsing %s: %s' % (config, e))
+            raise exceptions.InvalidOptions("Error parsing %s: %s" % (config, e))
 
         # The userData portion of the body data needs to be Base64 encoded if
         # its not already. We will try to decode whatever is there, and if it
         # fails, we assume its raw text and we encode it.
-        orig_data = (parsed['group']['compute']
-                     ['launchSpecification']['userData'])
+        orig_data = parsed["group"]["compute"]["launchSpecification"]["userData"]
         new = base64.b64encode(orig_data.encode("utf-8"))
-        parsed['group']['compute']['launchSpecification']['userData'] = new
+        parsed["group"]["compute"]["launchSpecification"]["userData"] = new
 
         # Ensure that the name of the ElastiGroup in the config file matches
         # the name that was supplied to the actor -- or overwrite it.
-        parsed['group']['name'] = self.option('name')
+        parsed["group"]["name"] = self.option("name")
 
         # Now run the configuration through the schema validator
         ElastiGroupSchema.validate(parsed)
@@ -542,11 +556,12 @@ class ElastiGroup(SpotinstBase):
         # Note - we don't manage the ElastiGroup target size. If the group
         # exists and has a target size set, we override the user-supplied
         # target number with the value returned to us by Spotinst.
-        if self._group and 'capacity' in self._group['group']:
-            target = self._group['group']['capacity']['target']
-            self.log.info('Using the Spotinst supplied [capacity][target]'
-                          ' value: %s' % target)
-            self._config['group']['capacity']['target'] = target
+        if self._group and "capacity" in self._group["group"]:
+            target = self._group["group"]["capacity"]["target"]
+            self.log.info(
+                "Using the Spotinst supplied [capacity][target]" " value: %s" % target
+            )
+            self._config["group"]["capacity"]["target"] = target
 
     @gen.coroutine
     def _list_groups(self):
@@ -556,8 +571,8 @@ class ElastiGroup(SpotinstBase):
             [List of JSON ElastiGroup objects]
         """
         raw = yield self._client.aws.ec2.list_groups.http_get()
-        resp = raw.get('response', {})
-        items = resp.get('items', [])
+        resp = raw.get("response", {})
+        items = resp.get("items", [])
         raise gen.Return(items)
 
     @gen.coroutine
@@ -581,23 +596,23 @@ class ElastiGroup(SpotinstBase):
             raise gen.Return(None)
 
         matching = [
-            group for group in all_groups
-            if group['name'] == self.option('name')]
+            group for group in all_groups if group["name"] == self.option("name")
+        ]
 
         if len(matching) > 1:
             raise exceptions.InvalidOptions(
-                'Found more than one ElastiGroup with the name %s - '
-                'this actor cannot manage multiple groups with the same'
-                'name, you must use a unique name for each group.'
-                % self.option('name'))
+                "Found more than one ElastiGroup with the name %s - "
+                "this actor cannot manage multiple groups with the same"
+                "name, you must use a unique name for each group." % self.option("name")
+            )
 
         if len(matching) < 1:
-            self.log.debug('Did not find an existing ElastiGroup')
+            self.log.debug("Did not find an existing ElastiGroup")
             raise gen.Return(None)
 
         match = matching[0]
-        self.log.debug('Found ElastiGroup %s' % match['id'])
-        raise gen.Return({'group': match})
+        self.log.debug("Found ElastiGroup %s" % match["id"])
+        raise gen.Return({"group": match})
 
     @gen.coroutine
     def _validate_group(self):
@@ -612,8 +627,7 @@ class ElastiGroup(SpotinstBase):
         Raises:
             SpotinstException: If any known Spotinst style error comes back.
         """
-        yield self._client.aws.ec2.validate_group.http_post(
-            group=self._config['group'])
+        yield self._client.aws.ec2.validate_group.http_post(group=self._config["group"])
 
     @gen.coroutine
     def _get_state(self):
@@ -628,9 +642,9 @@ class ElastiGroup(SpotinstBase):
             absent: If not
         """
         if self._group:
-            raise gen.Return('present')
+            raise gen.Return("present")
 
-        raise gen.Return('absent')
+        raise gen.Return("absent")
 
     @gen.coroutine
     def _set_state(self):
@@ -641,9 +655,9 @@ class ElastiGroup(SpotinstBase):
         not exist, we trigger a group create call. In any other situation, we
         do nothing because the desired and current states match.
         """
-        if self.option('state') == 'absent' and self._group:
-            yield self._delete_group(id=self._group['group']['id'])
-        elif self.option('state') == 'present':
+        if self.option("state") == "absent" and self._group:
+            yield self._delete_group(id=self._group["group"]["id"])
+        elif self.option("state") == "present":
             yield self._create_group()
 
             # You'd think that we could store the returned group config from
@@ -655,25 +669,24 @@ class ElastiGroup(SpotinstBase):
             self._group = yield self._get_group()
 
             # Optionally, wait until the nodes have booted up before returning.
-            if self.option('wait_on_create'):
+            if self.option("wait_on_create"):
                 yield self._wait_until_stable()
 
     @gen.coroutine
-    @dry('Would have created ElastiGroup')
+    @dry("Would have created ElastiGroup")
     def _create_group(self):
-        self.log.info('Creating ElastiGroup %s' % self.option('name'))
-        yield self._client.aws.ec2.create_group.http_post(
-            group=self._config['group'])
+        self.log.info("Creating ElastiGroup %s" % self.option("name"))
+        yield self._client.aws.ec2.create_group.http_post(group=self._config["group"])
 
     @gen.coroutine
-    @dry('Would have deleted ElastiGroup {id}')
+    @dry("Would have deleted ElastiGroup {id}")
     def _delete_group(self, id):
-        self.log.info('Deleting ElastiGroup %s' % id)
+        self.log.info("Deleting ElastiGroup %s" % id)
         yield self._client.aws.ec2.delete_group(id=id).http_delete()
 
     @gen.coroutine
     def _get_group_status(self, id):
-        self.log.debug('Getting ElastiGroup %s status...' % id)
+        self.log.debug("Getting ElastiGroup %s status..." % id)
         ret = yield self._client.aws.ec2.group_status(id=id).http_get()
         raise gen.Return(ret)
 
@@ -683,31 +696,30 @@ class ElastiGroup(SpotinstBase):
         raise gen.Return(self._group)
 
     @gen.coroutine
-    @dry('Would have updated ElastiGroup config')
+    @dry("Would have updated ElastiGroup config")
     def _set_config(self):
-        group_id = self._group['group']['id']
-        self.log.info('Updating ElastiGroup %s' % group_id)
+        group_id = self._group["group"]["id"]
+        self.log.info("Updating ElastiGroup %s" % group_id)
 
         # There are certain fields that simply cannot be updated -- strip them
         # out. We have a warning up in the above _compare_config() section that
         # will tell the user about this in a dry run.
-        if 'capacity' in self._config['group']:
-            self.log.warning(
-                'Note: Ignoring the group[capacity][unit] setting.')
-            self._config['group']['capacity'].pop('unit', None)
-        if 'compute' in self._config['group']:
-            self.log.warning(
-                'Note: Ignoring the group[compute][product] setting.')
-            self._config['group']['compute'].pop('product', None)
+        if "capacity" in self._config["group"]:
+            self.log.warning("Note: Ignoring the group[capacity][unit] setting.")
+            self._config["group"]["capacity"].pop("unit", None)
+        if "compute" in self._config["group"]:
+            self.log.warning("Note: Ignoring the group[compute][product] setting.")
+            self._config["group"]["compute"].pop("product", None)
 
         # Now do the update and capture the results. Once we have them, we'll
         # store the updated group configuration.
         ret = yield self._client.aws.ec2.update_group(id=group_id).http_put(
-            group=self._config['group'])
-        self._group = {'group': ret['response']['items'][0]}
+            group=self._config["group"]
+        )
+        self._group = {"group": ret["response"]["items"][0]}
 
         # If we're supposed to roll the group on any config changes, begin now
-        if self.option('roll_on_change'):
+        if self.option("roll_on_change"):
             yield self._roll_group()
 
     @gen.coroutine
@@ -743,36 +755,38 @@ class ElastiGroup(SpotinstBase):
 
         # Strip out some of the Spotinst generated and managed fields that
         # should never end up in either our new or existing configs.
-        for field in ('id', 'createdAt', 'updatedAt', 'userData'):
+        for field in ("id", "createdAt", "updatedAt", "userData"):
             for g in (new, existing):
-                g['group'].pop(field, None)
+                g["group"].pop(field, None)
 
         # Decode both of the userData fields so we can actually see the
         # userdata differences.
         for config in (new, existing):
-            config['group']['compute']['launchSpecification']['userData'] = (
-                base64.b64decode(config['group']['compute']
-                                 ['launchSpecification']['userData']))
+            config["group"]["compute"]["launchSpecification"][
+                "userData"
+            ] = base64.b64decode(
+                config["group"]["compute"]["launchSpecification"]["userData"]
+            )
 
         # We only allow a user to supply a single subnetId for each AZ (this is
         # handled by the ElastiGroupSchema). Spotinst returns back though both
         # the original setting, as well as a list of subnetIds. We purge that
         # from our comparison here.
-        for az in existing['group']['compute']['availabilityZones']:
-            az.pop('subnetIds', None)
+        for az in existing["group"]["compute"]["availabilityZones"]:
+            az.pop("subnetIds", None)
 
         diff = utils.diff_dicts(existing, new)
 
         if diff:
-            self.log.warning('Group configurations do not match')
-            for line in diff.split('\n'):
-                self.log.info('Diff: %s' % line)
+            self.log.warning("Group configurations do not match")
+            for line in diff.split("\n"):
+                self.log.info("Diff: %s" % line)
             return False
 
         return True
 
     @gen.coroutine
-    @dry('Would have rolled the ElastiGroup..')
+    @dry("Would have rolled the ElastiGroup..")
     def _roll_group(self, delay=30):
         """Triggers an ElastiGroup rolling operation and waits for completion.
 
@@ -782,7 +796,7 @@ class ElastiGroup(SpotinstBase):
         Depending on the `wait_on_roll` option, this method will wait until the
         roll has completed before returning.
         """
-        group_id = self._group['group']['id']
+        group_id = self._group["group"]["id"]
 
         # You are not allowed to have two rolls happening at the same time --
         # so if there is already a roll in progress, we need to wait before we
@@ -793,21 +807,21 @@ class ElastiGroup(SpotinstBase):
         yield self._wait_until_roll_complete(delay)
 
         # Now, try to do the roll...
-        self.log.info('Triggering an ElastiGroup roll')
+        self.log.info("Triggering an ElastiGroup roll")
         yield self._client.aws.ec2.roll(id=group_id).http_put(
-            batchSizePercentage=self.option('roll_batch_size'),
-            gracePeriod=self.option('roll_grace_period'))
+            batchSizePercentage=self.option("roll_batch_size"),
+            gracePeriod=self.option("roll_grace_period"),
+        )
 
         # Now, if the user wants us to wait, we will wait.
-        if self.option('wait_on_roll'):
+        if self.option("wait_on_roll"):
             yield self._wait_until_roll_complete(delay)
 
     @gen.coroutine
-    @dry('Would have waited for ElastiGroup changes to become active')
+    @dry("Would have waited for ElastiGroup changes to become active")
     def _wait_until_roll_complete(self, delay):
-        """Poll and wait until an ElastiGroup roll is complete.
-        """
-        group_id = self._group['group']['id']
+        """Poll and wait until an ElastiGroup roll is complete."""
+        group_id = self._group["group"]["id"]
 
         # Note: We do not use the repeating_log because we only call this API
         # every 30s or so. Rolling out group changes is almost guaranteed to be
@@ -815,27 +829,29 @@ class ElastiGroup(SpotinstBase):
         # to constantly check the status of the rollout. Instead, we make calls
         # infrequently and thus we are able to simply log out the status after
         # each call.
-        self.log.info('Checking if any ElastiGroup rolls are in progress..')
+        self.log.info("Checking if any ElastiGroup rolls are in progress..")
         while True:
             response = yield self._client.aws.ec2.roll(id=group_id).http_get()
 
-            in_progress = [r for r in response['response']['items']
-                           if r['status'] != 'finished']
+            in_progress = [
+                r for r in response["response"]["items"] if r["status"] != "finished"
+            ]
 
             if len(in_progress) < 1:
                 break
 
-            status = in_progress[0]['status']
-            unit = in_progress[0]['progress']['unit']
-            progress = in_progress[0]['progress']['value']
+            status = in_progress[0]["status"]
+            unit = in_progress[0]["progress"]["unit"]
+            progress = in_progress[0]["progress"]["value"]
 
-            self.log.info('Group roll is %s %s complete (%s)' % (progress,
-                                                                 unit, status))
+            self.log.info(
+                "Group roll is %s %s complete (%s)" % (progress, unit, status)
+            )
 
             yield gen.sleep(delay)
 
     @gen.coroutine
-    @dry('Would have waited for all ElastiGroup nodes to launch')
+    @dry("Would have waited for all ElastiGroup nodes to launch")
     def _wait_until_stable(self, delay=3):
         """Poll and wait until an ElastiGroup has stabalized.
 
@@ -843,31 +859,36 @@ class ElastiGroup(SpotinstBase):
         This method watches the list of instances and waits until they are all
         in the 'fulfilled' state.
         """
-        group_id = self._group['group']['id']
+        group_id = self._group["group"]["id"]
 
         # We use the repeating_log to let the user know we're still monitoring
         # things, while not  flooding them every time we make an API call. We
         # give them a message every 30s, but make an API call every 3 seconds
         # to check the status.
         repeating_log = utils.create_repeating_log(
-            self.log.info,
-            'Waiting for ElastiGroup to become stable',
-            seconds=30)
+            self.log.info, "Waiting for ElastiGroup to become stable", seconds=30
+        )
 
         while True:
             response = yield self._get_group_status(group_id)
 
             # Find any nodes that are waiting for spot instance requests to be
             # fulfilled.
-            pending = [i for i in response['response']['items']
-                       if i['status'] == 'pending-evaluation']
-            fulfilled = [i['instanceId'] for i in response['response']['items']
-                         if i['status'] == 'fulfilled' and i['instanceId'] is
-                         not None]
+            pending = [
+                i
+                for i in response["response"]["items"]
+                if i["status"] == "pending-evaluation"
+            ]
+            fulfilled = [
+                i["instanceId"]
+                for i in response["response"]["items"]
+                if i["status"] == "fulfilled" and i["instanceId"] is not None
+            ]
 
             if len(pending) < 1:
-                self.log.info('All instance requests fulfilled: %s' %
-                              ', '.join(fulfilled))
+                self.log.info(
+                    "All instance requests fulfilled: %s" % ", ".join(fulfilled)
+                )
                 break
 
             yield gen.sleep(delay)

@@ -28,27 +28,19 @@
 .. autoclass:: InstanceProfile
    :noindex:
 
-.. autoclass:: UploadCert
-   :noindex:
-
-.. autoclass:: DeleteCert
-   :noindex:
 """
 
 import logging
 
 # Bring in our sub class actors into the iam namespace
-from kingpin.actors.aws.iam.certs import UploadCert, DeleteCert
 from kingpin.actors.aws.iam.entities import User, Group, Role, InstanceProfile
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
+__author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 
 # Quiet down PyFlakes
 User
 Group
 Role
 InstanceProfile
-UploadCert
-DeleteCert

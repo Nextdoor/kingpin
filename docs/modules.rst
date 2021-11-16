@@ -5,13 +5,9 @@ Full Module Docs
    :members:
 .. automodule:: kingpin.actors.aws.cloudformation
    :members:
-.. automodule:: kingpin.actors.aws.elb
-   :members:
 .. automodule:: kingpin.actors.aws.iam
    :members:
 .. automodule:: kingpin.actors.aws.settings
-   :members:
-.. automodule:: kingpin.actors.aws.sqs
    :members:
 .. automodule:: kingpin.actors.aws.s3
    :members:
@@ -30,12 +26,6 @@ Full Module Docs
 .. automodule:: kingpin.actors.packagecloud
    :members:
 .. automodule:: kingpin.actors.pingdom
-   :members:
-.. automodule:: kingpin.actors.rightscale.api
-   :members:
-.. automodule:: kingpin.actors.rightscale.base
-   :members:
-.. automodule:: kingpin.actors.rightscale.server_array
    :members:
 .. automodule:: kingpin.actors.rollbar
    :members:

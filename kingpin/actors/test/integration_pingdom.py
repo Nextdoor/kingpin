@@ -8,20 +8,20 @@ from kingpin import utils
 from kingpin.actors import pingdom
 
 
-__author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
+__author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 
 
 class IntegrationPingdom(testing.AsyncTestCase):
 
     integration = True
 
-    check_name = 'kingpin-integration-test'
+    check_name = "kingpin-integration-test"
 
-    @attr('pingdom', 'integration')
+    @attr("pingdom", "integration")
     @testing.gen_test(timeout=60)
     def integration_01a_test_pause(self):
 
-        actor = pingdom.Pause('Pause check', {'name': self.check_name})
+        actor = pingdom.Pause("Pause check", {"name": self.check_name})
 
         yield actor.execute()
 
@@ -29,13 +29,13 @@ class IntegrationPingdom(testing.AsyncTestCase):
 
         check = yield actor._get_check()
 
-        self.assertEqual(check['status'], 'paused')
+        self.assertEqual(check["status"], "paused")
 
-    @attr('pingdom', 'integration')
+    @attr("pingdom", "integration")
     @testing.gen_test(timeout=60)
     def integration_02a_test_unpause(self):
 
-        actor = pingdom.Unpause('Unpause check', {'name': self.check_name})
+        actor = pingdom.Unpause("Unpause check", {"name": self.check_name})
 
         yield actor.execute()
 
@@ -43,4 +43,4 @@ class IntegrationPingdom(testing.AsyncTestCase):
 
         check = yield actor._get_check()
 
-        self.assertEqual(check['status'], 'up')
+        self.assertEqual(check["status"], "up")

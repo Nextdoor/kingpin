@@ -9,7 +9,7 @@ from kingpin.actors import exceptions
 import importlib
 
 
-__author__ = 'Matt Wise <matt@nextdoor.com>'
+__author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 class IntegrationHipchatMessage(testing.AsyncTestCase):
@@ -24,44 +24,44 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
 
     integration = True
 
-    @attr('hipchat', 'integration')
+    @attr("hipchat", "integration")
     @testing.gen_test(timeout=60)
     def integration_test_init_without_environment_creds(self):
-        message = 'Unit test message'
-        room = 'Operations'
+        message = "Unit test message"
+        room = "Operations"
 
         # Un-set the token now and make sure the init fails
         hipchat.TOKEN = None
         with self.assertRaises(exceptions.InvalidCredentials):
             hipchat.Message(
-                'Unit Test Action',
-                {'message': message, 'room': room}, dry=True)
+                "Unit Test Action", {"message": message, "room": room}, dry=True
+            )
 
         # Reload the hipchat library to re-get the token
         importlib.reload(hipchat)
 
-    @attr('hipchat', 'integration')
+    @attr("hipchat", "integration")
     @testing.gen_test(timeout=60)
     def integration_test_execute_with_invalid_creds(self):
-        message = 'Unit test message'
-        room = 'unit_room'
+        message = "Unit test message"
+        room = "unit_room"
         actor = hipchat.Message(
-            'Unit Test Action',
-            {'message': message, 'room': room}, dry=True)
+            "Unit Test Action", {"message": message, "room": room}, dry=True
+        )
 
         # Valid response test
-        actor._token = 'Invalid'
+        actor._token = "Invalid"
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
-    @attr('hipchat', 'integration')
+    @attr("hipchat", "integration")
     @testing.gen_test(timeout=60)
     def integration_test_execute_real(self):
-        message = 'Unit test message'
-        room = 'Operations'
+        message = "Unit test message"
+        room = "Operations"
         actor = hipchat.Message(
-            'Unit Test Action',
-            {'message': message, 'room': room}, dry=True)
+            "Unit Test Action", {"message": message, "room": room}, dry=True
+        )
         res = yield actor.execute()
         self.assertEqual(res, None)
 
@@ -78,43 +78,41 @@ class IntegrationHipchatTopic(testing.AsyncTestCase):
 
     integration = True
 
-    @attr('hipchat', 'integration')
+    @attr("hipchat", "integration")
     @testing.gen_test(timeout=60)
     def integration_test_init_without_environment_creds(self):
-        topic = 'Unit test topic'
-        room = 'Operations'
+        topic = "Unit test topic"
+        room = "Operations"
 
         # Un-set the token now and make sure the init fails
         hipchat.TOKEN = None
         with self.assertRaises(exceptions.InvalidCredentials):
-            hipchat.Topic(
-                'Unit Test Action',
-                {'topic': topic, 'room': room}, dry=True)
+            hipchat.Topic("Unit Test Action", {"topic": topic, "room": room}, dry=True)
 
         # Reload the hipchat library to re-get the token
         importlib.reload(hipchat)
 
-    @attr('hipchat', 'integration')
+    @attr("hipchat", "integration")
     @testing.gen_test(timeout=60)
     def integration_test_execute_with_invalid_creds(self):
-        topic = 'Unit test topic'
-        room = 'unit_room'
+        topic = "Unit test topic"
+        room = "unit_room"
         actor = hipchat.Topic(
-            'Unit Test Action',
-            {'topic': topic, 'room': room}, dry=True)
+            "Unit Test Action", {"topic": topic, "room": room}, dry=True
+        )
 
         # Valid response test
-        actor._token = 'Invalid'
+        actor._token = "Invalid"
         with self.assertRaises(exceptions.InvalidCredentials):
             yield actor.execute()
 
-    @attr('hipchat', 'integration')
+    @attr("hipchat", "integration")
     @testing.gen_test(timeout=60)
     def integration_test_execute_real(self):
-        topic = 'Unit test topic'
-        room = 'Operations'
+        topic = "Unit test topic"
+        room = "Operations"
         actor = hipchat.Topic(
-            'Unit Test Action',
-            {'topic': topic, 'room': room}, dry=True)
+            "Unit Test Action", {"topic": topic, "room": room}, dry=True
+        )
         res = yield actor.execute()
         self.assertEqual(res, None)

@@ -41,15 +41,15 @@ from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
-__author__ = 'Matt Wise <matt@nextdoor.com>'
+__author__ = "Matt Wise <matt@nextdoor.com>"
 
 
-API_CONTENT_TYPE = 'application/json'
-API_URL = 'https://api.rollbar.com/api/1'
-API_DEPLOY_PATH = '%s/deploy/' % API_URL
-API_PROJECT_PATH = '%s/project/' % API_URL
+API_CONTENT_TYPE = "application/json"
+API_URL = "https://api.rollbar.com/api/1"
+API_DEPLOY_PATH = "%s/deploy/" % API_URL
+API_PROJECT_PATH = "%s/project/" % API_URL
 
-TOKEN = os.getenv('ROLLBAR_TOKEN', None)
+TOKEN = os.getenv("ROLLBAR_TOKEN", None)
 
 
 class RollbarBase(base.HTTPBaseActor):
@@ -62,7 +62,8 @@ class RollbarBase(base.HTTPBaseActor):
 
         if not TOKEN:
             raise exceptions.InvalidCredentials(
-                'Missing the "ROLLBAR_TOKEN" environment variable.')
+                'Missing the "ROLLBAR_TOKEN" environment variable.'
+            )
 
         self._token = TOKEN
 
@@ -78,7 +79,7 @@ class RollbarBase(base.HTTPBaseActor):
         Returns:
             A larger hash of arguments.
         """
-        potential_args['access_token'] = self._token
+        potential_args["access_token"] = self._token
         return potential_args
 
     @gen.coroutine
@@ -95,25 +96,27 @@ class RollbarBase(base.HTTPBaseActor):
             # error messages for.
 
             if e.code in (401, 403):
-                raise exceptions.InvalidCredentials(
-                    'The "ROLLBAR_TOKEN" is invalid')
+                raise exceptions.InvalidCredentials('The "ROLLBAR_TOKEN" is invalid')
             elif e.code == 422:
                 raise exceptions.RecoverableActorFailure(
-                    'Unprocessable Entity - the request was parseable (i.e. '
-                    'valid JSON), but some parameters were missing or '
-                    'otherwise invalid.')
+                    "Unprocessable Entity - the request was parseable (i.e. "
+                    "valid JSON), but some parameters were missing or "
+                    "otherwise invalid."
+                )
             elif e.code == 429:
                 raise exceptions.RecoverableActorFailure(
-                    'Too Many Requests - If rate limiting is enabled for '
-                    'your access token, this return code signifies that the '
-                    'rate limit has been reached and the item was not '
-                    'processed.')
+                    "Too Many Requests - If rate limiting is enabled for "
+                    "your access token, this return code signifies that the "
+                    "rate limit has been reached and the item was not "
+                    "processed."
+                )
             else:
                 # We ran into a problem we can't handle. Also, keep in mind
                 # that @utils.retry() was used, so this error happened several
                 # times before getting here. Raise it.
                 raise exceptions.RecoverableActorFailure(
-                    'Unexpected error from Rollbar API: %s' % e)
+                    "Unexpected error from Rollbar API: %s" % e
+                )
 
         raise gen.Return(res)
 
@@ -186,12 +189,13 @@ class Deploy(RollbarBase):
     Accesses the Rollbar API and validates that the token can access your
     project.
     """
+
     all_options = {
-        'environment': (str, REQUIRED, 'Name of the environment to deploy'),
-        'revision': (str, REQUIRED, 'Revision number/sha being deployed'),
-        'local_username': (str, 'Kingpin', 'User who deployed'),
-        'rollbar_username': (str, '', 'Rollbar username'),
-        'comment': (str, '', 'Deploy comment')
+        "environment": (str, REQUIRED, "Name of the environment to deploy"),
+        "revision": (str, REQUIRED, "Revision number/sha being deployed"),
+        "local_username": (str, "Kingpin", "User who deployed"),
+        "rollbar_username": (str, "", "Rollbar username"),
+        "comment": (str, "", "Deploy comment"),
     }
 
     desc = "Sending Deploy {environment}/{revision}"
@@ -206,17 +210,19 @@ class Deploy(RollbarBase):
             gen.Return(<Dictionary of the response from Rollbar>)
         """
 
-        rollbar_username = self.option('rollbar_username')
-        if rollbar_username == '':
+        rollbar_username = self.option("rollbar_username")
+        if rollbar_username == "":
             rollbar_username = None
 
-        args = self._build_potential_args({
-            'environment': self.option('environment'),
-            'revision': self.option('revision'),
-            'local_username': self.option('local_username'),
-            'rollbar_username': rollbar_username,
-            'comment': self.option('comment')
-        })
+        args = self._build_potential_args(
+            {
+                "environment": self.option("environment"),
+                "revision": self.option("revision"),
+                "local_username": self.option("local_username"),
+                "rollbar_username": rollbar_username,
+                "comment": self.option("comment"),
+            }
+        )
 
         escaped_post = urllib.parse.urlencode(args)
         res = yield self._fetch_wrapper(API_DEPLOY_PATH, post=escaped_post)
@@ -228,16 +234,19 @@ class Deploy(RollbarBase):
 
         raises: gen.Return()
         """
-        rollbar_string = (
-            'Rollbar Deploy Notification %s/%s' %
-            (self.option('environment'), self.option('revision')))
+        rollbar_string = "Rollbar Deploy Notification %s/%s" % (
+            self.option("environment"),
+            self.option("revision"),
+        )
 
         if self._dry:
-            self.log.info('Would have sent %s, but instead just validating '
-                          'API key.' % rollbar_string)
+            self.log.info(
+                "Would have sent %s, but instead just validating "
+                "API key." % rollbar_string
+            )
             yield self._project()
             raise gen.Return()
 
-        self.log.info('Sending %s' % rollbar_string)
+        self.log.info("Sending %s" % rollbar_string)
         yield self._deploy()
         raise gen.Return()

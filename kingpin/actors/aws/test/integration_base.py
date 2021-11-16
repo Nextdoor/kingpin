@@ -10,10 +10,10 @@ from kingpin.actors.aws import base
 from kingpin.actors.aws import settings
 import importlib
 
-__author__ = 'Mikhail Simin <mikhail@nextdoor.com>'
+__author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 
 log = logging.getLogger(__name__)
-logging.getLogger('boto').setLevel(logging.INFO)
+logging.getLogger("boto").setLevel(logging.INFO)
 
 
 class IntegrationBase(testing.AsyncTestCase):
@@ -21,29 +21,29 @@ class IntegrationBase(testing.AsyncTestCase):
 
     integration = True
 
-    region = 'us-east-1'
-    elb_name = 'kingpin-integration-test'
+    region = "us-east-1"
+    elb_name = "kingpin-integration-test"
 
-    @attr('aws', 'integration')
+    @attr("aws", "integration")
     @testing.gen_test(timeout=60)
     def integration_01a_check_credentials(self):
 
-        settings.AWS_ACCESS_KEY_ID = 'fake'
-        settings.AWS_SECRET_ACCESS_KEY = 'fake'
-        actor = base.AWSBaseActor('Test', {'region': self.region})
+        settings.AWS_ACCESS_KEY_ID = "fake"
+        settings.AWS_SECRET_ACCESS_KEY = "fake"
+        actor = base.AWSBaseActor("Test", {"region": self.region})
 
         # Executing a random function call that is wrapped in _retry.
         # Credentials should fail before "ELB not found" should be raised.
         with self.assertRaises(exceptions.InvalidCredentials):
-            yield actor._find_elb('unit-test')
+            yield actor._find_elb("unit-test")
 
         importlib.reload(settings)
 
-    @attr('aws', 'integration')
+    @attr("aws", "integration")
     @testing.gen_test(timeout=60)
     def integration_02a_find_elb(self):
 
-        actor = base.AWSBaseActor('Test', {'region': self.region})
+        actor = base.AWSBaseActor("Test", {"region": self.region})
 
         LB = yield actor._find_elb(self.elb_name)
 
