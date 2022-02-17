@@ -1,0 +1,23 @@
+actor: group.Sync
+desc: main stage
+options:
+  acts:
+  - &Stage1
+    actor: group.Async
+    desc: stage 1
+    options:
+      acts:
+      - actor: rightscale.server_array.Clone
+        desc: copy serverA
+        options: {dest: serverA, source: kingpin-integration-testing}
+      - actor: rightscale.server_array.Clone
+        desc: copy serverB
+        options: {dest: serverB, source: kingpin-integration-testing}
+      - actor: rightscale.server_array.Clone
+        desc: copy serverC
+        options: {dest: serverC, source: kingpin-integration-testing}
+  - &Stage2
+    <<: *Stage1
+    desc: stage 2
+  - <<: *Stage2
+    desc: stage 3
