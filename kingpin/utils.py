@@ -31,9 +31,12 @@ import pprint
 import re
 import sys
 import io
+import cfn_tools
 from io import IOBase
 from json.decoder import JSONDecodeError
-import cfn_tools
+from cfn_tools.yaml_loader import CfnYamlLoader
+from cfn_tools.yaml_loader import construct_mapping as aws_construct_mapping
+
 
 from tornado import gen
 from tornado import ioloop
@@ -58,6 +61,21 @@ STATIC_PATH_NAME = "static"
 # # want to prvent the app from going thread-crazy.
 # THREADPOOL_SIZE = 10
 # THREADPOOL = futures.ThreadPoolExecutor(THREADPOOL_SIZE)
+
+# https://github.com/yaml/pyyaml/issues/64
+# https://github.com/zerwes/hiyapyco/issues/7
+#
+# The AWS-provided cfn_tools code does not call the `flatten_mapping()`
+# function in their constructor_mapping func. Because of this, YAML Merge
+# anchors fail to parse. This little hack below overrides the function to make
+# sure that the YAML parsing of merged maps works properly.
+def construct_mapping(self, node, deep=False):
+    self.flatten_mapping(node)
+    mapping = aws_construct_mapping(self, node, deep)
+    return mapping
+    
+# Override the constructor reference for "tag:yaml.org,2002:map" to ours above.
+CfnYamlLoader.add_constructor("tag:yaml.org,2002:map", construct_mapping)
 
 
 def str_to_class(string):
