@@ -142,6 +142,14 @@ class TestUtils(unittest.TestCase):
         ret = utils.convert_script_to_dict(instance, {})
         self.assertIsInstance(ret, dict)
 
+        # Should definitly support YAML with anchors
+        dirname, filename = os.path.split(os.path.abspath(__file__))
+        examples = "%s/../../examples" % dirname
+        simple = "%s/anchors.yaml" % examples
+        instance = open(simple)
+        ret = utils.convert_script_to_dict(instance, {})
+        self.assertIsInstance(ret, dict)
+
     def test_convert_script_to_dict_bad_name(self):
         instance = io.StringIO()  # Empty buffer will fail json
         instance.name = "Somefile.HAHA"
