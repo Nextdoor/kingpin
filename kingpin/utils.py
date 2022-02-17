@@ -73,7 +73,8 @@ def construct_mapping(self, node, deep=False):
     self.flatten_mapping(node)
     mapping = aws_construct_mapping(self, node, deep)
     return mapping
-    
+
+
 # Override the constructor reference for "tag:yaml.org,2002:map" to ours above.
 CfnYamlLoader.add_constructor("tag:yaml.org,2002:map", construct_mapping)
 
