@@ -1009,7 +1009,7 @@ class TestRole(testing.AsyncTestCase):
         self.actor._ensure_assume_role_doc.side_effect = [tornado_value(None)]
         yield self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
-        self.assertFalse(self.actor._ensure_assume_role_doc.called)
+        self.assertTrue(self.actor._ensure_assume_role_doc.called)
         self.iam_stubber.assert_no_pending_responses()
 
     @testing.gen_test
@@ -1024,6 +1024,30 @@ class TestRole(testing.AsyncTestCase):
         self.assertTrue(self.actor._ensure_entity.called)
         self.assertTrue(self.actor._ensure_inline_policies.called)
         self.assertTrue(self.actor._ensure_assume_role_doc.called)
+
+    @testing.gen_test
+    def test_create_entity(self):
+        self.actor.assume_role_policy_doc = "{}"
+        self.actor._dry = False
+        self.iam_stubber.add_response(
+            # API Call
+            "create_role",
+            # Response,
+            {
+                "Role": {
+                    "Arn": "arn:.................",
+                    "Path": "/",
+                    "RoleName": "test",
+                    "RoleId": "AQ..............C...",
+                    "CreateDate": datetime(2015, 1, 1),
+                }
+            },
+            # Call Params
+            {"RoleName": "test", "AssumeRolePolicyDocument": '"{}"'},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._create_entity("test")
+        self.iam_stubber.assert_no_pending_responses()
 
 
 class TestInstanceProfile(testing.AsyncTestCase):
