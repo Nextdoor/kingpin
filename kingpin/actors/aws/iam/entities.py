@@ -397,7 +397,7 @@ class EntityBaseActor(base.IAMBaseActor):
             raise gen.Return()
 
     @gen.coroutine
-    def _create_entity(self, name):
+    def _create_entity(self, name, **kwargs):
         """Creates an IAM Entity.
 
         If the entity exists, we just warn and move on.
@@ -411,7 +411,7 @@ class EntityBaseActor(base.IAMBaseActor):
 
         try:
             ret = yield self.api_call(
-                self.create_entity, **{self.entity_kwarg_name: name}
+                self.create_entity, **{self.entity_kwarg_name: name, **kwargs}
             )
         except ClientError as e:
             if "EntityAlreadyExists" in str(e):
@@ -836,7 +836,21 @@ class Role(EntityBaseActor):
       causes Kingpin to ignore the value, and Amazon defaults the role to an
       'EC2' style rule. Supplying the document will cause Kingpin to ensure the
       assume role policy is correct.
-      Default: None
+
+      Default:
+
+      .. code-block:: json
+
+          { "Version": "2012-10-17",
+            "Statement": [
+                { "Effect": "Allow",
+                  "Principal": {
+                      "Service": "ec2.amazonaws.com"
+                  },
+                  "Action": "sts:AssumeRole"
+                }
+            ]
+          }
 
     **Example**
 
@@ -872,7 +886,7 @@ class Role(EntityBaseActor):
         ),
         "assume_role_policy_document": (
             str,
-            None,
+            '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": {"Service": "ec2.amazonaws.com"}, "Action": "sts:AssumeRole" }]}',
             ("The policy that grants an entity" "permission to assume the role"),
         ),
     }
@@ -895,10 +909,9 @@ class Role(EntityBaseActor):
         self._parse_inline_policies(self.option("inline_policies"))
 
         # Pre-parse the Assume Role Policy Document if it was supplied
-        if self.option("assume_role_policy_document") is not None:
-            self.assume_role_policy_doc = self._parse_policy_json(
-                self.option("assume_role_policy_document")
-            )
+        self.assume_role_policy_doc = self._parse_policy_json(
+            self.option("assume_role_policy_document")
+        )
 
     @gen.coroutine
     def _ensure_assume_role_doc(self, name):
@@ -945,6 +958,20 @@ class Role(EntityBaseActor):
         )
 
     @gen.coroutine
+    def _create_entity(self, name):
+        """Creates an IAM Role.
+
+        If the entity exists, we just warn and move on.
+
+        args:
+            name: The IAM Entity Name
+        """
+        yield super(Role, self)._create_entity(
+            name,
+            AssumeRolePolicyDocument=json.dumps(self.assume_role_policy_doc),
+        )
+
+    @gen.coroutine
     def _execute(self):
         name = self.option("name")
         state = self.option("state")
@@ -956,8 +983,7 @@ class Role(EntityBaseActor):
         if self.option("inline_policies") is not None:
             yield self._ensure_inline_policies(name)
 
-        if self.option("assume_role_policy_document") is not None:
-            yield self._ensure_assume_role_doc(name)
+        yield self._ensure_assume_role_doc(name)
 
         raise gen.Return()
 
