@@ -928,10 +928,11 @@ class Role(EntityBaseActor):
 
         try:
             ret = yield self.api_call(
-                self.create_entity, **{
+                self.create_entity,
+                **{
                     self.entity_kwarg_name: name,
-                    'AssumeRolePolicyDocument': json.dumps(self.assume_role_policy_doc)
-                    }
+                    "AssumeRolePolicyDocument": json.dumps(self.assume_role_policy_doc),
+                },
             )
         except ClientError as e:
             if "EntityAlreadyExists" in str(e):
@@ -947,7 +948,6 @@ class Role(EntityBaseActor):
         self.log.info(
             "%s %s created" % (self.entity_name, ret[self.entity_name]["Arn"])
         )
-
 
     @gen.coroutine
     def _ensure_assume_role_doc(self, name):

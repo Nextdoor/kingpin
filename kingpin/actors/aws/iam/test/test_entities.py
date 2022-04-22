@@ -906,7 +906,6 @@ class TestRole(testing.AsyncTestCase):
         yield self.actor._create_entity("test")
         self.iam_stubber.assert_no_pending_responses()
 
-
     @testing.gen_test
     def test_ensure_assume_role_doc_no_entity(self):
         fake_entity = None
