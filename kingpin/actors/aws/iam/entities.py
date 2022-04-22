@@ -914,6 +914,42 @@ class Role(EntityBaseActor):
         )
 
     @gen.coroutine
+    def _create_entity(self, name):
+        """Creates an IAM Entity.
+
+        If the entity exists, we just warn and move on.
+
+        args:
+            name: The IAM Entity Name
+        """
+        if self._dry:
+            self.log.warning("Would create %s %s" % (self.entity_name, name))
+            raise gen.Return()
+
+        try:
+            ret = yield self.api_call(
+                self.create_entity, **{
+                    self.entity_kwarg_name: name,
+                    'AssumeRolePolicyDocument': json.dumps(self.assume_role_policy_doc)
+                    }
+            )
+        except ClientError as e:
+            if "EntityAlreadyExists" in str(e):
+                self.log.warning(
+                    "%s %s already exists, skipping creation."
+                    % (self.entity_name, name)
+                )
+                raise gen.Return()
+            raise exceptions.RecoverableActorFailure(
+                "An unexpected API error occurred: %s" % e
+            )
+
+        self.log.info(
+            "%s %s created" % (self.entity_name, ret[self.entity_name]["Arn"])
+        )
+
+
+    @gen.coroutine
     def _ensure_assume_role_doc(self, name):
         """Ensures that the Assume Role Policy for a Role is up to date.
 

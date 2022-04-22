@@ -862,6 +862,52 @@ class TestRole(testing.AsyncTestCase):
         self.iam_stubber = Stubber(self.actor.iam_conn)
 
     @testing.gen_test
+    def test_create_entity(self):
+        self.iam_stubber.add_response(
+            # API Call
+            "create_role",
+            # Response,
+            {
+                "User": {
+                    "Arn": "arn:.................",
+                    "Path": "/",
+                    "UserName": "test",
+                    "UserId": "AQ..............C...",
+                    "CreateDate": datetime(2015, 1, 1),
+                }
+            },
+            # Call Params
+            {"UserName": "test"},
+        )
+        self.iam_stubber.activate()
+        yield self.actor._create_entity("test")
+        self.iam_stubber.assert_no_pending_responses()
+
+    @testing.gen_test
+    def test_create_entity_already_exists(self):
+        self.iam_stubber.add_client_error("create_role", 409, "EntityAlreadyExists")
+        self.iam_stubber.activate()
+        yield self.actor._create_entity("test")
+        self.iam_stubber.assert_no_pending_responses()
+
+    @testing.gen_test
+    def test_create_entity_other_exception(self):
+        self.iam_stubber.add_client_error("create_role", 500, "ServerError")
+        self.iam_stubber.activate()
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._create_entity("test")
+        self.iam_stubber.assert_no_pending_responses()
+
+    @testing.gen_test
+    def test_create_entity_dry(self):
+        # Make sure we did not call the create function!
+        self.actor._dry = True
+        self.iam_stubber.activate()
+        yield self.actor._create_entity("test")
+        self.iam_stubber.assert_no_pending_responses()
+
+
+    @testing.gen_test
     def test_ensure_assume_role_doc_no_entity(self):
         fake_entity = None
         self.actor._get_entity = mock.MagicMock()
