@@ -886,7 +886,7 @@ class Role(EntityBaseActor):
         ),
         "assume_role_policy_document": (
             str,
-            '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": {"Service": "ec2.amazonaws.com"}, "Action": "sts:AssumeRole" }]}',
+            None,
             ("The policy that grants an entity" "permission to assume the role"),
         ),
     }
@@ -909,9 +909,20 @@ class Role(EntityBaseActor):
         self._parse_inline_policies(self.option("inline_policies"))
 
         # Pre-parse the Assume Role Policy Document if it was supplied
-        self.assume_role_policy_doc = self._parse_policy_json(
-            self.option("assume_role_policy_document")
-        )
+        self.assume_role_policy_doc = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {"Service": "ec2.amazonaws.com"},
+                    "Action": "sts:AssumeRole",
+                }
+            ],
+        }
+        if self.option("assume_role_policy_document") is not None:
+            self.assume_role_policy_doc = self._parse_policy_json(
+                self.option("assume_role_policy_document")
+            )
 
     @gen.coroutine
     def _ensure_assume_role_doc(self, name):
