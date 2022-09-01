@@ -30,6 +30,9 @@ _Note, these can be skipped only if you have a .aws/credentials file in place._
 
 :AWS_SECRET_ACCESS_KEY:
   Your AWS secret
+
+:AWS_SESSION_TOKEN:
+  Your AWS session token
 """
 
 import logging
@@ -92,13 +95,21 @@ class AWSBaseActor(base.BaseActor):
         # In the event though that someone has explicitly set the AWS access
         # keys in the environment (either for the purposes of a unit test, or
         # because they wanted to), we use those values.
-        if aws_settings.AWS_ACCESS_KEY_ID and aws_settings.AWS_SECRET_ACCESS_KEY:
+        if (
+            aws_settings.AWS_ACCESS_KEY_ID
+            and aws_settings.AWS_SECRET_ACCESS_KEY
+            and aws_settings.AWS_SESSION_TOKEN
+        ):
             key = aws_settings.AWS_ACCESS_KEY_ID
             secret = aws_settings.AWS_SECRET_ACCESS_KEY
+            session_token = aws_settings.AWS_SESSION_TOKEN
 
         # Establish connection objects that don't require a region
         self.iam_conn = boto3.client(
-            "iam", aws_access_key_id=key, aws_secret_access_key=secret
+            "iam",
+            aws_access_key_id=key,
+            aws_secret_access_key=secret,
+            aws_session_token=session_token,
         )
 
         # Establish region-specific connection objects.
@@ -119,25 +130,28 @@ class AWSBaseActor(base.BaseActor):
             config=boto_config,
             aws_access_key_id=key,
             aws_secret_access_key=secret,
+            aws_session_token=session_token,
         )
         self.cf3_conn = boto3.client(
             "cloudformation",
             config=boto_config,
             aws_access_key_id=key,
             aws_secret_access_key=secret,
-            aws_session_token=aws_settings.AWS_SESSION_TOKEN,
+            aws_session_token=session_token,
         )
         self.sqs_conn = boto3.client(
             "sqs",
             config=boto_config,
             aws_access_key_id=key,
             aws_secret_access_key=secret,
+            aws_session_token=session_token,
         )
         self.s3_conn = boto3.client(
             "s3",
             config=boto_config,
             aws_access_key_id=key,
             aws_secret_access_key=secret,
+            aws_session_token=session_token,
         )
 
     @concurrent.run_on_executor

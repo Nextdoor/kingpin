@@ -26,6 +26,7 @@ class TestEntityBaseActor(testing.AsyncTestCase):
         super(TestEntityBaseActor, self).setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
+        settings.AWS_SESSION_TOKEN = "unit-test"
         importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
@@ -497,6 +498,7 @@ class TestUser(testing.AsyncTestCase):
         super(TestUser, self).setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
+        settings.AWS_SESSION_TOKEN = "unit-test"
         importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
@@ -686,6 +688,7 @@ class TestGroup(testing.AsyncTestCase):
         super(TestGroup, self).setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
+        settings.AWS_SESSION_TOKEN = "unit-test"
         importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
@@ -845,6 +848,7 @@ class TestRole(testing.AsyncTestCase):
         super(TestRole, self).setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
+        settings.AWS_SESSION_TOKEN = "unit-test"
         importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM
@@ -1055,6 +1059,7 @@ class TestInstanceProfile(testing.AsyncTestCase):
         super(TestInstanceProfile, self).setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
+        settings.AWS_SESSION_TOKEN = "unit-test"
         importlib.reload(entities)
 
         # Create our actor object with some basics... then mock out the IAM

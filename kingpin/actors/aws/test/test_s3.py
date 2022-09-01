@@ -17,6 +17,7 @@ class TestBucket(testing.AsyncTestCase):
         super(TestBucket, self).setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
+        settings.AWS_SESSION_TOKEN = "unit-test"
         importlib.reload(s3_actor)
 
         self.actor = s3_actor.Bucket(
