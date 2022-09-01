@@ -331,7 +331,8 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             self.log.info(f'Using: {boto3.client("sts").get_caller_identity()["Arn"]}')
             try:
                 yield self.api_call(self.cf3_conn.validate_template, **cfg)
-            except ClientError as e:
+            except Exception as e:
+                self.log.info(f"error_validate_template: {e}")
                 raise InvalidTemplate(e)
 
     def _create_parameters(self, parameters):
