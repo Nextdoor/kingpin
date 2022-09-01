@@ -322,13 +322,13 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             cfg = {"TemplateURL": url}
             self.log.info("Validating template (%s) with AWS..." % url)
             try:
-                self.log.info(f'Using: {boto3.client("sts").get_caller_identity()["Arn"]}')
                 yield self.api_call(self.cf3_conn.validate_template, **cfg)
             except ClientError as e:
                 raise InvalidTemplate(e)
         elif body is not None:
             cfg = {"TemplateBody": body}
             self.log.info("Validating template with AWS...")
+            self.log.info(f'Using: {boto3.client("sts").get_caller_identity()["Arn"]}')
             try:
                 yield self.api_call(self.cf3_conn.validate_template, **cfg)
             except ClientError as e:
