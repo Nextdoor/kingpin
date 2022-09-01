@@ -330,7 +330,11 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             cfg = {"TemplateBody": body}
             self.log.info("Validating template with AWS...")
             self.log.info(f'Using: {boto3.client("sts").get_caller_identity()["Arn"]}')
+
             try:
+                self.log.info(f"Output running through boto3")
+                self.log.info(boto3.client("cloudformation").validate_template(TemplateBody=body))
+                self.log.info(f"Output running through kingpin")
                 yield self.api_call(self.cf3_conn.validate_template, **cfg)
             except Exception as e:
                 self.log.info(f"error_validate_template: {e}")
