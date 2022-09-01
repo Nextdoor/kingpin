@@ -31,3 +31,4 @@ __author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 # During tests, we mock these out to blank strings to prevent these calls.
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", None)
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", None)
+AWS_SESSION_TOKEN = os.getenv("AWS_SESSION_TOKEN", None)

@@ -125,6 +125,7 @@ class AWSBaseActor(base.BaseActor):
             config=boto_config,
             aws_access_key_id=key,
             aws_secret_access_key=secret,
+            aws_session_token=aws_settings.AWS_SESSION_TOKEN,
         )
         self.sqs_conn = boto3.client(
             "sqs",
