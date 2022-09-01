@@ -40,6 +40,7 @@ from kingpin.constants import REQUIRED, STATE
 from kingpin.constants import SchemaCompareBase, StringCompareBase
 
 log = logging.getLogger(__name__)
+boto3.set_stream_logger(name='botocore')
 
 __author__ = "Matt Wise <matt@nextdoor.com>"
 
