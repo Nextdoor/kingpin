@@ -40,7 +40,6 @@ from kingpin.constants import REQUIRED, STATE
 from kingpin.constants import SchemaCompareBase, StringCompareBase
 
 log = logging.getLogger(__name__)
-boto3.set_stream_logger(name='botocore')
 
 __author__ = "Matt Wise <matt@nextdoor.com>"
 
@@ -329,15 +328,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         elif body is not None:
             cfg = {"TemplateBody": body}
             self.log.info("Validating template with AWS...")
-            self.log.info(f'Using: {boto3.client("sts").get_caller_identity()["Arn"]}')
-
             try:
-                self.log.info(f"Output running through boto3")
-                self.log.info(boto3.client("cloudformation").validate_template(TemplateBody=body))
-                self.log.info(f"Output running through kingpin")
                 yield self.api_call(self.cf3_conn.validate_template, **cfg)
-            except Exception as e:
-                self.log.info(f"error_validate_template: {e}")
+            except ClientError as e:
                 raise InvalidTemplate(e)
 
     def _create_parameters(self, parameters):
