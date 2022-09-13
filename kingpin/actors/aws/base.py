@@ -33,6 +33,7 @@ _Note, these can be skipped only if you have a .aws/credentials file in place._
 
 :AWS_SESSION_TOKEN:
   Your AWS session token
+  Only needed if you are using temporary access credentials
 """
 
 import logging
