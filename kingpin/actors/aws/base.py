@@ -99,11 +99,15 @@ class AWSBaseActor(base.BaseActor):
         # found which will tell boto3 to fallback to default behavior.
         boto3_client_kwargs = {}
         boto3_client_kwargs["aws_access_key_id"] = aws_settings.AWS_ACCESS_KEY_ID
-        boto3_client_kwargs["aws_secret_access_key"] = aws_settings.AWS_SECRET_ACCESS_KEY
+        boto3_client_kwargs[
+            "aws_secret_access_key"
+        ] = aws_settings.AWS_SECRET_ACCESS_KEY
         boto3_client_kwargs["aws_session_token"] = aws_settings.AWS_SESSION_TOKEN
 
         # Establish connection objects that don't require a region
-        self.iam_conn = boto3.client(service_name="iam", config=None, **boto3_client_kwargs)
+        self.iam_conn = boto3.client(
+            service_name="iam", config=None, **boto3_client_kwargs
+        )
 
         # Establish region-specific connection objects.
         self.region = self.option("region")
@@ -119,10 +123,18 @@ class AWSBaseActor(base.BaseActor):
             },
         )
 
-        self.ecs_conn = boto3.client(service_name="ecs", config=boto_config, **boto3_client_kwargs)
-        self.cf3_conn = boto3.client(service_name="cloudformation", config=boto_config, **boto3_client_kwargs)
-        self.sqs_conn = boto3.client(service_name="sqs", config=boto_config, **boto3_client_kwargs)
-        self.s3_conn = boto3.client(service_name="s3", config=boto_config, **boto3_client_kwargs)
+        self.ecs_conn = boto3.client(
+            service_name="ecs", config=boto_config, **boto3_client_kwargs
+        )
+        self.cf3_conn = boto3.client(
+            service_name="cloudformation", config=boto_config, **boto3_client_kwargs
+        )
+        self.sqs_conn = boto3.client(
+            service_name="sqs", config=boto_config, **boto3_client_kwargs
+        )
+        self.s3_conn = boto3.client(
+            service_name="s3", config=boto_config, **boto3_client_kwargs
+        )
 
     @concurrent.run_on_executor
     @utils.exception_logger
