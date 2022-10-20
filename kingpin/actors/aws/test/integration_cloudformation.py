@@ -25,8 +25,11 @@ class IntegrationCreate(testing.AsyncTestCase):
     * Delete that same stack
 
     Requirements:
-        Your AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must have access to
-        create CF stacks. The stack we create is extremely simple, and should
+        You must have an AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY if using
+        an IAM user/role and also an AWS_SESSION_TOKEN if using temporary access credentials,
+        with permissions to create CF stacks.
+
+        The stack we create is extremely simple, and should
         impact none of your AWS resources. The stack creates a simple S3
         bucket, so your credentials must have access to create that buckets.
 
@@ -103,8 +106,11 @@ class IntegrationStack(testing.AsyncTestCase):
     * Delete that same stack
 
     Requirements:
-        Your AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must have access to
-        create CF stacks. The stack we create is extremely simple, and should
+        You must have an AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY if using
+        an IAM user/role and also an AWS_SESSION_TOKEN if using temporary access credentials,
+        with permissions to create CF stacks.
+
+        The stack we create is extremely simple, and should
         impact none of your AWS resources. The stack creates a simple S3
         bucket, so your credentials must have access to create that buckets.
 

@@ -27,9 +27,10 @@ class IntegrationS3(testing.AsyncTestCase):
     Requirements:
         You have to create an S3 Bucket named kingpin-integration-test and
         place it in the specified region (default us-east-1).
-        As with other tests, environment variables AWS_ACCESS_KEY_ID and
-        AWS_SECRET_ACCESS_KEY are expected, and the key should have
-        permissions to read S3 bucket information.
+
+        You must have an AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY if using
+        an IAM user/role and also an AWS_SESSION_TOKEN if using temporary access credentials,
+        with permissions to read S3 bucket information.
 
     Note, these tests must be run in-order. The order is defined by
     their definition order in this file. Nose follows this order according

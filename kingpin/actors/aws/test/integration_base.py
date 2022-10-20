@@ -30,6 +30,7 @@ class IntegrationBase(testing.AsyncTestCase):
 
         settings.AWS_ACCESS_KEY_ID = "fake"
         settings.AWS_SECRET_ACCESS_KEY = "fake"
+        settings.AWS_SESSION_TOKEN = "fake"
         actor = base.AWSBaseActor("Test", {"region": self.region})
 
         # Executing a random function call that is wrapped in _retry.

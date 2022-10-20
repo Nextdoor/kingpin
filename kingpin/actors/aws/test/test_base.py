@@ -52,6 +52,7 @@ class TestBase(testing.AsyncTestCase):
         super(TestBase, self).setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
+        settings.AWS_SESSION_TOKEN = "unit-test"
         importlib.reload(base)
 
     @testing.gen_test

@@ -30,6 +30,10 @@ _Note, these can be skipped only if you have a .aws/credentials file in place._
 
 :AWS_SECRET_ACCESS_KEY:
   Your AWS secret
+
+:AWS_SESSION_TOKEN:
+  Your AWS session token
+  Only needed if you are using temporary access credentials
 """
 
 import logging
@@ -86,19 +90,23 @@ class AWSBaseActor(base.BaseActor):
         # By default, we will try to let Boto handle discovering its
         # credentials at instantiation time. This _can_ result in synchronous
         # API calls to the Metadata service, but those should be fast.
-        key = None
-        secret = None
-
+        #
         # In the event though that someone has explicitly set the AWS access
         # keys in the environment (either for the purposes of a unit test, or
         # because they wanted to), we use those values.
-        if aws_settings.AWS_ACCESS_KEY_ID and aws_settings.AWS_SECRET_ACCESS_KEY:
-            key = aws_settings.AWS_ACCESS_KEY_ID
-            secret = aws_settings.AWS_SECRET_ACCESS_KEY
+        #
+        # Note: these get defualted to None in aws_settings if they are not
+        # found which will tell boto3 to fallback to default behavior.
+        boto3_client_kwargs = {}
+        boto3_client_kwargs["aws_access_key_id"] = aws_settings.AWS_ACCESS_KEY_ID
+        boto3_client_kwargs[
+            "aws_secret_access_key"
+        ] = aws_settings.AWS_SECRET_ACCESS_KEY
+        boto3_client_kwargs["aws_session_token"] = aws_settings.AWS_SESSION_TOKEN
 
         # Establish connection objects that don't require a region
         self.iam_conn = boto3.client(
-            "iam", aws_access_key_id=key, aws_secret_access_key=secret
+            service_name="iam", config=None, **boto3_client_kwargs
         )
 
         # Establish region-specific connection objects.
@@ -114,29 +122,18 @@ class AWSBaseActor(base.BaseActor):
                 "mode": "adaptive",
             },
         )
+
         self.ecs_conn = boto3.client(
-            "ecs",
-            config=boto_config,
-            aws_access_key_id=key,
-            aws_secret_access_key=secret,
+            service_name="ecs", config=boto_config, **boto3_client_kwargs
         )
         self.cf3_conn = boto3.client(
-            "cloudformation",
-            config=boto_config,
-            aws_access_key_id=key,
-            aws_secret_access_key=secret,
+            service_name="cloudformation", config=boto_config, **boto3_client_kwargs
         )
         self.sqs_conn = boto3.client(
-            "sqs",
-            config=boto_config,
-            aws_access_key_id=key,
-            aws_secret_access_key=secret,
+            service_name="sqs", config=boto_config, **boto3_client_kwargs
         )
         self.s3_conn = boto3.client(
-            "s3",
-            config=boto_config,
-            aws_access_key_id=key,
-            aws_secret_access_key=secret,
+            service_name="s3", config=boto_config, **boto3_client_kwargs
         )
 
     @concurrent.run_on_executor
