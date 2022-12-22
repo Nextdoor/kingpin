@@ -120,7 +120,7 @@ class AWSBaseActor(base.BaseActor):
             region_name=self.region,
             retries={
                 "max_attempts": aws_settings.AWS_MAX_ATTEMPTS,
-                "mode": aws_settings.AWS_RETRY_MODE
+                "mode": aws_settings.AWS_RETRY_MODE,
             },
         )
 
