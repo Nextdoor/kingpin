@@ -119,7 +119,8 @@ class AWSBaseActor(base.BaseActor):
         boto_config = botocore_config.Config(
             region_name=self.region,
             retries={
-                "mode": "adaptive",
+                "max_attempts": aws_settings.AWS_MAX_ATTEMPTS,
+                "mode": aws_settings.AWS_RETRY_MODE
             },
         )
 
