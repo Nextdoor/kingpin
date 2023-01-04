@@ -32,3 +32,12 @@ __author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", None)
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", None)
 AWS_SESSION_TOKEN = os.getenv("AWS_SESSION_TOKEN", None)
+
+# kingpin is pretty fast which can leads to API throttling. You can set you own
+# boto3 configuration by using the standard AWS env vars, but in the absence of
+# them, we try to set you some sane defaults based on the boto3 documentation
+# and our experience with running kingpin as scale.
+#
+# Docs: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
+AWS_MAX_ATTEMPTS = os.getenv("AWS_MAX_ATTEMPTS", 10)
+AWS_RETRY_MODE = os.getenv("AWS_RETRY_MODE", "standard")
