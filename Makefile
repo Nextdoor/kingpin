@@ -3,66 +3,38 @@ HERE = $(shell pwd)
 VENV_CMD    := python3 -m venv
 VENV_DIR    := $(HERE)/.venv
 PYTHON      := $(VENV_DIR)/bin/python
+PYTEST      := $(VENV_DIR)/bin/pytest
+PYFLAKES    := $(VENV_DIR)/bin/pyflakes
+PYBLACK     := $(VENV_DIR)/bin/black
 
-BUILD_DIRS = bin .build build include lib lib64 man share package *.egg
+BUILD_DIRS = bin .build build include lib lib64 man share package *.egg dist *.egg-info .coverage .pytest_cache
 
-# Are we DRY? Automatically default us to DRY.
 DRY ?= true
-ifeq ($(DRY),false)
-  PYBLACK := black
-else
-  PYBLACK := black --diff --check
+ifneq ($(DRY),false)
+  PYBLACK_OPTS := --diff --check
 endif
-
-.PHONY: all build clean test docs
-
-# Only execute a subset of our integration tests by default
-INTEGRATION_TESTS ?= aws,rightscale,http,rollbar,slack,spotinst
-
-# Hack to ensure we get 100% unit test coverage
-export URLLIB_DEBUG=true
-
-.PHONY: all
-all: build
-
-.PHONY: venv
-venv: $(VENV_DIR)
-
-$(VENV_DIR): requirements.txt requirements.test.txt
-	$(VENV_CMD) $(VENV_DIR)
-	. $(VENV_DIR)/bin/activate && \
-		$(PYTHON) -m pip install -r requirements.test.txt --force && \
-		$(PYTHON) -m pip install -r requirements.txt --force && \
-	find $(VENV_DIR)/bin && \
-	touch $(VENV_DIR) || exit 1
 
 .PHONY: build
 build: $(VENV_DIR)
-	$(PYTHON) setup.py install
-
-pyblack:
-	. $(VENV_DIR)/bin/activate && $(PYBLACK) kingpin 
+	$(PYTHON) -m build
 
 .PHONY: clean
-clean:
-	find . -type f -name '*.pyc' -exec rm "{}" \;
+clean: $(VENV_DIR)
+	find kingpin -type f -name '*.pyc' -exec rm "{}" \;
 	rm -f kingpin.zip
 	rm -rf $(BUILD_DIRS)
 	PATH=$(VENV_DIR)/bin:$(PATH) $(MAKE) -C docs clean
 
+.PHONY: lint
+lint: $(VENV_DIR)
+	$(PYBLACK) $(PYBLACK_OPTS) kingpin
+
 .PHONY: test
-test: build docs pyblack
-	$(PYTHON) setup.py test pyflakes
-	# A few simple dry-tests of yaml and json scripts to make sure that the
-	# full commandline actually works.
+test: $(VENV_DIR)
+	PYTHONPATH=$(HERE) $(PYTEST) --cov=kingpin -v
+	PYTHONPATH=$(HERE) $(PYFLAKES) kingpin
 	PYTHONPATH=$(HERE) $(PYTHON) kingpin/bin/deploy.py --dry --script examples/test/sleep.json
 	PYTHONPATH=$(HERE) $(PYTHON) kingpin/bin/deploy.py --dry --script examples/test/sleep.yaml
-
-.PHONY: integration
-integration: build
-	. .venv/bin/activate
-	INTEGRATION_TESTS=$(INTEGRATION_TESTS) PYFLAKES_NODOCTEST=True \
-		$(PYTHON) setup.py integration
 
 .PHONY: pack
 pack: kingpin.zip
@@ -78,5 +50,20 @@ kingpin.zip: $(VENV_DIR)
 	cd zip; zip -9mrv ../kingpin.zip .
 	rm -rf zip
 
-docs:
+.PHONY: docs
+docs: $(VENV_DIR)
 	PATH=$(VENV_DIR)/bin:$(PATH) $(MAKE) -C docs html
+
+.PHONY: venv
+venv: $(VENV_DIR)
+
+$(VENV_DIR): requirements.txt requirements.test.txt
+	$(VENV_CMD) $(VENV_DIR)
+	$(PYTHON) -m pip install -U pip setuptools wheel
+	$(PYTHON) -m pip install -r requirements.test.txt
+	$(PYTHON) -m pip install -r requirements.txt
+	touch $(VENV_DIR)
+
+
+
+

@@ -9,3 +9,7 @@ build/
 docs/.ropeproject
 .DS_Store
 .idea
+dist/
+version.rst
+MANIFEST
+.pytest_cache

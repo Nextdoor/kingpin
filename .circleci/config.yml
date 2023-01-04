@@ -1,6 +1,5 @@
 version: 2
 jobs:
-
   build:
     docker:
       - image: circleci/python:3.7
@@ -17,11 +16,9 @@ jobs:
       - restore_cache:
           keys:
             - pip-{{ checksum "requirements.test.txt" }}
-            -
+      - run: make lint
       - run: make test
-      - run: make pyblack
-
-
+      - run: make build
 workflows:
   version: 2
   default:
