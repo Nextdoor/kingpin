@@ -2,20 +2,20 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/python:3.7
+      - image: cimg/python:3.9
     environment:
       DRY: true
       USER: bogus-string
     steps:
       - checkout
       - save_cache:
-          key: pip-{{ checksum "requirements.test.txt" }}
+          key: pip-{{ checksum "requirements.test.txt" }}-2023-01-03
           paths:
             - .venv
       - run: make venv
       - restore_cache:
           keys:
-            - pip-{{ checksum "requirements.test.txt" }}
+            - pip-{{ checksum "requirements.test.txt" }}-2023-01-03
       - run: make lint
       - run: make test
       - run: make build
