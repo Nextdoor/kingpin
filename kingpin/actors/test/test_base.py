@@ -4,6 +4,7 @@ import io
 import json
 import os
 import logging
+from importlib import reload
 
 from tornado import gen
 from tornado import httpclient
@@ -11,17 +12,14 @@ from tornado import simple_httpclient
 from tornado import testing
 import mock
 
-# Unusual placement -- but we override the environment
-# so that we can test that the urllib debugger works
-#
-# We used to reload(base) this in the test, but that causes
-# unpredictable super() behavior:
-#
-#  http://thomas-cokelaer.info/blog/2011/09/382/
+# Unusual placement -- but we override the environment so that we can test that
+# the urllib debugger works.
 os.environ["URLLIB_DEBUG"] = "1"
 
 from kingpin import utils
 from kingpin.actors import base
+
+reload(base)
 from kingpin.actors import exceptions
 from kingpin.actors.test.helper import mock_tornado
 from kingpin.constants import REQUIRED, STATE
@@ -193,7 +191,7 @@ class TestBaseActor(testing.AsyncTestCase):
     def test_httplib_debugging(self):
         # Get the logger now and validate that its level was set right
         requests_logger = logging.getLogger("requests.packages.urllib3")
-        self.assertEqual(10, requests_logger.level)
+        self.assertEqual(logging.DEBUG, requests_logger.level)
 
     def test_validate_options(self):
         self.actor.all_options = {"test": (str, REQUIRED, "")}
@@ -425,7 +423,7 @@ class TestBaseActor(testing.AsyncTestCase):
 
         self.actor = base.BaseActor(
             desc="Unit Test Action",
-            options={"test_opt": "Foo bar - \{NAME\}"},
+            options={"test_opt": "Foo bar - \\{NAME\\}"},
             init_context={"NAME": "TEST"},
         )
         self.assertEqual("Foo bar - {NAME}", self.actor.option("test_opt"))

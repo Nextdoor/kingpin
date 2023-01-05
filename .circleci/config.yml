@@ -16,8 +16,9 @@ jobs:
       - restore_cache:
           keys:
             - pip-{{ checksum "requirements.test.txt" }}-2023-01-03
+      - run: make lint
       - run: make test
-      - run: make pyblack
+      - run: make build
 workflows:
   version: 2
   default:

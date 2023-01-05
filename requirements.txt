@@ -1,8 +1,5 @@
-# General App Requirements
-
-# 4.1+ is required for the @gen.with_timeout decorator.
 # http://tornado.readthedocs.org/en/latest/gen.html#tornado.gen.with_timeout
-tornado==6.0.4
+tornado>=6.0.4
 
 # Used to parse out the JSON and validate its format.
 simplejson
@@ -15,15 +12,17 @@ cfn-flip
 # Colorize the log output!
 rainbow_logging_handler
 
-# tornado rest client
-tornado_rest_client==1.0.0
-
-# kingpin.actors.aws
-# kingpin.actors.aws.cloudformation
-# kingpin.actors.aws.ecs
+# kingpin.actors.aws.*
 boto3>=1.9.46
 
 # Used to turn snake_case into CamelCase
 inflection
 zipp
 configparser
+
+#
+# ND libraries
+#
+
+# tornado rest client
+tornado_rest_client==1.0.0

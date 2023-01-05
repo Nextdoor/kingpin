@@ -14,7 +14,7 @@ from kingpin.actors import group
 log = logging.getLogger(__name__)
 
 
-class TestActor(base.BaseActor):
+class FakeActor(base.BaseActor):
 
     """Fake Actor for Tests"""
 
@@ -26,11 +26,11 @@ class TestActor(base.BaseActor):
 
     @gen.coroutine
     def _execute(self):
-        TestActor.last_value = self.option("value")
+        FakeActor.last_value = self.option("value")
         raise gen.Return(None)
 
 
-class TestActorRaises(base.BaseActor):
+class FakeActorRaises(base.BaseActor):
 
     """Fake Actor for Tests"""
 
@@ -42,7 +42,7 @@ class TestActorRaises(base.BaseActor):
         raise exc
 
 
-class TestActorPopulate(base.BaseActor):
+class FakeActorPopulate(base.BaseActor):
 
     """Fake Actor for Tests"""
 
@@ -64,27 +64,27 @@ class TestActorPopulate(base.BaseActor):
 class TestGroupActorBaseClass(testing.AsyncTestCase):
     def setUp(self, *args, **kwargs):
         super(TestGroupActorBaseClass, self).setUp(*args, **kwargs)
-        TestActor.last_value = None
+        FakeActor.last_value = None
         self.actor_returns = {
             "desc": "returns",
-            "actor": "kingpin.actors.test.test_group.TestActor",
+            "actor": "kingpin.actors.test.test_group.FakeActor",
             "options": {"value": None},
         }
         self.actor_with_a_problem = {
             "desc": "Problematic",
-            "actor": "kingpin.actors.test.test_group.TestActor",
+            "actor": "kingpin.actors.test.test_group.FakeActor",
             "options": {"problem": "unit-test-problem"},
         }
         self.actor_raises_unrecoverable_exception = {
             "desc": "raises Unrecoverable exception",
-            "actor": "kingpin.actors.test.test_group.TestActorRaises",
+            "actor": "kingpin.actors.test.test_group.FakeActorRaises",
             "options": {
                 "exception": "kingpin.actors.exceptions.UnrecoverableActorFailure"
             },
         }
         self.actor_raises_recoverable_exception = {
             "desc": "raises Recoverable exception",
-            "actor": "kingpin.actors.test.test_group.TestActorRaises",
+            "actor": "kingpin.actors.test.test_group.FakeActorRaises",
             "options": {
                 "exception": "kingpin.actors.exceptions.RecoverableActorFailure"
             },
@@ -278,7 +278,7 @@ class TestSyncGroupActor(TestGroupActorBaseClass):
             yield actor._run_actions()
 
         # Even after the first actor fails, the second one should get executed.
-        self.assertEqual(TestActor.last_value, "123")
+        self.assertEqual(FakeActor.last_value, "123")
 
     @testing.gen_test
     def test_run_actions_with_two_acts_one_fails_unrecoverable(self):
@@ -297,7 +297,7 @@ class TestSyncGroupActor(TestGroupActorBaseClass):
             yield actor._run_actions()
 
         # If the second actor gets executed this value would be 123.
-        self.assertEqual(TestActor.last_value, None)
+        self.assertEqual(FakeActor.last_value, None)
 
     @testing.gen_test
     def test_run_actions_with_two_acts_one_fails_recoverable(self):
@@ -370,12 +370,12 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         """Make sure this actor starts all processes in parallel!"""
         check_order = []
         actor_1 = {
-            "actor": "kingpin.actors.test.test_group.TestActorPopulate",
+            "actor": "kingpin.actors.test.test_group.FakeActorPopulate",
             "desc": "test",
             "options": {"object": ["fake"], "value": 1},
         }
         actor_2 = {
-            "actor": "kingpin.actors.test.test_group.TestActorPopulate",
+            "actor": "kingpin.actors.test.test_group.FakeActorPopulate",
             "desc": "test",
             "options": {"object": ["fake"], "value": 2},
         }
@@ -435,7 +435,7 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
             yield actor._run_actions()
 
         # If the second actor does not get executed this value would be None
-        self.assertEqual(TestActor.last_value, "123")
+        self.assertEqual(FakeActor.last_value, "123")
 
     @testing.gen_test
     def test_run_actions_with_two_acts_one_fails_recoverable(self):
