@@ -61,32 +61,26 @@ S3_REGEX = re.compile(r"s3://(?P<bucket>[a-z0-9.-]+)/(?P<key>.*)")
 
 
 class CloudFormationError(exceptions.RecoverableActorFailure):
-
     """Raised on any generic CloudFormation error."""
 
 
 class StackFailed(exceptions.RecoverableActorFailure):
-
     """Raised any time a Stack fails to be created or updated."""
 
 
 class InvalidTemplate(exceptions.UnrecoverableActorFailure):
-
     """An invalid CloudFormation template was supplied."""
 
 
 class StackAlreadyExists(exceptions.RecoverableActorFailure):
-
     """The requested CloudFormation stack already exists."""
 
 
 class StackNotFound(exceptions.RecoverableActorFailure):
-
     """The requested CloudFormation stack does not exist."""
 
 
 class ParametersConfig(SchemaCompareBase):
-
     """Validates the Parameters option.
 
     A valid `parameters` option is a dictionary with simple Key/Value pairs of
@@ -103,7 +97,6 @@ class ParametersConfig(SchemaCompareBase):
 
 
 class CapabilitiesConfig(SchemaCompareBase):
-
     """Validates the Capabilities option"""
 
     SCHEMA = {
@@ -122,7 +115,6 @@ class CapabilitiesConfig(SchemaCompareBase):
 
 
 class OnFailureConfig(StringCompareBase):
-
     """Validates the On Failure option.
 
     The `on_failure` option can take one of the following settings:
@@ -135,7 +127,6 @@ class OnFailureConfig(StringCompareBase):
 
 
 class TerminationProtectionConfig(StringCompareBase):
-
     """Validates the TerminationProtectionConfig option.
 
     The `enable_termination_protection` option can take one of the following
@@ -184,7 +175,6 @@ FAILED = (
 
 
 class CloudFormationBaseActor(base.AWSBaseActor):
-
     """Base Actor for CloudFormation tasks"""
 
     # Get references to existing objects that are used by the

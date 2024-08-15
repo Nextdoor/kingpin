@@ -21,12 +21,10 @@ __author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 
 
 class REQUIRED(object):
-
     """Meta class to identify required arguments for actors."""
 
 
 class StringCompareBase(object):
-
     """Meta class to identify the desired state for a resource.
 
     This basic type of constant allows someone to easily define a set of valid
@@ -45,7 +43,6 @@ class StringCompareBase(object):
 
 
 class STATE(StringCompareBase):
-
     """Meta class to identify the desired state for a resource.
 
     Simple tester for 'present' or 'absent' on actors. Used for any actor thats
@@ -56,7 +53,6 @@ class STATE(StringCompareBase):
 
 
 class SchemaCompareBase(object):
-
     """Meta class that compares the schema of a dict against rules."""
 
     SCHEMA = None

@@ -12,7 +12,6 @@ __author__ = "Charles McLaughlin <charles@nextdoor.com>"
 
 
 class IntegrationLibratoAnnotation(testing.AsyncTestCase):
-
     """Integration tests against the Librato API.
 
     These tests actually hit the Librato API and test that the code

@@ -29,7 +29,6 @@ __author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 class FakeHTTPClientClass(object):
-
     """Fake HTTPClient object for testing"""
 
     response_value = None

@@ -13,7 +13,6 @@ __author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 class IntegrationSlackMessage(testing.AsyncTestCase):
-
     """Simple high level integration tests agains the Slack API.
 
     These tests actually hit the Slack API and test that the code

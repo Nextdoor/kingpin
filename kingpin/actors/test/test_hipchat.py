@@ -16,7 +16,6 @@ __author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 class FakeHTTPClientClass(object):
-
     """Fake HTTPClient object for testing"""
 
     response_value = None
@@ -27,7 +26,6 @@ class FakeHTTPClientClass(object):
 
 
 class FakeExceptionRaisingHTTPClientClass(object):
-
     """Fake HTTPClient object for testing"""
 
     response_value = None
@@ -38,7 +36,6 @@ class FakeExceptionRaisingHTTPClientClass(object):
 
 
 class TestHipchatBase(testing.AsyncTestCase):
-
     """Unit tests for the Hipchat Message actor."""
 
     def setUp(self, *args, **kwargs):
@@ -93,7 +90,6 @@ class TestHipchatBase(testing.AsyncTestCase):
 
 
 class TestHipchatMessage(testing.AsyncTestCase):
-
     """Unit tests for the Hipchat Message actor."""
 
     def setUp(self, *args, **kwargs):
@@ -222,7 +218,6 @@ class TestHipchatMessage(testing.AsyncTestCase):
 
 
 class TestHipchatTopic(testing.AsyncTestCase):
-
     """Unit tests for the Hipchat Message actor."""
 
     def setUp(self, *args, **kwargs):

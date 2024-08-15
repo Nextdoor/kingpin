@@ -57,7 +57,6 @@ NAME = os.getenv("HIPCHAT_NAME", "Kingpin")
 
 
 class HipchatBase(base.HTTPBaseActor):
-
     """Simple Hipchat Abstract Base Object"""
 
     def __init__(self, *args, **kwargs):
@@ -136,7 +135,6 @@ class HipchatBase(base.HTTPBaseActor):
 
 
 class Message(HipchatBase):
-
     """Sends a message to a room in HipChat.
 
     **Options**
@@ -237,7 +235,6 @@ class Message(HipchatBase):
 
 
 class Topic(HipchatBase):
-
     """Sets a HipChat room topic.
 
     **Options**

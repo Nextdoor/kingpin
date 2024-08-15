@@ -14,7 +14,6 @@ __author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 class IntegrationRollbarDeploy(testing.AsyncTestCase):
-
     """Simple high level integration tests agains the Rollbar API.
 
     These tests actually hit the Rollbar API and test that the code

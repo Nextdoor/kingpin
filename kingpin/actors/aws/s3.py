@@ -47,12 +47,10 @@ EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
 class InvalidBucketConfig(exceptions.RecoverableActorFailure):
-
     """Raised whenever an invalid option is passed to a Bucket"""
 
 
 class PublicAccessBlockConfig(SchemaCompareBase):
-
     """Provides JSON-Schema based validation of the supplied Public Access
     Block Configuration..
 
@@ -105,7 +103,6 @@ class PublicAccessBlockConfig(SchemaCompareBase):
 
 
 class LoggingConfig(SchemaCompareBase):
-
     """Provides JSON-Schema based validation of the supplied logging config.
 
     The S3 LoggingConfig format should look like this:
@@ -135,7 +132,6 @@ class LoggingConfig(SchemaCompareBase):
 
 
 class LifecycleConfig(SchemaCompareBase):
-
     """Provides JSON-Schema based validation of the supplied Lifecycle config.
 
     The S3 Lifecycle system allows for many unique configurations. Each
@@ -358,7 +354,6 @@ class LifecycleConfig(SchemaCompareBase):
 
 
 class NotificationConfiguration(SchemaCompareBase):
-
     """Provides JSON-Schema based validation of the supplied Notification Config.
 
     .. code-block:: json
@@ -394,7 +389,6 @@ class NotificationConfiguration(SchemaCompareBase):
 
 
 class TaggingConfig(SchemaCompareBase):
-
     """Provides JSON-Schema based validation of the supplied tagging config.
 
     The S3 TaggingConfig format should look like this:
@@ -427,7 +421,6 @@ class TaggingConfig(SchemaCompareBase):
 
 
 class Bucket(base.EnsurableAWSBaseActor):
-
     """Manage the state of a single S3 Bucket.
 
     The actor has the following functionality:

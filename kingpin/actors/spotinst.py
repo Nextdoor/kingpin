@@ -126,7 +126,6 @@ class SpotinstAPI(api.RestConsumer):
 
 
 class SpotinstException(exceptions.RecoverableActorFailure):
-
     """Base SpotInst exception handler.
 
     This exception handler parses the Spotinst returned messages when an error
@@ -182,7 +181,6 @@ class SpotinstException(exceptions.RecoverableActorFailure):
 
 
 class InvalidConfig(SpotinstException):
-
     """Thrown when an invalid request was supplied to Spotinst"""
 
 
@@ -209,7 +207,6 @@ class SpotinstRestClient(api.RestClient):
 
 
 class ElastiGroupSchema(SchemaCompareBase):
-
     """Light validation against the Spotinst ElastiGroup schema.
 
     For full description of the JSON data format, please see:
@@ -277,7 +274,6 @@ class ElastiGroupSchema(SchemaCompareBase):
 
 
 class SpotinstBase(base.EnsurableBaseActor):
-
     """Simple Spotinst Abstract Base Object"""
 
     def __init__(self, *args, **kwargs):
@@ -313,7 +309,6 @@ class SpotinstBase(base.EnsurableBaseActor):
 
 
 class ElastiGroup(SpotinstBase):
-
     """Manages an ElastiGroup in Spotinst.
 
     `Spotinst ElastiGroups
@@ -762,10 +757,10 @@ class ElastiGroup(SpotinstBase):
         # Decode both of the userData fields so we can actually see the
         # userdata differences.
         for config in (new, existing):
-            config["group"]["compute"]["launchSpecification"][
-                "userData"
-            ] = base64.b64decode(
-                config["group"]["compute"]["launchSpecification"]["userData"]
+            config["group"]["compute"]["launchSpecification"]["userData"] = (
+                base64.b64decode(
+                    config["group"]["compute"]["launchSpecification"]["userData"]
+                )
             )
 
         # We only allow a user to supply a single subnetId for each AZ (this is

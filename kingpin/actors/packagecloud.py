@@ -74,7 +74,6 @@ class PackagecloudAPI(api.RestConsumer):
 
 
 class PackagecloudBase(base.BaseActor):
-
     """Simple packagecloud Abstract Base Object"""
 
     def __init__(self, *args, **kwargs):
@@ -265,7 +264,6 @@ class PackagecloudBase(base.BaseActor):
 
 
 class Delete(PackagecloudBase):
-
     """Deletes packages from a PackageCloud repo.
 
     Searches for packages that match the `packages_to_delete` regex pattern and
@@ -334,7 +332,6 @@ class Delete(PackagecloudBase):
 
 
 class DeleteByDate(PackagecloudBase):
-
     """Deletes packages from a PackageCloud repo older than X.
 
     Adds additional functionality to the `Delete` class with a `older_than`
@@ -399,7 +396,6 @@ class DeleteByDate(PackagecloudBase):
 
 
 class WaitForPackage(PackagecloudBase):
-
     """Searches for a package that matches `name` and `version` until found or
     a timeout occurs.
 
