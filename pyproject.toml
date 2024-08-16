@@ -3,12 +3,8 @@ name = "kingpin"
 description = "Deployment Automation Engine"
 requires-python = ">=3.7"
 license = {text = "Apache License, Version 2.0"}
-authors = [
-  {name = "Nextdoor Engineering"},
-]
-maintainers = [
-  {name = "Nextdoor Engineering"},
-]
+authors = [{name = "Nextdoor Engineering"}]
+maintainers = [{name = "Nextdoor Engineering"},]
 keywords = [
     "deployment",
     "automation",
@@ -52,3 +48,9 @@ find = {}
 version = {attr = "kingpin.version.__version__"}
 dependencies = {file = ["requirements.txt"]}
 readme = {file = ["README.rst"]}
+
+[tool.coverage.run]
+omit = ["**/test/*"]
+
+[tool.coverage.report]
+show_missing = true
