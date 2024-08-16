@@ -91,28 +91,28 @@ class TestUtils(unittest.TestCase):
 
     def test_populate_with_escape_strict_fail(self):
         tokens = {"UNIT_TEST": "FOOBAR"}
-        string = "Unit \%UNIT_TEST\% Test %TEST_TWO%"
+        string = "Unit \\%UNIT_TEST\\% Test %TEST_TWO%"
         with self.assertRaises(LookupError):
             utils.populate_with_tokens(string, tokens, strict=True)
 
     def test_populate_with_escape_strict(self):
         tokens = {"UNIT_TEST": "FOOBAR"}
-        string = "Unit \%UNIT_TEST\% Test"
+        string = "Unit \\%UNIT_TEST\\% Test"
         expect = "Unit %UNIT_TEST% Test"
         result = utils.populate_with_tokens(string, tokens, strict=True)
         self.assertEqual(result, expect)
 
     def test_populate_with_escape_non_strict(self):
         tokens = {"UNIT_TEST": "FOOBAR"}
-        string = "Unit \%UNIT_TEST\% Test"
+        string = "Unit \\%UNIT_TEST\\% Test"
         expect = "Unit %UNIT_TEST% Test"
         result = utils.populate_with_tokens(string, tokens, strict=False)
         self.assertEqual(result, expect)
 
     def test_populate_with_escape_non_strict_no_escape(self):
         tokens = {"UNIT_TEST": "FOOBAR"}
-        string = "Unit \%UNIT_TEST\% Test"
-        expect = "Unit \%UNIT_TEST\% Test"
+        string = "Unit \\%UNIT_TEST\\% Test"
+        expect = "Unit \\%UNIT_TEST\\% Test"
         result = utils.populate_with_tokens(
             string, tokens, strict=False, remove_escape_sequence=False
         )
