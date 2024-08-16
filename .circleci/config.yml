@@ -42,6 +42,7 @@ workflows:
   version: 2
   default:
     jobs:
+      - venv
       - lint:
           requires:
             - venv
