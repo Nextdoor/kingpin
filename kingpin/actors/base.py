@@ -65,7 +65,6 @@ DEFAULT_TIMEOUT = os.getenv("DEFAULT_TIMEOUT", 3600)
 
 
 class LogAdapter(logging.LoggerAdapter):
-
     """Simple Actor Logging Adapter.
 
     Provides a common logging format for actors that uses the actors
@@ -77,7 +76,6 @@ class LogAdapter(logging.LoggerAdapter):
 
 
 class BaseActor(object):
-
     """Abstract base class for Actor objects."""
 
     # {
@@ -560,7 +558,6 @@ class BaseActor(object):
 
 
 class EnsurableBaseActor(BaseActor):
-
     """Base Class for Actors that "ensure" the state of a resource.
 
     Many of our actors have a goal of ensuring that a particular resource is in
@@ -757,7 +754,6 @@ class EnsurableBaseActor(BaseActor):
 
 
 class HTTPBaseActor(BaseActor):
-
     """Abstract base class for an HTTP-client based Actor object.
 
     This class provides common methods for getting access to asynchronous

@@ -52,7 +52,6 @@ __author__ = "Matt Wise <matt@nextdoor.com>, " "Mikhail Simin <mikhail@nextdoor.
 
 
 class Note(base.BaseActor):
-
     """Print any message to log."""
 
     all_options = {"message": (str, REQUIRED, "Message to log.")}
@@ -65,7 +64,6 @@ class Note(base.BaseActor):
 
 
 class Macro(base.BaseActor):
-
     """Parses a kingpin script, instantiates and executes it.
 
     **Parse JSON/YAML**
@@ -274,7 +272,6 @@ class Macro(base.BaseActor):
 
 
 class Sleep(base.BaseActor):
-
     """Sleeps for an arbitrary number of seconds.
 
     **Options**
@@ -320,7 +317,6 @@ class Sleep(base.BaseActor):
 
 
 class GenericHTTP(base.HTTPBaseActor):
-
     """A very simple actor that allows GET/POST methods over HTTP.
 
     Does a GET or a POST to a specified URL.

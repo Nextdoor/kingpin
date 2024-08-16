@@ -16,7 +16,6 @@ logging.getLogger("boto").setLevel(logging.INFO)
 
 
 class IntegrationS3(testing.AsyncTestCase):
-
     """High level S3 Actor testing.
 
     These tests will check two things:

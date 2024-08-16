@@ -53,7 +53,6 @@ TOKEN = os.getenv("ROLLBAR_TOKEN", None)
 
 
 class RollbarBase(base.HTTPBaseActor):
-
     """Simple Rollbar Base Abstract Actor"""
 
     def __init__(self, *args, **kwargs):
@@ -141,7 +140,6 @@ class RollbarBase(base.HTTPBaseActor):
 
 
 class Deploy(RollbarBase):
-
     """Posts a Deploy message to Rollbar.
 
     https://rollbar.com/docs/deploys_other/

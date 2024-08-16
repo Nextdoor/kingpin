@@ -17,7 +17,6 @@ UUID = uuid.uuid4().hex
 
 
 class IntegrationCreate(testing.AsyncTestCase):
-
     """High Level CloudFormation Testing.
 
     These tests will check two things:
@@ -97,7 +96,6 @@ class IntegrationCreate(testing.AsyncTestCase):
 
 
 class IntegrationStack(testing.AsyncTestCase):
-
     """High Level CloudFormation Stack Testing.
 
     These tests will check two things:

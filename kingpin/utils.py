@@ -62,6 +62,7 @@ STATIC_PATH_NAME = "static"
 # THREADPOOL_SIZE = 10
 # THREADPOOL = futures.ThreadPoolExecutor(THREADPOOL_SIZE)
 
+
 # https://github.com/yaml/pyyaml/issues/64
 # https://github.com/zerwes/hiyapyco/issues/7
 #
@@ -465,7 +466,6 @@ def create_repeating_log(logger, message, handle=None, **kwargs):
     """
 
     class OpaqueHandle(object):
-
         """Tornado async io handler."""
 
         def __init__(self):
