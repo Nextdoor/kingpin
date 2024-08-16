@@ -4,40 +4,26 @@ Development
 Setting up your Environment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Create your VirtualEnvironment
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
-    $ virtualenv .venv --no-site-packages
-    New python executable in .venv/bin/python
-    Installing setuptools, pip...done.
-    $ source .venv/bin/activate
-
 Check out the code
 ^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
-    (.venv) $ git clone git@github.com:Nextdoor/kingpin
+    $ git clone https://github.com:Nextdoor/kingpin
     Cloning into 'kingpin'...
-    Warning: Permanently added 'github.com,192.30.252.128' (RSA) to the list of known hosts.
     remote: Counting objects: 1831, done.
     remote: irangedCompressing objects: 100% (17/17), done.
     remote: Total 1831 (delta 7), reused 0 (delta 0)
     Receiving objects: 100% (1831/1831), 287.68 KiB, done.
     Resolving deltas: 100% (1333/1333), done.
 
-Install the test-specific dependencies
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Create your VirtualEnvironment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
-    (.venv) $ pip install -r kingpin/requirements.test.txt
-    ...
-    (.venv) $ cd kingpin
-    (.venv) $ python setup.py test
-    ...
+    $ make venv
+    $ source .venv/bin/activate
 
 Testing
 ~~~~~~~
@@ -45,44 +31,7 @@ Testing
 Unit Tests
 ^^^^^^^^^^
 
-The code is 100% unit test coverage complete, and no pull-requests will be
-accepted that do not maintain this level of coverage. That said, it's possible
-(*likely*) that we have not covered every possible scenario in our unit tests
-that could cause failures. We will strive to fill out every reasonable failure
-scenario.
-
-Integration Tests
-^^^^^^^^^^^^^^^^^
-
-Because it's hard to predict cloud failures, we provide integration tests for
-most of our modules. These integration tests actually go off and execute real
-operations in your accounts, and rely on particular environments being setup
-in order to run. These tests are great to run though to validate that your
-credentials are all correct.
-
-*Executing the tests*
-
-.. code-block:: bash
-
-    HIPCHAT_TOKEN=<xxx> INTEGRATION_TESTS=<comma separated list> make integration
-
-    ...
-    integration_02a_clone (integration_server_array.IntegrationServerArray) ... ok
-    integration_test_execute_real (integration_hipchat.IntegrationHipchatMessage) ... ok
-    integration_test_execute_with_invalid_creds (integration_hipchat.IntegrationHipchatMessage) ... ok
-    integration_test_init_without_environment_creds (integration_hipchat.IntegrationHipchatMessage) ... ok
-
-    ...
-
-    kingpin.utils                               67     30    55%   57-69, 78, 93-120, 192-202
-    ----------------------------------------------------------------------
-    TOTAL                                      571    143    75%   
-    ----------------------------------------------------------------------
-    Ran 10 tests in 880.274s
-
-    OK
-    running pep8
-    running pyflakes
+The code is 100% unit test coverage complete, and no pull-requests will be accepted that do not maintain this level of coverage. That said, it's possible (*likely*) that we have not covered every possible scenario in our unit tests that could cause failures. We will strive to fill out every reasonable failure scenario.
 
 Executing Only Certain Test Suites
 ''''''''''''''''''''''''''''''''''
