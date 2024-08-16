@@ -236,7 +236,7 @@ def begin():
         # Skip traceback that involves tornado's libraries.
         import traceback
 
-        trace_lines = traceback.format_exc(e).splitlines()
+        trace_lines = traceback.format_exc().splitlines()
         skip_next = False
         for l in trace_lines:
             if "tornado" in l:
