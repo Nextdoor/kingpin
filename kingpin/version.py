@@ -13,4 +13,4 @@
 # Copyright 2018 Nextdoor.com, Inc
 
 
-__version__ = "3.0.3"
+__version__ = "3.0.4"

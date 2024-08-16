@@ -39,5 +39,5 @@ AWS_SESSION_TOKEN = os.getenv("AWS_SESSION_TOKEN", None)
 # and our experience with running kingpin as scale.
 #
 # Docs: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
-AWS_MAX_ATTEMPTS = os.getenv("AWS_MAX_ATTEMPTS", 10)
+AWS_MAX_ATTEMPTS = int(os.getenv("AWS_MAX_ATTEMPTS", 10))
 AWS_RETRY_MODE = os.getenv("AWS_RETRY_MODE", "standard")
