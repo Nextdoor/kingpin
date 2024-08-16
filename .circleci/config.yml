@@ -23,19 +23,19 @@ jobs:
   lint:
     executor: default
     steps:
-      - download
+      - restore
       - run: make lint
   test:
     executor: default
     environment:
       USER: bogus-string
     steps:
-      - download
+      - restore
       - run: make test
   build:
     executor: default
     steps:
-      - download
+      - restore
       - run: make build
 workflows:
   version: 2
