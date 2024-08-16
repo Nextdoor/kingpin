@@ -1,26 +1,54 @@
-version: 2
-jobs:
-  build:
+version: 2.1
+executors:
+  default:
     docker:
-      - image: cimg/python:3.9
-    environment:
-      DRY: true
-      USER: bogus-string
+      - image: cimg/python:3.12
+commands:
+  download:
     steps:
       - checkout
-      - save_cache:
-          key: pip-{{ checksum "requirements.test.txt" }}-2023-01-03
-          paths:
-            - .venv
-      - run: make venv
       - restore_cache:
           keys:
-            - pip-{{ checksum "requirements.test.txt" }}-2023-01-03
+            - pip-{{ checksum "requirements.txt" }}-{{ checksum "requirements.test.txt" }}
+jobs:
+  venv:
+    executor: default
+    steps:
+      - download
+      - run: make venv
+      - save_cache:
+          key: pip-{{ checksum "requirements.txt" }}-{{ checksum "requirements.test.txt" }}
+          paths:
+            - .venv
+  lint:
+    executor: default
+    steps:
+      - download
       - run: make lint
+  test:
+    executor: default
+    steps:
+      - download
       - run: make test
+  build:
+    executor: default
+    environment:
+      DRY: "true"
+      USER: bogus-string
+    steps:
+      - download
       - run: make build
 workflows:
   version: 2
   default:
     jobs:
-      - build
+      - lint:
+          requires:
+            - venv
+      - build:
+          requires:
+            - venv
+            - test
+      - test:
+          requires:
+            - venv
