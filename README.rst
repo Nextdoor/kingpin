@@ -14,7 +14,7 @@ Kingpin provides 3 main functions:
 Documentation
 -------------
 
-Documentation is hosted at `https://kingpin.readthedocs.org <https://kingpin.readthedocs.org>`_
+Documentation is hosted at `https://kingpin.readthedocs.io <https://kingpin.readthedocs.io>`_
 
 .. |doc_status| image:: https://readthedocs.org/projects/kingpin/badge/?version=latest
 .. _doc_status: https://kingpin.readthedocs.org
