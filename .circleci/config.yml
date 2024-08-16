@@ -27,14 +27,14 @@ jobs:
       - run: make lint
   test:
     executor: default
+    environment:
+      DRY: "true"
+      USER: bogus-string
     steps:
       - download
       - run: make test
   build:
     executor: default
-    environment:
-      DRY: "true"
-      USER: bogus-string
     steps:
       - download
       - run: make build
