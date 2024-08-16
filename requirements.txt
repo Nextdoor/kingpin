@@ -25,4 +25,4 @@ configparser
 #
 
 # tornado rest client
-tornado_rest_client==1.0.0
+tornado_rest_client==2.0.1
