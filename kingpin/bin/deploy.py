@@ -32,8 +32,6 @@ from kingpin.version import __version__
 
 log = logging.getLogger(__name__)
 
-__author__ = "Matt Wise (matt@nextdoor.com)"
-
 
 # We handle all the exceptions ourselves, so additional log statements from
 # BOTO are not needed.
@@ -126,13 +124,13 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-def kingpin_fail(message):
+def kingpin_fail(message: str):
     parser.print_help()
     sys.stderr.write("\nError: %s\n" % message)
     sys.exit(1)
 
 
-def get_main_actor(dry):
+def get_main_actor(dry: bool):
     env_tokens = dict(os.environ)
 
     # Cannot specify a script file an an actor at the same time.
@@ -248,5 +246,5 @@ def begin():
         sys.exit(3)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     begin()
