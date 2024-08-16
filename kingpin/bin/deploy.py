@@ -232,7 +232,7 @@ def begin():
     except KeyboardInterrupt:
         log.info("CTRL-C Caught, shutting down")
         sys.exit(130)  # Standard KeyboardInterrupt exit code.
-    except Exception as e:
+    except Exception:
         # Skip traceback that involves tornado's libraries.
         import traceback
 
