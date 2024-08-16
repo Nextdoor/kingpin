@@ -58,7 +58,6 @@ EMAIL = os.getenv("LIBRATO_EMAIL", None)
 
 
 class Annotation(base.HTTPBaseActor):
-
     """Librato Annotation Actor
 
     Posts an Annotation to Librato.

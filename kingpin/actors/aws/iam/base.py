@@ -36,5 +36,4 @@ EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
 class IAMBaseActor(base.AWSBaseActor):
-
     """Base class for IAM actors."""

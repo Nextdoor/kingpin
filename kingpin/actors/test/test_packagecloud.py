@@ -72,7 +72,6 @@ def _get_older_than():
 
 
 class TestPackagecloudBase(testing.AsyncTestCase):
-
     """Unit tests for the packagecloud Base actor."""
 
     def setUp(self, *args, **kwargs):
@@ -259,7 +258,6 @@ class TestPackagecloudBase(testing.AsyncTestCase):
 
 
 class TestDelete(testing.AsyncTestCase):
-
     """Unit tests for the packagecloud Delete actor."""
 
     def setUp(self, *args, **kwargs):
@@ -292,7 +290,6 @@ class TestDelete(testing.AsyncTestCase):
 
 
 class TestDeleteByDate(testing.AsyncTestCase):
-
     """Unit tests for the packagecloud DeleteByDate actor."""
 
     def setUp(self, *args, **kwargs):
@@ -325,7 +322,6 @@ class TestDeleteByDate(testing.AsyncTestCase):
 
 
 class TestWaitForPackage(testing.AsyncTestCase):
-
     """Unit tests for the packagecloud WaitForPackage actor."""
 
     def setUp(self, *args, **kwargs):

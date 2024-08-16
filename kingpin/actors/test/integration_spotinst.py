@@ -15,7 +15,6 @@ __author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 class IntegrationSpotinstElastiGroup(testing.AsyncTestCase):
-
     """Integration tests against the Spotinst API.
 
     These tests actually hit the Spotinst API and test that the code

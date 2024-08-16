@@ -13,7 +13,6 @@ __author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 class IntegrationHipchatMessage(testing.AsyncTestCase):
-
     """Simple high level integration tests agains the HipChat API.
 
     These tests actually hit the HipChat API and test that the code
@@ -67,7 +66,6 @@ class IntegrationHipchatMessage(testing.AsyncTestCase):
 
 
 class IntegrationHipchatTopic(testing.AsyncTestCase):
-
     """Simple high level integration tests agains the HipChat API.
 
     These tests actually hit the HipChat API and test that the code

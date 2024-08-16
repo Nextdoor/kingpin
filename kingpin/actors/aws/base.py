@@ -99,9 +99,9 @@ class AWSBaseActor(base.BaseActor):
         # found which will tell boto3 to fallback to default behavior.
         boto3_client_kwargs = {}
         boto3_client_kwargs["aws_access_key_id"] = aws_settings.AWS_ACCESS_KEY_ID
-        boto3_client_kwargs[
-            "aws_secret_access_key"
-        ] = aws_settings.AWS_SECRET_ACCESS_KEY
+        boto3_client_kwargs["aws_secret_access_key"] = (
+            aws_settings.AWS_SECRET_ACCESS_KEY
+        )
         boto3_client_kwargs["aws_session_token"] = aws_settings.AWS_SESSION_TOKEN
 
         # Establish connection objects that don't require a region
@@ -226,5 +226,4 @@ class AWSBaseActor(base.BaseActor):
 
 
 class EnsurableAWSBaseActor(AWSBaseActor, base.EnsurableBaseActor):
-
     """Ensurable version of the AWS Base Actor"""

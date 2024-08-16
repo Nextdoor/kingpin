@@ -15,7 +15,6 @@ log = logging.getLogger(__name__)
 
 
 class FakeActor(base.BaseActor):
-
     """Fake Actor for Tests"""
 
     all_options = {
@@ -31,7 +30,6 @@ class FakeActor(base.BaseActor):
 
 
 class FakeActorRaises(base.BaseActor):
-
     """Fake Actor for Tests"""
 
     all_options = {"exception": (object, True, "What this actor will return")}
@@ -43,7 +41,6 @@ class FakeActorRaises(base.BaseActor):
 
 
 class FakeActorPopulate(base.BaseActor):
-
     """Fake Actor for Tests"""
 
     all_options = {

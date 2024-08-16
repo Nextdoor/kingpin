@@ -95,7 +95,6 @@ class TestSpotinstException(testing.AsyncTestCase):
 
 
 class TestSpotinstBase(testing.AsyncTestCase):
-
     """Unit tests for the packagecloud Base actor."""
 
     def setUp(self, *args, **kwargs):
@@ -121,7 +120,6 @@ class TestSpotinstBase(testing.AsyncTestCase):
 
 
 class TestElastiGroup(testing.AsyncTestCase):
-
     """Unit tests for the ElastiGroup actor."""
 
     def setUp(self, *args, **kwargs):

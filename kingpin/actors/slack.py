@@ -70,7 +70,6 @@ class SlackAPI(api.RestConsumer):
 
 
 class SlackBase(base.BaseActor):
-
     """Simple Slack Abstract Base Object"""
 
     def __init__(self, *args, **kwargs):
@@ -122,7 +121,6 @@ class SlackBase(base.BaseActor):
 
 
 class Message(SlackBase):
-
     """Sends a message to a channel in Slack.
 
     **Options**

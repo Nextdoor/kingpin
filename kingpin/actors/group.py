@@ -37,7 +37,6 @@ __author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 class BaseGroupActor(base.BaseActor):
-
     """Group together a series of other `kingpin.actors.base.BaseActor` objects
 
     :acts:
@@ -221,7 +220,6 @@ class BaseGroupActor(base.BaseActor):
 
 
 class Sync(BaseGroupActor):
-
     """Execute a series of `kingpin.actors.base.BaseActor` synchronously.
 
     Groups together a series of Actors and executes them synchronously
@@ -365,7 +363,6 @@ class Sync(BaseGroupActor):
 
 
 class Async(BaseGroupActor):
-
     """Execute several `kingpin.actors.base.BaseActor` objects asynchronously.
 
     Groups together a series of Actors and executes them asynchronously -

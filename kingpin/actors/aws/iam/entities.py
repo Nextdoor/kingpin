@@ -49,7 +49,6 @@ MAX_ITEMS = 1000
 
 
 class EntityBaseActor(base.IAMBaseActor):
-
     """User/Group/Role Base Management Class
 
     Managing Users, Groups and Roles in Amazon IAM is nearly identical. This
@@ -507,7 +506,6 @@ class EntityBaseActor(base.IAMBaseActor):
 
 
 class User(EntityBaseActor):
-
     """Manages an IAM User.
 
     This actor manages the state of an Amazon IAM User.
@@ -651,7 +649,6 @@ class User(EntityBaseActor):
 
 
 class Group(EntityBaseActor):
-
     """Manages an IAM Group.
 
     This actor manages the state of an Amazon IAM Group.
@@ -807,7 +804,6 @@ class Group(EntityBaseActor):
 
 
 class Role(EntityBaseActor):
-
     """Manages an IAM Role.
 
     This actor manages the state of an Amazon IAM Role.
@@ -1000,7 +996,6 @@ class Role(EntityBaseActor):
 
 
 class InstanceProfile(EntityBaseActor):
-
     """Manages an IAM Instance Profile.
 
     This actor manages the state of an Amazon IAM Instance Profile.

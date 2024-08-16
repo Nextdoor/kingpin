@@ -22,12 +22,10 @@ from kingpin import exceptions
 
 
 class ActorException(exceptions.KingpinException):
-
     """Base Kingpin Actor Exception"""
 
 
 class RecoverableActorFailure(ActorException):
-
     """Base exception that allows script executions to continue on failure.
 
     This exception class is used to throw an error when an Actor fails, but
@@ -39,7 +37,6 @@ class RecoverableActorFailure(ActorException):
 
 
 class UnrecoverableActorFailure(ActorException):
-
     """Base exception for unrecoverable failures.
 
     This exception class should be used for critical failures that should
@@ -52,17 +49,14 @@ class UnrecoverableActorFailure(ActorException):
 
 
 class ActorTimedOut(RecoverableActorFailure):
-
     """Raised when an Actor takes too long to execute"""
 
 
 class InvalidActor(UnrecoverableActorFailure):
-
     """Raised when an invalid Actor name was supplied"""
 
 
 class InvalidOptions(UnrecoverableActorFailure):
-
     """Invalid option arguments passed into the Actor object.
 
     This can be used both for the actual options dict passed into the actor,
@@ -72,15 +66,12 @@ class InvalidOptions(UnrecoverableActorFailure):
 
 
 class InvalidCredentials(UnrecoverableActorFailure):
-
     """Invalid or missing credentials required for Actor object."""
 
 
 class UnparseableResponseFromEndpoint(UnrecoverableActorFailure):
-
     """Invalid response returned from a remote REST endpoint."""
 
 
 class BadRequest(RecoverableActorFailure):
-
     """An action failed due to a HTTP 400 error likely due to bad input."""

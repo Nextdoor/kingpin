@@ -78,7 +78,6 @@ class PingdomClient(api.RestClient):
 
 
 class PingdomBase(base.BaseActor):
-
     """Simple Pingdom Abstract Base Object"""
 
     all_options = {
@@ -114,7 +113,6 @@ class PingdomBase(base.BaseActor):
 
 
 class Pause(PingdomBase):
-
     """Start Pingdom Maintenance.
 
     Pause a particular "check" on Pingdom.
@@ -158,7 +156,6 @@ class Pause(PingdomBase):
 
 
 class Unpause(PingdomBase):
-
     """Stop Pingdom Maintenance.
 
     Unpause a particular "check" on Pingdom.

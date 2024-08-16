@@ -15,7 +15,6 @@ log = logging.getLogger(__name__)
 
 
 class FakeActor(base.BaseActor):
-
     """Fake Actor use for Unit Tests"""
 
     def __init__(self, *args, **kwargs):

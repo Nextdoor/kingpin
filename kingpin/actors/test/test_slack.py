@@ -14,7 +14,6 @@ __author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 class TestSlackBase(testing.AsyncTestCase):
-
     """Unit tests for the Slack Base actor."""
 
     def setUp(self, *args, **kwargs):
@@ -68,7 +67,6 @@ class TestSlackBase(testing.AsyncTestCase):
 
 
 class TestMessage(testing.AsyncTestCase):
-
     """Unit tests for the Slack Message actor."""
 
     def setUp(self, *args, **kwargs):

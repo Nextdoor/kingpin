@@ -16,7 +16,6 @@ __author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 class FakeHTTPClientClass(object):
-
     """Fake HTTPClient object for testing"""
 
     response_value = None
@@ -27,7 +26,6 @@ class FakeHTTPClientClass(object):
 
 
 class FakeExceptionRaisingHTTPClientClass(object):
-
     """Fake HTTPClient object for testing"""
 
     response_value = None
@@ -38,7 +36,6 @@ class FakeExceptionRaisingHTTPClientClass(object):
 
 
 class TestRollbarBase(testing.AsyncTestCase):
-
     """Unit tests for the Rollbar base actor."""
 
     def setUp(self, *args, **kwargs):
@@ -170,7 +167,6 @@ class TestRollbarBase(testing.AsyncTestCase):
 
 
 class TestDeploy(testing.AsyncTestCase):
-
     """Unit tests for the Rollbar Deploy actor."""
 
     def setUp(self, *args, **kwargs):
