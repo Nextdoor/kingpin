@@ -1122,7 +1122,7 @@ class Stack(CloudFormationBaseActor):
             template_obj["Outputs"] = {}
 
         template_obj["Outputs"][KINGPIN_CFN_HASH_OUTPUT_KEY] = {
-            "Value": md5(datetime.now())
+            "Value": md5(datetime.datetime.now(datetime.timezone.utc))
         }
 
         return json.dumps(template_obj)
