@@ -41,3 +41,6 @@ AWS_SESSION_TOKEN = os.getenv("AWS_SESSION_TOKEN", None)
 # Docs: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
 AWS_MAX_ATTEMPTS = int(os.getenv("AWS_MAX_ATTEMPTS", 10))
 AWS_RETRY_MODE = os.getenv("AWS_RETRY_MODE", "standard")
+
+# Set to "" (an empty string) to disable.
+KINGPIN_CFN_HASH_OUTPUT_KEY = os.getenv("KINGPIN_CFN_HASH_OUTPUT_KEY", "KingpinCfnHash")

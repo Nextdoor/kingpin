@@ -17,6 +17,7 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 """
 
+from hashlib import md5
 import json
 from json import JSONEncoder
 
@@ -35,6 +36,7 @@ from tornado import ioloop
 from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
+from kingpin.actors.aws.settings import KINGPIN_CFN_HASH_OUTPUT_KEY
 from kingpin.actors.utils import dry
 from kingpin.constants import REQUIRED, STATE
 from kingpin.constants import SchemaCompareBase, StringCompareBase
@@ -230,6 +232,31 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         }
         return default_params
 
+    def _strip_hash(self, template_str: str, as_obj: bool = False):
+        """Strips the hash from the template.
+
+        Note: This will also strip the "Outputs" section if no other output exists. This might cause
+        issues when diffiing a template that contains an outputs section with no outputs.
+        """
+
+        template_obj = json.loads(template_str)
+
+        if len(KINGPIN_CFN_HASH_OUTPUT_KEY) > 0:
+            if "Outputs" not in template_obj.keys() or not isinstance(template_obj["Outputs"], dict):
+                return template_str
+
+            template_outputs_keys = template_obj["Outputs"].keys()
+            if KINGPIN_CFN_HASH_OUTPUT_KEY in template_outputs_keys:
+                del template_obj["Outputs"][KINGPIN_CFN_HASH_OUTPUT_KEY]
+
+                if len(template_outputs_keys) == 0:
+                    del template_obj["Outputs"]
+
+        if as_obj:
+            return template_obj
+
+        return json.dumps(template_obj)
+
     def _get_template_body(self, template: str, s3_region: Optional[str]):
         """Reads in a local template file and returns the contents.
 
@@ -249,6 +276,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         if template is None:
             return None, None
 
+        ret_template = ""
+        ret_url = None
+
         if template.startswith("s3://"):
             match = S3_REGEX.match(template)
             if match:
@@ -266,7 +296,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                     s3_region = "us-east-1"
             # AWS has a multitude of different s3 url formats, but not all are
             # supported. Use this one.
-            url = f"https://{bucket}.s3.{s3_region}.amazonaws.com/{key}"
+            ret_url = f"https://{bucket}.s3.{s3_region}.amazonaws.com/{key}"
 
             s3 = self.get_s3_client(s3_region)
             log.debug("Downloading template stored in s3")
@@ -274,17 +304,15 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 resp = s3.get_object(Bucket=bucket, Key=key)
             except ClientError as e:
                 raise InvalidTemplate(e)
-            remote_template = resp["Body"].read()
-            return remote_template, url
+            ret_template = resp["Body"].read()
         else:
             # The template is provided inline.
             try:
-                return (
-                    json.dumps(self._parse_policy_json(template), cls=DateEncoder),
-                    None,
-                )
+                ret_template = json.dumps(self._parse_policy_json(template), cls=DateEncoder)
             except exceptions.UnrecoverableActorFailure as e:
                 raise InvalidTemplate(e)
+
+        return self._strip_hash(ret_template), ret_url
 
     def get_s3_client(self, region):
         """Get a boto3 S3 client for a given region.
@@ -382,7 +410,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
     @gen.coroutine
     def _get_stack_template(self, stack):
-        """Returns the live policy attached to a CF Stack.
+        """Returns the live template used by the CFN Stack.
 
         args:
             stack: Stack name or stack ID
@@ -394,7 +422,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         except ClientError as e:
             raise CloudFormationError(e)
 
-        raise gen.Return(ret["TemplateBody"])
+        raise gen.Return(self._strip_hash(json.dumps(ret["TemplateBody"]), True))
 
     @gen.coroutine
     def _wait_until_state(self, stack_name, desired_states, sleep=15):
@@ -1080,6 +1108,19 @@ class Stack(CloudFormationBaseActor):
 
         return False
 
+    def _template_body_with_hash(self) -> str:
+        """Add a hash to the template to force a change in the stack."""
+
+        template_obj = json.loads(self._template_body)
+
+        if not isinstance(template_obj.get("Outputs", None), dict):
+            # overwrite the outputs with an empty dict
+            template_obj["Outputs"] = {}
+
+        template_obj["Outputs"][KINGPIN_CFN_HASH_OUTPUT_KEY] = {"Value": md5(datetime.now())}
+
+        return json.dumps(template_obj)
+
     @gen.coroutine
     def _create_change_set(self, stack, uuid=uuid.uuid4().hex):
         """Generates a Change Set.
@@ -1108,7 +1149,12 @@ class Stack(CloudFormationBaseActor):
         if self._template_url:
             change_opts["TemplateURL"] = self._template_url
         else:
-            change_opts["TemplateBody"] = self._template_body
+            if len(KINGPIN_CFN_HASH_OUTPUT_KEY) > 0:
+                # Hack in a "CFN change" so we can avoid the "No changes" error (for instance, when
+                # only conditional resources get changed in the source template)
+                change_opts["TemplateBody"] = self._template_body_with_hash()
+            else:
+                change_opts["TemplateBody"] = self._template_body
 
         self.log.info("Generating a stack Change Set...")
         try:
