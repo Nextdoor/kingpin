@@ -242,7 +242,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         template_obj = json.loads(template_str)
 
         if len(KINGPIN_CFN_HASH_OUTPUT_KEY) > 0:
-            if "Outputs" not in template_obj.keys() or not isinstance(template_obj["Outputs"], dict):
+            if "Outputs" not in template_obj.keys() or not isinstance(
+                template_obj["Outputs"], dict
+            ):
                 return template_str
 
             template_outputs_keys = template_obj["Outputs"].keys()
@@ -308,7 +310,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         else:
             # The template is provided inline.
             try:
-                ret_template = json.dumps(self._parse_policy_json(template), cls=DateEncoder)
+                ret_template = json.dumps(
+                    self._parse_policy_json(template), cls=DateEncoder
+                )
             except exceptions.UnrecoverableActorFailure as e:
                 raise InvalidTemplate(e)
 
@@ -1117,7 +1121,9 @@ class Stack(CloudFormationBaseActor):
             # overwrite the outputs with an empty dict
             template_obj["Outputs"] = {}
 
-        template_obj["Outputs"][KINGPIN_CFN_HASH_OUTPUT_KEY] = {"Value": md5(datetime.now())}
+        template_obj["Outputs"][KINGPIN_CFN_HASH_OUTPUT_KEY] = {
+            "Value": md5(datetime.now())
+        }
 
         return json.dumps(template_obj)
 
