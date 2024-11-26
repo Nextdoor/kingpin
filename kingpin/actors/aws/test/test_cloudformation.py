@@ -708,6 +708,7 @@ class TestStack(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
+        settings.KINGPIN_CFN_HASH_OUTPUT_KEY = "KingpinCfnHash"
         importlib.reload(cloudformation)
         # Need to recreate the api call queues between tests
         # because nose creates a new ioloop per test run.
@@ -1076,6 +1077,40 @@ class TestStack(testing.AsyncTestCase):
         # Ensure we raise an exception if something bad happens
         with self.assertRaises(cloudformation.StackFailed):
             yield self.actor._ensure_template(fake_stack)
+
+    def test_hash_feature_disabled(self):
+        settings.KINGPIN_CFN_HASH_OUTPUT_KEY = ""
+        importlib.reload(cloudformation)
+        self.actor = cloudformation.Stack(
+            options={
+                "name": "unit-test-cf",
+                "state": "present",
+                "region": "us-west-2",
+                "template": "examples/test/aws.cloudformation/cf.unittest.json",
+                "parameters": {"key1": "value1"},
+            }
+        )
+        self.actor._template_body = json.dumps({"blank": "json"})
+
+        ret1 = self.actor._template_body_with_hash()
+        ret2 = self.actor._strip_hash_str(self.actor._template_body)
+
+        self.assertEqual(ret1, json.dumps({"blank": "json"}))
+        self.assertEqual(ret2, json.dumps({"blank": "json"}))
+
+    def test_strip_hash_str(self):
+        self.actor._template_body = json.dumps(
+            {
+                "blank": "json",
+                "Outputs": {
+                    "KingpinCfnHash": {"Value": "251693d288f81514f8f49b594fc83e47"}
+                },
+            }
+        )
+
+        ret = self.actor._strip_hash_str(self.actor._template_body)
+
+        self.assertEqual(ret, json.dumps({"blank": "json"}))
 
     @testing.gen_test
     def test_create_change_set_body(self):
