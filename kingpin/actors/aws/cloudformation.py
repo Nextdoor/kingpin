@@ -1117,6 +1117,10 @@ class Stack(CloudFormationBaseActor):
     def _template_body_with_hash(self) -> str:
         """Add a hash to the template to force a change in the stack."""
 
+        # Bail if the user has disabled this feature.
+        if len(KINGPIN_CFN_HASH_OUTPUT_KEY) == 0:
+            return self._template_body
+
         template_obj = json.loads(self._template_body)
 
         if not isinstance(template_obj.get("Outputs", None), dict):
@@ -1161,12 +1165,7 @@ class Stack(CloudFormationBaseActor):
         if self._template_url:
             change_opts["TemplateURL"] = self._template_url
         else:
-            if len(KINGPIN_CFN_HASH_OUTPUT_KEY) > 0:
-                # Hack in a "CFN change" so we can avoid the "No changes" error (for instance, when
-                # only conditional resources get changed in the source template)
-                change_opts["TemplateBody"] = self._template_body_with_hash()
-            else:
-                change_opts["TemplateBody"] = self._template_body
+            change_opts["TemplateBody"] = self._template_body_with_hash()
 
         self.log.info("Generating a stack Change Set...")
         try:
