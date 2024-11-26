@@ -232,32 +232,33 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         }
         return default_params
 
-    def _strip_hash(self, template_str: str, as_obj: bool = False):
+    def _strip_hash_dict(self, template: dict) -> dict:
         """Strips the hash from the template.
 
         Note: This will also strip the "Outputs" section if no other output exists. This might cause
         issues when diffiing a template that contains an outputs section with no outputs.
         """
 
-        template_obj = json.loads(template_str)
+        # Bail if the user has disabled this feature.
+        if len(KINGPIN_CFN_HASH_OUTPUT_KEY) == 0:
+            return template
 
-        if len(KINGPIN_CFN_HASH_OUTPUT_KEY) > 0:
-            if "Outputs" not in template_obj.keys() or not isinstance(
-                template_obj["Outputs"], dict
-            ):
-                return template_str
+        # Bail if the "Outputs" section is missing or a type we do not expect.
+        if not isinstance(template.get("Outputs", None), dict):
+            return template
 
-            template_outputs_keys = template_obj["Outputs"].keys()
-            if KINGPIN_CFN_HASH_OUTPUT_KEY in template_outputs_keys:
-                del template_obj["Outputs"][KINGPIN_CFN_HASH_OUTPUT_KEY]
+        # Remove the hash from the Outputs section.
+        if KINGPIN_CFN_HASH_OUTPUT_KEY in template["Outputs"].keys():
+            del template["Outputs"][KINGPIN_CFN_HASH_OUTPUT_KEY]
 
-                if len(template_outputs_keys) == 0:
-                    del template_obj["Outputs"]
+            # If there are no other outputs, remove the Outputs section entirely.
+            if len(template["Outputs"].keys()) == 0:
+                del template["Outputs"]
 
-        if as_obj:
-            return template_obj
+        return template
 
-        return json.dumps(template_obj)
+    def _strip_hash_str(self, template: str) -> str:
+        return json.dumps(self._strip_hash_dict(json.loads(template)))
 
     def _get_template_body(self, template: str, s3_region: Optional[str]):
         """Reads in a local template file and returns the contents.
@@ -278,8 +279,8 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         if template is None:
             return None, None
 
-        ret_template = ""
-        ret_url = None
+        ret_template: str = ""
+        ret_url: Optional[str] = None
 
         if template.startswith("s3://"):
             match = S3_REGEX.match(template)
@@ -316,7 +317,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             except exceptions.UnrecoverableActorFailure as e:
                 raise InvalidTemplate(e)
 
-        return self._strip_hash(ret_template), ret_url
+        return self._strip_hash_str(ret_template), ret_url
 
     def get_s3_client(self, region):
         """Get a boto3 S3 client for a given region.
@@ -426,7 +427,8 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         except ClientError as e:
             raise CloudFormationError(e)
 
-        raise gen.Return(self._strip_hash(json.dumps(ret["TemplateBody"]), True))
+        template_body: dict = ret["TemplateBody"]
+        raise gen.Return(self._strip_hash_dict(template_body))
 
     @gen.coroutine
     def _wait_until_state(self, stack_name, desired_states, sleep=15):
@@ -1123,7 +1125,9 @@ class Stack(CloudFormationBaseActor):
 
         template_obj["Outputs"][KINGPIN_CFN_HASH_OUTPUT_KEY] = {
             "Value": md5(
-                datetime.datetime.now(datetime.timezone.utc).isoformat().encode()
+                # datetime.datetime.now(datetime.timezone.utc).isoformat().encode()  # requires freezegun during testing
+                # or
+                json.dumps(template_obj).encode()
             ).hexdigest()
         }
 

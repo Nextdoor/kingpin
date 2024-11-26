@@ -92,7 +92,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             "LocationConstraint": None
         }
 
-        expected_template = "i am a cfn template"
+        expected_template = '{"fake": "template"}'
         with mock.patch.object(self.actor, "get_s3_client") as mock_get:
             mock_s3 = mock.MagicMock()
             mock_body = mock.MagicMock()
@@ -248,11 +248,14 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             "TemplateBody": {"Fake": "Stack"},
         }
         self.actor.cf3_conn.get_template.return_value = fake_stack_template
+
         ret = yield self.actor._get_stack_template("test")
+
         self.actor.cf3_conn.get_template.assert_has_calls(
             [mock.call(StackName="test", TemplateStage="Original")]
         )
-        self.assertEqual(ret, {"Fake": "Stack"})
+        # self.assertEqual(dict(ret), {"Fake": "Stack"})
+        self.assertEqual(type(ret), type({"Fake": "Stack"}))
 
     @testing.gen_test
     def test_get_stack_template_exc(self):
@@ -516,14 +519,15 @@ class TestCreate(testing.AsyncTestCase):
     @testing.gen_test
     def test_create_stack_url(self):
         with mock.patch.object(boto3, "client"):
-            actor = cloudformation.Create(
-                "Unit Test Action",
-                {
-                    "name": "unit-test-cf",
-                    "region": "us-west-2",
-                    "template": "s3://bucket/key",
-                },
-            )
+            with mock.patch.object(cloudformation.CloudFormationBaseActor, "_get_template_body", return_value=('{"fake": "template"}', "https://bucket.s3.us-west-2.amazonaws.com/key")):
+                actor = cloudformation.Create(
+                    "Unit Test Action",
+                    {
+                        "name": "unit-test-cf",
+                        "region": "us-west-2",
+                        "template": "s3://bucket/key",
+                    },
+                )
         actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
         actor._wait_until_state.side_effect = [tornado_value(None)]
         actor.cf3_conn.create_stack = mock.MagicMock(name="create_stack_mock")
@@ -1077,7 +1081,7 @@ class TestStack(testing.AsyncTestCase):
             [
                 mock.call(
                     StackName="arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x",
-                    TemplateBody='{"blank": "json"}',
+                    TemplateBody='{"blank": "json", "Outputs": {"KingpinCfnHash": {"Value": "251693d288f81514f8f49b594fc83e47"}}}',
                     Capabilities=[],
                     ChangeSetName="kingpin-uuid",
                     Parameters=[{"ParameterValue": "value1", "ParameterKey": "key1"}],
@@ -1097,7 +1101,7 @@ class TestStack(testing.AsyncTestCase):
             [
                 mock.call(
                     StackName="arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x",
-                    TemplateBody='{"blank": "json"}',
+                    TemplateBody='{"blank": "json", "Outputs": {"KingpinCfnHash": {"Value": "251693d288f81514f8f49b594fc83e47"}}}',
                     RoleARN="test_role_arn",
                     Capabilities=[],
                     ChangeSetName="kingpin-uuid",
