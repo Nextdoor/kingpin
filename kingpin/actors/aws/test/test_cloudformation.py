@@ -519,7 +519,14 @@ class TestCreate(testing.AsyncTestCase):
     @testing.gen_test
     def test_create_stack_url(self):
         with mock.patch.object(boto3, "client"):
-            with mock.patch.object(cloudformation.CloudFormationBaseActor, "_get_template_body", return_value=('{"fake": "template"}', "https://bucket.s3.us-west-2.amazonaws.com/key")):
+            with mock.patch.object(
+                cloudformation.CloudFormationBaseActor,
+                "_get_template_body",
+                return_value=(
+                    '{"fake": "template"}',
+                    "https://bucket.s3.us-west-2.amazonaws.com/key",
+                ),
+            ):
                 actor = cloudformation.Create(
                     "Unit Test Action",
                     {
