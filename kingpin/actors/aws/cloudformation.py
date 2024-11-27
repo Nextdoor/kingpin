@@ -240,7 +240,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         """
 
         # Bail if the user has disabled this feature.
-        if len(KINGPIN_CFN_HASH_OUTPUT_KEY) == 0:
+        if not KINGPIN_CFN_HASH_OUTPUT_KEY:
             return template
 
         # Bail if the "Outputs" section is missing or a type we do not expect.
@@ -1118,7 +1118,7 @@ class Stack(CloudFormationBaseActor):
         """Add a hash to the template to force a change in the stack."""
 
         # Bail if the user has disabled this feature.
-        if len(KINGPIN_CFN_HASH_OUTPUT_KEY) == 0:
+        if not KINGPIN_CFN_HASH_OUTPUT_KEY:
             return self._template_body
 
         template_obj = json.loads(self._template_body)
