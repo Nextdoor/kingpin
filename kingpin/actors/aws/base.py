@@ -23,7 +23,8 @@ below for using each actor.
 
 **Required Environment Variables**
 
-_Note, these can be skipped only if you have a .aws/credentials file in place._
+.. note::
+  These can be skipped only if you have a ``.aws/credentials`` file in place.
 
 :AWS_ACCESS_KEY_ID:
   Your AWS access key
@@ -60,14 +61,6 @@ __author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 NAMED_API_CALL_QUEUES = {}
-
-
-class ELBNotFound(exceptions.RecoverableActorFailure):
-    """Raised when an ELB is not found"""
-
-
-class InvalidMetaData(exceptions.UnrecoverableActorFailure):
-    """Raised when fetching AWS metadata."""
 
 
 class InvalidPolicy(exceptions.RecoverableActorFailure):
@@ -127,7 +120,7 @@ class AWSBaseActor(base.BaseActor):
         self.ecs_conn = boto3.client(
             service_name="ecs", config=boto_config, **boto3_client_kwargs
         )
-        self.cf3_conn = boto3.client(
+        self.cfn_conn = boto3.client(
             service_name="cloudformation", config=boto_config, **boto3_client_kwargs
         )
         self.sqs_conn = boto3.client(

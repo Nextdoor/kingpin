@@ -27,7 +27,7 @@
           }
         ] }
       },
-    
+
       { "desc": "Join New Arrays to ELB",
         "actor": "group.Async",
         "options": { "acts": [
@@ -39,7 +39,7 @@
       { "desc": "Wait for traffic to settle",
         "actor": "misc.Sleep",
         "options": { "sleep": 60 } },
-  
+
       { "desc": "Remove Old Arrays from ELB",
         "actor": "group.Async",
         "options": { "acts": [

@@ -1,11 +1,6 @@
 PackageCloud
 ~~~~~~~~~~~~
 
-Documentation
-^^^^^^^^^^^^^
-.. automodule:: kingpin.actors.packagecloud
-   :noindex:
-
 Delete
 ^^^^^^
 .. autoclass:: kingpin.actors.packagecloud.Delete

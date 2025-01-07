@@ -147,8 +147,10 @@ class Macro(base.BaseActor):
     def __init__(self, *args, **kwargs):
         """Pre-parse the script file and compile actors.
 
-        Note, we override the default init_tokens={} from the base class and
-        default it to a _copy_ of the os.environ dict.
+        .. note::
+
+            We override the default ``init_tokens={}`` from the base class and
+            default it to a *copy* of the ``os.environ`` dict.
         """
         super(Macro, self).__init__(*args, **kwargs)
 

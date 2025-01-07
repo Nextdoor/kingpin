@@ -36,7 +36,9 @@ __author__ = "Matt Wise <matt@nextdoor.com>"
 def dry(dry_message):
     """Coroutine-compatible decorator to dry-run a method.
 
-    Note: this must act on a :py:mod:`~kingpin.actors.base.BaseActor` object.
+    .. note::
+
+        This must act on a :py:mod:`~kingpin.actors.base.BaseActor` object.
 
     Example usage as decorator:
 
@@ -84,13 +86,18 @@ def timer(f):
     out in debug statements. Used primarily for tracking Actor execute()
     methods, but can be used elsewhere as well.
 
-    Note: this must act on a :py:mod:`~kingpin.actors.base.BaseActor` object.
+    .. note::
+
+        This must act on a :py:mod:`~kingpin.actors.base.BaseActor` object.
 
     Example usage:
-        >>> @gen.coroutine
-        ... @timer()
-        ... def execute(self):
-        ...     raise gen.Return()
+
+    .. code-block:: python
+
+        @gen.coroutine
+        @timer()
+        def execute(self):
+            raise gen.Return()
     """
 
     def _wrap_in_timer(self, *args, **kwargs):

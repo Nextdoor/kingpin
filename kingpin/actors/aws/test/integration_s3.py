@@ -31,11 +31,11 @@ class IntegrationS3(testing.AsyncTestCase):
         an IAM user/role and also an AWS_SESSION_TOKEN if using temporary access credentials,
         with permissions to read S3 bucket information.
 
-    Note, these tests must be run in-order. The order is defined by
-    their definition order in this file. Nose follows this order according
-    to its documentation:
+    .. note::
 
-        http://nose.readthedocs.org/en/latest/writing_tests.html
+        These tests must be run in-order. The order is defined by their definition
+        order in this file. Nose follows this order according to its
+        documentation: http://nose.readthedocs.org/en/latest/writing_tests.html
     """
 
     integration = True

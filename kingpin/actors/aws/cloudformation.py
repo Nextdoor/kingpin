@@ -234,8 +234,11 @@ class CloudFormationBaseActor(base.AWSBaseActor):
     def _strip_hash_dict(self, template: dict) -> dict:
         """Strips the hash from the template.
 
-        Note: This will also strip the "Outputs" section if no other output exists. This might cause
-        issues when diffiing a template that contains an outputs section with no outputs.
+        .. note::
+
+            This will also strip the "Outputs" section if no other output
+            exists. This might cause issues when diffiing a template that
+            contains an outputs section with no outputs.
         """
 
         # Bail if the user has disabled this feature.
@@ -344,14 +347,14 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             cfg = {"TemplateURL": url}
             self.log.info("Validating template (%s) with AWS..." % url)
             try:
-                yield self.api_call(self.cf3_conn.validate_template, **cfg)
+                yield self.api_call(self.cfn_conn.validate_template, **cfg)
             except ClientError as e:
                 raise InvalidTemplate(e)
         elif body is not None:
             cfg = {"TemplateBody": body}
             self.log.info("Validating template with AWS...")
             try:
-                yield self.api_call(self.cf3_conn.validate_template, **cfg)
+                yield self.api_call(self.cfn_conn.validate_template, **cfg)
             except ClientError as e:
                 raise InvalidTemplate(e)
 
@@ -400,7 +403,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         """
         try:
             stacks = yield self.api_call_with_queueing(
-                self.cf3_conn.describe_stacks,
+                self.cfn_conn.describe_stacks,
                 queue_name="describe_stacks",
                 StackName=stack,
             )
@@ -421,7 +424,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         """
         try:
             ret = yield self.api_call(
-                self.cf3_conn.get_template, StackName=stack, TemplateStage="Original"
+                self.cfn_conn.get_template, StackName=stack, TemplateStage="Original"
             )
         except ClientError as e:
             raise CloudFormationError(e)
@@ -494,7 +497,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         """
         try:
             raw = yield self.api_call(
-                self.cf3_conn.describe_stack_events, StackName=stack
+                self.cfn_conn.describe_stack_events, StackName=stack
             )
         except ClientError:
             raise gen.Return([])
@@ -527,7 +530,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
         self.log.info("Deleting stack")
         try:
-            ret = yield self.api_call(self.cf3_conn.delete_stack, StackName=stack)
+            ret = yield self.api_call(self.cfn_conn.delete_stack, StackName=stack)
         except ClientError as e:
             raise CloudFormationError(str(e))
 
@@ -567,7 +570,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
         try:
             stack = yield self.api_call(
-                self.cf3_conn.create_stack,
+                self.cfn_conn.create_stack,
                 StackName=stack,
                 Parameters=self._parameters,
                 OnFailure=self.option("on_failure"),
@@ -1057,7 +1060,7 @@ class Stack(CloudFormationBaseActor):
         # cannot be deleted once its been applied.
         if self._dry:
             yield self.api_call(
-                self.cf3_conn.delete_change_set, ChangeSetName=change_set_req["Id"]
+                self.cfn_conn.delete_change_set, ChangeSetName=change_set_req["Id"]
             )
 
         self.log.info("Done updating template")
@@ -1169,7 +1172,7 @@ class Stack(CloudFormationBaseActor):
         self.log.info("Generating a stack Change Set...")
         try:
             change_set_req = yield self.api_call(
-                self.cf3_conn.create_change_set, **change_opts
+                self.cfn_conn.create_change_set, **change_opts
             )
         except ClientError as e:
             raise CloudFormationError(e)
@@ -1201,7 +1204,7 @@ class Stack(CloudFormationBaseActor):
         while True:
             try:
                 change = yield self.api_call(
-                    self.cf3_conn.describe_change_set, ChangeSetName=change_set_name
+                    self.cfn_conn.describe_change_set, ChangeSetName=change_set_name
                 )
             except ClientError as e:
                 # If we hit an intermittent error, lets just loop around and
@@ -1281,7 +1284,7 @@ class Stack(CloudFormationBaseActor):
         self.log.info("Executing change set %s" % change_set_name)
         try:
             yield self.api_call(
-                self.cf3_conn.execute_change_set, ChangeSetName=change_set_name
+                self.cfn_conn.execute_change_set, ChangeSetName=change_set_name
             )
         except ClientError as e:
             raise StackFailed(e)
@@ -1326,7 +1329,7 @@ class Stack(CloudFormationBaseActor):
 
         try:
             yield self.api_call(
-                self.cf3_conn.update_termination_protection,
+                self.cfn_conn.update_termination_protection,
                 StackName=stack["StackName"],
                 EnableTerminationProtection=new,
             )

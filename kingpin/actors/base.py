@@ -314,9 +314,11 @@ class BaseActor(object):
         Used to wrap the self.execute() method in a timeout that will raise an
         ActorTimedOut exception if an actor takes too long to execute.
 
-        *Note, Tornado 4+ does not allow you to actually kill a task on the
-        IOLoop.*  This means that all we are doing here is notifying the caller
-        (through the raised exception) that a problem has happened.
+        .. note::
+
+            Tornado 4+ does not allow you to actually kill a task on the IOLoop.
+            This means that all we are doing here is notifying the caller
+            (through the raised exception) that a problem has happened.
 
         Fairly simple Actors should actually 'stop executing' when this
         exception is raised. Complex actors with very unique behaviors though
@@ -571,26 +573,15 @@ class EnsurableBaseActor(BaseActor):
 
     **Required Methods:**
 
-      :`_set_state`: Creates or destroys the resource depending on
-                      the 'state' parameter that was passed in.
-
-                      *Note: The 'state' parameter is automatically added to
-                      the options. You do not need to define it.*
-      :`_get_state`: Gets the current state of the resource.
-      :`_set_[option]`: A 'setter' for each option name passed in.
-      :`_get_[option]`: A 'getter' for each option name passed in.
+        :`_set_state`: Creates or destroys the resource depending on the 'state' parameter that was passed in. Note: The 'state' parameter is automatically added to the options. You do not need to define it.
+        :`_get_state`: Gets the current state of the resource.
+        :`_set_[option]`: A 'setter' for each option name passed in.
+        :`_get_[option]`: A 'getter' for each option name passed in.
 
     **Optional Methods:**
 
-      :`_precache`: Called before any setters/getters are triggered. Used
-                       to optionally populate a cache of data to make the
-                       getters faster. For example, if you can make one API
-                       call to get all of the data about a resource, then
-                       store that data locally for fast access.
-
-      :`_compare_[option]`: Optionally you can write your own comparison
-                               method if you're not doing a pure string
-                               comparison between the source and destination.
+        :`_precache`: Called before any setters/getters are triggered. Used to optionally populate a cache of data to make the getters faster. For example, if you can make one API call to get all of the data about a resource, then store that data locally for fast access.
+        :`_compare_[option]`: Optionally you can write your own comparison method if you're not doing a pure string comparison between the source and destination.
 
     **Examples**
 
@@ -736,8 +727,10 @@ class EnsurableBaseActor(BaseActor):
     def _execute(self):
         """A pretty simple execution pipeline for the actor.
 
-        Note: An OrderedDict can be used instead of a plain dict when order
-        actually matters for the option setting.
+        .. note::
+
+            An OrderedDict can be used instead of a plain dict when order
+            actually matters for the option setting.
         """
         yield self._precache()
 

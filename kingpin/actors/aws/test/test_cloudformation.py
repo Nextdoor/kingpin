@@ -60,7 +60,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         self.actor = cloudformation.CloudFormationBaseActor(
             "unittest", {"region": "us-east-1"}
         )
-        self.actor.cf3_conn = mock.MagicMock(name="cf3_conn")
+        self.actor.cfn_conn = mock.MagicMock(name="cfn_conn")
 
         # Need to recreate the api call queues between tests
         # because nose creates a new ioloop per test run.
@@ -137,14 +137,14 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
     @testing.gen_test
     def test_validate_template_body(self):
         yield self.actor._validate_template(body="test body")
-        self.actor.cf3_conn.validate_template.assert_called_with(
+        self.actor.cfn_conn.validate_template.assert_called_with(
             TemplateBody="test body"
         )
 
     @testing.gen_test
     def test_validate_template_url(self):
         yield self.actor._validate_template(url="http://foobar.json")
-        self.actor.cf3_conn.validate_template.assert_called_with(
+        self.actor.cfn_conn.validate_template.assert_called_with(
             TemplateURL="http://foobar.json"
         )
 
@@ -162,7 +162,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             },
         }
 
-        self.actor.cf3_conn.validate_template.side_effect = ClientError(
+        self.actor.cfn_conn.validate_template.side_effect = ClientError(
             fake_exc, "FakeOperation"
         )
         with self.assertRaises(cloudformation.InvalidTemplate):
@@ -191,7 +191,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_get_stack(self):
-        self.actor.cf3_conn.describe_stacks.return_value = {
+        self.actor.cfn_conn.describe_stacks.return_value = {
             "Stacks": [create_fake_stack("s1", "UPDATE_COMPLETE")]
         }
 
@@ -211,7 +211,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
                 "Type": "Sender",
             },
         }
-        self.actor.cf3_conn.describe_stacks.side_effect = ClientError(
+        self.actor.cfn_conn.describe_stacks.side_effect = ClientError(
             fake_exc, "Failure"
         )
 
@@ -231,7 +231,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
                 "Type": "Sender",
             },
         }
-        self.actor.cf3_conn.describe_stacks.side_effect = ClientError(
+        self.actor.cfn_conn.describe_stacks.side_effect = ClientError(
             fake_exc, "Failure"
         )
 
@@ -247,11 +247,11 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             },
             "TemplateBody": {"Fake": "Stack"},
         }
-        self.actor.cf3_conn.get_template.return_value = fake_stack_template
+        self.actor.cfn_conn.get_template.return_value = fake_stack_template
 
         ret = yield self.actor._get_stack_template("test")
 
-        self.actor.cf3_conn.get_template.assert_has_calls(
+        self.actor.cfn_conn.get_template.assert_has_calls(
             [mock.call(StackName="test", TemplateStage="Original")]
         )
         self.assertEqual(ret, {"Fake": "Stack"})
@@ -269,7 +269,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
                 "Type": "Sender",
             },
         }
-        self.actor.cf3_conn.get_template.side_effect = ClientError(fake_exc, "Failure")
+        self.actor.cfn_conn.get_template.side_effect = ClientError(fake_exc, "Failure")
         with self.assertRaises(cloudformation.CloudFormationError):
             yield self.actor._get_stack_template("test")
 
@@ -340,7 +340,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             "AWS::CloudFormation::Stack s3 (DELETE_COMPLETE): ",
             "AWS::CloudFormation::Stack test (DELETE_COMPLETE): ",
         ]
-        self.actor.cf3_conn.describe_stack_events.return_value = fake_events
+        self.actor.cfn_conn.describe_stack_events.return_value = fake_events
         ret = yield self.actor._get_stack_events("test")
 
         self.assertEqual(ret, expected)
@@ -358,7 +358,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
                 "Type": "Sender",
             },
         }
-        self.actor.cf3_conn.describe_stack_events.side_effect = ClientError(
+        self.actor.cfn_conn.describe_stack_events.side_effect = ClientError(
             fake_exc, "Failure"
         )
         ret = yield self.actor._get_stack_events("test")
@@ -366,7 +366,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_delete_stack(self):
-        self.actor.cf3_conn.delete_stack.return_value = {
+        self.actor.cfn_conn.delete_stack.return_value = {
             "ResponseMetadata": {"RequestId": "req-id-1"}
         }
         self.actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
@@ -375,12 +375,12 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
 
         yield self.actor._delete_stack(stack="stack")
 
-        self.assertTrue(self.actor.cf3_conn.delete_stack.called)
+        self.assertTrue(self.actor.cfn_conn.delete_stack.called)
         self.assertTrue(self.actor._wait_until_state.called)
 
     @testing.gen_test
     def test_delete_stack_raises_boto_error(self):
-        self.actor.cf3_conn.delete_stack = mock.MagicMock(name="delete_stack")
+        self.actor.cfn_conn.delete_stack = mock.MagicMock(name="delete_stack")
 
         fake_exc = {
             "ResponseMetadata": {
@@ -394,7 +394,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             },
         }
 
-        self.actor.cf3_conn.delete_stack.side_effect = ClientError(fake_exc, "Error")
+        self.actor.cfn_conn.delete_stack.side_effect = ClientError(fake_exc, "Error")
         with self.assertRaises(cloudformation.CloudFormationError):
             yield self.actor._delete_stack(stack="stack")
 
@@ -422,8 +422,8 @@ class TestCreate(testing.AsyncTestCase):
         )
         actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
         actor._wait_until_state.side_effect = [tornado_value(None)]
-        actor.cf3_conn.create_stack = mock.MagicMock(name="create_stack_mock")
-        actor.cf3_conn.create_stack.return_value = {"StackId": "arn:123"}
+        actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
+        actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
         ret = yield actor._create_stack(stack="test")
         self.assertEqual(ret, "arn:123")
 
@@ -441,11 +441,11 @@ class TestCreate(testing.AsyncTestCase):
         )
         actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
         actor._wait_until_state.side_effect = [tornado_value(None)]
-        actor.cf3_conn.create_stack = mock.MagicMock(name="create_stack_mock")
-        actor.cf3_conn.create_stack.return_value = {"StackId": "arn:123"}
+        actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
+        actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
         ret = yield actor._create_stack(stack="test")
         self.assertEqual(ret, "arn:123")
-        actor.cf3_conn.create_stack.assert_called_with(
+        actor.cfn_conn.create_stack.assert_called_with(
             TemplateBody=mock.ANY,
             EnableTerminationProtection=False,
             Parameters=[],
@@ -470,11 +470,11 @@ class TestCreate(testing.AsyncTestCase):
         )
         actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
         actor._wait_until_state.side_effect = [tornado_value(None)]
-        actor.cf3_conn.create_stack = mock.MagicMock(name="create_stack_mock")
-        actor.cf3_conn.create_stack.return_value = {"StackId": "arn:123"}
+        actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
+        actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
         ret = yield actor._create_stack(stack="test")
         self.assertEqual(ret, "arn:123")
-        actor.cf3_conn.create_stack.assert_called_with(
+        actor.cfn_conn.create_stack.assert_called_with(
             TemplateBody=mock.ANY,
             EnableTerminationProtection=False,
             Parameters=[],
@@ -500,11 +500,11 @@ class TestCreate(testing.AsyncTestCase):
         actor._options["enable_termination_protection"] = True
         actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
         actor._wait_until_state.side_effect = [tornado_value(None)]
-        actor.cf3_conn.create_stack = mock.MagicMock(name="create_stack_mock")
-        actor.cf3_conn.create_stack.return_value = {"StackId": "arn:123"}
+        actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
+        actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
         ret = yield actor._create_stack(stack="test")
         self.assertEqual(ret, "arn:123")
-        actor.cf3_conn.create_stack.assert_called_with(
+        actor.cfn_conn.create_stack.assert_called_with(
             TemplateBody=mock.ANY,
             EnableTerminationProtection=True,
             Parameters=[],
@@ -536,8 +536,8 @@ class TestCreate(testing.AsyncTestCase):
                 )
         actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
         actor._wait_until_state.side_effect = [tornado_value(None)]
-        actor.cf3_conn.create_stack = mock.MagicMock(name="create_stack_mock")
-        actor.cf3_conn.create_stack.return_value = {"StackId": "arn:123"}
+        actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
+        actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
         ret = yield actor._create_stack(stack="unit-test-cf")
         self.assertEqual(ret, "arn:123")
 
@@ -551,7 +551,7 @@ class TestCreate(testing.AsyncTestCase):
                 "template": "examples/test/aws.cloudformation/cf.integration.json",
             },
         )
-        actor.cf3_conn.create_stack = mock.MagicMock(name="create_stack_mock")
+        actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
 
         fake_exc = {
             "ResponseMetadata": {
@@ -565,7 +565,7 @@ class TestCreate(testing.AsyncTestCase):
             },
         }
 
-        actor.cf3_conn.create_stack.side_effect = ClientError(fake_exc, "Failure")
+        actor.cfn_conn.create_stack.side_effect = ClientError(fake_exc, "Failure")
         with self.assertRaises(cloudformation.CloudFormationError):
             yield actor._create_stack(stack="test")
 
@@ -579,8 +579,8 @@ class TestCreate(testing.AsyncTestCase):
                 "template": "examples/test/aws.cloudformation/cf.integration.json",
             },
         )
-        actor.cf3_conn.create_stack = mock.MagicMock(name="create_stack_mock")
-        actor.cf3_conn.create_stack.return_value = {"StackId": "arn:123"}
+        actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
+        actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
 
         actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
         actor._wait_until_state.side_effect = cloudformation.StackFailed()
@@ -723,7 +723,7 @@ class TestStack(testing.AsyncTestCase):
                 "parameters": {"key1": "value1"},
             }
         )
-        self.actor.cf3_conn = mock.MagicMock(name="cf3_conn")
+        self.actor.cfn_conn = mock.MagicMock(name="cfn_conn")
         self.actor.s3_conn = mock.MagicMock(name="s3_conn")
 
     def test_diff_params_safely(self):
@@ -887,7 +887,7 @@ class TestStack(testing.AsyncTestCase):
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
         self.actor._options["enable_termination_protection"] = True
 
-        self.actor.cf3_conn.update_termination_protection.return_value = tornado_value(
+        self.actor.cfn_conn.update_termination_protection.return_value = tornado_value(
             None
         )
 
@@ -895,7 +895,7 @@ class TestStack(testing.AsyncTestCase):
         self.actor._ensure_template.return_value = tornado_value(None)
 
         yield self.actor._update_stack(fake_stack)
-        self.actor.cf3_conn.update_termination_protection.assert_has_calls(
+        self.actor.cfn_conn.update_termination_protection.assert_has_calls(
             [mock.call(StackName="fake", EnableTerminationProtection=True)]
         )
 
@@ -916,7 +916,7 @@ class TestStack(testing.AsyncTestCase):
             },
         }
 
-        self.actor.cf3_conn.update_termination_protection.side_effect = ClientError(
+        self.actor.cfn_conn.update_termination_protection.side_effect = ClientError(
             fake_update, "FakeOperation"
         )
         with self.assertRaises(cloudformation.StackFailed):
@@ -942,7 +942,7 @@ class TestStack(testing.AsyncTestCase):
         )
         self.actor._execute_change_set = mock.MagicMock(name="_execute_change")
         self.actor._execute_change_set.return_value = tornado_value(None)
-        self.actor.cf3_conn.delete_change_set.return_value = tornado_value(None)
+        self.actor.cfn_conn.delete_change_set.return_value = tornado_value(None)
 
         # Change the actors parameters from the first time it was run -- this
         # ensures all the lines on the ensure_template method are called
@@ -966,13 +966,13 @@ class TestStack(testing.AsyncTestCase):
         self.actor._wait_until_change_set_ready.assert_has_calls(
             [mock.call("abcd", "Status", "CREATE_COMPLETE")]
         )
-        self.assertFalse(self.actor.cf3_conn.delete_change_set.called)
+        self.assertFalse(self.actor.cfn_conn.delete_change_set.called)
 
         # Quick second execution with _dry set. In this case, we SHOULD call
         # the delete changset function.
         self.actor._dry = True
         yield self.actor._ensure_template(fake_stack)
-        self.actor.cf3_conn.delete_change_set.assert_has_calls(
+        self.actor.cfn_conn.delete_change_set.assert_has_calls(
             [mock.call(ChangeSetName="abcd")]
         )
 
@@ -1006,7 +1006,7 @@ class TestStack(testing.AsyncTestCase):
         )
         self.actor._execute_change_set = mock.MagicMock(name="_execute_change")
         self.actor._execute_change_set.return_value = tornado_value(None)
-        self.actor.cf3_conn.delete_change_set.return_value = tornado_value(None)
+        self.actor.cfn_conn.delete_change_set.return_value = tornado_value(None)
 
         # Change the actors parameters from the first time it was run -- this
         # ensures all the lines on the ensure_template method are called
@@ -1030,13 +1030,13 @@ class TestStack(testing.AsyncTestCase):
         self.actor._wait_until_change_set_ready.assert_has_calls(
             [mock.call("abcd", "Status", "CREATE_COMPLETE")]
         )
-        self.assertFalse(self.actor.cf3_conn.delete_change_set.called)
+        self.assertFalse(self.actor.cfn_conn.delete_change_set.called)
 
         # Quick second execution with _dry set. In this case, we SHOULD call
         # the delete changset function.
         self.actor._dry = True
         yield self.actor._ensure_template(fake_stack)
-        self.actor.cf3_conn.delete_change_set.assert_has_calls(
+        self.actor.cfn_conn.delete_change_set.assert_has_calls(
             [mock.call(ChangeSetName="abcd")]
         )
 
@@ -1114,11 +1114,11 @@ class TestStack(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_create_change_set_body(self):
-        self.actor.cf3_conn.create_change_set.return_value = {"Id": "abcd"}
+        self.actor.cfn_conn.create_change_set.return_value = {"Id": "abcd"}
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
         ret = yield self.actor._create_change_set(fake_stack, "uuid")
         self.assertEqual(ret, {"Id": "abcd"})
-        self.actor.cf3_conn.create_change_set.assert_has_calls(
+        self.actor.cfn_conn.create_change_set.assert_has_calls(
             [
                 mock.call(
                     StackName="arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x",
@@ -1133,12 +1133,12 @@ class TestStack(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_create_change_set_body_with_role(self):
-        self.actor.cf3_conn.create_change_set.return_value = {"Id": "abcd"}
+        self.actor.cfn_conn.create_change_set.return_value = {"Id": "abcd"}
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
         self.actor._options["role_arn"] = "test_role_arn"
         ret = yield self.actor._create_change_set(fake_stack, "uuid")
         self.assertEqual(ret, {"Id": "abcd"})
-        self.actor.cf3_conn.create_change_set.assert_has_calls(
+        self.actor.cfn_conn.create_change_set.assert_has_calls(
             [
                 mock.call(
                     StackName="arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x",
@@ -1154,14 +1154,14 @@ class TestStack(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_create_change_set_url(self):
-        self.actor.cf3_conn.create_change_set.return_value = {"Id": "abcd"}
+        self.actor.cfn_conn.create_change_set.return_value = {"Id": "abcd"}
         template_body = json.dumps({})
         self.actor._template_body = template_body
         self.actor._template_url = "https://foobar.s3.us-east-1.amazonaws.com/bin"
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
         ret = yield self.actor._create_change_set(fake_stack, "uuid")
         self.assertEqual(ret, {"Id": "abcd"})
-        self.actor.cf3_conn.create_change_set.assert_has_calls(
+        self.actor.cfn_conn.create_change_set.assert_has_calls(
             [
                 mock.call(
                     StackName="arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x",
@@ -1176,7 +1176,7 @@ class TestStack(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_create_change_set_exc(self):
-        self.actor.cf3_conn.create_change_set.return_value = {"Id": "abcd"}
+        self.actor.cfn_conn.create_change_set.return_value = {"Id": "abcd"}
         fake_exc = {
             "ResponseMetadata": {
                 "HTTPStatusCode": 400,
@@ -1188,7 +1188,7 @@ class TestStack(testing.AsyncTestCase):
                 "Type": "Sender",
             },
         }
-        self.actor.cf3_conn.create_change_set.side_effect = ClientError(
+        self.actor.cfn_conn.create_change_set.side_effect = ClientError(
             fake_exc, "FakeOperation"
         )
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
@@ -1211,7 +1211,7 @@ class TestStack(testing.AsyncTestCase):
                 "Type": "Sender",
             },
         }
-        self.actor.cf3_conn.describe_change_set.side_effect = [
+        self.actor.cfn_conn.describe_change_set.side_effect = [
             available,
             update_in_progress,
             update_in_progress,
@@ -1221,7 +1221,7 @@ class TestStack(testing.AsyncTestCase):
         yield self.actor._wait_until_change_set_ready(
             "test", "Status", "UPDATE_COMPLETE", sleep=0.01
         )
-        self.actor.cf3_conn.describe_change_set.assert_has_calls(
+        self.actor.cfn_conn.describe_change_set.assert_has_calls(
             [
                 mock.call(ChangeSetName="test"),
                 mock.call(ChangeSetName="test"),
@@ -1235,7 +1235,7 @@ class TestStack(testing.AsyncTestCase):
         available = {"Status": "AVAILABLE"}
         update_in_progress = {"Status": "UPDATE_IN_PROGRESS"}
         update_failed = {"Status": "UPDATE_FAILED", "StatusReason": "Template error"}
-        self.actor.cf3_conn.describe_change_set.side_effect = [
+        self.actor.cfn_conn.describe_change_set.side_effect = [
             available,
             update_in_progress,
             update_in_progress,
@@ -1251,7 +1251,7 @@ class TestStack(testing.AsyncTestCase):
         available = {"Status": "AVAILABLE"}
         update_in_progress = {"Status": "UPDATE_IN_PROGRESS"}
         update_failed = {"Status": "UPDATE_FAILED"}
-        self.actor.cf3_conn.describe_change_set.side_effect = [
+        self.actor.cfn_conn.describe_change_set.side_effect = [
             available,
             update_in_progress,
             update_in_progress,
@@ -1307,7 +1307,7 @@ class TestStack(testing.AsyncTestCase):
 
         yield self.actor._execute_change_set(change_set_name="fake_set")
 
-        self.actor.cf3_conn.execute_change_set.assert_has_calls(
+        self.actor.cfn_conn.execute_change_set.assert_has_calls(
             [mock.call(ChangeSetName="fake_set")]
         )
 
@@ -1341,8 +1341,8 @@ class TestStack(testing.AsyncTestCase):
             },
         }
 
-        self.actor.cf3_conn.execute_change_set = mock.MagicMock(name="_wait")
-        self.actor.cf3_conn.execute_change_set.side_effect = ClientError(
+        self.actor.cfn_conn.execute_change_set = mock.MagicMock(name="_wait")
+        self.actor.cfn_conn.execute_change_set.side_effect = ClientError(
             fake_exc, "FakeOperation"
         )
 

@@ -1,30 +1,31 @@
 Amazon Web Services
 ~~~~~~~~~~~~~~~~~~~
 
-Documentation
-^^^^^^^^^^^^^
-.. automodule:: kingpin.actors.aws.base
-   :noindex:
-   :members:
-   :exclude-members: ELBNotFound, InvalidMetaData
+.. note::
+
+   There are more actors available in the :mod:`kingpin.actors.aws` module, but
+   the below are the most commonly used.
 
 CloudFormation
 ^^^^^^^^^^^^^^
-.. automodule:: kingpin.actors.aws.cloudformation
+.. autoclass:: kingpin.actors.aws.cloudformation.Stack
    :noindex:
-   :members:
-   :exclude-members: CloudFormationBaseActor, CloudFormationError, InvalidTemplate, StackAlreadyExists, StackNotFound
 
 Identity and Access Management (IAM)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. automodule:: kingpin.actors.aws.iam
+.. autoclass:: kingpin.actors.aws.iam.Role
    :noindex:
-   :members:
-   :exclude-members: IAMBaseActor
+
+.. autoclass:: kingpin.actors.aws.iam.Group
+   :noindex:
+
+.. autoclass:: kingpin.actors.aws.iam.User
+   :noindex:
+
+.. autoclass:: kingpin.actors.aws.iam.InstanceProfile
+   :noindex:
 
 Simple Storage Service (S3)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. automodule:: kingpin.actors.aws.s3
+.. autoclass:: kingpin.actors.aws.s3.Bucket
    :noindex:
-   :members:
-   :exclude-members: InvalidBucketConfig, S3BaseActor
