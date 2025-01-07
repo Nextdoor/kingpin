@@ -13,7 +13,7 @@
 # Copyright 2018 Nextdoor.com, Inc
 
 """
-:mod:`kingpin.actors.aws.iam.entities`
+:mod:`kingpin.actors.aws.iam`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 """
 
@@ -27,7 +27,7 @@ from tornado import gen
 
 from kingpin import utils
 from kingpin.actors import exceptions
-from kingpin.actors.aws.iam import base
+from kingpin.actors.aws import base
 from kingpin.constants import REQUIRED
 from kingpin.constants import STATE
 
@@ -48,7 +48,7 @@ EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 MAX_ITEMS = 1000
 
 
-class EntityBaseActor(base.IAMBaseActor):
+class IAMBaseActor(base.AWSBaseActor):
     """User/Group/Role Base Management Class
 
     Managing Users, Groups and Roles in Amazon IAM is nearly identical. This
@@ -68,7 +68,7 @@ class EntityBaseActor(base.IAMBaseActor):
     }
 
     def __init__(self, *args, **kwargs):
-        super(EntityBaseActor, self).__init__(*args, **kwargs)
+        super(IAMBaseActor, self).__init__(*args, **kwargs)
 
         # These IAM Connection methods must be overridden in a subclass of this
         # actor. Each of these is a "generalized" name for the method in Boto
@@ -505,7 +505,7 @@ class EntityBaseActor(base.IAMBaseActor):
             )
 
 
-class User(EntityBaseActor):
+class User(IAMBaseActor):
     """Manages an IAM User.
 
     This actor manages the state of an Amazon IAM User.
@@ -648,7 +648,7 @@ class User(EntityBaseActor):
         raise gen.Return()
 
 
-class Group(EntityBaseActor):
+class Group(IAMBaseActor):
     """Manages an IAM Group.
 
     This actor manages the state of an Amazon IAM Group.
@@ -803,7 +803,7 @@ class Group(EntityBaseActor):
         raise gen.Return()
 
 
-class Role(EntityBaseActor):
+class Role(IAMBaseActor):
     """Manages an IAM Role.
 
     This actor manages the state of an Amazon IAM Role.
@@ -995,7 +995,7 @@ class Role(EntityBaseActor):
         raise gen.Return()
 
 
-class InstanceProfile(EntityBaseActor):
+class InstanceProfile(IAMBaseActor):
     """Manages an IAM Instance Profile.
 
     This actor manages the state of an Amazon IAM Instance Profile.
