@@ -9,7 +9,7 @@ import mock
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import settings
-from kingpin.actors.aws.iam import entities
+from kingpin.actors.aws import iam
 import importlib
 
 log = logging.getLogger(__name__)
@@ -21,17 +21,17 @@ def tornado_value(*args):
     raise gen.Return(*args)
 
 
-class TestEntityBaseActor(testing.AsyncTestCase):
+class TestIAMBaseActor(testing.AsyncTestCase):
     def setUp(self):
-        super(TestEntityBaseActor, self).setUp()
+        super(TestIAMBaseActor, self).setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
-        importlib.reload(entities)
+        importlib.reload(iam)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
-        self.actor = entities.EntityBaseActor(
+        self.actor = iam.IAMBaseActor(
             "Unit Test",
             {
                 "name": "test",
@@ -499,11 +499,11 @@ class TestUser(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
-        importlib.reload(entities)
+        importlib.reload(iam)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
-        self.actor = entities.User(
+        self.actor = iam.User(
             "Unit Test",
             {
                 "name": "test",
@@ -689,11 +689,11 @@ class TestGroup(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
-        importlib.reload(entities)
+        importlib.reload(iam)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
-        self.actor = entities.Group(
+        self.actor = iam.Group(
             "Unit Test",
             {
                 "name": "test",
@@ -849,11 +849,11 @@ class TestRole(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
-        importlib.reload(entities)
+        importlib.reload(iam)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
-        self.actor = entities.Role(
+        self.actor = iam.Role(
             "Unit Test",
             {
                 "name": "test",
@@ -1060,11 +1060,11 @@ class TestInstanceProfile(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
-        importlib.reload(entities)
+        importlib.reload(iam)
 
         # Create our actor object with some basics... then mock out the IAM
         # connections..
-        self.actor = entities.InstanceProfile(
+        self.actor = iam.InstanceProfile(
             "Unit Test", {"name": "test", "state": "present", "role": "test"}
         )
 

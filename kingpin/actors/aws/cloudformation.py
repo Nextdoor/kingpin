@@ -54,8 +54,7 @@ class DateEncoder(JSONEncoder):
 
 # This executor is used by the tornado.concurrent.run_on_executor()
 # decorator. We would like this to be a class variable so its shared
-# across RightScale objects, but we see testing IO errors when we
-# do this.
+# across objects, but we see testing IO errors when we do this.
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
