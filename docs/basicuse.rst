@@ -1,45 +1,26 @@
 Basic Use
 ---------
 
-.. code-block:: guess
+For basic command line options, run:
+
+.. code-block:: console
 
     $ kingpin --help
-    usage: kingpin [-h] [-s JSON/YAML] [-a ACTOR] [-E] [-p PARAMS] [-o OPTIONS] [-d]
-                   [--build-only] [-l LEVEL] [-D] [-c]
-
-    Kingpin v0.3.1a
-
-    optional arguments:
-      -h, --help            show this help message and exit
-      -s SCRIPT, --script SCRIPT  Path to JSON/YAML Deployment Script
-      -a ACTOR, --actor ACTOR
-                            Name of an Actor to execute (overrides --script)
-      -E, --explain         Explain how an actor works. Requires --actor.
-      -p PARAMS, --param PARAMS
-                            Actor Parameter to set (ie, warn_on_failure=true)
-      -o OPTIONS, --option OPTIONS
-                            Actor Options to set (ie, elb_name=foobar)
-      -d, --dry             Executes a dry run only.
-      --build-only          Compile the input script without executing any runs
-      -l LEVEL, --level LEVEL
-                            Set logging level (INFO|WARN|DEBUG|ERROR)
-      -D, --debug           Equivalent to --level=DEBUG
-      -c, --color           Colorize the log output
 
 The simplest use cases of this code can be better understood by looking at the
-:download:`simple.json <../examples/simple.json>` file. Executing it is a
-simple as this:
+:download:`simple.json <../examples/simple.json>` file. Executing it is a simple
+as this:
 
-.. code-block:: bash
+.. code-block:: console
 
-    $ (.venv)$ kingpin -s examples/simple.json -d
+    $ kingpin --dry --script examples/simple.json
     2014-09-01 21:18:09,022 INFO      [main stage (DRY Mode)] Beginning
     2014-09-01 21:18:09,022 INFO      [stage 1 (DRY Mode)] Beginning
     2014-09-01 21:18:09,022 INFO      [copy serverA (DRY Mode)] Beginning
     2014-09-01 21:18:09,023 INFO      [copy serverB (DRY Mode)] Beginning
     2014-09-01 21:18:09,027 INFO      [copy serverC (DRY Mode)] Beginning
     2014-09-01 21:18:09,954 INFO      [copy serverA (DRY Mode)] Verifying that array "kingpin-integration-testing" exists
-    ...
+    [...]
     2014-09-01 21:18:14,533 INFO      [stage 3 (DRY Mode)] Finished, success? True
     2014-09-01 21:18:14,533 INFO      [main stage (DRY Mode)] Finished, success? True
 
@@ -114,12 +95,14 @@ The simplest JSON file could look like this:
 
 .. code-block:: json
 
-    { "actor": "hipchat.Message",
-      "condition": "true",
+    {
+      "actor": "hipchat.Message",
+      "condition": true,
       "warn_on_failure": true,
       "timeout": 30,
       "options": {
-        "message": "Beginning release %RELEASE%", "room": "Oncall"
+        "message": "Beginning release %RELEASE%",
+        "room": "Oncall"
       }
     }
 
@@ -159,11 +142,15 @@ used to enable or disable execution of an actor in a given Kingpin run. The
 field defaults to enabled, but takes many different values which allow you to
 choose whether or not to execute portions of your script.
 
-Conditions that behave as ``False``::
+Conditions that behave as ``False``:
+
+.. code-block:: text
 
     0, '0', 'False', 'FALse', 'FALSE'
 
-Conditions that behave as ``True``::
+Conditions that behave as ``True``:
+
+.. code-block:: text
 
     'any string', 'true', 'TRUE', '1', 1
 
@@ -171,11 +158,13 @@ Example usage:
 
 .. code-block:: json
 
-    { "actor": "hipchat.Message",
+    {
+      "actor": "hipchat.Message",
       "condition": "%SEND_MESSAGE%",
       "warn_on_failure": true,
       "options": {
-        "message": "Beginning release %RELEASE%", "room": "Oncall"
+        "message": "Beginning release %RELEASE%",
+        "room": "Oncall"
       }
     }
 
@@ -190,15 +179,19 @@ JavaScript style commenting inside of the script.
 Alternatively, if you're using YAML then you automatically get slightly easier
 syntax parsing, code commenting, etc.
 
-Take this example::
+Take this example:
 
-    { "actor": "misc.Sleep",
+.. code-block:: text
 
+    {
+      "actor": "misc.Sleep",
       /* Cool description */
       "desc": 'This is funny',
-
-      /* This shouldn't end with a comma, but does */
-      "options": { "time": 30 }, }
+      "options": {
+        /* This shouldn't end with a comma, but does */
+        "time": 30,
+      },
+    }
 
 The above example would fail to parse in most JSON parsers, but in ``demjson``
 it works just fine. You could also write this in YAML:
@@ -208,7 +201,6 @@ it works just fine. You could also write this in YAML:
     actor: misc.Sleep
     # Some description here...
     desc: This is funny
-
     # Comments are good!
     options:
       time: 30
@@ -225,12 +217,11 @@ thus the failure can be ignored if you choose to.
 Additionally, you can override the *global default* setting on the commandline
 with an environment variable:
 
--  ``DEFAULT_TIMEOUT`` - Time (in seconds) to use as the default actor
-   timeout.
+-  ``DEFAULT_TIMEOUT`` - Time (in seconds) to use as the default actor timeout.
 
 Here is an example log output when the timer is exceeded:
 
-.. code-block:: bash
+.. code-block:: console
 
     $ DEFAULT_TIMEOUT=1 SLEEP=10 kingpin -s examples/sleep.json
     11:55:16   INFO      Rehearsing... Break a leg!
@@ -263,11 +254,13 @@ As an example... If you take the following example code:
 
 .. code-block:: json
 
-    { "desc": "Outer group",
+    {
+      "desc": "Outer group",
       "actor": "group.Sync",
       "options": {
         "acts": [
-          { "desc": "Sleep 10 seconds, but fail",
+          {
+            "desc": "Sleep 10 seconds, but fail",
             "actor": "misc.Sleep",
             "timeout": 1,
             "warn_on_failure": true,
@@ -275,7 +268,8 @@ As an example... If you take the following example code:
               "sleep": 10
             }
           },
-          { "desc": "Sleep 2 seconds, but don't fail",
+          {
+            "desc": "Sleep 2 seconds, but don't fail",
             "actor": "misc.Sleep",
             "options": {
               "sleep": 2
@@ -305,7 +299,7 @@ notify you immediately.
 For an example, take a look at the :download:`complex.json
 <../examples/complex.json>` file, and these examples of execution.
 
-.. code-block:: bash
+.. code-block:: console
 
     # Here we forget to set any environment variables
     $ kingpin -s examples/complex.json -d
@@ -330,7 +324,8 @@ Tokens and Contexts can have default values specified after a pipe `|` in the va
 
 .. code-block:: json
 
-    { "actor": "misc.Sleep",
+    {
+      "actor": "misc.Sleep",
       "desc": "Sleeping because %DESC%",
       "options": {
         "sleep": "%SLEEP|60%"
@@ -350,7 +345,8 @@ from actor to actor. Here's a fairly trivial example. Take this simple
 
 .. code-block:: json
 
-    { "actor": "misc.Sleep",
+    {
+      "actor": "misc.Sleep",
       "desc": "Sleeping because %DESC%",
       "options": {
         "sleep": "%SLEEP%"
@@ -361,7 +357,7 @@ One way to run this would be via the command line with the `$SLEEP`
 and `$DESC` environment variable set (*output stripped a bit for
 readability*):
 
-.. code-block:: bash
+.. code-block:: console
 
     $ SKIP_DRY=1 DESC=pigs SLEEP=0.1 kingpin --debug --script sleeper.json
     [Kingpin] Checking for required options: ['macro']
@@ -372,9 +368,9 @@ readability*):
     Building Actor "misc.Sleep" with args: {'init_tokens': '<hidden>', u'options': {u'sleep': u'0.1'}, u'desc': u'Sleeping because pigs'}
     [Sleeping because pigs] Checking for required options: ['sleep']
     [Sleeping because pigs] Initialized (warn_on_failure=False, strict_init_context=True)
-    
+
     Lights, camera ... action!
-    
+
     [Kingpin] Beginning
     [Kingpin] Condition True evaluates to True
     [Kingpin] kingpin.actors.misc.Macro._execute() deadline: None(s)
@@ -395,7 +391,8 @@ for you, but still leaves the ``%SLEEP%`` token up to you:
 
 .. code-block:: json
 
-  { "actor": "misc.Macro",
+  {
+    "actor": "misc.Macro",
     "options": {
       "macro": "sleeper.json",
       "tokens": {
@@ -407,7 +404,7 @@ for you, but still leaves the ``%SLEEP%`` token up to you:
 Now, watch us instantiate this wrapper - with `$DESC` and `$SLEEP` set.
 Notice how ``%DESC%`` is overridden by the token from the JSON wrapper?
 
-.. code-block:: bash
+.. code-block:: console
 
   $ SKIP_DRY=1 DESC=pigs SLEEP=0.1 kingpin --debug --script wrapper.json
 
@@ -425,9 +422,9 @@ Notice how ``%DESC%`` is overridden by the token from the JSON wrapper?
   Building Actor "misc.Sleep" with args: {'init_tokens': '<hidden>', u'options': {u'sleep': u'0.1'}, u'desc': u'Sleeping because flying-pigs'}
   [Sleeping because flying-pigs] Checking for required options: ['sleep']
   [Sleeping because flying-pigs] Initialized (warn_on_failure=False, strict_init_context=True)
-  
+
   Lights, camera ... action!
-  
+
   [Kingpin] Beginning
   [Kingpin] Condition True evaluates to True
   [Kingpin] kingpin.actors.misc.Macro._execute() deadline: None(s)
@@ -457,23 +454,27 @@ ability to define usable tokens, but any actor can then reference these tokens.
 
 .. code-block:: json
 
-    { "desc": "Send out hipchat notifications",
+    {
+      "desc": "Send out hipchat notifications",
       "actor": "group.Sync",
       "options": {
-          "contexts": [ { "ROOM": "Systems" } ],
-          "acts": [
-              { "desc": "Notify {ROOM}",
-                "actor": "hipchat.Message",
-                "options": {
-                  "room": "{ROOM}",
-                    "message": "Hey room .. I'm done with something"
-                }
-              }
-          ]
+        "contexts": [
+          { "ROOM": "Systems" }
+        ],
+        "acts": [
+          {
+            "desc": "Notify {ROOM}",
+            "actor": "hipchat.Message",
+            "options": {
+              "room": "{ROOM}",
+                "message": "Hey room .. I'm done with something"
+            }
+          }
+        ]
       }
     }
 
-.. code-block:: bash
+.. code-block:: console
 
     2015-01-14 15:03:16,840 INFO      [DRY: Send out hipchat notifications] Beginning 1 actions
     2015-01-14 15:03:16,840 INFO      [DRY: Notify Systems] Sending message "Hey room .. I'm done with something" to Hipchat room "Systems"
@@ -482,14 +483,16 @@ ability to define usable tokens, but any actor can then reference these tokens.
 
 .. code-block:: json
 
-    { "actor": "group.Async",
+    {
+      "actor": "group.Async",
       "options": {
         "contexts": [
           { "ROOM": "Engineering", "WISDOM": "Get back to work" },
           { "ROOM": "Cust Service", "WISDOM": "Have a nice day" }
         ],
         "acts": [
-          { "desc": "Notify {ROOM}",
+          {
+            "desc": "Notify {ROOM}",
             "actor": "hipchat.Message",
             "options": {
                 "room": "{ROOM}",
@@ -500,7 +503,7 @@ ability to define usable tokens, but any actor can then reference these tokens.
       }
     }
 
-.. code-block:: bash
+.. code-block:: console
 
     2015-01-14 15:02:22,165 INFO      [DRY: kingpin.actor.group.Async] Beginning 2 actions
     2015-01-14 15:02:22,165 INFO      [DRY: Notify Engineering] Sending message "Hey room .. I'm done with the release. Get back to work" to Hipchat room "Engineering"
@@ -518,12 +521,14 @@ then reference that file. Context files support `token-replacement`_ just like
 
 .. code-block:: json
 
-    { "desc": "Send ending notifications...",
+    {
+      "desc": "Send ending notifications...",
       "actor": "group.Async",
       "options": {
         "contexts": "data/notification-rooms.json",
         "acts": [
-          { "desc": "Notify {ROOM}",
+          {
+            "desc": "Notify {ROOM}",
             "actor": "hipchat.Message",
             "options": {
                 "room": "{ROOM}",
@@ -561,7 +566,7 @@ Command-line Execution without JSON
 For the simple case of executing a single actor without too many options, you
 are able to pass these options in on the commandline to avoid writing any JSON.
 
-.. code-block:: bash
+.. code-block:: console
 
     $ kingpin --actor misc.Sleep --explain
     Sleeps for an arbitrary number of seconds.
@@ -575,7 +580,8 @@ are able to pass these options in on the commandline to avoid writing any JSON.
 
     .. code-block:: json
 
-       { "actor": "misc.Sleep",
+       {
+         "actor": "misc.Sleep",
          "desc": "Sleep for 60 seconds",
          "options": {
            "sleep": 60
@@ -590,7 +596,7 @@ are able to pass these options in on the commandline to avoid writing any JSON.
 documentation.
 
 
-.. code-block:: bash
+.. code-block:: console
 
     $ kingpin --actor misc.Sleep --param warn_on_failure=true --option sleep=5
     17:54:53   INFO      Rehearsing... Break a leg!
@@ -603,7 +609,7 @@ documentation.
 
 You can stack as many ``--option`` and ``--param`` command line options as you wish.
 
-.. code-block:: bash
+.. code-block:: console
 
     $ kingpin --actor misc.Sleep --param warn_on_failure=true --param condition=false --option "sleep=0.1"
     17:59:46   INFO      Rehearsing... Break a leg!

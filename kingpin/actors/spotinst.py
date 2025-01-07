@@ -492,9 +492,11 @@ class ElastiGroup(SpotinstBase):
         YAML!), replaces any tokens that need replacement, and then sanity
         checks it against our schema.
 
-        Note, contextual tokens (which are evaluated at run time, not
-        compilation time) are not included here. Instead, those will be
-        evaluated in the self._precache() method.
+        .. note::
+
+            Contextual tokens (which are evaluated at run time, not compilation
+            time) are not included here. Instead, those will be evaluated in the
+            ``self._precache()`` method.
         """
         config = self.option("config")
 

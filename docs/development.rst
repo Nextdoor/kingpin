@@ -7,7 +7,7 @@ Setting up your Environment
 Check out the code
 ^^^^^^^^^^^^^^^^^^
 
-.. code-block:: bash
+.. code-block:: console
 
     $ git clone https://github.com:Nextdoor/kingpin
     Cloning into 'kingpin'...
@@ -20,7 +20,7 @@ Check out the code
 Create your VirtualEnvironment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. code-block:: bash
+.. code-block:: console
 
     $ make venv
     $ source .venv/bin/activate
@@ -43,11 +43,10 @@ suites. See below for the list.
 
 *Executing only the HTTP Tests*
 
-.. code-block:: bash
+.. code-block:: console
 
-    (.venv)Matts-MacBook-2:kingpin diranged$ INTEGRATION_TESTS=http make integration
-    INTEGRATION_TESTS=http PYFLAKES_NODOCTEST=True \
-                           python setup.py integration pep8 pyflakes
+    $ INTEGRATION_TESTS=http make integration
+    INTEGRATION_TESTS=http PYFLAKES_NODOCTEST=True python setup.py integration pep8 pyflakes
     running integration
     integration_base_get (integration_api.IntegrationRestConsumer) ... ok
     integration_delete (integration_api.IntegrationRestConsumer) ... ok
@@ -78,7 +77,7 @@ suites. See below for the list.
 Class/Object Architecture
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-::
+.. code-block:: text
 
     kingpin.rb
     |
@@ -142,7 +141,7 @@ This is the basic structure for an actor class.
             'name': (str, None, 'Your name'),
             'world': (str, None, 'World we\'re saying hello to!'),
         }
-        
+
         # Optionally, if you need to do any instantiation-level, non-blocking
         # validation checks (for example, looking for an API token) you can do
         # them in the __init__. Do *not* put blocking code in here.
@@ -190,17 +189,18 @@ This is the basic structure for an actor class.
 
         # The meat of the work happens in the _execute() method. This method
         # is called by the BaseActor.execute() method. Your method must be
-        # wrapped in a gen.Coroutine wrapper. Note, the _execute() method takes
-        # no arguments, all arguments for the acter were passed in to the
-        # __init__() method.
+        # wrapped in a gen.Coroutine wrapper.
+        #
+        # Note, the _execute() method takes no arguments, all arguments for the
+        # acter were passed in to the __init__() method.
         @gen.coroutine
         def _execute(self):
             self.log.debug('Warming up the HelloWorld Actor')
-            
+
             # Fire off an async request to a our private method for sending
             # hello world messages. Get the response and evaluate
             res = yield self._send_message(
-                self.option('name'), self.option('world')) 
+                self.option('name'), self.option('world'))
 
             # Got a response. Did our message really go through though?
             if not res:
@@ -411,9 +411,9 @@ actor wants to supply its own default description, it can be done like this:
         'sleep': (int), REQUIRED, 'Number of seconds to do nothing.')
       }
 
-.. code-block:: bash
+.. code-block:: console
 
-    (.venv)Matts-MacBook-2:kingpin diranged$ python kingpin/bin/deploy.py --color --debug -a misc.Sleep -o sleep=10 --dry
+    $ python kingpin/bin/deploy.py --color --debug -a misc.Sleep -o sleep=10 --dry
     09:55:08   DEBUG    33688 [kingpin.actors.utils                    ] [get_actor_class     ] Tried importing "misc.Sleep" but failed: No module named misc
     09:55:08   DEBUG    33688 [kingpin.actors.misc.Sleep               ] [_validate_options   ] [DRY: Sleeping for 10s] Checking for required options: ['sleep']
     09:55:08   DEBUG    33688 [kingpin.actors.misc.Sleep               ] [__init__            ] [DRY: Sleeping for 10s] Initialized (warn_on_failure=False, strict_init_context=True)

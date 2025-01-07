@@ -32,11 +32,11 @@ class IntegrationCreate(testing.AsyncTestCase):
         impact none of your AWS resources. The stack creates a simple S3
         bucket, so your credentials must have access to create that buckets.
 
-    Note, these tests must be run in-order. The order is defined by
-    their definition order in this file. Nose follows this order according
-    to its documentation:
+    .. note::
 
-        http://nose.readthedocs.org/en/latest/writing_tests.html
+        These tests must be run in-order. The order is defined by their definition
+        order in this file. Nose follows this order according to its
+        documentation: http://nose.readthedocs.org/en/latest/writing_tests.html
     """
 
     integration = True
@@ -112,11 +112,11 @@ class IntegrationStack(testing.AsyncTestCase):
         impact none of your AWS resources. The stack creates a simple S3
         bucket, so your credentials must have access to create that buckets.
 
-    Note, these tests must be run in-order. The order is defined by
-    their definition order in this file. Nose follows this order according
-    to its documentation:
+    .. note::
 
-        http://nose.readthedocs.org/en/latest/writing_tests.html
+        These tests must be run in-order. The order is defined by their definition
+        order in this file. Nose follows this order according to its
+        documentation: http://nose.readthedocs.org/en/latest/writing_tests.html
     """
 
     integration = True

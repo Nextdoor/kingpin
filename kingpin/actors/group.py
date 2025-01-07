@@ -124,9 +124,11 @@ class BaseGroupActor(base.BaseActor):
         in the 'contexts' list, a new group of actors is created with that
         information.
 
-        Note: Because groups may contain nested group actors, any options
-        passed into this actors 'init_context' are also passed into the
-        actors that we're intantiating.
+        .. note::
+
+            Because groups may contain nested group actors, any options passed
+            into this actors 'init_context' are also passed into the actors that
+            we're intantiating.
         """
         contexts = self.option("contexts")
         if not contexts:
@@ -209,10 +211,12 @@ class BaseGroupActor(base.BaseActor):
     def _execute(self):
         """Executes the actions configured, and returns.
 
-        Note: Expects the sub-class to implement self._run_actions()
+        .. note::
 
-        If an actor execution fails in _run_actions(), then that exception is
-        raised up the stack.
+            Expects the sub-class to implement ``self._run_actions()``.
+
+        If an actor execution fails in ``_run_actions()``, then that exception
+        is raised up the stack.
         """
         self.log.info("Beginning %s actions" % len(self._actions))
         yield self._run_actions()

@@ -181,10 +181,11 @@ class IAMBaseActor(base.AWSBaseActor):
         """
         policies = {}
 
-        # Get the list of inline policies attached to an entity. Note, not
-        # all entities have a concept of inline policies. If
-        # self.list_entity_policies is None, it returns a TypeError. We'll
-        # catch that and silently move on.
+        # Get the list of inline policies attached to an entity.
+        #
+        # Note, not all entities have a concept of inline policies. If
+        # self.list_entity_policies is None, it returns a TypeError. We'll catch
+        # that and silently move on.
         policy_names = []
         try:
             self.log.debug("Searching for any inline policies for %s" % name)
