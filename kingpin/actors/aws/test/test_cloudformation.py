@@ -35,10 +35,10 @@ def create_fake_stack_event(name, resource, status, reason=None):
     fake_event = {
         "EventId": "264322b0-2426-11e6-aaa1-500c28b32ed2",
         "LogicalResourceId": resource,
-        "PhysicalResourceId": "arn:aws:cf:us-east-1:x:stack/%s/abc" % name,
+        "PhysicalResourceId": "arn:aws:cfn:us-east-1:x:stack/%s/abc" % name,
         "ResourceStatus": status,
         "ResourceType": "AWS::CloudFormation::Stack",
-        "StackId": "arn:aws:cf:us-east-1:xxx:stack/%s/xyz" % name,
+        "StackId": "arn:aws:cfn:us-east-1:xxx:stack/%s/xyz" % name,
         "StackName": name,
         "Timestamp": datetime.datetime.now(),
     }
@@ -67,13 +67,13 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         base.NAMED_API_CALL_QUEUES = {}
 
     def test_discover_noecho_params(self):
-        file = "examples/test/aws.cloudformation/cf.integration.json"
+        file = "examples/test/aws.cloudformation/cfn.integration.json"
         (body, url) = self.actor._get_template_body(file, None)
         ret = self.actor._discover_noecho_params(body)
         self.assertEqual(ret, ["BucketPassword"])
 
     def test_get_template_body(self):
-        file = "examples/test/aws.cloudformation/cf.unittest.json"
+        file = "examples/test/aws.cloudformation/cfn.unittest.json"
 
         # Should work...
         ret = self.actor._get_template_body(file, None)
@@ -405,6 +405,7 @@ class TestCreate(testing.AsyncTestCase):
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
+        settings.KINGPIN_CFN_DEFAULT_ROLE_ARN = None
         importlib.reload(cloudformation)
         # Need to recreate the api call queues between tests
         # because nose creates a new ioloop per test run.
@@ -415,9 +416,9 @@ class TestCreate(testing.AsyncTestCase):
         actor = cloudformation.Create(
             "Unit Test Action",
             {
-                "name": "unit-test-cf",
+                "name": "unit-test-cfn",
                 "region": "us-west-2",
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
             },
         )
         actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
@@ -429,11 +430,11 @@ class TestCreate(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_create_stack_file_with_role(self):
-        stack = "examples/test/aws.cloudformation/cf.integration.json"
+        stack = "examples/test/aws.cloudformation/cfn.integration.json"
         actor = cloudformation.Create(
             "Unit Test Action",
             {
-                "name": "unit-test-cf",
+                "name": "unit-test-cfn",
                 "region": "us-west-2",
                 "role_arn": "test_role_arn",
                 "template": stack,
@@ -457,12 +458,43 @@ class TestCreate(testing.AsyncTestCase):
         )
 
     @testing.gen_test
-    def test_create_stack_file_with_role_yaml(self):
-        stack = "examples/test/aws.cloudformation/cf.integration.yaml"
+    def test_create_stack_file_with_default_role(self):
+        settings.KINGPIN_CFN_DEFAULT_ROLE_ARN = "test-default-role-arn"
+        importlib.reload(cloudformation)
+
+        stack = "examples/test/aws.cloudformation/cfn.integration.json"
         actor = cloudformation.Create(
             "Unit Test Action",
             {
-                "name": "unit-test-cf",
+                "name": "unit-test-cfn",
+                "region": "us-west-2",
+                "template": stack,
+            },
+        )
+        actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
+        actor._wait_until_state.side_effect = [tornado_value(None)]
+        actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
+        actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
+        ret = yield actor._create_stack(stack="test")
+        self.assertEqual(ret, "arn:123")
+        actor.cfn_conn.create_stack.assert_called_with(
+            TemplateBody=mock.ANY,
+            EnableTerminationProtection=False,
+            Parameters=[],
+            RoleARN="test-default-role-arn",
+            TimeoutInMinutes=60,
+            Capabilities=[],
+            StackName="test",
+            OnFailure="DELETE",
+        )
+
+    @testing.gen_test
+    def test_create_stack_file_with_role_yaml(self):
+        stack = "examples/test/aws.cloudformation/cfn.integration.yaml"
+        actor = cloudformation.Create(
+            "Unit Test Action",
+            {
+                "name": "unit-test-cfn",
                 "region": "us-west-2",
                 "role_arn": "test_role_arn",
                 "template": stack,
@@ -487,11 +519,11 @@ class TestCreate(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_create_stack_file_with_termination_protection_true(self):
-        stack = "examples/test/aws.cloudformation/cf.integration.json"
+        stack = "examples/test/aws.cloudformation/cfn.integration.json"
         actor = cloudformation.Create(
             "Unit Test Action",
             {
-                "name": "unit-test-cf",
+                "name": "unit-test-cfn",
                 "region": "us-west-2",
                 "role_arn": "test_role_arn",
                 "template": stack,
@@ -529,7 +561,7 @@ class TestCreate(testing.AsyncTestCase):
                 actor = cloudformation.Create(
                     "Unit Test Action",
                     {
-                        "name": "unit-test-cf",
+                        "name": "unit-test-cfn",
                         "region": "us-west-2",
                         "template": "s3://bucket/key",
                     },
@@ -538,7 +570,7 @@ class TestCreate(testing.AsyncTestCase):
         actor._wait_until_state.side_effect = [tornado_value(None)]
         actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
         actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
-        ret = yield actor._create_stack(stack="unit-test-cf")
+        ret = yield actor._create_stack(stack="unit-test-cfn")
         self.assertEqual(ret, "arn:123")
 
     @testing.gen_test
@@ -546,9 +578,9 @@ class TestCreate(testing.AsyncTestCase):
         actor = cloudformation.Create(
             "Unit Test Action",
             {
-                "name": "unit-test-cf",
+                "name": "unit-test-cfn",
                 "region": "us-west-2",
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
             },
         )
         actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
@@ -574,9 +606,9 @@ class TestCreate(testing.AsyncTestCase):
         actor = cloudformation.Create(
             "Unit Test Action",
             {
-                "name": "unit-test-cf",
+                "name": "unit-test-cfn",
                 "region": "us-west-2",
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
             },
         )
         actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
@@ -596,9 +628,9 @@ class TestCreate(testing.AsyncTestCase):
         actor = cloudformation.Create(
             "Unit Test Action",
             {
-                "name": "unit-test-cf",
+                "name": "unit-test-cfn",
                 "region": "us-west-2",
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
             },
         )
 
@@ -620,9 +652,9 @@ class TestCreate(testing.AsyncTestCase):
         actor = cloudformation.Create(
             "Unit Test Action",
             {
-                "name": "unit-test-cf",
+                "name": "unit-test-cfn",
                 "region": "us-west-2",
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
             },
         )
 
@@ -640,9 +672,9 @@ class TestCreate(testing.AsyncTestCase):
         actor = cloudformation.Create(
             "Unit Test Action",
             {
-                "name": "unit-test-cf",
+                "name": "unit-test-cfn",
                 "region": "us-west-2",
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
             },
             dry=True,
         )
@@ -670,7 +702,7 @@ class TestDelete(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute(self):
         actor = cloudformation.Delete(
-            "Unit Test Action", {"name": "unit-test-cf", "region": "us-west-2"}
+            "Unit Test Action", {"name": "unit-test-cfn", "region": "us-west-2"}
         )
         actor._get_stack = mock.MagicMock(name="_get_stack")
         actor._get_stack.return_value = tornado_value(True)
@@ -684,7 +716,7 @@ class TestDelete(testing.AsyncTestCase):
     def test_execute_dry(self):
         actor = cloudformation.Delete(
             "Unit Test Action",
-            {"name": "unit-test-cf", "region": "us-west-2"},
+            {"name": "unit-test-cfn", "region": "us-west-2"},
             dry=True,
         )
         actor._get_stack = mock.MagicMock(name="_get_stack")
@@ -694,7 +726,7 @@ class TestDelete(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute_not_exists(self):
         actor = cloudformation.Delete(
-            "Unit Test Action", {"name": "unit-test-cf", "region": "us-west-2"}
+            "Unit Test Action", {"name": "unit-test-cfn", "region": "us-west-2"}
         )
         actor._get_stack = mock.MagicMock(name="_get_stack")
         actor._get_stack.return_value = tornado_value(None)
@@ -709,6 +741,7 @@ class TestStack(testing.AsyncTestCase):
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
         settings.KINGPIN_CFN_HASH_OUTPUT_KEY = "KingpinCfnHash"
+        settings.KINGPIN_CFN_DEFAULT_ROLE_ARN = None
         importlib.reload(cloudformation)
         # Need to recreate the api call queues between tests
         # because nose creates a new ioloop per test run.
@@ -716,10 +749,10 @@ class TestStack(testing.AsyncTestCase):
 
         self.actor = cloudformation.Stack(
             options={
-                "name": "unit-test-cf",
+                "name": "unit-test-cfn",
                 "state": "present",
                 "region": "us-west-2",
-                "template": "examples/test/aws.cloudformation/cf.unittest.json",
+                "template": "examples/test/aws.cloudformation/cfn.unittest.json",
                 "parameters": {"key1": "value1"},
             }
         )
@@ -729,10 +762,10 @@ class TestStack(testing.AsyncTestCase):
     def test_diff_params_safely(self):
         self.actor = cloudformation.Stack(
             options={
-                "name": "unit-test-cf",
+                "name": "unit-test-cfn",
                 "state": "present",
                 "region": "us-west-2",
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
                     "BucketName": "name",
                     "BucketPassword": "test_password",
@@ -1083,10 +1116,10 @@ class TestStack(testing.AsyncTestCase):
         importlib.reload(cloudformation)
         self.actor = cloudformation.Stack(
             options={
-                "name": "unit-test-cf",
+                "name": "unit-test-cfn",
                 "state": "present",
                 "region": "us-west-2",
-                "template": "examples/test/aws.cloudformation/cf.unittest.json",
+                "template": "examples/test/aws.cloudformation/cfn.unittest.json",
                 "parameters": {"key1": "value1"},
             }
         )
@@ -1144,6 +1177,30 @@ class TestStack(testing.AsyncTestCase):
                     StackName="arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x",
                     TemplateBody='{"blank": "json", "Outputs": {"KingpinCfnHash": {"Value": "251693d288f81514f8f49b594fc83e47"}}}',
                     RoleARN="test_role_arn",
+                    Capabilities=[],
+                    ChangeSetName="kingpin-uuid",
+                    Parameters=[{"ParameterValue": "value1", "ParameterKey": "key1"}],
+                    UsePreviousTemplate=False,
+                )
+            ]
+        )
+
+    @testing.gen_test
+    def test_create_change_set_body_with_default_role(self):
+        self.actor.cfn_conn.create_change_set.return_value = {"Id": "abcd"}
+        fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
+
+        settings.KINGPIN_CFN_DEFAULT_ROLE_ARN = "test_default_role_arn"
+        importlib.reload(cloudformation)
+
+        ret = yield self.actor._create_change_set(fake_stack, "uuid")
+        self.assertEqual(ret, {"Id": "abcd"})
+        self.actor.cfn_conn.create_change_set.assert_has_calls(
+            [
+                mock.call(
+                    StackName="arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x",
+                    TemplateBody='{"blank": "json", "Outputs": {"KingpinCfnHash": {"Value": "251693d288f81514f8f49b594fc83e47"}}}',
+                    RoleARN="test_default_role_arn",
                     Capabilities=[],
                     ChangeSetName="kingpin-uuid",
                     Parameters=[{"ParameterValue": "value1", "ParameterKey": "key1"}],
@@ -1288,7 +1345,7 @@ class TestStack(testing.AsyncTestCase):
         self.actor.log.warning.assert_has_calls(
             [
                 mock.call(
-                    "Change: Created S3::Bucket MyBucket/arn:123 " "(Replacement? True)"
+                    "Change: Created S3::Bucket MyBucket/arn:123 (Replacement? True)"
                 ),
                 mock.call(
                     "Change: Created S3::Bucket MySecondBucket/N/A "
@@ -1367,7 +1424,7 @@ class TestStack(testing.AsyncTestCase):
     @testing.gen_test
     def test_ensure_stack_is_present_and_wants_absent(self):
         self.actor._options["state"] = "absent"
-        fake_stack = create_fake_stack("unit-test-cf", "CREATE_COMPLETE")
+        fake_stack = create_fake_stack("unit-test-cfn", "CREATE_COMPLETE")
         self.actor._get_stack = mock.MagicMock(name="_get_stack")
         self.actor._get_stack.return_value = tornado_value(fake_stack)
         self.actor._delete_stack = mock.MagicMock(name="_delete_stack")

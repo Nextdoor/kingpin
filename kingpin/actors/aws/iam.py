@@ -1,17 +1,3 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Copyright 2018 Nextdoor.com, Inc
-
 """
 :mod:`kingpin.actors.aws.iam`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -108,10 +94,10 @@ class IAMBaseActor(base.AWSBaseActor):
 
         http://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-limits.html
 
-        args:
+        Args:
             policy: The file name of the policy document
 
-        returns:
+        Returns:
             A string name to use as the policy name
         """
         # Get rid of the extension first
@@ -135,10 +121,10 @@ class IAMBaseActor(base.AWSBaseActor):
 
         Any of the inline policies passed into this actor at init time are read
         in, parsed, turned into dicts and then stored in an object level
-        dictionary for future use. This is done at __init__ time to make sure
-        we catch any syntax errors as early as possible.
+        dictionary for future use. This is done at __init__ time to make sure we
+        catch any syntax errors as early as possible.
 
-        args:
+        Args:
             policies: A string or list of strings that point to JSON files with
             IAM policies in them.
         """
@@ -172,13 +158,14 @@ class IAMBaseActor(base.AWSBaseActor):
     def _get_entity_policies(self, name):
         """Returns a dictionary of all the inline policies attached to a entity.
 
-        args:
+        Args:
             name: The IAM Entity Name (Name/Group)
 
-        returns:
+        Returns:
             A dict of key/value pairs - key is the policy name, value is the
             dict-version of the policy document.
         """
+
         policies = {}
 
         # Get the list of inline policies attached to an entity.
@@ -249,7 +236,7 @@ class IAMBaseActor(base.AWSBaseActor):
         need to be updated in IAM. Finally it purges unmanaged policies that
         were applied to a entity out of band.
 
-        args:
+        Args:
             name: The entity to manage
         """
         # Get the list of current entity policies first
@@ -289,10 +276,11 @@ class IAMBaseActor(base.AWSBaseActor):
     def _delete_entity_policy(self, name, policy_name):
         """Optionally pushes a policy to an IAM entity.
 
-        args:
+        Args:
             name: The IAM Entity Name
             policy_name: The entity policy name
         """
+
         if self._dry:
             self.log.warning(
                 "Would delete policy %s from %s %s"
@@ -319,11 +307,12 @@ class IAMBaseActor(base.AWSBaseActor):
     def _put_entity_policy(self, name, policy_name, policy_doc):
         """Optionally pushes a policy to an IAM Entity.
 
-        args:
+        Args:
             name: The IAM Entity Name
             policy_name: The entity policy name
             policy_doc: The ploicy document object itself
         """
+
         if self._dry:
             self.log.warning(
                 "Would push policy %s to %s %s" % (policy_name, self.entity_name, name)
@@ -355,9 +344,10 @@ class IAMBaseActor(base.AWSBaseActor):
         Searches for an IAM Entity and either returns None, or a JSON blob that
         describes the Entity.
 
-        args:
+        Args:
             name: The IAM Entity Name
         """
+
         self.log.debug("Searching for %s %s" % (self.entity_name, name))
 
         try:
@@ -379,10 +369,11 @@ class IAMBaseActor(base.AWSBaseActor):
         creating or deleting the entity. If the entity is already in the
         correct state, not changes are made.
 
-        args:
+        Args:
             name: The IAM User Name
             state: 'present' or 'absent'
         """
+
         self.log.info("Ensuring that %s %s is %s" % (self.entity_name, name, state))
 
         entity = yield self._get_entity(name)
@@ -402,9 +393,10 @@ class IAMBaseActor(base.AWSBaseActor):
 
         If the entity exists, we just warn and move on.
 
-        args:
+        Args:
             name: The IAM Entity Name
         """
+
         if self._dry:
             self.log.warning("Would create %s %s" % (self.entity_name, name))
             raise gen.Return()
@@ -434,9 +426,10 @@ class IAMBaseActor(base.AWSBaseActor):
 
         If the entity doesn't exist, we just warn and move on.
 
-        args:
+        Args:
             name: The IAM Entity Name
         """
+
         if self._dry:
             self.log.warning("Would delete %s %s" % (self.entity_name, name))
             raise gen.Return()
@@ -465,10 +458,11 @@ class IAMBaseActor(base.AWSBaseActor):
     def _add_user_to_group(self, name, group):
         """Quick helper method to add a user to a group.
 
-        args:
+        Args:
             name: user name
             group: group name
         """
+
         if self._dry:
             self.log.warning("Would have added %s to %s" % (name, group))
             raise gen.Return()
@@ -487,10 +481,11 @@ class IAMBaseActor(base.AWSBaseActor):
     def _remove_user_from_group(self, name, group):
         """Quick helper method to remove a user from a group.
 
-        args:
+        Args:
             name: user name
             group: group name
         """
+
         if self._dry:
             self.log.warning("Would have removed %s from %s" % (name, group))
             raise gen.Return()
@@ -591,10 +586,11 @@ class User(IAMBaseActor):
     def _ensure_groups(self, name, groups):
         """Ensure that this user is a member of specific groups.
 
-        args:
+        Args:
             name: The user we're managing
             groups: The list (or single) of groups to join be members of
         """
+
         if isinstance(groups, str):
             groups = [groups]
 
@@ -734,12 +730,13 @@ class Group(IAMBaseActor):
     def _get_group_users(self, name):
         """Returns a list of users assigned to the group.
 
-        args:
+        Args:
             name: the name of the group
 
-        returns:
+        Returns:
             a list of user name strings
         """
+
         users = []
         try:
             raw = yield self.api_call(
@@ -761,10 +758,11 @@ class Group(IAMBaseActor):
         This is used only if the group has users, is being deleted, and the
         'purge' option was set.
 
-        args:
-          name: the group name
-          force: boolean whether or not to actually force the removal
+        Args:
+            name: the group name
+            force: boolean whether or not to actually force the removal
         """
+
         users = yield self._get_group_users(name)
 
         if not force and users:
@@ -884,7 +882,7 @@ class Role(IAMBaseActor):
         "assume_role_policy_document": (
             str,
             None,
-            ("The policy that grants an entity" "permission to assume the role"),
+            ("The policy that grants an entity permission to assume the role"),
         ),
     }
 
@@ -971,9 +969,10 @@ class Role(IAMBaseActor):
 
         If the entity exists, we just warn and move on.
 
-        args:
+        Args:
             name: The IAM Entity Name
         """
+
         yield super(Role, self)._create_entity(
             name,
             AssumeRolePolicyDocument=json.dumps(self.assume_role_policy_doc),
@@ -1061,10 +1060,11 @@ class InstanceProfile(IAMBaseActor):
     def _add_role(self, name, role):
         """Adds a role to an Instance Profile.
 
-        args:
+        Args:
             name: The name of the Instance Profile we're managing
             role: The name of the role to assign to the profile
         """
+
         if self._dry:
             self.log.warning("Would add role %s from %s" % (role, name))
             raise gen.Return()
@@ -1085,10 +1085,11 @@ class InstanceProfile(IAMBaseActor):
     def _remove_role(self, name, role):
         """Removes a role assigned to an Instance Profile.
 
-        args:
+        Args:
             name: The name of the InstanceProfile we're managing
             role: The name of the role to remove
         """
+
         if self._dry:
             self.log.warning("Would remove role %s from %s" % (role, name))
             raise gen.Return()
@@ -1111,10 +1112,11 @@ class InstanceProfile(IAMBaseActor):
 
         Adds, Deletes or Changes the Role assigned to an Instance Profile.
 
-        args:
+        Args:
             name: The IAM Instance Profile we're managing
             role: The desired role (or None)
         """
+
         existing = None
         try:
             raw = yield self.api_call(

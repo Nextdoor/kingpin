@@ -26,7 +26,7 @@ class IntegrationCreate(testing.AsyncTestCase):
     Requirements:
         You must have an AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY if using
         an IAM user/role and also an AWS_SESSION_TOKEN if using temporary access credentials,
-        with permissions to create CF stacks.
+        with permissions to create CFN stacks.
 
         The stack we create is extremely simple, and should
         impact none of your AWS resources. The stack creates a simple S3
@@ -52,7 +52,7 @@ class IntegrationCreate(testing.AsyncTestCase):
             {
                 "region": self.region,
                 "name": self.bucket_name,
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
                     "BucketName": self.bucket_name,
                     "BucketPassword": UUID,
@@ -72,7 +72,7 @@ class IntegrationCreate(testing.AsyncTestCase):
             {
                 "region": self.region,
                 "name": self.bucket_name,
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
                     "BucketName": self.bucket_name,
                     "BucketPassword": UUID,
@@ -106,7 +106,7 @@ class IntegrationStack(testing.AsyncTestCase):
     Requirements:
         You must have an AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY if using
         an IAM user/role and also an AWS_SESSION_TOKEN if using temporary access credentials,
-        with permissions to create CF stacks.
+        with permissions to create CFN stacks.
 
         The stack we create is extremely simple, and should
         impact none of your AWS resources. The stack creates a simple S3
@@ -132,7 +132,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 "region": self.region,
                 "state": "present",
                 "name": self.bucket_name,
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
                     "BucketName": self.bucket_name,
                     "BucketPassword": UUID,
@@ -152,7 +152,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 "region": self.region,
                 "state": "present",
                 "name": self.bucket_name,
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
                     "BucketName": self.bucket_name,
                     "BucketPassword": UUID,
@@ -176,7 +176,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 "region": self.region,
                 "state": "present",
                 "name": self.bucket_name,
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
                     "BucketName": self.bucket_name,
                     "BucketPassword": "test",
@@ -196,7 +196,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 "region": self.region,
                 "state": "present",
                 "name": self.bucket_name,
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
                     "BucketName": self.bucket_name,
                     "BucketPassword": UUID,
@@ -217,7 +217,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 "region": self.region,
                 "state": "present",
                 "name": self.bucket_name,
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
                     "BucketName": "%s-updated" % self.bucket_name,
                     "BucketPassword": UUID,
@@ -237,7 +237,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 "region": self.region,
                 "state": "present",
                 "name": self.bucket_name,
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
                     "BucketName": "%s-updated" % self.bucket_name,
                     "BucketPassword": UUID,
@@ -257,7 +257,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 "region": self.region,
                 "state": "absent",
                 "name": self.bucket_name,
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
                     "BucketName": "%s-updated" % self.bucket_name,
                     "BucketPassword": UUID,
@@ -277,7 +277,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 "region": self.region,
                 "state": "absent",
                 "name": self.bucket_name,
-                "template": "examples/test/aws.cloudformation/cf.integration.json",
+                "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
                     "BucketName": "%s-updated" % self.bucket_name,
                     "BucketPassword": UUID,

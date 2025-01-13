@@ -1,17 +1,3 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Copyright 2018 Nextdoor.com, Inc
-
 """
 :mod:`kingpin.actors.aws.cloudformation`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -36,7 +22,10 @@ from tornado import ioloop
 from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
-from kingpin.actors.aws.settings import KINGPIN_CFN_HASH_OUTPUT_KEY
+from kingpin.actors.aws.settings import (
+    KINGPIN_CFN_HASH_OUTPUT_KEY,
+    KINGPIN_CFN_DEFAULT_ROLE_ARN,
+)
 from kingpin.actors.utils import dry
 from kingpin.constants import REQUIRED, STATE
 from kingpin.constants import SchemaCompareBase, StringCompareBase
@@ -52,9 +41,9 @@ class DateEncoder(JSONEncoder):
             return obj.isoformat()
 
 
-# This executor is used by the tornado.concurrent.run_on_executor()
-# decorator. We would like this to be a class variable so its shared
-# across objects, but we see testing IO errors when we do this.
+# This executor is used by the tornado.concurrent.run_on_executor() decorator.
+# We would like this to be a class variable so its shared across objects, but we
+# see testing IO errors when we do this.
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
@@ -94,8 +83,6 @@ class ParametersConfig(SchemaCompareBase):
         "patternProperties": {".*": {"type": "string"}},
     }
 
-    valid = '{ "key", "value", "key2", "value2" }'
-
 
 class CapabilitiesConfig(SchemaCompareBase):
     """Validates the Capabilities option"""
@@ -112,7 +99,6 @@ class CapabilitiesConfig(SchemaCompareBase):
             ],
         },
     }
-    valid = '[ "CAPABILITY_IAM", "CAPABILITY_NAMED_IAM" ]'
 
 
 class OnFailureConfig(StringCompareBase):
@@ -131,19 +117,18 @@ class TerminationProtectionConfig(StringCompareBase):
     """Validates the TerminationProtectionConfig option.
 
     The `enable_termination_protection` option can take one of the following
-    settings:
-    `'UNCHANGED'`, `False`, `True`
+    settings: `"UNCHANGED"`, `False`, `True`
 
-    `UNCHANGED` means on Create Stack it will default to False, however on
-     Ensure Stack no changes will be applied.
+    `"UNCHANGED"` means on Create Stack it will default to False, however on
+    Ensure Stack no changes will be applied.
     """
 
     valid = ("UNCHANGED", True, False)
 
 
 # CloudFormation has over a dozen different 'stack states'... but for the
-# purposes of these actors, we really only care about a few logical states.
-# Here we map the raw states into logical states.
+# purposes of these actors, we really only care about a few logical states. Here
+# we map the raw states into logical states.
 COMPLETE = (
     "CREATE_COMPLETE",
     "UPDATE_COMPLETE",
@@ -190,11 +175,11 @@ class CloudFormationBaseActor(base.AWSBaseActor):
     }
 
     def _discover_noecho_params(self, template_body):
-        """Scans a CF template for NoEcho parameters.
+        """Scans a CFN template for NoEcho parameters.
 
-        Searches through a CloudFormation stack template body for any
-        parameters that are defined with the NoEcho flag. If there are any,
-        returns a list of those parameter names.
+        Searches through a CloudFormation stack template body for any parameters
+        that are defined with the NoEcho flag. If there are any, returns a list of
+        those parameter names.
 
         Args:
             template_body: (Str) CloudFormation Template Body
@@ -210,11 +195,11 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         return noecho_params
 
     def _discover_default_params(self, template_body):
-        """Scans a CF template for Default parameters.
+        """Scans a CFN template for Default parameters.
 
-        Searches through a CloudFormation stack template body for any
-        parameters that are defined with the Default flag. If there are any,
-        returns a dict of those parameter names mapped to their default values.
+        Searches through a CloudFormation stack template body for any parameters
+        that are defined with the Default flag. If there are any, returns a dict
+        of those parameter names mapped to their default values.
 
         Args:
             template_body: (Str) CloudFormation Template Body
@@ -253,7 +238,8 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         if KINGPIN_CFN_HASH_OUTPUT_KEY in template["Outputs"].keys():
             del template["Outputs"][KINGPIN_CFN_HASH_OUTPUT_KEY]
 
-            # If there are no other outputs, remove the Outputs section entirely.
+            # If there are no other outputs, remove the Outputs section
+            # entirely.
             if len(template["Outputs"].keys()) == 0:
                 del template["Outputs"]
 
@@ -265,15 +251,16 @@ class CloudFormationBaseActor(base.AWSBaseActor):
     def _get_template_body(self, template: str, s3_region: Optional[str]):
         """Reads in a local template file and returns the contents.
 
-        If the template string supplied is a local file resource (has no
-        URI prefix), then this method will return the contents of the file.
-        Otherwise, returns None.
+        If the template string supplied is a local file resource (has no URI
+        prefix), then this method will return the contents of the file. Otherwise,
+        returns None.
 
         Args:
-
+            template: (Str) Path to the template file or template contents
+            s3_region: (Str) AWS region of the bucket containing the template
         Returns:
-          (Contents of template file, None)
-          (Contents of template downloaded from s3, URL of template)
+            (Contents of template file, None)
+            (Contents of template downloaded from s3, URL of template)
 
         Raises:
             InvalidTemplate
@@ -324,9 +311,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
     def get_s3_client(self, region):
         """Get a boto3 S3 client for a given region.
 
-        If the CFN template is stored in S3, we need to download it.  The
-        bucket may be in a different region than self.s3_conn, so get a
-        connection that is definitely in the correct region.
+        If the CFN template is stored in S3, we need to download it. The bucket
+        may be in a different region than self.s3_conn, so get a connection that
+        is definitely in the correct region.
         """
         return boto3.client("s3", region_name=region)
 
@@ -334,9 +321,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
     def _validate_template(self, body=None, url=None):
         """Validates the CloudFormation template.
 
-        args:
-          body: The body of the template
-          url: A URL pointing to a template
+        Args:
+            body: The body of the template
+            url: A URL pointing to a template
 
         Raises:
             InvalidTemplate
@@ -359,14 +346,16 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 raise InvalidTemplate(e)
 
     def _create_parameters(self, parameters):
-        """Converts a simple Key/Value dict into Amazon CF Parameters.
+        """Converts a simple Key/Value dict into Amazon CFN Parameters.
 
         The Boto3 interface requires that Parameters are passed in like this:
 
         .. code-block:: python
+
             Parameters=[
-                { 'ParameterKey': 'string',
-                  'ParameterValue': 'string',
+                {
+                    'ParameterKey': 'string',
+                    'ParameterValue': 'string',
                 },
             ]
 
@@ -374,7 +363,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         the above format.
 
         Args:
-            parameters: A dict of key/values
+            parameters: (dict) A dict of key/values
 
         Returns:
             A list like above
@@ -416,11 +405,11 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         raise gen.Return(stacks["Stacks"][0])
 
     @gen.coroutine
-    def _get_stack_template(self, stack):
+    def _get_stack_template(self, stack: str):
         """Returns the live template used by the CFN Stack.
 
-        args:
-            stack: Stack name or stack ID
+        Args:
+            stack: (str) Stack name or stack ID
         """
         try:
             ret = yield self.api_call(
@@ -433,7 +422,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         raise gen.Return(self._strip_hash_dict(template_body))
 
     @gen.coroutine
-    def _wait_until_state(self, stack_name, desired_states, sleep=15):
+    def _wait_until_state(self, stack_name: str, desired_states, sleep=15):
         """Indefinite loop until a stack has finished creating/deleting.
 
         Whether the stack has failed, suceeded or been rolled back... this
@@ -441,9 +430,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         failure (rollback/failed) then an exception is raised.
 
         Args:
-            stack_name: The stack name or stack ID to watch
+            stack_name: (str) The stack name or stack ID to watch
             desired_states: (tuple/list) States that indicate a successful
-                            operation.
+                operation.
             sleep: (int) Time in seconds between stack status checks
 
         Raises:
@@ -480,19 +469,18 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             raise StackFailed(msg)
 
     @gen.coroutine
-    def _get_stack_events(self, stack):
-        """Returns a list of human-readable CF Events.
+    def _get_stack_events(self, stack: str):
+        """Returns a list of human-readable CFN Events.
 
-        Searches for all of the Stack events for a given CF Stack and returns
+        Searches for all of the Stack events for a given CFN Stack and returns
         them in a human-readable list of strings.
 
-        http://docs.aws.amazon.com/AWSCloudFormation/latest/
-        APIReference/API_DescribeStackEvents.html
+        http://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_DescribeStackEvents.html
 
-        args:
-            stack: Stack ID or Stack name
+        Args:
+            stack: (str) Stack ID or Stack name
 
-        returns:
+        Returns:
             [<list of human readable strings>]
         """
         try:
@@ -563,6 +551,8 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
         if self.option("role_arn"):
             cfg["RoleARN"] = self.option("role_arn")
+        elif KINGPIN_CFN_DEFAULT_ROLE_ARN:
+            cfg["RoleARN"] = KINGPIN_CFN_DEFAULT_ROLE_ARN
 
         enable_termination_protection = self.option("enable_termination_protection")
         if enable_termination_protection == "UNCHANGED":
@@ -582,8 +572,8 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         except ClientError as e:
             raise CloudFormationError(str(e))
 
-        # Now wait until the stack creation has finished. If the creation
-        # fails, get the logs from Amazon for the user.
+        # Now wait until the stack creation has finished. If the creation fails,
+        # get the logs from Amazon for the user.
         try:
             yield self._wait_until_state(stack["StackId"], COMPLETE)
         except StackFailed as e:
@@ -607,60 +597,60 @@ class Create(CloudFormationBaseActor):
     **Options**
 
     :name:
-      The name of the queue to create
+        The name of the queue to create
 
     :capabilities:
-      A list of CF capabilities to add to the stack.
+        A list of CFN capabilities to add to the stack.
 
     :on_failure:
-     (:py:class:`OnFailureConfig`)
+        (:py:class:`OnFailureConfig`)
 
-     One of the following strings: `DO_NOTHING`, `ROLLBACK`, `DELETE`
+        One of the following strings: `DO_NOTHING`, `ROLLBACK`, `DELETE`
 
-     Default: `DELETE`
+        Default: `DELETE`
 
     :parameters:
-      A dictionary of key/value pairs used to fill in the parameters for the
-      CloudFormation template.
+        A dictionary of key/value pairs used to fill in the parameters for the
+        CloudFormation template.
 
     :region:
-      AWS region (or zone) string, like 'us-west-2'.
+        AWS region (or zone) string, like 'us-west-2'.
 
     :role_arn:
-      The Amazon IAM Role to use when executing the stack.
+        The Amazon IAM Role to use when executing the stack.
 
     :template:
-      String of path to CloudFormation template. Can either be in the form of a
-      local file path (ie, `./my_template.json`) or a URI (ie
-      `s3://bucket-name/cf.json`).
+        String of path to CloudFormation template. Can either be in the form of
+        a local file path (ie, `./my_template.json`) or a URI (ie
+        `s3://bucket-name/cfn.json`).
 
     :timeout_in_minutes:
-      The amount of time that can pass before the stack status becomes
-      CREATE_FAILED.
+        The amount of time that can pass before the stack status becomes
+        CREATE_FAILED.
 
     :enable_termination_protection:
-      Whether termination protection is enabled for the stack.
+        Whether termination protection is enabled for the stack.
 
     **Examples**
 
     .. code-block:: json
 
-       {
-         "actor": "aws.cloudformation.Create",
-         "desc": "Create production backend stack",
-         "options": {
-           "capabilities": [ "CAPABILITY_IAM" ],
-           "name": "%CF_NAME%",
-           "parameters": {
-             "test_param": "%TEST_PARAM_NAME%",
-           },
-           "region": "us-west-1",
-           "role_arn": "arn:aws:iam::123456789012:role/DeployRole",
-           "template": "/examples/cloudformation_test.json",
-           "timeout_in_minutes": 45,
-           "enable_termination_protection": true,
-         }
-       }
+        {
+            "actor": "aws.cloudformation.Create",
+            "desc": "Create production backend stack",
+            "options": {
+                "capabilities": [ "CAPABILITY_IAM" ],
+                "name": "%CFN_NAME%",
+                "parameters": {
+                    "test_param": "%TEST_PARAM_NAME%",
+                },
+                "region": "us-west-1",
+                "role_arn": "arn:aws:iam::123456789012:role/DeployRole",
+                "template": "/examples/cloudformation_test.json",
+                "timeout_in_minutes": 45,
+                "enable_termination_protection": true,
+            }
+        }
 
     **Dry Mode**
 
@@ -672,7 +662,7 @@ class Create(CloudFormationBaseActor):
         "capabilities": (
             list,
             [],
-            "The list of capabilities that you want to allow " "in the stack",
+            "The list of capabilities that you want to allow in the stack",
         ),
         "on_failure": (
             OnFailureConfig,
@@ -683,27 +673,29 @@ class Create(CloudFormationBaseActor):
         "parameters": (
             ParametersConfig,
             {},
-            "Parameters passed into the CF " "template execution",
+            "Parameters passed into the CFN template execution",
         ),
         "region": (str, REQUIRED, "AWS region (or zone) name, like us-west-2"),
-        "role_arn": (str, None, "The Amazon IAM Role to use when executing the stack"),
+        "role_arn": (
+            str,
+            None,
+            "The Amazon IAM Role to use when executing the stack. You can also set the KINGPIN_CFN_ROLE_ARN env var if you are managing many stacks.",
+        ),
         "template": (
             str,
             REQUIRED,
-            "Path to the AWS CloudFormation File. s3://, "
-            "file:///, absolute or relative file paths.",
+            "Path to the AWS CloudFormation File. s3://, file:///, absolute or relative file paths.",
         ),
         "template_s3_region": (str, None, "Region of the bucket containing template"),
         "timeout_in_minutes": (
             int,
             60,
-            "The amount of time that can pass before the "
-            "stack status becomes CREATE_FAILED",
+            "The amount of time that can pass before the stack status becomes CREATE_FAILED",
         ),
         "enable_termination_protection": (
             TerminationProtectionConfig,
             "UNCHANGED",
-            "Whether termination protection is " "enabled for the stack.",
+            "Whether termination protection is enabled for the stack.",
         ),
     }
 
@@ -716,7 +708,7 @@ class Create(CloudFormationBaseActor):
         # Convert our supplied parameters into a properly formatted list.
         self._parameters = self._create_parameters(self.option("parameters"))
 
-        # Check if the supplied CF template is a local file. If it is, read it
+        # Check if the supplied CFN template is a local file. If it is, read it
         # into memory.
         self._template_body, self._template_url = self._get_template_body(
             self.option("template"),
@@ -729,15 +721,14 @@ class Create(CloudFormationBaseActor):
 
         yield self._validate_template(self._template_body, self._template_url)
 
-        # If a stack already exists, we cannot re-create it. Raise a
-        # recoverable exception and let the end user decide whether this is bad
-        # or not.
+        # If a stack already exists, we cannot re-create it. Raise a recoverable
+        # exception and let the end user decide whether this is bad or not.
         exists = yield self._get_stack(stack_name)
         if exists:
             raise StackAlreadyExists("Stack %s already exists!" % stack_name)
 
-        # If we're in dry mode, exit at this point. We can't do anything
-        # further to validate that the creation process will work.
+        # If we're in dry mode, exit at this point. We can't do anything further
+        # to validate that the creation process will work.
         if self._dry:
             self.log.info("Skipping CloudFormation Stack creation.")
             raise gen.Return()
@@ -754,26 +745,27 @@ class Delete(CloudFormationBaseActor):
     **Options**
 
     :name:
-      The name of the queue to create
+        The name of the queue to create
 
     :region:
-      AWS region (or zone) string, like 'us-west-2'
+        AWS region (or zone) string, like 'us-west-2'
 
     **Examples**
 
     .. code-block:: json
 
-       { "desc": "Delete production backend stack",
-         "actor": "aws.cloudformation.Create",
-         "options" {
-           "region": "us-west-1",
-           "name": "%CF_NAME%",
-         }
-       }
+        {
+            "desc": "Delete production backend stack",
+            "actor": "aws.cloudformation.Create",
+            "options" {
+                "region": "us-west-1",
+                "name": "%CFN_NAME%",
+            }
+        }
 
     **Dry Mode**
 
-    Validates that the CF stack exists, but does not delete it.
+    Validates that the CFN stack exists, but does not delete it.
     """
 
     all_options = {
@@ -795,95 +787,95 @@ class Stack(CloudFormationBaseActor):
     This actor can manage the following aspects of a CloudFormation stack in
     Amazon:
 
-      * Ensure that the Stack is present or absent.
-      * Monitor and update the stack Template and Parameters as necessary.
+        * Ensure that the Stack is present or absent.
+        * Monitor and update the stack Template and Parameters as necessary.
 
     **Default Parameters**
 
-    If your CF stack defines parameters with defaults, Kingpin will use the
+    If your CFN stack defines parameters with defaults, Kingpin will use the
     defaults unless the parameters are explicitly specified.
 
     **NoEcho Parameters**
 
-    If your CF stack takes a Password as a parameter or any other value thats
+    If your CFN stack takes a Password as a parameter or any other value thats
     secret and you set `NoEcho: True` on that parameter, Kingpin will be unable
     to diff it and compare whether or not the desired setting matches whats in
     Amazon. A warning will be thrown, and the rest of the actor will continue
     to operate as normal.
 
     If any other difference triggers a Stack Update, the desired value for the
-    parameter with `NoEcho: True` will be pushed in addition to all of the
-    other stack parameters.
+    parameter with `NoEcho: True` will be pushed in addition to all of the other
+    stack parameters.
 
     **Options**
 
     :name:
-      The name of the queue to create
+        The name of the queue to create
 
     :state:
-      (str) Present or Absent. Default: "present"
+        (str) Present or Absent. Default: "present"
 
     :capabilities:
-      (:py:class:`CapabilitiesConfig`, None)
+        (:py:class:`CapabilitiesConfig`, None)
 
-      A list of CF capabilities to add to the stack.
+        A list of CFN capabilities to add to the stack.
 
     :disable_rollback:
-      Set to True to disable rollback of the stack if creation failed.
+        Set to True to disable rollback of the stack if creation failed.
 
     :on_failure:
-     (:py:class:`OnFailureConfig`, None)
+        (:py:class:`OnFailureConfig`, None)
 
-     One of the following strings: `DO_NOTHING`, `ROLLBACK`, `DELETE`
+        One of the following strings: `DO_NOTHING`, `ROLLBACK`, `DELETE`
 
-     Default: `DELETE`
+        Default: `DELETE`
 
     :parameters:
-      (:py:class:`ParametersConfig`, None)
+        (:py:class:`ParametersConfig`, None)
 
-      A dictionary of key/value pairs used to fill in the parameters for the
-      CloudFormation template.
+        A dictionary of key/value pairs used to fill in the parameters for the
+        CloudFormation template.
 
     :region:
-      AWS region (or zone) string, like 'us-west-2'.
+        AWS region (or zone) string, like 'us-west-2'.
 
     :role_arn:
-      The Amazon IAM Role to use when executing the stack.
+        The Amazon IAM Role to use when executing the stack.
 
     :template:
-      String of path to CloudFormation template. Can either be in the form of a
-      local file path (ie, `./my_template.json`) or a URI (ie
-      `s3://bucket-name/cf.json`).
+        String of path to CloudFormation template. Can either be in the form of
+        a local file path (ie, `./my_template.json`) or a URI (ie
+        `s3://bucket-name/cfn.json`).
 
     :timeout_in_minutes:
-      The amount of time that can pass before the stack status becomes
-      CREATE_FAILED.
+        The amount of time that can pass before the stack status becomes
+        CREATE_FAILED.
 
     :enable_termination_protection:
-      Whether termination protection is enabled for the stack.
+        Whether termination protection is enabled for the stack.
 
     **Examples**
 
     .. code-block:: json
 
-       {
-         "actor": "aws.cloudformation.Stack",
-         "desc": "Manages the state of a CloudFormation stack",
-         "options": {
-           "capabilities": [ "CAPABILITY_IAM" ],
-           "on_failure": "DELETE",
-           "name": "%CF_NAME%",
-           "parameters": {
-             "test_param": "%TEST_PARAM_NAME%",
-           },
-           "region": "us-west-1",
-           "role_arn": "arn:aws:iam::123456789012:role/DeployRole",
-           "state": "present",
-           "template": "/examples/cloudformation_test.json",
-           "timeout_in_minutes": 45,
-           "enable_termination_protection": true,
-         }
-       }
+        {
+            "actor": "aws.cloudformation.Stack",
+            "desc": "Manages the state of a CloudFormation stack",
+            "options": {
+                "capabilities": [ "CAPABILITY_IAM" ],
+                "on_failure": "DELETE",
+                "name": "%CFN_NAME%",
+                "parameters": {
+                    "test_param": "%TEST_PARAM_NAME%",
+                },
+                "region": "us-west-1",
+                "role_arn": "arn:aws:iam::123456789012:role/DeployRole",
+                "state": "present",
+                "template": "/examples/cloudformation_test.json",
+                "timeout_in_minutes": 45,
+                "enable_termination_protection": true,
+            }
+        }
 
     **Dry Mode**
 
@@ -897,13 +889,12 @@ class Stack(CloudFormationBaseActor):
         "capabilities": (
             CapabilitiesConfig,
             [],
-            "The list of capabilities that you want to allow " "in the stack",
+            "The list of capabilities that you want to allow in the stack",
         ),
         "disable_rollback": (
             bool,
             False,
-            "Set to `True` to disable rollback of the stack "
-            "if stack creation failed.",
+            "Set to `True` to disable rollback of the stack if stack creation failed.",
         ),
         "on_failure": (
             OnFailureConfig,
@@ -913,27 +904,29 @@ class Stack(CloudFormationBaseActor):
         "parameters": (
             ParametersConfig,
             {},
-            "Parameters passed into the CF " "template execution",
+            "Parameters passed into the CFN template execution",
         ),
         "region": (str, REQUIRED, "AWS region (or zone) name, like us-west-2"),
-        "role_arn": (str, None, "The Amazon IAM Role to use when executing the stack"),
+        "role_arn": (
+            str,
+            None,
+            "The Amazon IAM Role to use when executing the stack. You can also set the KINGPIN_CFN_ROLE_ARN env var if you are managing many stacks.",
+        ),
         "template": (
             str,
             REQUIRED,
-            "Path to the AWS CloudFormation File. s3://, "
-            "file:///, absolute or relative file paths.",
+            "Path to the AWS CloudFormation File. s3://, file:///, absolute or relative file paths.",
         ),
         "template_s3_region": (str, None, "Region of the bucket containing template"),
         "timeout_in_minutes": (
             int,
             60,
-            "The amount of time that can pass before the "
-            "stack status becomes CREATE_FAILED",
+            "The amount of time that can pass before the stack status becomes CREATE_FAILED",
         ),
         "enable_termination_protection": (
             TerminationProtectionConfig,
             "UNCHANGED",
-            "Whether termination protection is " "enabled for the stack.",
+            "Whether termination protection is enabled for the stack.",
         ),
     }
 
@@ -943,7 +936,7 @@ class Stack(CloudFormationBaseActor):
         """Initialize our object variables."""
         super(Stack, self).__init__(*args, **kwargs)
 
-        # Check if the supplied CF template is a local file. If it is, read it
+        # Check if the supplied CFN template is a local file. If it is, read it
         # into memory.
         self._template_body, self._template_url = self._get_template_body(
             self.option("template"),
@@ -953,9 +946,8 @@ class Stack(CloudFormationBaseActor):
         # Find any Default parameters embedded in the stack.
         _default_params = self._discover_default_params(self._template_body)
 
-        # Convert Default parameters and our supplied parameters into a
-        # properly formatted list.
-        # Defaults will be overridden by supplied parameters.
+        # Convert Default parameters and our supplied parameters into a properly
+        # formatted list. Defaults will be overridden by supplied parameters.
         self._parameters = self._create_parameters(
             dict(_default_params, **self.option("parameters"))
         )
@@ -974,8 +966,8 @@ class Stack(CloudFormationBaseActor):
     def _update_stack(self, stack):
         self.log.info("Verifying that stack is in desired state")
 
-        # First, check that this stack isn't one that may have failed before
-        # and there was attempted to be deleted but failed. If it is, we have a
+        # First, check that this stack isn't one that may have failed before and
+        # there was attempted to be deleted but failed. If it is, we have a
         # fatal error and we must raise an exception.
         if stack["StackStatus"] == "DELETE_FAILED":
             msg = "Stack found in a deleted failed state: %s" % (stack["StackStatus"])
@@ -1001,15 +993,15 @@ class Stack(CloudFormationBaseActor):
 
     @gen.coroutine
     def _ensure_template(self, stack):
-        """Compares and updates the state of a CF Stack template
+        """Compares and updates the state of a CFN Stack template
 
         Compares the current template body against the template body for the
-        live running stack. If they're different. Triggers a Change Set
-        creation and ultimately executes the change set.
+        live running stack. If they're different. Triggers a Change Set creation
+        and ultimately executes the change set.
 
         TODO: Support remote template_url comparison!
 
-        args:
+        Args:
             stack: A Boto3 Stack object
         """
         needs_update = False
@@ -1030,7 +1022,7 @@ class Stack(CloudFormationBaseActor):
             # Plan to make a change set!
             needs_update = True
 
-        # Get and compare the parameters we have vs the ones in CF. If they're
+        # Get and compare the parameters we have vs the ones in CFN. If they're
         # different, plan to do an update!
         if self._diff_params_safely(stack.get("Parameters", []), self._parameters):
             needs_update = True
@@ -1077,9 +1069,9 @@ class Stack(CloudFormationBaseActor):
 
         Args:
             Remote: A list of objects, each having a ParameterKey and
-            ParameterValue.
+                ParameterValue.
             Local: A list of objects, each having a ParameterKey and
-            ParameterValue.
+                ParameterValue.
 
         Returns:
             Boolean
@@ -1094,8 +1086,8 @@ class Stack(CloudFormationBaseActor):
             remote = [pair for pair in remote if pair["ParameterKey"] != p]
             local = [pair for pair in local if pair["ParameterKey"] != p]
 
-        # Remove any resolved parameter values that were inserted by SSM
-        # so that only supplied parameter values are compared.
+        # Remove any resolved parameter values that were inserted by SSM so that
+        # only supplied parameter values are compared.
         filtered_remote = []
         for param in remote:
             filtered_param = {}
@@ -1130,11 +1122,7 @@ class Stack(CloudFormationBaseActor):
             template_obj["Outputs"] = {}
 
         template_obj["Outputs"][KINGPIN_CFN_HASH_OUTPUT_KEY] = {
-            "Value": md5(
-                # datetime.datetime.now(datetime.timezone.utc).isoformat().encode()  # requires freezegun during testing
-                # or
-                json.dumps(template_obj).encode()
-            ).hexdigest()
+            "Value": md5(json.dumps(template_obj).encode()).hexdigest()
         }
 
         return json.dumps(template_obj)
@@ -1147,10 +1135,10 @@ class Stack(CloudFormationBaseActor):
         a Change Set against the live running stack. Returns back a Change Set
         Request dict, which can be used to poll for a real change set.
 
-        args:
+        Args:
             stack: Boto3 Stack dict
 
-        returns:
+        Returns:
             Boto3 Change Set Request dict
         """
         change_opts = {
@@ -1163,6 +1151,8 @@ class Stack(CloudFormationBaseActor):
 
         if self.option("role_arn"):
             change_opts["RoleARN"] = self.option("role_arn")
+        elif KINGPIN_CFN_DEFAULT_ROLE_ARN:
+            change_opts["RoleARN"] = KINGPIN_CFN_DEFAULT_ROLE_ARN
 
         if self._template_url:
             change_opts["TemplateURL"] = self._template_url
@@ -1191,13 +1181,13 @@ class Stack(CloudFormationBaseActor):
         generation itself (status_key=Status) as well as the execution of the
         Change Set (status_key=ExecutionStatus).
 
-        args:
+        Args:
             change_set_name: The Change Set Request Name
             status_key: The key within the Change Set that defines its status
             desired_state: A string of the desired state we're looking for
             sleep: Time to wait between checks in seconds
 
-        returns:
+        Returns:
             The final completed change set dictionary
         """
         self.log.info("Waiting for %s to reach %s" % (change_set_name, desired_state))
@@ -1207,8 +1197,8 @@ class Stack(CloudFormationBaseActor):
                     self.cfn_conn.describe_change_set, ChangeSetName=change_set_name
                 )
             except ClientError as e:
-                # If we hit an intermittent error, lets just loop around and
-                # try again.
+                # If we hit an intermittent error, lets just loop around and try
+                # again.
                 self.log.error("Error receiving Change Set state: %s" % e)
                 yield utils.tornado_sleep(sleep)
                 continue
@@ -1242,10 +1232,9 @@ class Stack(CloudFormationBaseActor):
     def _print_change_set(self, change_set):
         """Logs out the changes a Change Set would make if executed.
 
-        http://docs.aws.amazon.com/AWSCloudFormation/latest/
-        APIReference/API_DescribeChangeSet.html
+        http://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_DescribeChangeSet.html
 
-        args:
+        Args:
             change_set: Change Set Object
         """
         self.log.debug("Parsing change set: %s" % change_set)
@@ -1278,7 +1267,7 @@ class Stack(CloudFormationBaseActor):
         Takes a supplied Change Set name and Stack Name, executes the change
         set, and waits for it to complete sucessfully.
 
-        args:
+        Args:
             change_set_name: The Change Set Name/ARN
         """
         self.log.info("Executing change set %s" % change_set_name)
@@ -1299,13 +1288,13 @@ class Stack(CloudFormationBaseActor):
     @gen.coroutine
     def _ensure_termination_protection(self, stack):
         """Ensures that the EnableTerminationProtection is set to the desired
-           setting (either True or False).
+        setting (either True or False).
 
         Checks to to see if the actor is managing EnableTerminationProtection,
-        and if it is, it updates EnableTerminationProtection if the defined
-        value is different from the existing one.
+        and if it is, it updates EnableTerminationProtection if the defined value
+        is different from the existing one.
 
-        args:
+        Args:
             stack: Boto3 Stack dict
         """
         existing = stack["EnableTerminationProtection"]
@@ -1321,7 +1310,7 @@ class Stack(CloudFormationBaseActor):
     def _update_termination_protection(self, stack, new):
         """Updates the EnableTerminationProtection to the new setting.
 
-        args:
+        Args:
             stack: Boto3 Stack dict
             new: boolean of updated value for EnableTerminationProtection
         """
@@ -1341,7 +1330,7 @@ class Stack(CloudFormationBaseActor):
         state = self.option("state")
         stack_name = self.option("name")
 
-        self.log.info("Ensuring that CF Stack %s is %s" % (stack_name, state))
+        self.log.info("Ensuring that CFN Stack %s is %s" % (stack_name, state))
 
         # Figure out if the stack already exists or not. In this case, we
         # ignore DELETED stacks because they don't apply or block you from

@@ -89,7 +89,7 @@ class TestSpotinstException(testing.AsyncTestCase):
         source_exc = httpclient.HTTPError(400, "400 Bad Request", fake_resp_body)
         fake_exc = spotinst.SpotinstException(source_exc)
         self.assertEqual(
-            ("Spotinst Request ID (fake_id) GET /fake: " "{'something': 'else'}"),
+            ("Spotinst Request ID (fake_id) GET /fake: {'something': 'else'}"),
             str(fake_exc),
         )
 

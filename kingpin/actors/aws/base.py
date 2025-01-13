@@ -1,17 +1,3 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Copyright 2018 Nextdoor.com, Inc
-
 """
 :mod:`kingpin.actors.aws.base`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -24,17 +10,18 @@ below for using each actor.
 **Required Environment Variables**
 
 .. note::
-  These can be skipped only if you have a ``.aws/credentials`` file in place.
+
+    These can be skipped only if you have a ``.aws/credentials`` file in place.
 
 :AWS_ACCESS_KEY_ID:
-  Your AWS access key
+    Your AWS access key
 
 :AWS_SECRET_ACCESS_KEY:
-  Your AWS secret
+    Your AWS secret
 
 :AWS_SESSION_TOKEN:
-  Your AWS session token
-  Only needed if you are using temporary access credentials
+    Your AWS session token. Only needed if you are using temporary access
+    credentials
 """
 
 import logging
@@ -56,7 +43,7 @@ from kingpin.actors.aws import settings as aws_settings
 
 log = logging.getLogger(__name__)
 
-__author__ = "Mikhail Simin <mikhail@nextdoor.com>"
+__author__ = "Matt Wise <matt@nextdoor.com>"
 
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
@@ -188,16 +175,14 @@ class AWSBaseActor(base.BaseActor):
         """Parse a single JSON file into an Amazon policy.
 
         Validates that the policy document can be parsed, strips out any
-        comments, and fills in any environmental tokens. Returns a dictionary
-        of the contents.
+        comments, and fills in any environmental tokens. Returns a dictionary of
+        the contents.
 
-        Returns None if the input is None.
-
-        args:
+        Args:
             policy: The Policy JSON file to read.
 
-        returns:
-            A dictionary of the parsed policy.
+        Returns:
+            A dictionary of the parsed policy. None if the input is None.
         """
         if policy is None:
             return None

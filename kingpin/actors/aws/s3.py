@@ -1,17 +1,3 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Copyright 2018 Nextdoor.com, Inc
-
 """
 :mod:`kingpin.actors.aws.s3`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -57,10 +43,12 @@ class PublicAccessBlockConfig(SchemaCompareBase):
 
     .. code-block:: json
 
-        { "block_public_acls": true,
-          "ignore_public_acls": true,
-          "block_public_policy": true,
-          "restrict_public_buckets": true }
+        {
+            "block_public_acls": true,
+            "ignore_public_acls": true,
+            "block_public_policy": true,
+            "restrict_public_buckets": true
+        }
 
     If you supply an empty dict, then we will explicitly remove the Public
     Access Block Configuration.
@@ -108,8 +96,10 @@ class LoggingConfig(SchemaCompareBase):
 
     .. code-block:: json
 
-        { "target": "s3_bucket_name_here",
-          "prefix": "an_optional_prefix_here" }
+        {
+            "target": "s3_bucket_name_here",
+            "prefix": "an_optional_prefix_here"
+        }
 
     If you supply an empty `target`, then we will explicitly remove the logging
     configuration from the bucket. Example:
@@ -141,32 +131,32 @@ class LifecycleConfig(SchemaCompareBase):
     .. code-block:: json
 
         [
-          {
-            "id": "unique_rule_identifier",
-            "status": "Enabled",
-            "filter": {
-              "prefix": "/some_path"
-            },
-            "transitions": [
-              {
-                "days": 90,
-                "date": "2016-05-19T20:04:17+00:00",
-                "storage_class": "GLACIER",
-              }
-            ],
-            "noncurrent_version_transitions": [
-              {
-                "noncurrent_days": 90,
-                "storage_class": "GLACIER",
-              }
-            ],
-            "expiration": {
-              "days": 365,
-            },
-            "noncurrent_version_expiration": {
-              "noncurrent_days": 365,
+            {
+                "id": "unique_rule_identifier",
+                "status": "Enabled",
+                "filter": {
+                    "prefix": "/some_path"
+                },
+                "transitions": [
+                    {
+                        "days": 90,
+                        "date": "2016-05-19T20:04:17+00:00",
+                        "storage_class": "GLACIER",
+                    }
+                ],
+                "noncurrent_version_transitions": [
+                    {
+                        "noncurrent_days": 90,
+                        "storage_class": "GLACIER",
+                    }
+                ],
+                "expiration": {
+                    "days": 365,
+                },
+                "noncurrent_version_expiration": {
+                    "noncurrent_days": 365,
+                }
             }
-          }
         ]
     """
 
@@ -603,7 +593,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         "versioning": (
             (bool, None),
             None,
-            ("Desired state of versioning on the bucket: " "true/false"),
+            ("Desired state of versioning on the bucket: true/false"),
         ),
         "notification_configuration": (NotificationConfiguration, None, ""),
     }
@@ -667,10 +657,10 @@ class Bucket(base.EnsurableAWSBaseActor):
         proper Boto Lifecycle Rules, then returns a Lifecycle configuration
         object with these rules.
 
-        args:
+        Args:
             config: A dict that matches the :py:class:`LifecycleConfig` schema.
 
-        returns:
+        Returns:
             :py:class:`boto.s3.lifecycle.Lifecycle`
             None: If the supplied configuration is empty
         """
@@ -922,7 +912,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     def _enable_logging(self, target, prefix):
         """Enables logging on a bucket.
 
-        args:
+        Args:
             target: Target S3 bucket
             prefix: Target S3 bucket prefix
         """

@@ -1,17 +1,3 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Copyright 2018 Nextdoor.com, Inc
-
 """
 :mod:`kingpin.actors.librato`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -23,10 +9,10 @@ cause/effect analysis.
 **Required Environment Variables**
 
 :LIBRATO_TOKEN:
-  Librato API Token
+    Librato API Token
 
 :LIBRATO_EMAIL:
-  Librato email account (i.e. username)
+    Librato email account (i.e. username)
 
 """
 
@@ -65,26 +51,27 @@ class Annotation(base.HTTPBaseActor):
     **Options**
 
     :title:
-      The title of the annotation
+        The title of the annotation
 
     :description:
-      The description of the annotation
+        The description of the annotation
 
     :name:
-      Name of the metric to annotate
+        Name of the metric to annotate
 
     **Examples**
 
     .. code-block:: json
 
-       { "actor": "librato.Annotation",
-         "desc": "Mark our deployment",
-         "options": {
-           "title": "Deploy",
-           "description": "Version: 0001a",
-           "name": "production_releases"
-         }
-       }
+        {
+            "actor": "librato.Annotation",
+            "desc": "Mark our deployment",
+            "options": {
+                "title": "Deploy",
+                "description": "Version: 0001a",
+                "name": "production_releases"
+            }
+        }
 
     **Dry Mode**
 
@@ -139,9 +126,7 @@ class Annotation(base.HTTPBaseActor):
 
         if self._dry:
             self.log.info("Testing Librato auth, skipping annotation")
-            msg = (
-                "Would have annotated metric " "'%s' with title:'%s', description:'%s'"
-            )
+            msg = "Would have annotated metric '%s' with title:'%s', description:'%s'"
             self.log.info(
                 msg
                 % (

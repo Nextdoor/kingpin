@@ -1,17 +1,3 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Copyright 2018 Nextdoor.com, Inc
-
 """
 :mod:`kingpin.actors.packagecloud`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -46,7 +32,7 @@ from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
 
-__author__ = "Charles McLaughlin <charles@nextdoor.com>"
+__author__ = "Matt Wise <matt@nextdoor.com>"
 
 ACCOUNT = os.getenv("PACKAGECLOUD_ACCOUNT", None)
 TOKEN = os.getenv("PACKAGECLOUD_TOKEN", None)
@@ -267,37 +253,36 @@ class Delete(PackagecloudBase):
     """Deletes packages from a PackageCloud repo.
 
     Searches for packages that match the `packages_to_delete` regex pattern and
-    deletes them.  If `number_to_keep` is set, we always at least this number
-    of versions of the given package intact in the repo.  Also if
-    `number_to_keep` is set, the older versions of a package (based on upload
-    time) packages will be deleted first effectively leaving newer packages
-    in the repo.
+    deletes them. If `number_to_keep` is set, we always at least this number of
+    versions of the given package intact in the repo. Also if `number_to_keep`
+    is set, the older versions of a package (based on upload time) packages will
+    be deleted first effectively leaving newer packages in the repo.
 
     **Options**
 
     :number_to_keep:
-      Keep at least this number of each package
-      (defaults to *0*)
+        Keep at least this number of each package
+        (defaults to *0*)
 
     :packages_to_delete:
-      Regex of packages to delete, e.g. pkg1|pkg2
+        Regex of packages to delete, e.g. pkg1|pkg2
 
     :repo:
-      Which packagecloud repo to delete from
+        Which packagecloud repo to delete from
 
     **Examples**
 
     .. code-block:: json
 
-      { "desc": "packagecloud Delete example",
-        "actor": "packagecloud.Delete",
-        "options": {
-          "number_to_keep": 10,
-          "packages_to_delete": "deleteme",
-          "repo": "test"
+        {
+            "desc": "packagecloud Delete example",
+            "actor": "packagecloud.Delete",
+            "options": {
+                "number_to_keep": 10,
+                "packages_to_delete": "deleteme",
+                "repo": "test"
+            }
         }
-      }
-
     """
 
     all_options = {
@@ -335,37 +320,37 @@ class DeleteByDate(PackagecloudBase):
     """Deletes packages from a PackageCloud repo older than X.
 
     Adds additional functionality to the `Delete` class with a `older_than`
-    option.  Only packages older than that number of seconds will be deleted.
+    option. Only packages older than that number of seconds will be deleted.
 
     **Options**
 
     :number_to_keep:
-      Keep at least this number of each package
-      (defaults to *0*)
+        Keep at least this number of each package
+        (defaults to *0*)
 
     :older_than:
-      Delete packages created before this number of seconds
+        Delete packages created before this number of seconds
 
     :packages_to_delete:
-      Regex of packages to delete, e.g. pkg1|pkg2
+        Regex of packages to delete, e.g. pkg1|pkg2
 
     :repo:
-      Which packagecloud repo to delete from
+        Which packagecloud repo to delete from
 
     **Examples**
 
     .. code-block:: json
 
-      { "desc": "packagecloud DeleteByDate example",
-        "actor": "packagecloud.DeleteByDate",
-        "options": {
-          "number_to_keep": 10,
-          "older_than": 600,
-          "packages_to_delete": "deleteme",
-          "repo": "test"
+        {
+            "desc": "packagecloud DeleteByDate example",
+            "actor": "packagecloud.DeleteByDate",
+            "options": {
+                "number_to_keep": 10,
+                "older_than": 600,
+                "packages_to_delete": "deleteme",
+                "repo": "test"
+            }
         }
-      }
-
     """
 
     all_options = {

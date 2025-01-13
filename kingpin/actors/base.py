@@ -1,17 +1,3 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Copyright 2018 Nextdoor.com, Inc
-
 """
 :mod:`kingpin.actors.base`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -367,13 +353,11 @@ class BaseActor(object):
     def str2bool(self, v, strict=False):
         """Returns a Boolean from a variety of inputs.
 
-        args:
+        Args:
             value: String/Bool
-            strict: Whether or not to _only_ convert the known words into
-            booleans, or whether to allow "any" word to be considered True
-            other than the known False words.
+            strict: Whether or not to _only_ convert the known words into booleans, or whether to allow "any" word to be considered True other than the known False words.
 
-        returns:
+        Returns:
             A boolean
         """
         false = ("no", "false", "f", "0")
