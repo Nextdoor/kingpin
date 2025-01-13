@@ -1,17 +1,3 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Copyright 2013 Nextdoor.com, Inc.
-
 """
 :mod:`kingpin.utils`
 ^^^^^^^^^^^^^^^^^^^^
@@ -87,11 +73,9 @@ def str_to_class(string):
     into a valid object reference.
 
     Args:
-        cls: String name of the wanted class and package.
-             eg: kingpin.actors.foo.bar
-             eg: misc.Sleep
-             eg: actors.misc.Sleep
-             eg: my.private.Actor
+        cls: String name of the wanted class and package. (eg:
+            kingpin.actors.foo.bar, misc.Sleep, actors.misc.Sleep,
+            my.private.Actor, etc.)
 
     Returns:
         A reference to the actual Class to be instantiated
@@ -111,8 +95,7 @@ def setup_root_logger(level="warn", syslog=None, color=False):
 
     Args:
         level: Logging level string ('warn' is default)
-        syslog: String representing syslog facility to output to.  If empty,
-        logs are written to console.
+        syslog: String representing syslog facility to output to. If empty, logs are written to console.
         color: Colorize the log output
 
     Returns:
@@ -423,14 +406,12 @@ def order_dict(obj):
     Used so that you can compare two dicts with the same values, but that were
     created in different orders.
 
-    Stolen from:
-      http://stackoverflow.com/questions/25851183/how-to-compare-two-json-
-      objects-with-the-same-elements-in-a-different-order-equa
+    Stolen from: http://stackoverflow.com/questions/25851183/how-to-compare-two-json-objects-with-the-same-elements-in-a-different-order-equa
 
-    args:
+    Args:
         obj: Object to order
 
-    returns:
+    Returns:
         obj: A sorted version of the object
     """
     if isinstance(obj, dict):
@@ -444,25 +425,24 @@ def order_dict(obj):
 def create_repeating_log(logger, message, handle=None, **kwargs):
     """Create a repeating log message.
 
-    This function sets up tornado to repeatedly log a message in a way that
-    does not need to be `yield`-ed.
+    This function sets up tornado to repeatedly log a message in a way that does
+    not need to be `yield`-ed.
 
     Example::
 
-       >>> yield do_tornado_stuff(1)
-       >>> log_handle = create_repeating_log('Computing...')
-       >>> yield do_slow_computation_with_insufficient_logging()
-       >>> clear_repeating_log(log_handle)
+        >>> yield do_tornado_stuff(1)
+        >>> log_handle = create_repeating_log('Computing...')
+        >>> yield do_slow_computation_with_insufficient_logging()
+        >>> clear_repeating_log(log_handle)
 
     This is similar to javascript's setInterval() and clearInterval().
 
     Args:
         message: String to pass to log.info()
-        kwargs: values accepted by datetime.timedelta namely seconds, and
-        milliseconds.
+        kwargs: values accepted by datetime.timedelta namely seconds, and milliseconds.
 
-    Must be cleared via clear_repeating_log()
-    Only handles one interval per actor.
+    Must be cleared via clear_repeating_log() Only handles one interval per
+    actor.
     """
 
     class OpaqueHandle(object):
@@ -492,17 +472,17 @@ def clear_repeating_log(handle):
 
 
 def diff_dicts(dict1, dict2):
-    """Compares two dicts and returns the difference as a string,
-    if there is any.
+    """Compares two dicts and returns the difference as a string, if there is
+    any.
 
-    Sorts two dicts (including sorting of the lists!!) and then diffs them.
-    This will ignore string types ('unicode' vs 'string').
+    Sorts two dicts (including sorting of the lists!!) and then diffs them. This
+    will ignore string types ('unicode' vs 'string').
 
-    args:
+    Args:
         dict1: First dict
         dict2: Second dict
 
-    returns:
+    Returns:
         A diff string if there's any difference, otherwise None.
     """
     dict1 = order_dict(dict1)

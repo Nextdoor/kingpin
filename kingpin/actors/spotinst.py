@@ -1,17 +1,3 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Copyright 2018 Nextdoor.com, Inc
-
 """
 :mod:`kingpin.actors.spotinst`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -24,18 +10,18 @@ https://spotinst.atlassian.net/wiki/display/API/API+Semantics
 **Environment Variables**
 
 :SPOTINST_DEBUG:
-  If set, then every single response body from Spotinst will be printed out in
-  the debug logs for Kingpin. This can include credentials, and can be
-  extremely verbose, so use with caution.
+    If set, then every single response body from Spotinst will be printed out in
+    the debug logs for Kingpin. This can include credentials, and can be
+    extremely verbose, so use with caution.
 
 :SPOINST_TOKEN:
-  SpotInst API Token generated at
-  https://console.spotinst.com/#/settings/tokens
+    SpotInst API Token generated at
+    https://console.spotinst.com/#/settings/tokens
 
 :SPOTINST_ACCOUNT_ID:
-  SpotInst API Account ID - this is required unless you set the account_id
-  parameter on each individual actor call.
-  http://docs.spotinst.com/#page:api-semantic,header:header-organizations-with-a-single-account
+    SpotInst API Account ID - this is required unless you set the account_id
+    parameter on each individual actor call.
+    http://docs.spotinst.com/#page:api-semantic,header:header-organizations-with-a-single-account
 """
 
 import base64
@@ -556,7 +542,7 @@ class ElastiGroup(SpotinstBase):
         if self._group and "capacity" in self._group["group"]:
             target = self._group["group"]["capacity"]["target"]
             self.log.info(
-                "Using the Spotinst supplied [capacity][target]" " value: %s" % target
+                "Using the Spotinst supplied [capacity][target] value: %s" % target
             )
             self._config["group"]["capacity"]["target"] = target
 

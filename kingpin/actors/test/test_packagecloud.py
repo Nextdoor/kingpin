@@ -28,7 +28,7 @@ ALL_PACKAGES_MOCK_RESPONSE = [
         ),
         "type": "deb",
         "package_html_url": (
-            "/unittest/test/packages/ubuntu/trusty/" "unittest_0.2-1_all.deb"
+            "/unittest/test/packages/ubuntu/trusty/unittest_0.2-1_all.deb"
         ),
         "repository_html_url": "/unittest/test",
     },
@@ -48,7 +48,7 @@ ALL_PACKAGES_MOCK_RESPONSE = [
         ),
         "type": "deb",
         "package_html_url": (
-            "/unittest/test/packages/ubuntu/trusty/" "unittest_0.1-1_all.deb"
+            "/unittest/test/packages/ubuntu/trusty/unittest_0.1-1_all.deb"
         ),
         "repository_html_url": "/unittest/test",
     },

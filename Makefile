@@ -11,7 +11,7 @@ BUILD_DIRS = bin .build build include lib lib64 man share package *.egg dist *.e
 
 DRY ?= true
 ifneq ($(DRY),false)
-  PYBLACK_OPTS := --diff --check
+PYBLACK_OPTS := --diff --check
 endif
 
 .PHONY: build
@@ -63,7 +63,3 @@ $(VENV_DIR): requirements.txt requirements.test.txt
 	$(PYTHON) -m pip install -r requirements.test.txt
 	$(PYTHON) -m pip install -r requirements.txt
 	touch $(VENV_DIR)
-
-
-
-

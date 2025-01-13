@@ -1,17 +1,3 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Copyright 2018 Nextdoor.com, Inc
-
 """
 :mod:`kingpin.actors.group`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -232,23 +218,23 @@ class Sync(BaseGroupActor):
     **Options**
 
     :acts:
-      An array of individual Actor definitions.
+        An array of individual Actor definitions.
 
     :contexts:
 
-      This variable can be one of two formats:
+        This variable can be one of two formats:
 
-      * A list of dictionaries with *contextual tokens* to pass into the actors
-        at instantiation time. If the list has more than one element, then
-        every actor defined in ``acts`` will be instantiated once for each item
-        in the ``contexts`` list.
-      * A string that points to a file with a list of contexts, just like the
-        above dictionary.
-      * (_Deprecation warning, this is going away in v0.4.0. Use the 'str'
-        method above!_) A dictionary of ``file`` and ``tokens``. The file
-        should be a relative path with data formatted same as stated above. The
-        tokens need to be the same format as a Macro actor: a dictionary
-        passing token data to be used.
+        * A list of dictionaries with *contextual tokens* to pass into the
+            actors at instantiation time. If the list has more than one element,
+            then every actor defined in ``acts`` will be instantiated once for
+            each item in the ``contexts`` list.
+        * A string that points to a file with a list of contexts, just like the
+            above dictionary.
+        * (_Deprecation warning, this is going away in v0.4.0. Use the 'str'
+            method above!_) A dictionary of ``file`` and ``tokens``. The file
+            should be a relative path with data formatted same as stated above.
+            The tokens need to be the same format as a Macro actor: a dictionary
+            passing token data to be used.
 
 
     **Timeouts**
@@ -267,48 +253,51 @@ class Sync(BaseGroupActor):
 
     .. code-block:: json
 
-       { "desc": "Clone, then sleep ... then clone, then sleep shorter...",
-         "actor": "group.Sync",
-         "options": {
-           "contexts": [
-             { "ARRAY": "First", "SLEEP": "60", },
-             { "ARRAY": "Second", "SLEEP": "0", }
-           ],
-           "acts": [
-             { "desc": "do something",
-               "actor": "server_array.Clone",
-               "options": {
-                 "source": "template",
-                 "dest": "{ARRAY}"
-               }
-             },
-             { "desc": "sleep",
-               "actor": "misc.Sleep",
-               "options": {
-                 "sleep": "{SLEEP}",
-               }
-             }
-           ]
-         }
-       }
+        {
+            "desc": "Clone, then sleep ... then clone, then sleep shorter...",
+            "actor": "group.Sync",
+            "options": {
+                "contexts": [
+                    { "ARRAY": "First", "SLEEP": "60", },
+                    { "ARRAY": "Second", "SLEEP": "0", }
+                ],
+                "acts": [
+                    {
+                        "desc": "do something",
+                        "actor": "server_array.Clone",
+                        "options": {
+                            "source": "template",
+                            "dest": "{ARRAY}"
+                        }
+                    },
+                    {
+                        "desc": "sleep",
+                        "actor": "misc.Sleep",
+                        "options": {
+                            "sleep": "{SLEEP}",
+                        }
+                    }
+                ]
+            }
+        }
 
     Alternatively if no `contexts` are needed you can use the `array` syntax.
 
     .. code-block:: json
 
-       [
-         {
-           "actor": "server_array.Clone",
-           "options": {
-             "source": "template",
-             "dest": "%ARRAY%"
-           }
-         },
-         {
-           "actor": "misc.Sleep",
-           "options": { "sleep": 30 }
-         }
-       ]
+        [
+            {
+                "actor": "server_array.Clone",
+                "options": {
+                    "source": "template",
+                    "dest": "%ARRAY%"
+                }
+            },
+            {
+                "actor": "misc.Sleep",
+                "options": { "sleep": 30 }
+            }
+        ]
 
     **Dry Mode**
 
@@ -322,7 +311,7 @@ class Sync(BaseGroupActor):
     **Failure**
 
     In the event that an act fails, this actor will return the failure
-    immediately.  Because the acts are executed in-order of definition, the
+    immediately. Because the acts are executed in-order of definition, the
     failure will prevent any further acts from executing.
 
     The behavior is different in the dry run (read above.)
@@ -375,25 +364,25 @@ class Async(BaseGroupActor):
     **Options**
 
     :concurrency:
-      Max number of concurrent executions. This will fire off N executions
-      in parallel, and continue with the remained as soon as the first
-      execution is done. This is faster than creating N Sync executions.
+        Max number of concurrent executions. This will fire off N executions
+        in parallel, and continue with the remained as soon as the first
+        execution is done. This is faster than creating N Sync executions.
 
     :acts:
-      An array of individual Actor definitions.
+        An array of individual Actor definitions.
 
     :contexts:
 
-      This variable can be one of two formats:
+        This variable can be one of two formats:
 
-      * A list of dictionaries with *contextual tokens* to pass into the actors
-        at instantiation time. If the list has more than one element, then
-        every actor defined in ``acts`` will be instantiated once for each item
-        in the ``contexts`` list.
-      * A dictionary of ``file`` and ``tokens``. The file should be a relative
-        path with data formatted same as stated above. The tokens need to be
-        the same format as a Macro actor: a dictionary passing token data to be
-        used.
+        * A list of dictionaries with *contextual tokens* to pass into the
+            actors at instantiation time. If the list has more than one element,
+            then every actor defined in ``acts`` will be instantiated once for
+            each item in the ``contexts`` list.
+        * A dictionary of ``file`` and ``tokens``. The file should be a relative
+            path with data formatted same as stated above. The tokens need to be
+            the same format as a Macro actor: a dictionary passing token data to
+            be used.
 
     **Timeouts**
 
@@ -410,24 +399,26 @@ class Async(BaseGroupActor):
 
     .. code-block:: json
 
-       { "desc": "Clone two arrays",
-         "actor": "group.Async",
-         "options": {
-           "contexts": [
-             { "ARRAY": "NewArray1" },
-             { "ARRAY": "NewArray2" }
-           ],
-           "acts": [
-             { "desc": "do something",
-               "actor": "server_array.Clone",
-               "options": {
-                 "source": "template",
-                 "dest": "{ARRAY}",
-               }
-             }
-           ]
-         }
-       }
+        {
+            "desc": "Clone two arrays",
+            "actor": "group.Async",
+            "options": {
+                "contexts": [
+                    { "ARRAY": "NewArray1" },
+                    { "ARRAY": "NewArray2" }
+                ],
+                "acts": [
+                    {
+                        "desc": "do something",
+                        "actor": "server_array.Clone",
+                        "options": {
+                            "source": "template",
+                            "dest": "{ARRAY}",
+                        }
+                    }
+                ]
+            }
+        }
 
     **Dry Mode**
 
