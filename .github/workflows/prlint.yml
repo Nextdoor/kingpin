@@ -1,0 +1,77 @@
+name: pull-request-lint
+on:
+  pull_request:
+    types:
+      - edited
+      - labeled
+      - opened
+      - ready_for_review
+      - reopened
+      - synchronize
+    branches-ignore:
+      - production
+jobs:
+  validate:
+    name: Validate PR title
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - runner=1cpu-linux-arm64
+      - extras=s3-cache
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # Magic Cache
+      - uses: runs-on/action@v1
+
+      # Check out the repo so that we can dynamically discover the available charts in the repo.
+      - name: Checkout
+        uses: actions/checkout@v4
+      # Verify the PR title against the "types" and "scopes" we allow.
+      #
+      # https://github.com/amannn/action-semantic-pull-request#configuration
+      - uses: amannn/action-semantic-pull-request@v5.5.3
+        id: lint_pr_title
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          requireScope: true
+          types: |
+            chore
+            docs
+            feat
+            fix
+            refactor
+            test
+          scopes: |
+            deps
+            docs
+            ci
+            actors
+            aws
+            s3
+            iam
+            cfn
+            cloudformation
+            group
+            macro
+      - uses: marocchino/sticky-pull-request-comment@v2
+        if: always() && (steps.lint_pr_title.outputs.error_message != null)
+        with:
+          header: pr-title-lint-error
+          message: |
+            Hey there and thank you for opening this pull request! 👋🏼
+
+            We have changed the repository requirements to now use [Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/) and it looks like your proposed title needs to be adjusted.
+
+            Details:
+
+            ```
+            ${{ steps.lint_pr_title.outputs.error_message }}
+            ```
+      # Delete a previous comment when the issue has been resolved
+      - if: ${{ steps.lint_pr_title.outputs.error_message == null }}
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: pr-title-lint-error
+          delete: true
