@@ -189,6 +189,21 @@ class TestUtils(unittest.TestCase):
             self.assertEqual(1, logger().debug.call_count)
             logger().debug.assert_called_with(mock.ANY, exc_info=1)
 
+    def test_str2bool(self):
+        self.assertEqual(True, utils.str2bool("true"))
+        self.assertEqual(True, utils.str2bool("junk text"))
+        self.assertEqual(True, utils.str2bool("1"))
+        self.assertEqual(True, utils.str2bool(True))
+        self.assertEqual(False, utils.str2bool("false"))
+        self.assertEqual(False, utils.str2bool("0"))
+        self.assertEqual(False, utils.str2bool(False))
+
+    def test_str2bool_strict(self):
+        self.assertEqual(True, utils.str2bool("true"))
+        self.assertEqual(False, utils.str2bool(False))
+        with self.assertRaises(ValueError):
+            utils.str2bool("Junk", strict=True)
+
 
 class TestSetupRootLoggerUtils(unittest.TestCase):
     def setUp(self):

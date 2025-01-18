@@ -32,8 +32,6 @@ import rainbow_logging_handler
 from kingpin import exceptions
 
 
-__author__ = "Matt Wise (matt@nextdoor.com)"
-
 log = logging.getLogger(__name__)
 
 # Constants for some of the utilities below
@@ -277,10 +275,9 @@ def populate_with_tokens(
         left_wrapper: the character to use as the START of a token
         right_wrapper: the character to use as the END of a token
         strict: (bool) whether or not to make sure all tokens were replaced
-        escape_sequence: character string to use as the escape sequence for
-        left and right wrappers
-        remove_escape_sequence: (bool) whether or not to remove the escape
-        sequence if it found. For example \\%FOO\\% would turn into %FOO%.
+        escape_sequence: character string to use as the escape sequence for left and right wrappers
+        remove_escape_sequence: (bool) whether or not to remove the escape sequence if it found. For example \\%FOO\\% would turn into %FOO%.
+
     Example:
         export ME=biz
 
@@ -499,3 +496,25 @@ def diff_dicts(dict1, dict2):
     dict2 = [line.replace("u'", "'") for line in dict2]
 
     return "\n".join(difflib.unified_diff(dict1, dict2, n=2))
+
+
+def str2bool(v, strict=False) -> bool:
+    """Returns a Boolean from a variety of inputs.
+
+    Args:
+        value: String/Bool
+        strict: Whether or not to _only_ convert the known words into booleans, or whether to allow "any" word to be considered True other than the known False words.
+
+    Returns:
+        A boolean
+    """
+    false = ("no", "false", "f", "0")
+    true = ("yes", "true", "t", "1")
+
+    string = str(v).lower()
+
+    if strict:
+        if string not in true and string not in false:
+            raise ValueError(f"Expected [{true}, {false}] but got: {string}")
+
+    return string not in false

@@ -103,6 +103,15 @@ class TestDeploy(unittest.TestCase):
             mock_get_main_actor.assert_called()
 
     @mock.patch("sys.argv", ["kingpin"])
+    @mock.patch.dict(os.environ, {"SKIP_DRY": "not-a-boolean-like-string"})
+    def test_main_with_skip_dry_invalid(self):
+        self._import_kingpin_bin_deploy()
+        with mock.patch("kingpin.bin.deploy.get_main_actor") as mock_get_main_actor:
+            mock_get_main_actor.return_value = Sleep(options={"sleep": 0.1}, dry=True)
+            self.kingpin_bin_deploy.main()
+            mock_get_main_actor.assert_called()
+
+    @mock.patch("sys.argv", ["kingpin"])
     def test_main_with_bad_runner(self):
         self._import_kingpin_bin_deploy()
         with mock.patch("kingpin.bin.deploy.get_main_actor") as mock_get_main_actor:
