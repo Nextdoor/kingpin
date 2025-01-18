@@ -252,7 +252,7 @@ class BaseActor(object):
                 try:
                     value = utils.str2bool(value, strict=True)
                     self._options[opt] = value
-                except RuntimeError as e:
+                except ValueError as e:
                     self.log.warning(e)
 
             if not (value is None or isinstance(value, expected_type)):
