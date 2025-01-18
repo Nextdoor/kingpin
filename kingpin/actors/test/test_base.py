@@ -25,9 +25,6 @@ from kingpin.actors.test.helper import mock_tornado
 from kingpin.constants import REQUIRED, STATE
 
 
-__author__ = "Matt Wise <matt@nextdoor.com>"
-
-
 class FakeHTTPClientClass(object):
     """Fake HTTPClient object for testing"""
 
@@ -279,21 +276,6 @@ class TestBaseActor(testing.AsyncTestCase):
     def test_execute(self):
         res = yield self.actor.execute()
         self.assertEqual(res, True)
-
-    def test_str2bool(self):
-        self.assertEqual(True, self.actor.str2bool("true"))
-        self.assertEqual(True, self.actor.str2bool("junk text"))
-        self.assertEqual(True, self.actor.str2bool("1"))
-        self.assertEqual(True, self.actor.str2bool(True))
-        self.assertEqual(False, self.actor.str2bool("false"))
-        self.assertEqual(False, self.actor.str2bool("0"))
-        self.assertEqual(False, self.actor.str2bool(False))
-
-    def test_str2bool_strict(self):
-        self.assertEqual(True, self.actor.str2bool("true"))
-        self.assertEqual(False, self.actor.str2bool(False))
-        with self.assertRaises(exceptions.InvalidOptions):
-            self.actor.str2bool("Junk", strict=True)
 
     @testing.gen_test
     def test_check_condition(self):

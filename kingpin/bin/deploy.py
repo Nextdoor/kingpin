@@ -174,8 +174,15 @@ def main():
 
         sys.exit(0)
 
+    skip_dry = False
+    try:
+        skip_dry = utils.str2bool(os.environ.get("SKIP_DRY", "False"), strict=True)
+    except ValueError:
+        log.warning("SKIP_DRY is not a valid boolean-like. Defaulting to False.")
+        pass
+
     # Begin doing real stuff!
-    if os.environ.get("SKIP_DRY", False):
+    if skip_dry:
         log.warning("")
         log.warning("*** You have disabled the dry run.")
         log.warning("*** Execution will begin with no expectation of success.")

@@ -116,10 +116,10 @@ class BaseActor(object):
         Args:
             desc: (Str) description of the action being executed.
             options: (Dict) Key/Value pairs that have the options
-                     for this action. Values should be primitives.
+                for this action. Values should be primitives.
             dry: (Bool) or not this Actor will actually make changes.
             warn_on_failure: (Bool) Whether this actor ignores its return
-                             value and always succeeds (but warns).
+                value and always succeeds (but warns).
             condition: (Bool) Whether to run this actor.
             init_context: (Dict) Key/Value pairs used at instantiation
                 time to replace {KEY} strings in the actor definition.
@@ -250,9 +250,9 @@ class BaseActor(object):
             # failure get caught below.
             if expected_type is bool:
                 try:
-                    value = self.str2bool(value, strict=True)
+                    value = utils.str2bool(value, strict=True)
                     self._options[opt] = value
-                except exceptions.InvalidOptions as e:
+                except RuntimeError as e:
                     self.log.warning(e)
 
             if not (value is None or isinstance(value, expected_type)):
@@ -350,29 +350,6 @@ class BaseActor(object):
 
         raise gen.Return(ret)
 
-    def str2bool(self, v, strict=False):
-        """Returns a Boolean from a variety of inputs.
-
-        Args:
-            value: String/Bool
-            strict: Whether or not to _only_ convert the known words into booleans, or whether to allow "any" word to be considered True other than the known False words.
-
-        Returns:
-            A boolean
-        """
-        false = ("no", "false", "f", "0")
-        true = ("yes", "true", "t", "1")
-
-        string = str(v).lower()
-
-        if strict:
-            if string not in true and string not in false:
-                raise exceptions.InvalidOptions(
-                    "Expected [%s, %s] but got: %s" % (true, false, string)
-                )
-
-        return string not in false
-
     def _check_condition(self):
         """Check if specified condition allows this actor to run.
 
@@ -381,8 +358,11 @@ class BaseActor(object):
         the value of self._condition is a string "False" or string "0".
         """
 
-        check = self.str2bool(self._condition)
-        self.log.debug("Condition %s evaluates to %s" % (self._condition, check))
+        try:
+            check = utils.str2bool(self._condition)
+            self.log.debug("Condition %s evaluates to %s" % (self._condition, check))
+        except ValueError as e:
+            raise exceptions.InvalidOptions(e.args) from e
         return check
 
     def _fill_in_contexts(self, context={}, strict=True, remove_escape_sequence=True):
@@ -395,7 +375,7 @@ class BaseActor(object):
 
         Args:
             strict: bool whether or not to allow missing context keys to be
-                    skipped over.
+                skipped over.
 
         Raises:
             exceptions.InvalidOptions
@@ -460,10 +440,10 @@ class BaseActor(object):
         actors that are called.
 
         orgchart object:
-          id: unique string identifying this actor's instance.
-          class: kingpin class name
-          desc: actor description
-          parent_id: organizational relationship. Same as `id` above.
+            id: unique string identifying this actor's instance.
+            class: kingpin class name
+            desc: actor description
+            parent_id: organizational relationship. Same as `id` above.
         """
 
         return [
