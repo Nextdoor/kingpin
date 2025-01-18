@@ -1,0 +1,9 @@
+name: release-drafter
+on:
+  push:
+    branches:
+      - main
+jobs:
+  drafter:
+    uses: Nextdoor/.github/.github/workflows/release-drafter.yml@main
+    secrets: inherit
