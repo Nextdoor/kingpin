@@ -178,7 +178,7 @@ def main():
         # Lets maybe do a dry run first anyways...
         skip_dry = False
         try:
-            skip_dry = utils.str2bool(os.environ.get("SKIP_DRY", "False"), strict=True)
+            skip_dry = utils.str2bool(os.getenv("SKIP_DRY", "False"), strict=True)
         except ValueError:
             log.warning("SKIP_DRY is not a valid boolean-like. Defaulting to False.")
             pass

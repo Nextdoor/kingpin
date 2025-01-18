@@ -253,7 +253,7 @@ class BaseActor(object):
                     value = utils.str2bool(value, strict=True)
                     self._options[opt] = value
                 except ValueError as e:
-                    self.log.warning(e)
+                    self.log.warning(exceptions.InvalidOptions(e.args))
 
             if not (value is None or isinstance(value, expected_type)):
                 message = 'Option "%s" has to be %s and is %s.' % (
