@@ -174,32 +174,35 @@ def main():
 
         sys.exit(0)
 
-    skip_dry = False
-    try:
-        skip_dry = utils.str2bool(os.environ.get("SKIP_DRY", "False"), strict=True)
-    except ValueError:
-        log.warning("SKIP_DRY is not a valid boolean-like. Defaulting to False.")
-        pass
+    if not args.dry:
+        # Lets maybe do a dry run first anyways...
+        skip_dry = False
+        try:
+            skip_dry = utils.str2bool(os.environ.get("SKIP_DRY", "False"), strict=True)
+        except ValueError:
+            log.warning("SKIP_DRY is not a valid boolean-like. Defaulting to False.")
+            pass
+
+        if skip_dry:
+            # Okay, the user really does not want to do a dry run... fine
+            log.warning("")
+            log.warning("*** You have disabled the pre-check dry run.")
+            log.warning("*** Execution will begin with no expectation of success.")
+            log.warning("")
+        else:
+            log.info("Rehearsing... Break a leg!")
+
+            try:
+                dry_actor = get_main_actor(dry=True)
+                yield dry_actor.execute()
+            except actor_exceptions.ActorException as e:
+                log.critical("Dry run failed. Reason:")
+                log.critical(e)
+                sys.exit(2)
+
+            log.info("Rehearsal OK! Performing!")
 
     # Begin doing real stuff!
-    if skip_dry:
-        log.warning("")
-        log.warning("*** You have disabled the dry run.")
-        log.warning("*** Execution will begin with no expectation of success.")
-        log.warning("")
-    elif not args.dry:
-        log.info("Rehearsing... Break a leg!")
-
-        try:
-            dry_actor = get_main_actor(dry=True)
-            yield dry_actor.execute()
-        except actor_exceptions.ActorException as e:
-            log.critical("Dry run failed. Reason:")
-            log.critical(e)
-            sys.exit(2)
-
-        log.info("Rehearsal OK! Performing!")
-
     try:
         runner = get_main_actor(dry=args.dry)
 
