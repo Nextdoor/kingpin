@@ -12,15 +12,11 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.x'
-    - name: Run make venv
-      run: make venv
+    - run: make venv
       shell: bash
-    - name: Run make lint
-      run: make lint
+    - run: make lint
       shell: bash
-    - name: Run make test
-      run: make test
+    - run: make test
       shell: bash
-    - name: Run make build
-      run: make build
+    - run: make build
       shell: bash
