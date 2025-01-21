@@ -1,9 +1,21 @@
-name: release-drafter
+name: Release Drafter
 on:
   push:
     branches:
       - main
+  pull_request:
+    types: [opened, reopened, synchronize]
+permissions:
+  contents: read
 jobs:
-  drafter:
-    uses: Nextdoor/.github/.github/workflows/release-drafter.yml@main
-    secrets: inherit
+  update_release_draft:
+    permissions:
+      contents: write
+      pull-requests: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: release-drafter/release-drafter@v6
+        with:
+          disable-autolabeler: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
