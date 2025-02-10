@@ -516,9 +516,18 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         if not exists:
             raise StackNotFound("Stack does not exist!")
 
+        role_arn = None
+
+        if self.option("role_arn"):
+            role_arn = self.option("role_arn")
+        elif KINGPIN_CFN_DEFAULT_ROLE_ARN:
+            role_arn = KINGPIN_CFN_DEFAULT_ROLE_ARN
+
         self.log.info("Deleting stack")
         try:
-            ret = yield self.api_call(self.cfn_conn.delete_stack, StackName=stack)
+            ret = yield self.api_call(
+                self.cfn_conn.delete_stack, StackName=stack, RoleARN=role_arn
+            )
         except ClientError as e:
             raise CloudFormationError(str(e))
 
