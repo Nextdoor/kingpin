@@ -2,12 +2,8 @@
 tornado>=6.0.4
 
 # Used to parse out the JSON and validate its format.
-simplejson
 jsonschema
 jsonpickle
-
-# Used to parse CFN yaml, which has a few edge cases PyYaml doesn't parse by default
-cfn-flip
 
 # Colorize the log output!
 rainbow_logging_handler
