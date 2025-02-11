@@ -5,6 +5,9 @@ tornado==6.4.2
 jsonschema==4.23.0
 jsonpickle==4.0.1
 
+# Used to parse CFN yaml, which has a few edge cases PyYaml doesn't parse by default
+cfn-flip==1.3.0
+
 # Colorize the log output!
 rainbow_logging_handler==2.2.2
 
