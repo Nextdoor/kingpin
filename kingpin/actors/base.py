@@ -358,11 +358,8 @@ class BaseActor(object):
         the value of self._condition is a string "False" or string "0".
         """
 
-        try:
-            check = utils.str2bool(self._condition)
-            self.log.debug("Condition %s evaluates to %s" % (self._condition, check))
-        except ValueError as e:
-            raise exceptions.InvalidOptions(e.args) from e
+        check = utils.str2bool(self._condition)
+        self.log.debug("Condition %s evaluates to %s" % (self._condition, check))
         return check
 
     def _fill_in_contexts(self, context={}, strict=True, remove_escape_sequence=True):
