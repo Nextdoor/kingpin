@@ -81,77 +81,77 @@ class TestIAMBaseActor(testing.AsyncTestCase):
         ret = yield self.actor._get_entity_policies("test")
         self.assertEqual(ret, {})
 
-    # @testing.gen_test
-    # def test_get_entities_other_500(self):
-    #     self.iam_stubber.add_client_error("list_user_policies", "400", "NoSuchEntity")
-    #     self.iam_stubber = Stubber(self.actor.iam_conn)
-    #     self.iam_stubber.add_response(
-    #         # API Call
-    #         "list_user_policies",
-    #         # Response
-    #         {"PolicyNames": ["test1", "test2", "test3"]},
-    #         # Call Params
-    #         {"UserName": "test"},
-    #     )
-    #
-    #     self.iam_stubber.add_client_error("get_user_policy", "500", "SomeError")
-    #     self.iam_stubber.activate()
-    #     with self.assertRaises(exceptions.RecoverableActorFailure):
-    #         yield self.actor._get_entity_policies("test")
+    @testing.gen_test
+    def test_get_entities_other_500(self):
+        self.iam_stubber.add_client_error("list_user_policies", "400", "NoSuchEntity")
+        self.iam_stubber = Stubber(self.actor.iam_conn)
+        self.iam_stubber.add_response(
+            # API Call
+            "list_user_policies",
+            # Response
+            {"PolicyNames": ["test1", "test2", "test3"]},
+            # Call Params
+            {"UserName": "test"},
+        )
 
-    # @testing.gen_test
-    # def test_get_entity_policies(self):
-    #     policy_str = "".join(
-    #         [
-    #             "%7B%22Version%22%3A%20%222012-10-17%22%2C%20",
-    #             "%22Statement%22%3A%20%5B%7B%22Action%22%3A%20%5B",
-    #             "%22s3%3ACreate%2A%22%2C%20%22s3%3AGet%2A%22%2C%20",
-    #             "%22s3%3APut%2A%22%2C%20%22s3%3AList%2A%22%5D%2C%20",
-    #             "%22Resource%22%3A%20%5B",
-    #             "%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%2F%2A%22%2C%20",
-    #             "%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%22%5D%2C%20",
-    #             "%22Effect%22%3A%20%22Allow%22%7D%5D%7D",
-    #         ]
-    #     )
-    #     policy_dict = {
-    #         "Version": "2012-10-17",
-    #         "Statement": [
-    #             {
-    #                 "Action": ["s3:Create*", "s3:Get*", "s3:Put*", "s3:List*"],
-    #                 "Resource": ["arn:aws:s3:::kingpin*/*", "arn:aws:s3:::kingpin*"],
-    #                 "Effect": "Allow",
-    #             }
-    #         ],
-    #     }
-    #
-    #     # Return a list of entity policy names...
-    #     fake_pols = ["test1", "test2", "test3"]
-    #     self.iam_stubber.add_response(
-    #         # API Call
-    #         "list_user_policies",
-    #         # Response
-    #         {"PolicyNames": fake_pols},
-    #         # Call Params
-    #         {"UserName": "test"},
-    #     )
-    #
-    #     for pol in fake_pols:
-    #         self.iam_stubber.add_response(
-    #             # API Call
-    #             "get_user_policy",
-    #             # Response
-    #             {"UserName": "test", "PolicyName": pol, "PolicyDocument": policy_str},
-    #             # Call Params
-    #             {"UserName": "test", "PolicyName": pol},
-    #         )
-    #
-    #     # Finally, make the call and see if we get all the policies
-    #     self.iam_stubber.activate()
-    #     ret = yield self.actor._get_entity_policies("test")
-    #     self.assertEqual(len(ret), 3)
-    #     self.assertEqual(ret["test1"], policy_dict)
-    #     self.assertEqual(ret["test2"], policy_dict)
-    #     self.assertEqual(ret["test3"], policy_dict)
+        self.iam_stubber.add_client_error("get_user_policy", "500", "SomeError")
+        self.iam_stubber.activate()
+        with self.assertRaises(exceptions.RecoverableActorFailure):
+            yield self.actor._get_entity_policies("test")
+
+    @testing.gen_test
+    def test_get_entity_policies(self):
+        policy_str = "".join(
+            [
+                "%7B%22Version%22%3A%20%222012-10-17%22%2C%20",
+                "%22Statement%22%3A%20%5B%7B%22Action%22%3A%20%5B",
+                "%22s3%3ACreate%2A%22%2C%20%22s3%3AGet%2A%22%2C%20",
+                "%22s3%3APut%2A%22%2C%20%22s3%3AList%2A%22%5D%2C%20",
+                "%22Resource%22%3A%20%5B",
+                "%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%2F%2A%22%2C%20",
+                "%22arn%3Aaws%3As3%3A%3A%3Akingpin%2A%22%5D%2C%20",
+                "%22Effect%22%3A%20%22Allow%22%7D%5D%7D",
+            ]
+        )
+        policy_dict = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Action": ["s3:Create*", "s3:Get*", "s3:Put*", "s3:List*"],
+                    "Resource": ["arn:aws:s3:::kingpin*/*", "arn:aws:s3:::kingpin*"],
+                    "Effect": "Allow",
+                }
+            ],
+        }
+
+        # Return a list of entity policy names...
+        fake_pols = ["test1", "test2", "test3"]
+        self.iam_stubber.add_response(
+            # API Call
+            "list_user_policies",
+            # Response
+            {"PolicyNames": fake_pols},
+            # Call Params
+            {"UserName": "test"},
+        )
+
+        for pol in fake_pols:
+            self.iam_stubber.add_response(
+                # API Call
+                "get_user_policy",
+                # Response
+                {"UserName": "test", "PolicyName": pol, "PolicyDocument": policy_str},
+                # Call Params
+                {"UserName": "test", "PolicyName": pol},
+            )
+
+        # Finally, make the call and see if we get all the policies
+        self.iam_stubber.activate()
+        ret = yield self.actor._get_entity_policies("test")
+        self.assertEqual(len(ret), 3)
+        self.assertEqual(ret["test1"], policy_dict)
+        self.assertEqual(ret["test2"], policy_dict)
+        self.assertEqual(ret["test3"], policy_dict)
 
     @testing.gen_test
     def test_parse_inline_policies(self):
