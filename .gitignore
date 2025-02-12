@@ -13,3 +13,4 @@ dist/
 version.rst
 MANIFEST
 .pytest_cache
+__pycache__
