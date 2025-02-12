@@ -733,6 +733,66 @@ class TestDelete(testing.AsyncTestCase):
         with self.assertRaises(cloudformation.StackNotFound):
             yield actor._execute()
 
+    @testing.gen_test
+    def test_delete_stack_file_with_role(self):
+        stack = "examples/test/aws.cloudformation/cfn.integration.json"
+        actor = cloudformation.Delete(
+            "Unit Test Action",
+            {
+                "name": "unit-test-cfn",
+                "region": "us-west-2",
+                "role_arn": "test_role_arn",
+                "template": stack,
+            },
+        )
+        actor.cfn_conn.describe_stacks = mock.MagicMock(name="describe_stacks_mock")
+        actor.cfn_conn.describe_stacks.return_value = {
+            "Stacks": [{"StackId": "arn:123"}]
+        }
+        actor.cfn_conn.delete_stack = mock.MagicMock(name="delete_stack_mock")
+        actor.cfn_conn.delete_stack.return_value = {
+            "ResponseMetadata": {"RequestId": "1234"}
+        }
+        actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
+        actor._wait_until_state.side_effect = [tornado_value(None)]
+
+        yield actor._delete_stack(stack="test")
+        actor.cfn_conn.delete_stack.assert_called_with(
+            RoleARN="test_role_arn",
+            StackName="test",
+        )
+
+    @testing.gen_test
+    def test_delete_stack_file_with_default_role(self):
+        settings.KINGPIN_CFN_DEFAULT_ROLE_ARN = "test-default-role-arn"
+        importlib.reload(cloudformation)
+
+        stack = "examples/test/aws.cloudformation/cfn.integration.json"
+        actor = cloudformation.Delete(
+            "Unit Test Action",
+            {
+                "name": "unit-test-cfn",
+                "region": "us-west-2",
+                "template": stack,
+            },
+        )
+        actor.cfn_conn.describe_stacks = mock.MagicMock(name="describe_stacks_mock")
+        actor.cfn_conn.describe_stacks.return_value = {
+            "Stacks": [{"StackId": "arn:123"}]
+        }
+        actor.cfn_conn.delete_stack = mock.MagicMock(name="delete_stack_mock")
+        actor.cfn_conn.delete_stack.return_value = {
+            "ResponseMetadata": {"RequestId": "1234"}
+        }
+        actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
+        actor._wait_until_state.side_effect = [tornado_value(None)]
+
+        yield actor._delete_stack(stack="test")
+        actor.cfn_conn.delete_stack.assert_called_with(
+            RoleARN="test-default-role-arn",
+            StackName="test",
+        )
+
 
 class TestStack(testing.AsyncTestCase):
     def setUp(self):

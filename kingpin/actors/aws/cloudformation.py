@@ -15,9 +15,7 @@ from typing import Optional
 
 import boto3
 from botocore.exceptions import ClientError
-from tornado import concurrent
-from tornado import gen
-from tornado import ioloop
+from tornado import concurrent, gen, ioloop
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -780,6 +778,11 @@ class Delete(CloudFormationBaseActor):
     all_options = {
         "name": (str, REQUIRED, "Name of the stack"),
         "region": (str, REQUIRED, "AWS region (or zone) name, like us-west-2"),
+        "role_arn": (
+            str,
+            None,
+            "The Amazon IAM Role to use when executing the stack. You can also set the KINGPIN_CFN_ROLE_ARN env var if you are managing many stacks.",
+        ),
     }
 
     desc = "Deleting CloudFormation Stack {name}"
