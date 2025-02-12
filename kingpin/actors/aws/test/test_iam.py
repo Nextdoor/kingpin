@@ -74,8 +74,6 @@ class TestIAMBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_get_entity_policies_400(self):
-        # Next, what if the entity doesn't exist at all?
-        self.iam_stubber = Stubber(self.actor.iam_conn)
         self.iam_stubber.add_client_error("list_user_policies", "400", "NoSuchEntity")
         self.iam_stubber.activate()
         ret = yield self.actor._get_entity_policies("test")
@@ -83,17 +81,16 @@ class TestIAMBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_get_entities_other_500(self):
-        self.iam_stubber.add_client_error("list_user_policies", "400", "NoSuchEntity")
-        self.iam_stubber = Stubber(self.actor.iam_conn)
         self.iam_stubber.add_response(
             # API Call
             "list_user_policies",
             # Response
-            {"PolicyNames": ["test1", "test2", "test3"]},
+            # Use one policy here so we do not have to deal with extra calls
+            # and multiple Stubber responses.
+            {"PolicyNames": ["test1"]},
             # Call Params
             {"UserName": "test"},
         )
-
         self.iam_stubber.add_client_error("get_user_policy", "500", "SomeError")
         self.iam_stubber.activate()
         with self.assertRaises(exceptions.RecoverableActorFailure):
@@ -142,7 +139,11 @@ class TestIAMBaseActor(testing.AsyncTestCase):
                 # Response
                 {"UserName": "test", "PolicyName": pol, "PolicyDocument": policy_str},
                 # Call Params
-                {"UserName": "test", "PolicyName": pol},
+                # Disable expected parameters because calls to
+                # api_call(self.get_entity_policy, [...]) can come in out of order but boto3 Subber
+                # expects them to be in order if you use this parameter. We do our own checks below
+                # to ensure we have all the data we expected.
+                # {"UserName": "test", "PolicyName": pol},
             )
 
         # Finally, make the call and see if we get all the policies
