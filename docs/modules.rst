@@ -23,15 +23,7 @@ Full Module Docs
    :members:
 .. automodule:: kingpin.actors.misc
    :members:
-.. automodule:: kingpin.actors.packagecloud
-   :members:
-.. automodule:: kingpin.actors.pingdom
-   :members:
 .. automodule:: kingpin.actors.rollbar
-   :members:
-.. automodule:: kingpin.actors.slack
-   :members:
-.. automodule:: kingpin.actors.spotinst
    :members:
 .. automodule:: kingpin.actors.utils
    :members:
