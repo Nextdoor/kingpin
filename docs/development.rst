@@ -68,10 +68,7 @@ suites. See below for the list.
 * librato
 * http
 * hipchat
-* pingdom
 * rollbar
-* pingdom
-* slack
 
 
 Class/Object Architecture
