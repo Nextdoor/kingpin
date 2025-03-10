@@ -17,4 +17,4 @@ boto3==1.37.4
 # Used to turn snake_case into CamelCase
 inflection==0.5.1
 zipp==3.21.0
-configparser==7.1.0
+configparser==7.2.0
