@@ -26,7 +26,7 @@ jobs:
 
       # Check out the repo so that we can dynamically discover the available charts in the repo.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       # Verify the PR title against the "types" and "scopes" we allow.
       #
       # https://github.com/amannn/action-semantic-pull-request#configuration
