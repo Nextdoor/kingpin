@@ -30,7 +30,7 @@ jobs:
       # Verify the PR title against the "types" and "scopes" we allow.
       #
       # https://github.com/amannn/action-semantic-pull-request#configuration
-      - uses: amannn/action-semantic-pull-request@v6.0.1
+      - uses: amannn/action-semantic-pull-request@v6.1.1
         id: lint_pr_title
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
