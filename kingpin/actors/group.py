@@ -9,7 +9,6 @@ or asynchronous stages.
 import logging
 
 from tornado import gen
-import json
 
 from kingpin import utils as kp_utils
 from kingpin.actors import base
@@ -36,7 +35,7 @@ class BaseGroupActor(base.BaseActor):
     default_timeout = None
 
     all_options = {
-        "contexts": ((dict, str, list), [], "List of contextual hashes."),
+        "contexts": ((str, list), [], "List of contextual hashes."),
         "acts": (list, REQUIRED, "Array of actor definitions."),
     }
 
@@ -72,19 +71,6 @@ class BaseGroupActor(base.BaseActor):
           info.
         """
         super(BaseGroupActor, self).__init__(*args, **kwargs)
-
-        # DEPRECATE IN v0.5.0
-        if type(self.option("contexts")) == dict:
-            try:
-                filename = self.option("contexts").get("file", "")
-                open(filename)
-            except IOError as e:
-                self.log.error(
-                    "Option `contexts` must have valid `file`. "
-                    "Received: %s" % filename
-                )
-                raise exceptions.InvalidOptions(e)
-        # END DEPRECATION
 
         # Pre-initialize all of our actions!
         self._actions = self._build_actions()
@@ -124,15 +110,6 @@ class BaseGroupActor(base.BaseActor):
         # as is and do nothing to it.
         if type(contexts) == list:
             context_data = self.option("contexts")
-        # DEPRECATE IN v0.5.0
-        elif type(contexts) == dict:
-            context_string = open(contexts["file"]).read()
-            context_string = kp_utils.populate_with_tokens(
-                string=context_string, tokens=contexts.get("tokens", {}), strict=True
-            )
-            context_data = json.loads(context_string)
-        # END DEPRECATION
-
         # If the data passed in is a string, it must be a pointer to a file
         # with contexts in it. We read that file, and we parse it for any
         # missing tokens. We use the "init tokens" that made it into this actor
@@ -229,12 +206,7 @@ class Sync(BaseGroupActor):
             then every actor defined in ``acts`` will be instantiated once for
             each item in the ``contexts`` list.
         * A string that points to a file with a list of contexts, just like the
-            above dictionary.
-        * (_Deprecation warning, this is going away in v0.4.0. Use the 'str'
-            method above!_) A dictionary of ``file`` and ``tokens``. The file
-            should be a relative path with data formatted same as stated above.
-            The tokens need to be the same format as a Macro actor: a dictionary
-            passing token data to be used.
+            above dictionary format.
 
 
     **Timeouts**
@@ -379,10 +351,8 @@ class Async(BaseGroupActor):
             actors at instantiation time. If the list has more than one element,
             then every actor defined in ``acts`` will be instantiated once for
             each item in the ``contexts`` list.
-        * A dictionary of ``file`` and ``tokens``. The file should be a relative
-            path with data formatted same as stated above. The tokens need to be
-            the same format as a Macro actor: a dictionary passing token data to
-            be used.
+        * A string that points to a file with a list of contexts, just like the
+            above dictionary format.
 
     **Timeouts**
 
@@ -434,7 +404,7 @@ class Async(BaseGroupActor):
 
     all_options = {
         "concurrency": (int, 0, "Max number of concurrent executions."),
-        "contexts": ((dict, str, list), [], "List of contextual hashes."),
+        "contexts": ((str, list), [], "List of contextual hashes."),
         "acts": (list, REQUIRED, "Array of actor definitions."),
     }
 

@@ -104,40 +104,6 @@ class TestBaseGroupActor(TestGroupActorBaseClass):
         ret = actor._build_actions()
         self.assertEqual(4, len(ret))
 
-    def test_build_actions_with_bad_context_file(self):
-        with self.assertRaises(exceptions.InvalidOptions):
-            group.BaseGroupActor(
-                "bad context",
-                {"acts": [], "contexts": {"file": "no_such_file", "tokens": {}}},
-            )
-
-    def test_build_actions_with_context_file(self):
-        acts = [dict(self.actor_returns)]
-
-        with mock.patch.object(
-            group.BaseGroupActor, "_build_action_group"
-        ) as action_builder:
-            action_builder.return_value = acts
-            group.BaseGroupActor(
-                "ContextFile Actor",
-                {
-                    "acts": acts,
-                    "contexts": {
-                        "file": "examples/test/context.json",
-                        "tokens": {"TOKEN_VALUE": "tadaa"},
-                    },
-                },
-                init_context={"init": "stuff"},
-            )
-
-        self.assertEqual(2, len(action_builder.mock_calls))
-        action_builder.assert_has_calls(
-            [
-                mock.call(context={"init": "stuff", "key": "value1"}),
-                mock.call(context={"init": "stuff", "key": "tadaa"}),
-            ]
-        )
-
     def test_build_actions_with_context_file_str(self):
         acts = [dict(self.actor_returns)]
 
