@@ -16,8 +16,16 @@
   ],
   "packageRules": [
     {
-      "matchUpdateTypes": [ "patch", "minor" ],
+      "matchUpdateTypes": ["patch", "minor"],
       "automerge": true
+    },
+    {
+      "matchPackageNames": ["boto3"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "boto3 patch updates",
+      "schedule": ["before 5am on monday"],
+      "prConcurrentLimit": 1,
+      "automerge": false
     }
   ]
 }
