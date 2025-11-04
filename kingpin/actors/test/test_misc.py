@@ -31,7 +31,7 @@ class TestMacro(testing.AsyncTestCase):
         misc.Macro._check_macro = mock.Mock()
         misc.Macro._get_macro = mock.Mock(return_value="unit-test-macro")
 
-        with mock.patch("kingpin.utils.convert_script_to_dict") as j2d, mock.patch(
+        with mock.patch("kingpin.utils.load_json_with_tokens") as j2d, mock.patch(
             "kingpin.schema.validate"
         ) as schema_validate, mock.patch("kingpin.actors.utils.get_actor") as get_actor:
 
@@ -45,7 +45,7 @@ class TestMacro(testing.AsyncTestCase):
                 "Unit Test", {"macro": "test.json", "tokens": {}}, init_tokens={}
             )
 
-            j2d.assert_called_with(script_file="unit-test-macro", tokens={})
+            j2d.assert_called_with(file_path="unit-test-macro", tokens={})
             self.assertEqual(schema_validate.call_count, 1)
             self.assertEqual(actor.initial_actor, get_actor())
 
@@ -92,7 +92,7 @@ class TestMacro(testing.AsyncTestCase):
         misc.Macro._check_macro = mock.Mock()
         misc.Macro._get_macro = mock.Mock(return_value="unit-test-macro")
 
-        with mock.patch("kingpin.utils.convert_script_to_dict") as j2d, mock.patch(
+        with mock.patch("kingpin.utils.load_json_with_tokens") as j2d, mock.patch(
             "kingpin.schema.validate"
         ) as schema_validate, mock.patch("kingpin.actors.group.Sync") as sync_actor:
 
@@ -102,7 +102,7 @@ class TestMacro(testing.AsyncTestCase):
 
             actor = misc.Macro("Unit Test", {"macro": "test.json"})
 
-            j2d.assert_called_with(script_file="unit-test-macro", tokens={})
+            j2d.assert_called_with(file_path="unit-test-macro", tokens={})
             self.assertEqual(schema_validate.call_count, 1)
             self.assertEqual(actor.initial_actor, sync_actor())
 
@@ -121,7 +121,7 @@ class TestMacro(testing.AsyncTestCase):
         misc.Macro._get_config_from_script.return_value = {}
         misc.Macro._check_schema = mock.Mock()
 
-        with mock.patch("kingpin.utils.convert_script_to_dict") as j2d, mock.patch(
+        with mock.patch("kingpin.utils.load_json_with_tokens") as j2d, mock.patch(
             "kingpin.schema.validate"
         ), mock.patch("kingpin.actors.utils.get_actor"):
             j2d.return_value = {
@@ -156,7 +156,7 @@ class TestMacro(testing.AsyncTestCase):
         misc.Macro._get_macro = mock.Mock(return_value="unit-test-file")
 
         # Schema failure
-        with mock.patch("kingpin.utils.convert_script_to_dict") as j2d:
+        with mock.patch("kingpin.utils.load_json_with_tokens") as j2d:
             j2d.return_value = {
                 "desc": "unit test",
                 "options": {},  # `actor` keyword is missing
@@ -166,7 +166,7 @@ class TestMacro(testing.AsyncTestCase):
                 misc.Macro("Unit Test", {"macro": "test.json", "tokens": {}})
 
         # JSON syntax error
-        with mock.patch("kingpin.utils.convert_script_to_dict") as j2d:
+        with mock.patch("kingpin.utils.load_json_with_tokens") as j2d:
 
             j2d.side_effect = kingpin_exceptions.InvalidScript("Fail!")
 

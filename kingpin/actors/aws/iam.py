@@ -148,7 +148,7 @@ class IAMBaseActor(base.AWSBaseActor):
         # not corrupt very early on.
         for policy in policies:
             p_name = self._generate_policy_name(policy)
-            self.inline_policies[p_name] = self._parse_policy_json(policy)
+            self.inline_policies[p_name] = self._parse_json(policy)
 
             self.log.debug(
                 "Parsed policy %s: %s" % (p_name, self.inline_policies[p_name])
@@ -915,7 +915,7 @@ class Role(IAMBaseActor):
             ],
         }
         if self.option("assume_role_policy_document") is not None:
-            self.assume_role_policy_doc = self._parse_policy_json(
+            self.assume_role_policy_doc = self._parse_json(
                 self.option("assume_role_policy_document")
             )
 

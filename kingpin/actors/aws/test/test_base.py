@@ -74,19 +74,19 @@ class TestBase(testing.AsyncTestCase):
             yield actor.api_call(actor.iam_conn.list_roles)
 
     @testing.gen_test
-    def test_parse_policy_json(self):
+    def test_parse_json(self):
         actor = base.AWSBaseActor("Unit Test Action", {})
 
         # Should work fine by default with good data
-        ret = actor._parse_policy_json("examples/aws.iam.user/s3_example.json")
+        ret = actor._parse_json("examples/aws.iam.user/s3_example.json")
         self.assertEqual(ret["Version"], "2012-10-17")
 
         # If the file doesn't exist, raise an exception
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
-            actor._parse_policy_json("junk")
+            actor._parse_json("junk")
 
     @testing.gen_test
-    def test_parse_policy_json_none(self):
+    def test_parse_json_none(self):
         actor = base.AWSBaseActor("Unit Test Action", {})
-        ret = actor._parse_policy_json(None)
+        ret = actor._parse_json(None)
         self.assertEqual(ret, None)

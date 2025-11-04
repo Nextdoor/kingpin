@@ -345,33 +345,35 @@ def populate_with_tokens(
     return string
 
 
-def convert_script_to_dict(script_file, tokens):
-    """Converts a JSON file to a config dict.
+def load_json_with_tokens(file_path, tokens):
+    """Converts a JSON/YAML file to a Python object.
 
-    Reads in a JSON file, swaps out any environment variables that
-    have been used inside the JSON, and then returns a dictionary.
+    Reads in a JSON/YAML file, swaps out any environment variables that
+    have been used inside the file, and then returns the parsed object
+    (dict, list, or other JSON-compatible type).
 
     Args:
-        script_file: Path to the JSON/YAML file to import, or file instance.
+        file_path: Path to the JSON/YAML file to import, or file instance.
         tokens: dictionary to pass to populate_with_tokens.
 
     Returns:
-        <Dictonary of Config Data>
+        Parsed object (dict, list, or other JSON-compatible type)
 
     Raises:
         kingpin.exceptions.InvalidScript
+        kingpin.exceptions.InvalidScriptName
     """
 
     filename = ""
     try:
-        if isinstance(script_file, IOBase):
-            filename = script_file.name
-            instance = script_file
+        if isinstance(file_path, IOBase):
+            filename = file_path.name
+            instance = file_path
         else:
-            filename = script_file
-            instance = io.open(script_file)
+            filename = file_path
+            instance = io.open(file_path)
     except IOError as e:
-        raise exceptions.InvalidScript("Error reading script %s: %s" % (script_file, e))
+        raise exceptions.InvalidScript("Error reading script %s: %s" % (file_path, e))
 
     log.debug("Reading %s" % filename)
     raw = instance.read()
