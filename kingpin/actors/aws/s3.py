@@ -607,7 +607,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         # anything else, we parse it.
         self.policy = self.option("policy")
         if self.option("policy"):
-            self.policy = self._parse_policy_json(self.option("policy"))
+            self.policy = self._parse_json(self.option("policy"))
 
         # If the Lifecycle config is anything but None, we parse it and
         # pre-build all of our Lifecycle/Rule/Expiration/Transition objects.

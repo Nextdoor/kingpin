@@ -171,33 +171,34 @@ class AWSBaseActor(base.BaseActor):
             return exceptions.RecoverableActorFailure("Boto3 had a failure: %s" % e)
         return e
 
-    def _parse_policy_json(self, policy):
-        """Parse a single JSON file into an Amazon policy.
+    def _parse_json(self, file_path):
+        """Parse a single JSON file.
 
-        Validates that the policy document can be parsed, strips out any
+        Validates that the JSON document can be parsed, strips out any
         comments, and fills in any environmental tokens. Returns a dictionary of
         the contents.
 
         Args:
-            policy: The Policy JSON file to read.
+            file_path: The JSON file to read.
 
         Returns:
-            A dictionary of the parsed policy. None if the input is None.
+            A dictionary of the parsed JSON. None if the input is None.
         """
-        if policy is None:
+        if file_path is None:
             return None
 
-        # Run through any supplied Inline IAM Policies and verify that they're
+        # Run through any supplied JSON files and verify that they're
         # not corrupt very early on.
-        self.log.debug("Parsing and validating %s" % policy)
+        self.log.debug("Parsing and validating %s" % file_path)
 
         try:
-            p_doc = utils.convert_script_to_dict(
-                script_file=policy, tokens=self._init_tokens
+            p_doc = utils.load_json_with_tokens(
+                file_path=file_path, tokens=self._init_tokens
             )
+            assert isinstance(p_doc, dict), f"Expected dict but got {type(p_doc)}"
         except kingpin_exceptions.InvalidScript as e:
             raise exceptions.UnrecoverableActorFailure(
-                "Error parsing %s: %s" % (policy, e)
+                "Error parsing %s: %s" % (file_path, e)
             )
 
         return p_doc
