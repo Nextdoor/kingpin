@@ -140,7 +140,9 @@ class BaseGroupActor(base.BaseActor):
         elif isinstance(contexts, str):
             context_data = kp_utils.load_json_with_tokens(contexts, self._init_tokens)
             # We expect the type here to be List[Dict[str,Union[str,int,bool,float,...]]]
-            assert isinstance(context_data, list), f"Expected list but got {type(context_data)}"
+            assert isinstance(
+                context_data, list
+            ), f"Expected list but got {type(context_data)}"
 
         actions = []
         for context in context_data:

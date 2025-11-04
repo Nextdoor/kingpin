@@ -298,9 +298,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         else:
             # The template is provided inline.
             try:
-                ret_template = json.dumps(
-                    self._parse_json(template), cls=DateEncoder
-                )
+                ret_template = json.dumps(self._parse_json(template), cls=DateEncoder)
             except exceptions.UnrecoverableActorFailure as e:
                 raise InvalidTemplate(e)
 

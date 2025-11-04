@@ -238,7 +238,9 @@ class Macro(base.BaseActor):
                 file_path=script_file, tokens=self._init_tokens
             )
             # We expect the type here to be Dict[str,Union[...]] or List[Dict[str,Union[...]]]
-            assert isinstance(config, (dict, list)), f"Expected dict or list but got {type(config)}"
+            assert isinstance(
+                config, (dict, list)
+            ), f"Expected dict or list but got {type(config)}"
             return config
         except (kingpin_exceptions.InvalidScript, LookupError) as e:
             raise exceptions.UnrecoverableActorFailure(e)
