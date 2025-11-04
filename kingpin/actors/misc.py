@@ -216,17 +216,17 @@ class Macro(base.BaseActor):
         return instance
 
     def _get_config_from_script(self, script_file):
-        """Convert a script into a dict() with inserted ENV vars.
+        """Convert a script into a dict or list with inserted ENV vars.
 
-        Run the JSON dictionary through our environment parser and return
-        back a dictionary with all of the %XX% keys swapped out with
+        Run the JSON dictionary/list through our environment parser and return
+        back a dictionary or list with all of the %XX% keys swapped out with
         environment variables.
 
         Args:
             script_file: A path string to a file, or an open() file stream.
 
         Returns:
-            Dictionary adhering to our schema.
+            Dictionary or list adhering to our schema.
 
         Raises:
             UnrecoverableActorFailure -
@@ -234,9 +234,12 @@ class Macro(base.BaseActor):
         """
         self.log.debug("Parsing %s" % script_file)
         try:
-            return utils.convert_script_to_dict(
-                script_file=script_file, tokens=self._init_tokens
+            config = utils.load_json_with_tokens(
+                file_path=script_file, tokens=self._init_tokens
             )
+            # We expect the type here to be Dict[str,Union[...]] or List[Dict[str,Union[...]]]
+            assert isinstance(config, (dict, list)), f"Expected dict or list but got {type(config)}"
+            return config
         except (kingpin_exceptions.InvalidScript, LookupError) as e:
             raise exceptions.UnrecoverableActorFailure(e)
 

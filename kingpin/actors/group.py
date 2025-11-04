@@ -138,7 +138,9 @@ class BaseGroupActor(base.BaseActor):
         # missing tokens. We use the "init tokens" that made it into this actor
         # as available token substitutions.
         elif isinstance(contexts, str):
-            context_data = kp_utils.convert_script_to_dict(contexts, self._init_tokens)
+            context_data = kp_utils.load_json_with_tokens(contexts, self._init_tokens)
+            # We expect the type here to be List[Dict[str,Union[str,int,bool,float,...]]]
+            assert isinstance(context_data, list), f"Expected list but got {type(context_data)}"
 
         actions = []
         for context in context_data:

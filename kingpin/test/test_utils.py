@@ -118,12 +118,12 @@ class TestUtils(unittest.TestCase):
         )
         self.assertEqual(result, expect)
 
-    def test_convert_script_to_dict(self):
+    def test_load_json_with_tokens(self):
         # Should work with string path to a file
         dirname, filename = os.path.split(os.path.abspath(__file__))
         examples = "%s/../../examples" % dirname
         simple = "%s/simple.json" % examples
-        ret = utils.convert_script_to_dict(simple, {})
+        ret = utils.load_json_with_tokens(simple, {})
         self.assertIsInstance(ret, dict)
 
         # Should work with file instance also
@@ -131,7 +131,7 @@ class TestUtils(unittest.TestCase):
         examples = "%s/../../examples" % dirname
         simple = "%s/simple.json" % examples
         instance = open(simple)
-        ret = utils.convert_script_to_dict(instance, {})
+        ret = utils.load_json_with_tokens(instance, {})
         self.assertIsInstance(ret, dict)
 
         # Should definitly support YAML as well
@@ -139,7 +139,7 @@ class TestUtils(unittest.TestCase):
         examples = "%s/../../examples" % dirname
         simple = "%s/simple.yaml" % examples
         instance = open(simple)
-        ret = utils.convert_script_to_dict(instance, {})
+        ret = utils.load_json_with_tokens(instance, {})
         self.assertIsInstance(ret, dict)
 
         # Should definitly support YAML with anchors
@@ -147,32 +147,32 @@ class TestUtils(unittest.TestCase):
         examples = "%s/../../examples" % dirname
         simple = "%s/anchors.yaml" % examples
         instance = open(simple)
-        ret = utils.convert_script_to_dict(instance, {})
+        ret = utils.load_json_with_tokens(instance, {})
         self.assertIsInstance(ret, dict)
 
-    def test_convert_script_to_dict_bad_name(self):
+    def test_load_json_with_tokens_bad_name(self):
         instance = io.StringIO()  # Empty buffer will fail json
         instance.name = "Somefile.HAHA"
 
         with self.assertRaises(exceptions.InvalidScriptName):
-            utils.convert_script_to_dict(instance, {})
+            utils.load_json_with_tokens(instance, {})
 
-    def test_convert_script_to_dict_junk(self):
+    def test_load_json_with_tokens_junk(self):
         instance = io.StringIO()
         instance.name = "Somefile.json"
 
         with self.assertRaises(exceptions.InvalidScript):
-            utils.convert_script_to_dict(instance, {})
+            utils.load_json_with_tokens(instance, {})
 
         with self.assertRaises(exceptions.InvalidScript):
-            utils.convert_script_to_dict("junk data", {})
+            utils.load_json_with_tokens("junk data", {})
 
         instance = io.StringIO()
         instance.name = "Somefile.yaml"
         instance.write("---bad-yaml")
 
         with self.assertRaises(exceptions.InvalidScript):
-            utils.convert_script_to_dict(instance, {})
+            utils.load_json_with_tokens(instance, {})
 
     def test_exception_logger(self):
         patch = mock.patch.object(utils.logging, "getLogger")
