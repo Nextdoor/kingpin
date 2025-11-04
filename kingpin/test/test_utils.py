@@ -134,7 +134,7 @@ class TestUtils(unittest.TestCase):
         ret = utils.load_json_with_tokens(instance, {})
         self.assertIsInstance(ret, dict)
 
-        # Should definitly support YAML as well
+        # Should definitely support YAML as well
         dirname, filename = os.path.split(os.path.abspath(__file__))
         examples = "%s/../../examples" % dirname
         simple = "%s/simple.yaml" % examples
