@@ -1,5 +1,5 @@
 # http://tornado.readthedocs.org/en/latest/gen.html#tornado.gen.with_timeout
-tornado==6.5.2
+tornado==6.5.3
 
 # Used to parse out the JSON and validate its format.
 jsonschema>=3.0.0,<5.0.0
