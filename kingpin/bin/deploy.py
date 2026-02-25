@@ -7,12 +7,11 @@ import logging
 import os
 import sys
 
-from tornado import gen
-from tornado import ioloop
+from tornado import gen, ioloop
 
 from kingpin import utils
-from kingpin.actors import utils as actor_utils
 from kingpin.actors import exceptions as actor_exceptions
+from kingpin.actors import utils as actor_utils
 from kingpin.actors.misc import Macro
 from kingpin.version import __version__
 
@@ -148,7 +147,7 @@ def main():
 
     if args.actor and args.explain:
         ActorClass = actor_utils.get_actor_class(args.actor)
-        print((ActorClass.__doc__))
+        print(ActorClass.__doc__)
         sys.exit(0)
 
     if args.build_only:

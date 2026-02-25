@@ -6,19 +6,16 @@
 import json
 import logging
 
-from botocore.exceptions import ClientError, ParamValidationError
-from tornado import concurrent
-from tornado import gen
-from inflection import camelize
 import jsonpickle
+from botocore.exceptions import ClientError, ParamValidationError
+from inflection import camelize
+from tornado import concurrent, gen
 
 from kingpin import utils
 from kingpin.actors import exceptions
-from kingpin.actors.utils import dry
 from kingpin.actors.aws import base
-from kingpin.constants import SchemaCompareBase
-from kingpin.constants import REQUIRED
-from kingpin.constants import STATE
+from kingpin.actors.utils import dry
+from kingpin.constants import REQUIRED, STATE, SchemaCompareBase
 
 log = logging.getLogger(__name__)
 

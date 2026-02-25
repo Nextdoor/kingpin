@@ -1,10 +1,8 @@
 import json
 import os
-
 import unittest
 
-from kingpin import exceptions
-from kingpin import schema
+from kingpin import exceptions, schema
 
 
 class TestSchema(unittest.TestCase):

@@ -5,29 +5,27 @@
 Common package for utility functions.
 """
 
-from logging import handlers
-import difflib
 import datetime
+import difflib
 import functools
+import http.client
 import importlib
+import io
 import json
 import logging
 import os
 import pprint
 import re
 import sys
-import io
-import cfn_tools
 from io import IOBase
 from json.decoder import JSONDecodeError
+from logging import handlers
+
+import cfn_tools
+import rainbow_logging_handler
 from cfn_tools.yaml_loader import CfnYamlLoader
 from cfn_tools.yaml_loader import construct_mapping as aws_construct_mapping
-
-
-from tornado import gen
-from tornado import ioloop
-import http.client
-import rainbow_logging_handler
+from tornado import gen, ioloop
 
 from kingpin import exceptions
 
@@ -294,7 +292,7 @@ def populate_with_tokens(
             string = string.replace((f"{left_wrapper}{k}{right_wrapper}"), str(v))
 
     tokens_with_default = re.finditer(
-        r"{0}(([\w]+)[|]([^{1}]+)){1}".format(left_wrapper, right_wrapper), string
+        rf"{left_wrapper}(([\w]+)[|]([^{right_wrapper}]+)){right_wrapper}", string
     )
     for match, key, default in (m.groups() for m in tokens_with_default):
         value = tokens.get(key, default)
@@ -303,8 +301,8 @@ def populate_with_tokens(
     # Slashes need to be escaped properly because they are a
     # part of the regex syntax.
     escape_sequence = escape_sequence.replace("\\", "\\\\")
-    escape_pattern = r"({0}{1})([\w]+)({0}{2})".format(
-        escape_sequence, left_wrapper, right_wrapper
+    escape_pattern = (
+        rf"({escape_sequence}{left_wrapper})([\w]+)({escape_sequence}{right_wrapper})"
     )
 
     # If we are strict, we check if we missed anything. If we did, raise an
@@ -328,9 +326,7 @@ def populate_with_tokens(
     # Find text that's between the wrappers and escape sequence and
     # replace with just the wrappers and text.
     if remove_escape_sequence:
-        string = re.sub(
-            escape_pattern, r"{0}\2{1}".format(left_wrapper, right_wrapper), string
-        )
+        string = re.sub(escape_pattern, rf"{left_wrapper}\2{right_wrapper}", string)
     return string
 
 
@@ -360,8 +356,8 @@ def load_json_with_tokens(file_path, tokens):
             instance = file_path
         else:
             filename = file_path
-            instance = io.open(file_path)
-    except IOError as e:
+            instance = open(file_path)
+    except OSError as e:
         raise exceptions.InvalidScript(f"Error reading script {file_path}: {e}")
 
     log.debug(f"Reading {filename}")

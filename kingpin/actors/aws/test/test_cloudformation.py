@@ -1,17 +1,15 @@
 import datetime
-import logging
+import importlib
 import json
+import logging
+from unittest import mock
 
 import boto3
 from botocore.exceptions import ClientError
 from tornado import testing
-from unittest import mock
 
-from kingpin.actors.aws import base
-from kingpin.actors.aws import settings
-from kingpin.actors.aws import cloudformation
+from kingpin.actors.aws import base, cloudformation, settings
 from kingpin.actors.test.helper import tornado_value
-import importlib
 
 log = logging.getLogger(__name__)
 

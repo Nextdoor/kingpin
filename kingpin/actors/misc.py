@@ -19,20 +19,16 @@ dedicated packages. Things like sleep timers, loggers, etc.
 import io
 import json
 import logging
-import urllib.request
-import urllib.parse
 import urllib.error
+import urllib.parse
+import urllib.request
 
-from tornado import gen
-from tornado import httpclient
-from kingpin.actors import utils as actor_utils
-from kingpin.actors import group
+from tornado import gen, httpclient
+
 from kingpin import exceptions as kingpin_exceptions
-
-from kingpin import schema
-from kingpin import utils
-from kingpin.actors import base
-from kingpin.actors import exceptions
+from kingpin import schema, utils
+from kingpin.actors import base, exceptions, group
+from kingpin.actors import utils as actor_utils
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -211,7 +207,7 @@ class Macro(base.BaseActor):
 
         try:
             instance = open(self.option("macro"))
-        except IOError as e:
+        except OSError as e:
             raise exceptions.UnrecoverableActorFailure(e)
         return instance
 

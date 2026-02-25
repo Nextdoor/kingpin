@@ -24,9 +24,7 @@ import os
 import sys
 import time
 
-from tornado import gen
-from tornado import httpclient
-from tornado import httputil
+from tornado import gen, httpclient, httputil
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -282,7 +280,7 @@ class BaseActor:
         try:
             with open(path) as f:
                 contents = f.read()
-        except IOError as e:
+        except OSError as e:
             raise exceptions.InvalidOptions(e)
 
         return contents

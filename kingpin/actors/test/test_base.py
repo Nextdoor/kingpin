@@ -2,15 +2,12 @@
 
 import io
 import json
-import os
 import logging
+import os
 from importlib import reload
-
-from tornado import gen
-from tornado import httpclient
-from tornado import simple_httpclient
-from tornado import testing
 from unittest import mock
+
+from tornado import gen, httpclient, simple_httpclient, testing
 
 # Unusual placement -- but we override the environment so that we can test that
 # the urllib debugger works.

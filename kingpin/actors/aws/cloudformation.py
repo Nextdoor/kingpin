@@ -3,14 +3,13 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 """
 
-from hashlib import md5
-import json
-from json import JSONEncoder
-
 import datetime
+import json
 import logging
 import re
 import uuid
+from hashlib import md5
+from json import JSONEncoder
 from typing import Optional
 
 import boto3
@@ -21,12 +20,11 @@ from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
 from kingpin.actors.aws.settings import (
-    KINGPIN_CFN_HASH_OUTPUT_KEY,
     KINGPIN_CFN_DEFAULT_ROLE_ARN,
+    KINGPIN_CFN_HASH_OUTPUT_KEY,
 )
 from kingpin.actors.utils import dry
-from kingpin.constants import REQUIRED, STATE
-from kingpin.constants import SchemaCompareBase, StringCompareBase
+from kingpin.constants import REQUIRED, STATE, SchemaCompareBase, StringCompareBase
 
 log = logging.getLogger(__name__)
 
@@ -579,7 +577,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         # get the logs from Amazon for the user.
         try:
             yield self._wait_until_state(stack["StackId"], COMPLETE)
-        except StackFailed as e:
+        except StackFailed:
             events = yield self._get_stack_events(stack["StackId"])
             for e in events:
                 self.log.error(e)

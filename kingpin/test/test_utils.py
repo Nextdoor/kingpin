@@ -1,19 +1,17 @@
+import importlib
 import io
 import logging
 import os
 import time
-
-from tornado import gen
-from tornado import testing
-from tornado.testing import unittest
 from unittest import mock
+
 import rainbow_logging_handler
 import requests
+from tornado import gen, testing
+from tornado.testing import unittest
 
-from kingpin import exceptions
-from kingpin import utils
+from kingpin import exceptions, utils
 from kingpin.actors import misc
-import importlib
 
 
 class TestUtils(unittest.TestCase):

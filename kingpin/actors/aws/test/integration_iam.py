@@ -1,8 +1,8 @@
 """Simple integration tests for the AWS IAM actors."""
 
-from nose.plugins.attrib import attr
 import logging
 
+from nose.plugins.attrib import attr
 from tornado import testing
 
 from kingpin.actors.aws import iam

@@ -1,9 +1,9 @@
 """Simple integration tests for the AWS CloudFormation actors."""
 
-from nose.plugins.attrib import attr
-import uuid
 import logging
+import uuid
 
+from nose.plugins.attrib import attr
 from tornado import testing
 
 from kingpin.actors.aws import cloudformation

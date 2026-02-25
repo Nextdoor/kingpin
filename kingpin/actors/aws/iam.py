@@ -4,18 +4,16 @@
 """
 
 import json
-import os
 import logging
+import os
 
 from botocore.exceptions import ClientError
-from tornado import concurrent
-from tornado import gen
+from tornado import concurrent, gen
 
 from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
-from kingpin.constants import REQUIRED
-from kingpin.constants import STATE
+from kingpin.constants import REQUIRED, STATE
 
 log = logging.getLogger(__name__)
 
@@ -757,11 +755,9 @@ class Group(IAMBaseActor):
 
         if not force and users:
             self.log.warning(
-                (
-                    "Will not be able to delete this group "
-                    "without first removing all of its members. "
-                    "Use the `force` option to purge all members."
-                )
+                "Will not be able to delete this group "
+                "without first removing all of its members. "
+                "Use the `force` option to purge all members."
             )
             self.log.warning(f"Group members: {', '.join(users)}")
 

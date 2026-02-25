@@ -1,13 +1,13 @@
+import importlib
 import logging
+from unittest import mock
 
 from botocore.exceptions import ClientError
 from tornado import testing
-from unittest import mock
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import s3 as s3_actor
 from kingpin.actors.aws import settings
-import importlib
 
 log = logging.getLogger(__name__)
 

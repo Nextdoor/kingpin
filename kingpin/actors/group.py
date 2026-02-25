@@ -11,9 +11,7 @@ import logging
 from tornado import gen
 
 from kingpin import utils as kp_utils
-from kingpin.actors import base
-from kingpin.actors import exceptions
-from kingpin.actors import utils
+from kingpin.actors import base, exceptions, utils
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
