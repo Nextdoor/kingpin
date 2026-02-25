@@ -128,7 +128,7 @@ class AWSBaseActor(base.BaseActor):
         try:
             return api_function(*args, **kwargs)
         except boto3_exceptions.Boto3Error as e:
-            raise self._wrap_boto_exception(e)
+            raise self._wrap_boto_exception(e) from e
 
     @gen.coroutine
     @utils.exception_logger
@@ -159,7 +159,7 @@ class AWSBaseActor(base.BaseActor):
         try:
             result = yield queue.call(api_function, *args, **kwargs)
         except botocore_exceptions.ClientError as e:
-            raise self._wrap_boto_exception(e)
+            raise self._wrap_boto_exception(e) from e
         else:
             raise gen.Return(result)
 
@@ -196,7 +196,7 @@ class AWSBaseActor(base.BaseActor):
         except kingpin_exceptions.InvalidScript as e:
             raise exceptions.UnrecoverableActorFailure(
                 f"Error parsing {file_path}: {e}"
-            )
+            ) from e
 
         return p_doc
 

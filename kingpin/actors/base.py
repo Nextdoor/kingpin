@@ -281,7 +281,7 @@ class BaseActor:
             with open(path) as f:
                 contents = f.read()
         except OSError as e:
-            raise exceptions.InvalidOptions(e)
+            raise exceptions.InvalidOptions(e) from e
 
         return contents
 
@@ -332,7 +332,7 @@ class BaseActor:
         except gen.TimeoutError:
             msg = f"{self._type}.{f.__name__}() execution exceeded deadline: {self._timeout}s"
             self.log.error(msg)
-            raise exceptions.ActorTimedOut(msg)
+            raise exceptions.ActorTimedOut(msg) from None
 
         raise gen.Return(ret)
 
@@ -375,7 +375,7 @@ class BaseActor:
             )
         except LookupError as e:
             msg = f"Context for description failed: {e}"
-            raise exceptions.InvalidOptions(msg)
+            raise exceptions.InvalidOptions(msg) from e
 
         # Inject contexts into condition
         try:
@@ -389,7 +389,7 @@ class BaseActor:
             )
         except LookupError as e:
             msg = f"Context for condition failed: {e}"
-            raise exceptions.InvalidOptions(msg)
+            raise exceptions.InvalidOptions(msg) from e
 
         # Convert our self._options dict into a string for fast parsing
         options_string = json.dumps(self._options)
@@ -410,7 +410,7 @@ class BaseActor:
             )
         except LookupError as e:
             msg = f"Context for options failed: {e}"
-            raise exceptions.InvalidOptions(msg)
+            raise exceptions.InvalidOptions(msg) from e
 
         # Finally, convert the string back into a dict and store it.
         self._options = json.loads(new_options_string)
@@ -498,7 +498,7 @@ class BaseActor:
                 f"with this stacktrace"
             )
             self.log.exception(e)
-            raise exceptions.ActorException(e)
+            raise exceptions.ActorException(e) from e
         else:
             self.log.debug(f"Finished successfully, return value: {result}")
 
@@ -797,7 +797,7 @@ class HTTPBaseActor(BaseActor):
         except ValueError as e:
             raise exceptions.UnparseableResponseFromEndpoint(
                 f"Unable to parse response from remote API as JSON: {e}"
-            )
+            ) from e
 
         # Receive a successful return
         raise gen.Return(body)

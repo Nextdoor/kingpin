@@ -358,7 +358,7 @@ def load_json_with_tokens(file_path, tokens):
             filename = file_path
             instance = open(file_path)
     except OSError as e:
-        raise exceptions.InvalidScript(f"Error reading script {file_path}: {e}")
+        raise exceptions.InvalidScript(f"Error reading script {file_path}: {e}") from e
 
     log.debug(f"Reading {filename}")
     raw = instance.read()
@@ -378,7 +378,9 @@ def load_json_with_tokens(file_path, tokens):
         else:
             raise exceptions.InvalidScriptName(f"Invalid file extension: {suffix}")
     except JSONDecodeError as e:
-        raise exceptions.InvalidScript(f"JSON in `{filename}` has an error: {str(e)}")
+        raise exceptions.InvalidScript(
+            f"JSON in `{filename}` has an error: {str(e)}"
+        ) from e
     return decoded
 
 

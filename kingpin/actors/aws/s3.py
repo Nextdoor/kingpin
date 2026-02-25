@@ -766,7 +766,9 @@ class Bucket(base.EnsurableAWSBaseActor):
             self.log.info(f"Deleting bucket {bucket}")
             yield self.api_call(self.s3_conn.delete_bucket, Bucket=bucket)
         except ClientError as e:
-            raise exceptions.RecoverableActorFailure(f"Cannot delete bucket: {str(e)}")
+            raise exceptions.RecoverableActorFailure(
+                f"Cannot delete bucket: {str(e)}"
+            ) from e
 
     @gen.coroutine
     def _get_policy(self):
@@ -780,7 +782,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             exist = json.loads(raw["Policy"])
         except ClientError as e:
             if "NoSuchBucketPolicy" in str(e):
-                raise gen.Return("")
+                raise gen.Return("") from e
             raise
 
         raise gen.Return(exist)
@@ -829,11 +831,11 @@ class Bucket(base.EnsurableAWSBaseActor):
             )
         except ClientError as e:
             if "MalformedPolicy" in str(e):
-                raise base.InvalidPolicy(str(e))
+                raise base.InvalidPolicy(str(e)) from e
 
             raise exceptions.RecoverableActorFailure(
                 f"An unexpected error occurred: {e}"
-            )
+            ) from e
 
     @gen.coroutine
     @dry("Would delete bucket policy")
@@ -922,7 +924,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 },
             )
         except ClientError as e:
-            raise InvalidBucketConfig(str(e))
+            raise InvalidBucketConfig(str(e)) from e
 
     @gen.coroutine
     def _get_versioning(self):
@@ -973,7 +975,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             )
         except ClientError as e:
             if "NoSuchLifecycleConfiguration" in str(e):
-                raise gen.Return([])
+                raise gen.Return([]) from e
             raise
 
         raise gen.Return(raw["Rules"])
@@ -1030,7 +1032,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 LifecycleConfiguration={"Rules": self.lifecycle},
             )
         except (ParamValidationError, ClientError) as e:
-            raise InvalidBucketConfig(f"Invalid Lifecycle Configuration: {e}")
+            raise InvalidBucketConfig(f"Invalid Lifecycle Configuration: {e}") from e
 
     @gen.coroutine
     def _get_public_access_block_configuration(self):
@@ -1043,7 +1045,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             )
         except ClientError as e:
             if "NoSuchPublicAccessBlockConfiguration" in str(e):
-                raise gen.Return([])
+                raise gen.Return([]) from e
             raise
 
         raise gen.Return(raw["PublicAccessBlockConfiguration"])
@@ -1080,7 +1082,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 PublicAccessBlockConfiguration=self.access_block,
             )
         except (ParamValidationError, ClientError) as e:
-            raise InvalidBucketConfig(f"Invalid Public Access Block Config: {e}")
+            raise InvalidBucketConfig(f"Invalid Public Access Block Config: {e}") from e
 
     @gen.coroutine
     def _compare_public_access_block_configuration(self):
@@ -1120,7 +1122,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             )
         except ClientError as e:
             if "NoSuchTagSet" in str(e):
-                raise gen.Return([])
+                raise gen.Return([]) from e
             raise
 
         # The keys in the sets returned always are capitalized (Key, Value) ...

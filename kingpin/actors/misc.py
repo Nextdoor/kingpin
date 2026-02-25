@@ -194,7 +194,7 @@ class Macro(base.BaseActor):
             try:
                 R = client.fetch(self.option("macro"))
             except Exception as e:
-                raise exceptions.UnrecoverableActorFailure(e)
+                raise exceptions.UnrecoverableActorFailure(e) from e
             finally:
                 client.close()
             buf = io.StringIO()
@@ -208,7 +208,7 @@ class Macro(base.BaseActor):
         try:
             instance = open(self.option("macro"))
         except OSError as e:
-            raise exceptions.UnrecoverableActorFailure(e)
+            raise exceptions.UnrecoverableActorFailure(e) from e
         return instance
 
     def _get_config_from_script(self, script_file):
@@ -239,7 +239,7 @@ class Macro(base.BaseActor):
             ), f"Expected dict or list but got {type(config)}"
             return config
         except (kingpin_exceptions.InvalidScript, LookupError) as e:
-            raise exceptions.UnrecoverableActorFailure(e)
+            raise exceptions.UnrecoverableActorFailure(e) from e
 
     def _check_schema(self, config):
         # Run the dict through our schema validator quickly
@@ -248,7 +248,7 @@ class Macro(base.BaseActor):
             schema.validate(config)
         except kingpin_exceptions.InvalidScript as e:
             self.log.critical("Invalid Schema.")
-            raise exceptions.UnrecoverableActorFailure(e)
+            raise exceptions.UnrecoverableActorFailure(e) from e
 
     def get_orgchart(self, parent=""):
         """Return orgchart including the actor inside of the macro file."""
@@ -389,4 +389,4 @@ class GenericHTTP(base.HTTPBaseActor):
             )
         except httpclient.HTTPError as e:
             if e.code == 401:
-                raise exceptions.InvalidCredentials(e.message)
+                raise exceptions.InvalidCredentials(e.message) from e
