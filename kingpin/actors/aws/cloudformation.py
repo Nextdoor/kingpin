@@ -10,8 +10,6 @@ import re
 import uuid
 from hashlib import md5
 from json import JSONEncoder
-from typing import Optional
-
 import boto3
 from botocore.exceptions import ClientError
 from tornado import concurrent, gen, ioloop
@@ -244,7 +242,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
     def _strip_hash_str(self, template: str) -> str:
         return json.dumps(self._strip_hash_dict(json.loads(template)))
 
-    def _get_template_body(self, template: str, s3_region: Optional[str]):
+    def _get_template_body(self, template: str, s3_region: str | None):
         """Reads in a local template file and returns the contents.
 
         If the template string supplied is a local file resource (has no URI
@@ -265,7 +263,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             return None, None
 
         ret_template: str = ""
-        ret_url: Optional[str] = None
+        ret_url: str | None = None
 
         if template.startswith("s3://"):
             match = S3_REGEX.match(template)

@@ -42,7 +42,7 @@ class IntegrationCreate(testing.AsyncTestCase):
     integration = True
 
     region = "us-east-1"
-    bucket_name = "kingpin-%s" % UUID
+    bucket_name = "kingpin-{}".format(UUID)
 
     @attr("aws", "integration")
     @testing.gen_test(timeout=600)
@@ -122,7 +122,7 @@ class IntegrationStack(testing.AsyncTestCase):
     integration = True
 
     region = "us-east-1"
-    bucket_name = "kingpin-stack-%s" % UUID
+    bucket_name = "kingpin-stack-{}".format(UUID)
 
     @attr("aws", "integration")
     @testing.gen_test(timeout=600)
@@ -219,7 +219,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 "name": self.bucket_name,
                 "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
-                    "BucketName": "%s-updated" % self.bucket_name,
+                    "BucketName": "{}-updated".format(self.bucket_name),
                     "BucketPassword": UUID,
                     "Metadata": UUID,
                 },
@@ -239,7 +239,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 "name": self.bucket_name,
                 "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
-                    "BucketName": "%s-updated" % self.bucket_name,
+                    "BucketName": "{}-updated".format(self.bucket_name),
                     "BucketPassword": UUID,
                     "Metadata": UUID,
                 },
@@ -259,7 +259,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 "name": self.bucket_name,
                 "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
-                    "BucketName": "%s-updated" % self.bucket_name,
+                    "BucketName": "{}-updated".format(self.bucket_name),
                     "BucketPassword": UUID,
                     "Metadata": UUID,
                 },
@@ -279,7 +279,7 @@ class IntegrationStack(testing.AsyncTestCase):
                 "name": self.bucket_name,
                 "template": "examples/test/aws.cloudformation/cfn.integration.json",
                 "parameters": {
-                    "BucketName": "%s-updated" % self.bucket_name,
+                    "BucketName": "{}-updated".format(self.bucket_name),
                     "BucketPassword": UUID,
                     "Metadata": UUID,
                 },

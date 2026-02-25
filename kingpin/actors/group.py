@@ -322,8 +322,9 @@ class Sync(BaseGroupActor):
         if errors:
             ExcType = self._get_exc_type(errors)
             raise ExcType(
-                'Exceptions raised by %s of %s actors in "%s".'
-                % (len(errors), len(self._actions), self._desc)
+                'Exceptions raised by {} of {} actors in "{}".'.format(
+                    len(errors), len(self._actions), self._desc
+                )
             )
 
 
@@ -446,8 +447,9 @@ class Async(BaseGroupActor):
                 running_tasks = len([t for t in tasks if not t.done()])
 
             self.log.debug(
-                "Concurrency desaturated: %s<%s. Continuing."
-                % (running_tasks, self.option("concurrency"))
+                "Concurrency desaturated: {}<{}. Continuing.".format(
+                    running_tasks, self.option("concurrency")
+                )
             )
 
         # Now that we've fired them off, we walk through them one-by-one and
@@ -468,6 +470,7 @@ class Async(BaseGroupActor):
         if errors:
             ExcType = self._get_exc_type(errors)
             raise ExcType(
-                'Exceptions raised by %s of %s actors in "%s".'
-                % (len(errors), len(self._actions), self._desc)
+                'Exceptions raised by {} of {} actors in "{}".'.format(
+                    len(errors), len(self._actions), self._desc
+                )
             )

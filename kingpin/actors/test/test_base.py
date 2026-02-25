@@ -262,7 +262,7 @@ class TestBaseActor(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor.readfile("notfound")
 
-        open_patcher = mock.patch("%s.open" % self.actor.__module__, create=True)
+        open_patcher = mock.patch("{}.open".format(self.actor.__module__), create=True)
         with open_patcher as mock_open:
             self.actor.readfile("somefile")
             self.assertEqual(mock_open.call_count, 1)
@@ -296,13 +296,13 @@ class TestBaseActor(testing.AsyncTestCase):
                 self.assertEqual(
                     self.actor._execute._call_count,
                     1,
-                    "Value `%s` should allow actor execution" % str_value,
+                    "Value `{}` should allow actor execution".format(str_value),
                 )
             else:
                 self.assertEqual(
                     self.actor._execute._call_count,
                     0,
-                    "Value `%s` should not allow actor execution" % str_value,
+                    "Value `{}` should not allow actor execution".format(str_value),
                 )
 
     @testing.gen_test

@@ -10,15 +10,15 @@ class TestSchema(unittest.TestCase):
         super().setUp(*args, **kwargs)
 
         dirname, filename = os.path.split(os.path.abspath(__file__))
-        self.examples = "%s/../../examples" % dirname
+        self.examples = "{}/../../examples".format(dirname)
 
     def test_validate_with_simple_json(self):
-        j = json.loads(open("%s/simple.json" % self.examples).read())
+        j = json.loads(open("{}/simple.json".format(self.examples)).read())
         ret = schema.validate(j)
         self.assertEqual(None, ret)
 
     def test_validate_with_complex_json(self):
-        j = json.loads(open("%s/complex.json" % self.examples).read())
+        j = json.loads(open("{}/complex.json".format(self.examples)).read())
         ret = schema.validate(j)
         self.assertEqual(None, ret)
 
