@@ -10,7 +10,6 @@ from kingpin.actors import base
 from kingpin.actors import exceptions
 from kingpin.actors import group
 
-
 log = logging.getLogger(__name__)
 
 

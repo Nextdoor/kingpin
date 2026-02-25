@@ -68,7 +68,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
 
     def test_discover_noecho_params(self):
         file = "examples/test/aws.cloudformation/cfn.integration.json"
-        (body, url) = self.actor._get_template_body(file, None)
+        body, url = self.actor._get_template_body(file, None)
         ret = self.actor._discover_noecho_params(body)
         self.assertEqual(ret, ["BucketPassword"])
 

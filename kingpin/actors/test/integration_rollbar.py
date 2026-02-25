@@ -9,7 +9,6 @@ from kingpin.actors import rollbar
 from kingpin.actors import exceptions
 import importlib
 
-
 __author__ = "Matt Wise <matt@nextdoor.com>"
 
 

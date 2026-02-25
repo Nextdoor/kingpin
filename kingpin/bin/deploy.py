@@ -16,7 +16,6 @@ from kingpin.actors import exceptions as actor_exceptions
 from kingpin.actors.misc import Macro
 from kingpin.version import __version__
 
-
 log = logging.getLogger(__name__)
 
 

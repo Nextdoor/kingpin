@@ -10,7 +10,6 @@ from kingpin.actors import utils
 from kingpin.actors import misc
 from kingpin.actors.test import helper
 
-
 log = logging.getLogger(__name__)
 
 
