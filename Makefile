@@ -28,7 +28,7 @@ build: $(UV_BIN)
 clean:
 	find kingpin -type f -name '*.pyc' -exec rm "{}" \;
 	rm -f kingpin.zip
-	rm -rf $(BUILD_DIRS) .venv docs/_build
+	rm -rf $(BUILD_DIRS) docs/_build
 
 .PHONY: lint
 lint: $(UV_BIN)
