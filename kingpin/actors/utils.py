@@ -94,10 +94,8 @@ def timer(f):
         ret = yield gen.coroutine(f)(self, *args, **kwargs)
 
         # Log the finished execution time
-        exec_time = "%.2f" % (time.time() - start_time)
-        self.log.debug(
-            "%s.%s() execution time: %ss" % (self._type, f.__name__, exec_time)
-        )
+        exec_time = f"{time.time() - start_time:.2f}"
+        self.log.debug(f"{self._type}.{f.__name__}() execution time: {exec_time}s")
 
         raise gen.Return(ret)
 
@@ -139,7 +137,7 @@ def get_actor(config, dry):
     clean_config = config.copy()
     clean_config["init_tokens"] = "<hidden>"
 
-    log.debug('Building Actor "%s" with args: %s' % (actor_string, clean_config))
+    log.debug(f'Building Actor "{actor_string}" with args: {clean_config}')
     ActorClass = get_actor_class(actor_string)
     return ActorClass(dry=dry, **config)
 
@@ -162,7 +160,7 @@ def get_actor_class(actor):
         try:
             return utils.str_to_class(full_actor)
         except expected_exceptions as e:
-            log.debug('Tried importing "%s" but failed: %s' % (full_actor, e))
+            log.debug(f'Tried importing "{full_actor}" but failed: {e}')
 
-    msg = 'Unable to import "%s" as a valid Actor.' % actor
+    msg = f'Unable to import "{actor}" as a valid Actor.'
     raise exceptions.InvalidActor(msg)

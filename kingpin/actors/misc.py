@@ -141,12 +141,12 @@ class Macro(base.BaseActor):
             We override the default ``init_tokens={}`` from the base class and
             default it to a *copy* of the ``os.environ`` dict.
         """
-        super(Macro, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Temporary check that macro is a local file.
         self._check_macro()
 
-        self.log.info("Preparing actors from %s" % self.option("macro"))
+        self.log.info(f"Preparing actors from {self.option('macro')}")
 
         # Take the "init tokens" that were supplied to this actor by its parent
         # and merge them with the explicitly defined tokens in the actor
@@ -166,7 +166,7 @@ class Macro(base.BaseActor):
         # Instantiate the first actor, but don't execute it.
         # Any errors raised by this actor should be attributed to it, and not
         # this Macro actor. No try/catch here
-        if type(config) == list:
+        if isinstance(config, list):
             # List is a Sync group actor
             self.initial_actor = group.Sync(options={"acts": config}, dry=self._dry)
         else:
@@ -203,7 +203,7 @@ class Macro(base.BaseActor):
                 client.close()
             buf = io.StringIO()
             # Set buffer representation for debug printing.
-            buf.__repr__ = lambda: ("In-memory file from: %s" % self.option("macro"))
+            buf.__repr__ = lambda: (f"In-memory file from: {self.option('macro')}")
             buf.write(R.body)
             buf.seek(0)
             client.close()
@@ -232,7 +232,7 @@ class Macro(base.BaseActor):
             UnrecoverableActorFailure -
                 if parsing script or inserting env vars fails.
         """
-        self.log.debug("Parsing %s" % script_file)
+        self.log.debug(f"Parsing {script_file}")
         try:
             config = utils.load_json_with_tokens(
                 file_path=script_file, tokens=self._init_tokens
@@ -247,7 +247,7 @@ class Macro(base.BaseActor):
 
     def _check_schema(self, config):
         # Run the dict through our schema validator quickly
-        self.log.debug("Validating schema for %s" % self.option("macro"))
+        self.log.debug(f"Validating schema for {self.option('macro')}")
         try:
             schema.validate(config)
         except kingpin_exceptions.InvalidScript as e:
@@ -256,7 +256,7 @@ class Macro(base.BaseActor):
 
     def get_orgchart(self, parent=""):
         """Return orgchart including the actor inside of the macro file."""
-        ret = super(Macro, self).get_orgchart(parent=parent)
+        ret = super().get_orgchart(parent=parent)
         macro = self.initial_actor.get_orgchart(parent=str(id(self)))
         return ret + macro
 
@@ -301,7 +301,7 @@ class Sleep(base.BaseActor):
     def _execute(self):
         """Executes an actor and yields the results when its finished."""
 
-        self.log.debug("Sleeping for %s seconds" % self.option("sleep"))
+        self.log.debug(f"Sleeping for {self.option('sleep')} seconds")
 
         sleep = self.option("sleep")
 
@@ -367,7 +367,7 @@ class GenericHTTP(base.HTTPBaseActor):
         is_post = bool(self.option("data"))
         method = ["GET", "POST"][is_post]
 
-        self.log.info("Would do a %s request to %s" % (method, self.option("url")))
+        self.log.info(f"Would do a {method} request to {self.option('url')}")
         raise gen.Return()
 
     @gen.coroutine

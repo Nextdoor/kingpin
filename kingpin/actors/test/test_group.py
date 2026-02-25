@@ -59,7 +59,7 @@ class FakeActorPopulate(base.BaseActor):
 
 class TestGroupActorBaseClass(testing.AsyncTestCase):
     def setUp(self, *args, **kwargs):
-        super(TestGroupActorBaseClass, self).setUp(*args, **kwargs)
+        super().setUp(*args, **kwargs)
         FakeActor.last_value = None
         self.actor_returns = {
             "desc": "returns",

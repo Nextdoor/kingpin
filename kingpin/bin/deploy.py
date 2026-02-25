@@ -25,7 +25,7 @@ logging.getLogger("boto").setLevel(logging.CRITICAL)
 logging.getLogger("botocore").setLevel(logging.CRITICAL)
 
 # Initial option handler to set up the basic application environment.
-parser = argparse.ArgumentParser(description="Kingpin v%s" % __version__)
+parser = argparse.ArgumentParser(description=f"Kingpin v{__version__}")
 parser.set_defaults(verbose=True)
 
 # Job Configuration
@@ -112,7 +112,7 @@ args = parser.parse_args()
 
 def kingpin_fail(message: str):
     parser.print_help()
-    sys.stderr.write("\nError: %s\n" % message)
+    sys.stderr.write(f"\nError: {message}\n")
     sys.exit(1)
 
 
@@ -136,9 +136,7 @@ def get_main_actor(dry: bool):
     try:
         script = args.script or sys.argv[1] if sys.argv else None
     except Exception as e:
-        kingpin_fail(
-            "%s You must specify --script or provide it as first argument." % e
-        )
+        kingpin_fail(f"{e} You must specify --script or provide it as first argument.")
 
     return Macro(
         desc="Kingpin", options={"macro": script, "tokens": env_tokens}, dry=dry
@@ -161,7 +159,7 @@ def main():
             sys.exit(1)
 
         if args.orgchart:
-            log.info("Creating organizational chart into %s" % args.orgchart)
+            log.info(f"Creating organizational chart into {args.orgchart}")
             try:
                 orgdata = actor.get_orgchart()
             except Exception as e:

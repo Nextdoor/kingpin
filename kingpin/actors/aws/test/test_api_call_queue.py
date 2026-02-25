@@ -20,7 +20,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
     )
 
     def setUp(self):
-        super(TestApiCallQueue, self).setUp()
+        super().setUp()
         self.api_call_queue = api_call_queue.ApiCallQueue()
         self.api_call_queue.delay_min = 0.05
         self.api_call_queue.delay_max = 0.2

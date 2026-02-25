@@ -24,7 +24,7 @@ class TestNote(testing.AsyncTestCase):
 
 class TestMacro(testing.AsyncTestCase):
     def setUp(self):
-        super(TestMacro, self).setUp()
+        super().setUp()
         importlib.reload(misc)
 
     def test_init(self):

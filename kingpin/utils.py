@@ -100,7 +100,7 @@ def setup_root_logger(level="warn", syslog=None, color=False):
     """
 
     # Get the logging level string -> object
-    level = "logging.%s" % level.upper()
+    level = f"logging.{level.upper()}"
     level_obj = str_to_class(level)
 
     # Get our logger
@@ -174,11 +174,9 @@ def super_httplib_debug_logging():
 def exception_logger(func):
     """Explicitly log Exceptions then Raise them.
 
-    Logging Exceptions and Tracebacks while inside of a thread is broken in the
-    Tornado futures package for Python 2.7. It swallows most of the traceback
-    and only gives you the raw exception object. This little helper method
-    allows us to throw a log entry with the full traceback before raising the
-    exception.
+    Logging exceptions and tracebacks while inside of a thread can swallow
+    most of the traceback and only give you the raw exception object. This
+    helper method logs the full traceback before re-raising the exception.
     """
 
     @functools.wraps(func)
@@ -187,7 +185,7 @@ def exception_logger(func):
             return func(*args, **kwargs)
         except Exception as e:
             log.debug(
-                "Exception caught in %s(%s, %s): %s" % (func, args, kwargs, e),
+                f"Exception caught in {func}({args}, {kwargs}): {e}",
                 exc_info=1,
             )
             raise
@@ -221,21 +219,19 @@ def retry(excs, retries=3, delay=0.25):
                 try:
                     # Don't log the first time..
                     if i > 1:
-                        log.debug(
-                            "Try (%s/%s) of %s(%s, %s)" % (i, retries, f, args, kwargs)
-                        )
+                        log.debug(f"Try ({i}/{retries}) of {f}({args}, {kwargs})")
                     ret = yield gen.coroutine(f)(*args, **kwargs)
-                    log.debug("Result: %s" % ret)
+                    log.debug(f"Result: {ret}")
                     raise gen.Return(ret)
                 except excs as e:
-                    log.error("Exception raised on try %s: %s" % (i, e))
+                    log.error(f"Exception raised on try {i}: {e}")
 
                     if i >= retries:
-                        log.debug("Raising exception: %s" % e)
+                        log.debug(f"Raising exception: {e}")
                         raise e
 
                     i += 1
-                    log.debug("Retrying in %s..." % delay)
+                    log.debug(f"Retrying in {delay}...")
                     yield tornado_sleep(delay)
                 log.debug("Retrying..")
 
@@ -287,28 +283,22 @@ def populate_with_tokens(
     # First things first, swap out all instances of %<str>% with any matching
     # token variables found. If no items are in the hash (none, empty hash,
     # etc), then skip this.
-    allowed_types = (str, str, bool, int, float)
+    allowed_types = (str, bool, int, float)
     if tokens:
-        for k, v in list(tokens.items()):
+        for k, v in tokens.items():
 
             if type(v) not in allowed_types:
-                log.warning(
-                    "Token %s=%s is not in allowed types: %s" % (k, v, allowed_types)
-                )
+                log.warning(f"Token {k}={v} is not in allowed types: {allowed_types}")
                 continue
 
-            string = string.replace(
-                ("%s%s%s" % (left_wrapper, k, right_wrapper)), str(v)
-            )
+            string = string.replace((f"{left_wrapper}{k}{right_wrapper}"), str(v))
 
     tokens_with_default = re.finditer(
         r"{0}(([\w]+)[|]([^{1}]+)){1}".format(left_wrapper, right_wrapper), string
     )
     for match, key, default in (m.groups() for m in tokens_with_default):
         value = tokens.get(key, default)
-        string = string.replace(
-            "%s%s%s" % (left_wrapper, match, right_wrapper), str(value)
-        )
+        string = string.replace(f"{left_wrapper}{match}{right_wrapper}", str(value))
 
     # Slashes need to be escaped properly because they are a
     # part of the regex syntax.
@@ -321,7 +311,7 @@ def populate_with_tokens(
     # exception.
     if strict:
         missed_tokens = list(
-            set(re.findall(r"%s[\w]+%s" % (left_wrapper, right_wrapper), string))
+            set(re.findall(rf"{left_wrapper}[\w]+{right_wrapper}", string))
         )
 
         # Remove the escaped tokens from the missing tokens
@@ -332,7 +322,7 @@ def populate_with_tokens(
 
         if missed_tokens:
             raise LookupError(
-                "Found un-matched tokens in JSON string: %s" % missed_tokens
+                f"Found un-matched tokens in JSON string: {missed_tokens}"
             )
 
     # Find text that's between the wrappers and escape sequence and
@@ -372,9 +362,9 @@ def load_json_with_tokens(file_path, tokens):
             filename = file_path
             instance = io.open(file_path)
     except IOError as e:
-        raise exceptions.InvalidScript("Error reading script %s: %s" % (file_path, e))
+        raise exceptions.InvalidScript(f"Error reading script {file_path}: {e}")
 
-    log.debug("Reading %s" % filename)
+    log.debug(f"Reading {filename}")
     raw = instance.read()
     parsed = populate_with_tokens(raw, tokens)
 
@@ -388,13 +378,11 @@ def load_json_with_tokens(file_path, tokens):
         elif suffix in ("yml", "yaml"):
             decoded = cfn_tools.load_yaml(parsed)
             if decoded is None:
-                raise exceptions.InvalidScript("Invalid YAML in `%s`" % filename)
+                raise exceptions.InvalidScript(f"Invalid YAML in `{filename}`")
         else:
-            raise exceptions.InvalidScriptName("Invalid file extension: %s" % suffix)
+            raise exceptions.InvalidScriptName(f"Invalid file extension: {suffix}")
     except JSONDecodeError as e:
-        raise exceptions.InvalidScript(
-            "JSON in `%s` has an error: %s" % (filename, str(e))
-        )
+        raise exceptions.InvalidScript(f"JSON in `{filename}` has an error: {str(e)}")
     return decoded
 
 
@@ -413,7 +401,7 @@ def order_dict(obj):
         obj: A sorted version of the object
     """
     if isinstance(obj, dict):
-        return sorted((k, order_dict(v)) for k, v in list(obj.items()))
+        return sorted((k, order_dict(v)) for k, v in obj.items())
     if isinstance(obj, list):
         return sorted((order_dict(x) for x in obj), key=str)
     else:
@@ -443,7 +431,7 @@ def create_repeating_log(logger, message, handle=None, **kwargs):
     actor.
     """
 
-    class OpaqueHandle(object):
+    class OpaqueHandle:
         """Tornado async io handler."""
 
         def __init__(self):
@@ -491,10 +479,6 @@ def diff_dicts(dict1, dict2):
 
     dict1 = pprint.pformat(dict1).splitlines()
     dict2 = pprint.pformat(dict2).splitlines()
-
-    # Remove unicode identifiers.
-    dict1 = [line.replace("u'", "'") for line in dict1]
-    dict2 = [line.replace("u'", "'") for line in dict2]
 
     return "\n".join(difflib.unified_diff(dict1, dict2, n=2))
 

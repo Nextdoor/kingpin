@@ -54,7 +54,7 @@ class IAMBaseActor(base.AWSBaseActor):
     }
 
     def __init__(self, *args, **kwargs):
-        super(IAMBaseActor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # These IAM Connection methods must be overridden in a subclass of this
         # actor. Each of these is a "generalized" name for the method in Boto
@@ -150,9 +150,7 @@ class IAMBaseActor(base.AWSBaseActor):
             p_name = self._generate_policy_name(policy)
             self.inline_policies[p_name] = self._parse_json(policy)
 
-            self.log.debug(
-                "Parsed policy %s: %s" % (p_name, self.inline_policies[p_name])
-            )
+            self.log.debug(f"Parsed policy {p_name}: {self.inline_policies[p_name]}")
 
     @gen.coroutine
     def _get_entity_policies(self, name):
@@ -175,7 +173,7 @@ class IAMBaseActor(base.AWSBaseActor):
         # that and silently move on.
         policy_names = []
         try:
-            self.log.debug("Searching for any inline policies for %s" % name)
+            self.log.debug(f"Searching for any inline policies for {name}")
             ret = yield self.api_call(
                 self.list_entity_policies, **{self.entity_kwarg_name: name}
             )
@@ -187,7 +185,7 @@ class IAMBaseActor(base.AWSBaseActor):
                 policy_names = []
             else:
                 raise exceptions.RecoverableActorFailure(
-                    "An unexpected API error occurred: %s" % e
+                    f"An unexpected API error occurred: {e}"
                 )
 
         # Iterate through all of the named policies and fire off
@@ -213,8 +211,8 @@ class IAMBaseActor(base.AWSBaseActor):
                 raw = yield p_task
             except ClientError as e:
                 raise exceptions.RecoverableActorFailure(
-                    "An unexpected API error occurred downloading "
-                    "policy %s: %s" % (p_name, e)
+                    f"An unexpected API error occurred downloading "
+                    f"policy {p_name}: {e}"
                 )
 
             # Convert the uuencoded doc string into a dict
@@ -222,7 +220,7 @@ class IAMBaseActor(base.AWSBaseActor):
 
             # Store the converted document under the policy name key
             policies[p_name] = p_doc
-            self.log.debug("Got policy %s/%s: %s" % (name, p_name, p_doc))
+            self.log.debug(f"Got policy {name}/{p_name}: {p_doc}")
 
         raise gen.Return(policies)
 
@@ -259,9 +257,9 @@ class IAMBaseActor(base.AWSBaseActor):
             exist = existing_policies[policy]
             diff = utils.diff_dicts(exist, new)
             if diff:
-                self.log.info("Policy %s differs from Amazons:" % policy)
+                self.log.info(f"Policy {policy} differs from Amazons:")
                 for line in diff.split("\n"):
-                    self.log.info("Diff: %s" % line)
+                    self.log.info(f"Diff: {line}")
                 policy_doc = self.inline_policies[policy]
                 tasks.append(self._put_entity_policy(name, policy, policy_doc))
         yield tasks
@@ -283,24 +281,21 @@ class IAMBaseActor(base.AWSBaseActor):
 
         if self._dry:
             self.log.warning(
-                "Would delete policy %s from %s %s"
-                % (policy_name, self.entity_name, name)
+                f"Would delete policy {policy_name} from {self.entity_name} {name}"
             )
             raise gen.Return()
 
-        self.log.info(
-            "Deleting policy %s from %s %s" % (policy_name, self.entity_name, name)
-        )
+        self.log.info(f"Deleting policy {policy_name} from {self.entity_name} {name}")
         try:
             ret = yield self.api_call(
                 self.delete_entity_policy,
                 **{self.entity_kwarg_name: name, "PolicyName": policy_name},
             )
-            self.log.debug("Policy %s deleted: %s" % (policy_name, ret))
+            self.log.debug(f"Policy {policy_name} deleted: {ret}")
         except ClientError as e:
             if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
-                    "An unexpected API error occurred: %s" % e
+                    f"An unexpected API error occurred: {e}"
                 )
 
     @gen.coroutine
@@ -315,13 +310,11 @@ class IAMBaseActor(base.AWSBaseActor):
 
         if self._dry:
             self.log.warning(
-                "Would push policy %s to %s %s" % (policy_name, self.entity_name, name)
+                f"Would push policy {policy_name} to {self.entity_name} {name}"
             )
             raise gen.Return()
 
-        self.log.info(
-            "Pushing policy %s to %s %s" % (policy_name, self.entity_name, name)
-        )
+        self.log.info(f"Pushing policy {policy_name} to {self.entity_name} {name}")
         try:
             ret = yield self.api_call(
                 self.put_entity_policy,
@@ -331,10 +324,10 @@ class IAMBaseActor(base.AWSBaseActor):
                     "PolicyDocument": json.dumps(policy_doc),
                 },
             )
-            self.log.debug("Policy %s pushed: %s" % (policy_name, ret))
+            self.log.debug(f"Policy {policy_name} pushed: {ret}")
         except ClientError as e:
             raise exceptions.RecoverableActorFailure(
-                "An unexpected API error occurred: %s" % e
+                f"An unexpected API error occurred: {e}"
             )
 
     @gen.coroutine
@@ -348,7 +341,7 @@ class IAMBaseActor(base.AWSBaseActor):
             name: The IAM Entity Name
         """
 
-        self.log.debug("Searching for %s %s" % (self.entity_name, name))
+        self.log.debug(f"Searching for {self.entity_name} {name}")
 
         try:
             ret = yield self.api_call(self.get_entity, **{self.entity_kwarg_name: name})
@@ -356,7 +349,7 @@ class IAMBaseActor(base.AWSBaseActor):
             if "NoSuchEntity" in str(e):
                 raise gen.Return()
             raise exceptions.RecoverableActorFailure(
-                "An unexpected API error occurred: %s" % e
+                f"An unexpected API error occurred: {e}"
             )
 
         raise gen.Return(ret.get(self.entity_name))
@@ -374,7 +367,7 @@ class IAMBaseActor(base.AWSBaseActor):
             state: 'present' or 'absent'
         """
 
-        self.log.info("Ensuring that %s %s is %s" % (self.entity_name, name, state))
+        self.log.info(f"Ensuring that {self.entity_name} {name} is {state}")
 
         entity = yield self._get_entity(name)
 
@@ -398,7 +391,7 @@ class IAMBaseActor(base.AWSBaseActor):
         """
 
         if self._dry:
-            self.log.warning("Would create %s %s" % (self.entity_name, name))
+            self.log.warning(f"Would create {self.entity_name} {name}")
             raise gen.Return()
 
         try:
@@ -408,17 +401,14 @@ class IAMBaseActor(base.AWSBaseActor):
         except ClientError as e:
             if "EntityAlreadyExists" in str(e):
                 self.log.warning(
-                    "%s %s already exists, skipping creation."
-                    % (self.entity_name, name)
+                    f"{self.entity_name} {name} already exists, skipping creation."
                 )
                 raise gen.Return()
             raise exceptions.RecoverableActorFailure(
-                "An unexpected API error occurred: %s" % e
+                f"An unexpected API error occurred: {e}"
             )
 
-        self.log.info(
-            "%s %s created" % (self.entity_name, ret[self.entity_name]["Arn"])
-        )
+        self.log.info(f"{self.entity_name} {ret[self.entity_name]['Arn']} created")
 
     @gen.coroutine
     def _delete_entity(self, name):
@@ -431,7 +421,7 @@ class IAMBaseActor(base.AWSBaseActor):
         """
 
         if self._dry:
-            self.log.warning("Would delete %s %s" % (self.entity_name, name))
+            self.log.warning(f"Would delete {self.entity_name} {name}")
             raise gen.Return()
 
         try:
@@ -445,13 +435,13 @@ class IAMBaseActor(base.AWSBaseActor):
 
             # Now delete the entity
             yield self.api_call(self.delete_entity, **{self.entity_kwarg_name: name})
-            self.log.info("%s %s deleted" % (self.entity_name, name))
+            self.log.info(f"{self.entity_name} {name} deleted")
         except ClientError as e:
             if "NoSuchEntity" in str(e):
-                self.log.warning("%s %s doesn't exist" % (self.entity_name, name))
+                self.log.warning(f"{self.entity_name} {name} doesn't exist")
                 raise gen.Return()
             raise exceptions.RecoverableActorFailure(
-                "An unexpected API error occurred: %s" % e
+                f"An unexpected API error occurred: {e}"
             )
 
     @gen.coroutine
@@ -464,17 +454,17 @@ class IAMBaseActor(base.AWSBaseActor):
         """
 
         if self._dry:
-            self.log.warning("Would have added %s to %s" % (name, group))
+            self.log.warning(f"Would have added {name} to {group}")
             raise gen.Return()
 
         try:
-            self.log.info("Adding %s to %s" % (name, group))
+            self.log.info(f"Adding {name} to {group}")
             yield self.api_call(
                 self.iam_conn.add_user_to_group, GroupName=group, UserName=name
             )
         except ClientError as e:
             raise exceptions.RecoverableActorFailure(
-                "An unexpected API error occurred: %s" % e
+                f"An unexpected API error occurred: {e}"
             )
 
     @gen.coroutine
@@ -487,17 +477,17 @@ class IAMBaseActor(base.AWSBaseActor):
         """
 
         if self._dry:
-            self.log.warning("Would have removed %s from %s" % (name, group))
+            self.log.warning(f"Would have removed {name} from {group}")
             raise gen.Return()
 
         try:
-            self.log.info("Removing %s from %s" % (name, group))
+            self.log.info(f"Removing {name} from {group}")
             yield self.api_call(
                 self.iam_conn.remove_user_from_group, GroupName=group, UserName=name
             )
         except ClientError as e:
             raise exceptions.RecoverableActorFailure(
-                "An unexpected API error occurred: %s" % e
+                f"An unexpected API error occurred: {e}"
             )
 
 
@@ -568,7 +558,7 @@ class User(IAMBaseActor):
     desc = "IAM User {name}"
 
     def __init__(self, *args, **kwargs):
-        super(User, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.entity_name = "User"
         self.create_entity = self.iam_conn.create_user
@@ -606,7 +596,7 @@ class User(IAMBaseActor):
             # existing_mappings list alone. For any other error, raise.
             if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
-                    "An unexpected API error occurred: %s" % e
+                    f"An unexpected API error occurred: {e}"
                 )
 
         # Find any groups that we're not already a member of, and add us
@@ -712,7 +702,7 @@ class Group(IAMBaseActor):
     desc = "IAM Group {name}"
 
     def __init__(self, *args, **kwargs):
-        super(Group, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.entity_name = "group"
         self.create_entity = self.iam_conn.create_group
@@ -746,7 +736,7 @@ class Group(IAMBaseActor):
         except ClientError as e:
             if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
-                    "An unexpected API error occurred: %s" % e
+                    f"An unexpected API error occurred: {e}"
                 )
 
         raise gen.Return(users)
@@ -773,7 +763,7 @@ class Group(IAMBaseActor):
                     "Use the `force` option to purge all members."
                 )
             )
-            self.log.warning("Group members: %s" % ", ".join(users))
+            self.log.warning(f"Group members: {', '.join(users)}")
 
         if not force:
             raise gen.Return()
@@ -889,7 +879,7 @@ class Role(IAMBaseActor):
     desc = "IAM Role {name}"
 
     def __init__(self, *args, **kwargs):
-        super(Role, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.entity_name = "Role"
         self.create_entity = self.iam_conn.create_role
@@ -951,7 +941,7 @@ class Role(IAMBaseActor):
 
         self.log.info("Assume Role Policy differs from Amazons:")
         for line in diff.split("\n"):
-            self.log.info("Diff: %s" % line)
+            self.log.info(f"Diff: {line}")
 
         if self._dry:
             self.log.warning("Would have updated the Assume Role Policy Doc")
@@ -973,7 +963,7 @@ class Role(IAMBaseActor):
             name: The IAM Entity Name
         """
 
-        yield super(Role, self)._create_entity(
+        yield super()._create_entity(
             name,
             AssumeRolePolicyDocument=json.dumps(self.assume_role_policy_doc),
         )
@@ -1045,7 +1035,7 @@ class InstanceProfile(IAMBaseActor):
     desc = "InstanceProfile {name}"
 
     def __init__(self, *args, **kwargs):
-        super(InstanceProfile, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.entity_name = "InstanceProfile"
         self.create_entity = self.iam_conn.create_instance_profile
@@ -1066,11 +1056,11 @@ class InstanceProfile(IAMBaseActor):
         """
 
         if self._dry:
-            self.log.warning("Would add role %s from %s" % (role, name))
+            self.log.warning(f"Would add role {role} from {name}")
             raise gen.Return()
 
         try:
-            self.log.info("Adding role %s to %s" % (role, name))
+            self.log.info(f"Adding role {role} to {name}")
             yield self.api_call(
                 self.iam_conn.add_role_to_instance_profile,
                 **{self.entity_kwarg_name: name, "RoleName": role},
@@ -1078,7 +1068,7 @@ class InstanceProfile(IAMBaseActor):
         except ClientError as e:
             if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
-                    "An unexpected API error occurred: %s" % e
+                    f"An unexpected API error occurred: {e}"
                 )
 
     @gen.coroutine
@@ -1091,11 +1081,11 @@ class InstanceProfile(IAMBaseActor):
         """
 
         if self._dry:
-            self.log.warning("Would remove role %s from %s" % (role, name))
+            self.log.warning(f"Would remove role {role} from {name}")
             raise gen.Return()
 
         try:
-            self.log.info("Removing role %s from %s" % (role, name))
+            self.log.info(f"Removing role {role} from {name}")
             yield self.api_call(
                 self.iam_conn.remove_role_from_instance_profile,
                 **{self.entity_kwarg_name: name, "RoleName": role},
@@ -1103,7 +1093,7 @@ class InstanceProfile(IAMBaseActor):
         except ClientError as e:
             if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
-                    "An unexpected API error occurred: %s" % e
+                    f"An unexpected API error occurred: {e}"
                 )
 
     @gen.coroutine
@@ -1126,7 +1116,7 @@ class InstanceProfile(IAMBaseActor):
         except ClientError as e:
             if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
-                    "An unexpected API error occurred: %s" % e
+                    f"An unexpected API error occurred: {e}"
                 )
         except (IndexError, KeyError):
             # Profile is not a member of any roles
