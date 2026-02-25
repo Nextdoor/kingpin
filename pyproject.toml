@@ -1,7 +1,7 @@
 [project]
 name = "kingpin"
 description = "Deployment Automation Engine"
-requires-python = ">=3.12"
+requires-python = ">=3.9"
 license = {text = "Apache License, Version 2.0"}
 authors = [{name = "Nextdoor Engineering"}]
 maintainers = [{name = "Nextdoor Engineering"},]
@@ -37,8 +37,6 @@ dependencies = [
     "boto3==1.42.0",
     # snake_case to CamelCase conversion (S3 actor)
     "inflection==0.5.1",
-    "zipp==3.23.0",
-    "configparser==7.2.0",
 ]
 dynamic = [
     "version",
@@ -46,6 +44,7 @@ dynamic = [
 ]
 
 [project.optional-dependencies]
+# NOTE: keep in sync with [dependency-groups] docs (used by uv locally)
 docs = [
     "Sphinx",
     "sphinx_rtd_theme",
@@ -91,6 +90,7 @@ dev = [
     "setuptools",
     "build",
 ]
+# NOTE: keep in sync with [project.optional-dependencies] docs (used by RTD/pip)
 docs = [
     "Sphinx",
     "sphinx_rtd_theme",

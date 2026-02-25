@@ -48,7 +48,7 @@ pack: kingpin.zip
 kingpin.zip: $(UV_BIN)
 	rm -rf zip
 	mkdir -p zip
-	$(UV_BIN) run pip install --target ./zip ./
+	$(UV_BIN) pip install --target ./zip ./
 	find ./zip -name '*.pyc' -delete
 	find ./zip -name '*.egg-info' | xargs rm -rf
 	cd zip; ln -sf kingpin/bin/deploy.py ./__main__.py

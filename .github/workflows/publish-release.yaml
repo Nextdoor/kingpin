@@ -15,6 +15,8 @@ jobs:
         cache-dependency-glob: |
           uv.lock
           .python-version
+    - run: uv sync --frozen
+      shell: bash
     - name: Build package
       run: uv build
     - name: Publish package
