@@ -1,6 +1,5 @@
 HERE = $(shell pwd)
 
-UV_VERSION  := 0.7.12
 UV_BIN      := $(or $(shell command -v uv 2>/dev/null),$(HOME)/.local/bin/uv)
 
 PYTHON      := $(UV_BIN) run python
@@ -16,8 +15,10 @@ PYBLACK_OPTS := --diff --check
 endif
 
 $(UV_BIN):
-	@echo "Installing uv $(UV_VERSION)..."
-	curl -LsSf https://astral.sh/uv/$(UV_VERSION)/install.sh | sh
+	@echo "Error: uv is not installed."
+	@echo "Install: curl -LsSf https://astral.sh/uv/install.sh | sh"
+	@echo "Or see: https://docs.astral.sh/uv/getting-started/installation/"
+	@exit 1
 
 .PHONY: build
 build: $(UV_BIN)
@@ -27,7 +28,7 @@ build: $(UV_BIN)
 clean:
 	find kingpin -type f -name '*.pyc' -exec rm "{}" \;
 	rm -f kingpin.zip
-	rm -rf $(BUILD_DIRS) .venv
+	rm -rf $(BUILD_DIRS) .venv docs/_build
 
 .PHONY: lint
 lint: $(UV_BIN)
