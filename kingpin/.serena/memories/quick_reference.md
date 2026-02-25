@@ -28,4 +28,4 @@ Kingpin is a **Deployment Automation Engine** by Nextdoor. It provides API abstr
 - `kingpin/constants.py` - REQUIRED, STATE, SchemaCompareBase
 
 ## Version
-5.0.0 (in `kingpin/version.py`)
+5.0.1 (in `kingpin/version.py`)
