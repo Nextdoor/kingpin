@@ -222,7 +222,7 @@ def begin():
     utils.setup_root_logger(level=args.level, color=args.color)
 
     try:
-        ioloop.IOLoop.instance().run_sync(main)
+        ioloop.IOLoop.current().run_sync(main)
     except KeyboardInterrupt:
         log.info("CTRL-C Caught, shutting down")
         sys.exit(130)  # Standard KeyboardInterrupt exit code.
