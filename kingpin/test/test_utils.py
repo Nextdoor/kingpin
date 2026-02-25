@@ -6,7 +6,7 @@ import time
 from tornado import gen
 from tornado import testing
 from tornado.testing import unittest
-import mock
+from unittest import mock
 import rainbow_logging_handler
 import requests
 

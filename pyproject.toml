@@ -85,7 +85,6 @@ dev = [
     # testing
     "pytest",
     "pytest-cov",
-    "mock",
     "pyflakes",
     "requests",
     # building

@@ -2,7 +2,7 @@ import logging
 
 from tornado import httpclient
 from tornado import testing
-import mock
+from unittest import mock
 
 from kingpin import exceptions as kingpin_exceptions
 from kingpin.actors import exceptions

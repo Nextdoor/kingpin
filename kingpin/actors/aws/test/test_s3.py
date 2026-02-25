@@ -2,7 +2,7 @@ import logging
 
 from botocore.exceptions import ClientError
 from tornado import testing
-import mock
+from unittest import mock
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import s3 as s3_actor

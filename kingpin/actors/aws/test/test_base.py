@@ -4,7 +4,7 @@ from boto3 import exceptions as boto3_exceptions
 from botocore import stub
 from tornado import testing
 import botocore.exceptions
-import mock
+from unittest import mock
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
