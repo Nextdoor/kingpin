@@ -14,6 +14,17 @@
   "schedule": [
     "before 5am on monday"
   ],
+  // Auto-update .python-version when new CPython releases land.
+  // Renovate handles pyproject.toml and uv.lock natively — no custom manager needed.
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/.python-version$/"],
+      "matchStrings": ["^(?<currentValue>\\d+\\.\\d+(\\.\\d+)?)\\s*$"],
+      "datasourceTemplate": "python-version",
+      "depNameTemplate": "python"
+    }
+  ],
   "packageRules": [
     {
       "matchUpdateTypes": ["patch", "minor"],

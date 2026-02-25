@@ -31,9 +31,11 @@ class TestMacro(testing.AsyncTestCase):
         misc.Macro._check_macro = mock.Mock()
         misc.Macro._get_macro = mock.Mock(return_value="unit-test-macro")
 
-        with mock.patch("kingpin.utils.load_json_with_tokens") as j2d, mock.patch(
-            "kingpin.schema.validate"
-        ) as schema_validate, mock.patch("kingpin.actors.utils.get_actor") as get_actor:
+        with (
+            mock.patch("kingpin.utils.load_json_with_tokens") as j2d,
+            mock.patch("kingpin.schema.validate") as schema_validate,
+            mock.patch("kingpin.actors.utils.get_actor") as get_actor,
+        ):
 
             j2d.return_value = {
                 "desc": "unit test",
@@ -92,9 +94,11 @@ class TestMacro(testing.AsyncTestCase):
         misc.Macro._check_macro = mock.Mock()
         misc.Macro._get_macro = mock.Mock(return_value="unit-test-macro")
 
-        with mock.patch("kingpin.utils.load_json_with_tokens") as j2d, mock.patch(
-            "kingpin.schema.validate"
-        ) as schema_validate, mock.patch("kingpin.actors.group.Sync") as sync_actor:
+        with (
+            mock.patch("kingpin.utils.load_json_with_tokens") as j2d,
+            mock.patch("kingpin.schema.validate") as schema_validate,
+            mock.patch("kingpin.actors.group.Sync") as sync_actor,
+        ):
 
             j2d.return_value = [
                 {"desc": "unit test", "actor": "unit test", "options": {}}
@@ -121,9 +125,11 @@ class TestMacro(testing.AsyncTestCase):
         misc.Macro._get_config_from_script.return_value = {}
         misc.Macro._check_schema = mock.Mock()
 
-        with mock.patch("kingpin.utils.load_json_with_tokens") as j2d, mock.patch(
-            "kingpin.schema.validate"
-        ), mock.patch("kingpin.actors.utils.get_actor"):
+        with (
+            mock.patch("kingpin.utils.load_json_with_tokens") as j2d,
+            mock.patch("kingpin.schema.validate"),
+            mock.patch("kingpin.actors.utils.get_actor"),
+        ):
             j2d.return_value = {
                 "desc": "unit test",
                 "actor": "unit test",
