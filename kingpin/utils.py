@@ -10,7 +10,6 @@ import difflib
 import functools
 import http.client
 import importlib
-import io
 import json
 import logging
 import os

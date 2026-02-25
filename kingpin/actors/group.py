@@ -322,9 +322,7 @@ class Sync(BaseGroupActor):
         if errors:
             ExcType = self._get_exc_type(errors)
             raise ExcType(
-                'Exceptions raised by {} of {} actors in "{}".'.format(
-                    len(errors), len(self._actions), self._desc
-                )
+                f'Exceptions raised by {len(errors)} of {len(self._actions)} actors in "{self._desc}".'
             )
 
 
@@ -470,7 +468,5 @@ class Async(BaseGroupActor):
         if errors:
             ExcType = self._get_exc_type(errors)
             raise ExcType(
-                'Exceptions raised by {} of {} actors in "{}".'.format(
-                    len(errors), len(self._actions), self._desc
-                )
+                f'Exceptions raised by {len(errors)} of {len(self._actions)} actors in "{self._desc}".'
             )

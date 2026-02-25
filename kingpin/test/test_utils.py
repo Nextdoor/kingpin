@@ -119,31 +119,31 @@ class TestUtils(unittest.TestCase):
     def test_load_json_with_tokens(self):
         # Should work with string path to a file
         dirname, filename = os.path.split(os.path.abspath(__file__))
-        examples = "{}/../../examples".format(dirname)
-        simple = "{}/simple.json".format(examples)
+        examples = f"{dirname}/../../examples"
+        simple = f"{examples}/simple.json"
         ret = utils.load_json_with_tokens(simple, {})
         self.assertIsInstance(ret, dict)
 
         # Should work with file instance also
         dirname, filename = os.path.split(os.path.abspath(__file__))
-        examples = "{}/../../examples".format(dirname)
-        simple = "{}/simple.json".format(examples)
+        examples = f"{dirname}/../../examples"
+        simple = f"{examples}/simple.json"
         instance = open(simple)
         ret = utils.load_json_with_tokens(instance, {})
         self.assertIsInstance(ret, dict)
 
         # Should definitely support YAML as well
         dirname, filename = os.path.split(os.path.abspath(__file__))
-        examples = "{}/../../examples".format(dirname)
-        simple = "{}/simple.yaml".format(examples)
+        examples = f"{dirname}/../../examples"
+        simple = f"{examples}/simple.yaml"
         instance = open(simple)
         ret = utils.load_json_with_tokens(instance, {})
         self.assertIsInstance(ret, dict)
 
         # Should definitely support YAML with anchors
         dirname, filename = os.path.split(os.path.abspath(__file__))
-        examples = "{}/../../examples".format(dirname)
-        simple = "{}/anchors.yaml".format(examples)
+        examples = f"{dirname}/../../examples"
+        simple = f"{examples}/anchors.yaml"
         instance = open(simple)
         ret = utils.load_json_with_tokens(instance, {})
         self.assertIsInstance(ret, dict)

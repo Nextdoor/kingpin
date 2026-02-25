@@ -16,9 +16,9 @@ log = logging.getLogger(__name__)
 
 def create_fake_stack(name, status):
     fake_stack = {
-        "StackId": "arn:aws:cloudformation:us-east-1:xxxx:stack/{}/x".format(name),
+        "StackId": f"arn:aws:cloudformation:us-east-1:xxxx:stack/{name}/x",
         "LastUpdatedTime": datetime.datetime.now(),
-        "TemplateDescription": "Fake Template {}".format(name),
+        "TemplateDescription": f"Fake Template {name}",
         "CreationTime": datetime.datetime.now(),
         "StackName": name,
         "StackStatus": status,
@@ -33,10 +33,10 @@ def create_fake_stack_event(name, resource, status, reason=None):
     fake_event = {
         "EventId": "264322b0-2426-11e6-aaa1-500c28b32ed2",
         "LogicalResourceId": resource,
-        "PhysicalResourceId": "arn:aws:cfn:us-east-1:x:stack/{}/abc".format(name),
+        "PhysicalResourceId": f"arn:aws:cfn:us-east-1:x:stack/{name}/abc",
         "ResourceStatus": status,
         "ResourceType": "AWS::CloudFormation::Stack",
-        "StackId": "arn:aws:cfn:us-east-1:xxx:stack/{}/xyz".format(name),
+        "StackId": f"arn:aws:cfn:us-east-1:xxx:stack/{name}/xyz",
         "StackName": name,
         "Timestamp": datetime.datetime.now(),
     }
