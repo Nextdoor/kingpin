@@ -5,7 +5,7 @@ import json
 import boto3
 from botocore.exceptions import ClientError
 from tornado import testing
-import mock
+from unittest import mock
 
 from kingpin.actors.aws import base
 from kingpin.actors.aws import settings

@@ -1,6 +1,6 @@
 import logging
 import time
-import mock
+from unittest import mock
 
 from tornado import gen
 from tornado import testing

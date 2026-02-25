@@ -10,7 +10,7 @@ from tornado import gen
 from tornado import httpclient
 from tornado import simple_httpclient
 from tornado import testing
-import mock
+from unittest import mock
 
 # Unusual placement -- but we override the environment so that we can test that
 # the urllib debugger works.

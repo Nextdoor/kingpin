@@ -4,7 +4,7 @@ import json
 
 from datetime import datetime
 
-import mock
+from unittest import mock
 
 from botocore.stub import Stubber
 from tornado import gen, testing
