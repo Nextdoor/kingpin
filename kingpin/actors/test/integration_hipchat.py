@@ -8,7 +8,6 @@ from kingpin.actors import hipchat
 from kingpin.actors import exceptions
 import importlib
 
-
 __author__ = "Matt Wise <matt@nextdoor.com>"
 
 

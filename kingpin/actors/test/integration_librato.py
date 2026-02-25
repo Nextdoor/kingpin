@@ -7,7 +7,6 @@ from tornado import testing
 from kingpin.actors import librato
 from kingpin.actors import exceptions
 
-
 __author__ = "Charles McLaughlin <charles@nextdoor.com>"
 
 

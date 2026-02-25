@@ -10,7 +10,6 @@ from tornado import testing
 from kingpin.actors import exceptions
 from kingpin.actors import misc
 
-
 __author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 
 

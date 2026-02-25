@@ -208,7 +208,7 @@ class IAMBaseActor(base.AWSBaseActor):
         # result, parse the returned policy, and append it to our policies
         # list. We also catch any raised exceptions here.
         for t in tasks:
-            (p_name, p_task) = t
+            p_name, p_task = t
             try:
                 raw = yield p_task
             except ClientError as e:

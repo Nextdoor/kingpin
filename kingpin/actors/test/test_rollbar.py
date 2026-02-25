@@ -11,7 +11,6 @@ from tornado import testing
 from kingpin.actors import rollbar
 from kingpin.actors import exceptions
 
-
 __author__ = "Matt Wise <matt@nextdoor.com>"
 
 

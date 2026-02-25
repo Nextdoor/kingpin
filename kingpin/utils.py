@@ -31,7 +31,6 @@ import rainbow_logging_handler
 
 from kingpin import exceptions
 
-
 log = logging.getLogger(__name__)
 
 # Constants for some of the utilities below
