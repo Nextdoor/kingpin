@@ -1,44 +1,79 @@
-# Suggested Commands
+# Kingpin — Suggested Commands
 
-## Setup
+## Prerequisites
+- **uv** must be installed: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+
+## Environment Setup
 ```bash
-make venv              # Create virtualenv and install deps
-source .venv/bin/activate
+# Install all dependencies (creates .venv automatically)
+make venv
+# Or directly:
+uv sync
 ```
 
-## Testing
+## Running Tests
 ```bash
-make test              # Run pytest + pyflakes + integration tests
-# Or manually:
-PYTHONPATH=. .venv/bin/pytest --cov=kingpin -v
-PYTHONPATH=. .venv/bin/pyflakes kingpin
+# Full test suite (pytest + pyflakes + dry-run deploy examples)
+make test
+
+# Just pytest with coverage
+PYTHONPATH=. uv run pytest --cov=kingpin -v
+
+# Run a specific test file
+PYTHONPATH=. uv run pytest kingpin/actors/test/test_base.py -v
+
+# Run a specific test
+PYTHONPATH=. uv run pytest kingpin/actors/test/test_base.py::TestClassName::test_method -v
+
+# Pyflakes lint check
+PYTHONPATH=. uv run pyflakes kingpin
 ```
 
-## Linting / Formatting
+## Formatting & Linting
 ```bash
-make lint              # Check formatting (black --diff --check)
-DRY=false make lint    # Auto-format (black)
+# Check formatting (dry run, no changes)
+make lint
+
+# Apply formatting
+DRY=false make lint
+
+# Or directly:
+uv run black kingpin                  # apply
+uv run black --diff --check kingpin   # check only
 ```
 
-## Build
+## Building
 ```bash
-make build             # Build the package
-make pack              # Create a self-contained kingpin.zip
-```
+# Build distribution
+make build
 
-## Docs
-```bash
-make docs              # Build Sphinx docs
+# Build self-contained zip
+make pack
 ```
 
 ## Running Kingpin
 ```bash
-kingpin --help
-kingpin --dry --script examples/test/sleep.json
-kingpin --actor misc.Sleep --option sleep=5 --dry
-kingpin --actor misc.Sleep --explain
-kingpin --build-only --script examples/simple.json
+# Dry-run with a script
+PYTHONPATH=. uv run python kingpin/bin/deploy.py --dry --script examples/test/sleep.json
+
+# Or via installed entry point (after `uv sync`)
+uv run kingpin --dry --script examples/test/sleep.json
 ```
 
-## Git (Darwin system)
-Standard `git`, `ls`, `grep`, `find` commands work as expected on macOS.
+## Documentation
+```bash
+# Build Sphinx docs
+make docs
+```
+
+## Cleaning
+```bash
+make clean
+```
+
+## System Utilities (macOS/Darwin)
+```bash
+git status / git diff / git log   # version control
+ls / find / grep                   # file operations (use Serena tools when possible)
+uv run python                      # run Python in the project venv
+```

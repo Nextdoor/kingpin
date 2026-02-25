@@ -1,38 +1,58 @@
-# Code Style & Conventions
+# Kingpin — Style & Conventions
 
 ## Formatting
-- **black** formatter (no custom config detected, uses defaults)
-- Line length: black default (88 chars)
+- **Formatter**: `black` (default config, no custom settings)
+- Run with: `make lint` (dry-run/check mode) or `DRY=false make lint` (apply)
 
-## Naming
-- snake_case for functions, methods, variables
-- CamelCase for classes
-- UPPER_SNAKE_CASE for module-level constants
-- Private methods prefixed with `_` (e.g., `_execute`, `_fetch`)
-
-## Type Hints
-- Minimal use of type hints — mostly absent except in newer code
-- Some `-> bool` return type annotations in `utils.py`
-- `typing.Optional` used in `cloudformation.py`
+## Naming Conventions
+- **Modules/files**: snake_case (`api_call_queue.py`, `base.py`)
+- **Classes**: PascalCase (`BaseActor`, `EnsurableBaseActor`, `BaseGroupActor`)
+- **Methods/functions**: snake_case with leading underscore for private (`_setup_log`, `_validate_options`)
+- **Constants**: UPPER_SNAKE_CASE (`REQUIRED`, `STATE`, `DEFAULT_TIMEOUT`)
+- **Module-level logger**: `log = logging.getLogger(__name__)`
+- **Author tag**: `__author__ = "Name <email>"` in module globals
 
 ## Docstrings
-- Google-style docstrings with Args/Returns/Raises sections
-- RST-style module docstrings at top of files (`:mod:` directive)
-- `__author__` module-level attribute required in every actor module
+- Module-level docstrings use Sphinx `:mod:` directive format:
+  ```python
+  """
+  :mod:`kingpin.actors.base`
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  
+  Description of the module
+  """
+  ```
+- Class/method docstrings use plain description with `Args:` sections (Google-ish style)
+- Type annotations are described in docstrings, not via Python type hints
+
+## Type Hints
+- **Not used** in the codebase — types are documented in docstrings and `all_options` dicts instead
+
+## Imports
+- Standard library imports first, then third-party, then local (`kingpin.*`)
+- Tornado imports use `from tornado import gen` style (not `import tornado.gen`)
+- Local imports use `from kingpin.actors import base` style
 
 ## Async Pattern
-- Tornado `@gen.coroutine` + `yield` pattern (NOT async/await)
-- Return values via `raise gen.Return(value)` (NOT `return`)
-- Non-blocking IO via Tornado's IOLoop
+- Uses Tornado `@gen.coroutine` decorator with `yield` (NOT async/await)
+- Return values via `raise gen.Return(value)`
+- Timeouts via `gen.with_timeout()`
 
-## Actor Design Pattern
-- Every actor must subclass `base.BaseActor`
-- Must implement `_execute()` as a coroutine
-- Must support dry mode (`self._dry`)
-- Options via `all_options` class dict: `{name: (type, default_or_REQUIRED, description)}`
-- `__author__` attribute is required and used at runtime
+## Actor Definition Pattern
+- Each actor defines `all_options` class attribute (dict of option specs)
+- Options format: `{'name': (type, default, "description")}` where `REQUIRED` = no default
+- Actors implement `_execute()` coroutine for their main logic
+- `EnsurableBaseActor` adds state management (`present`/`absent`)
 
-## PR Title Convention
-Conventional commits required: `type(scope): description`
-- Types: chore, docs, feat, fix, refactor, test
-- Scopes: deps, docs, ci, actors, aws, s3, iam, cfn, cloudformation, group, macro
+## Test Conventions
+- Test files mirror source: `actors/test/test_base.py` tests `actors/base.py`
+- Tests use `tornado.testing.AsyncTestCase` / `gen_test` for async tests
+- Mocking via `mock` library (not `unittest.mock`)
+- Integration tests prefixed with `integration_` (separate from unit tests)
+- Test helper in `actors/test/helper.py`
+
+## PR Title Convention (Conventional Commits)
+- Required format: `type(scope): description`
+- **Types**: chore, docs, feat, fix, refactor, test
+- **Scopes**: deps, docs, ci, actors, aws, s3, iam, cfn, cloudformation, group, macro
+- Scope is **required**
