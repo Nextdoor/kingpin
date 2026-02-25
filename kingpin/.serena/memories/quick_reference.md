@@ -7,7 +7,7 @@ Kingpin is a **Deployment Automation Engine** built by Nextdoor Engineering. It 
 - **Parallel Execution** — Non-blocking network IO with parallel actor execution
 
 ## Tech Stack
-- **Language**: Python 3.9+ (currently targeting 3.13)
+- **Language**: Python 3.11+ (currently targeting 3.13)
 - **Async framework**: Tornado 6.x (`tornado.gen` coroutines)
 - **AWS SDK**: boto3
 - **JSON schema validation**: jsonschema
@@ -20,7 +20,7 @@ Kingpin is a **Deployment Automation Engine** built by Nextdoor Engineering. It 
 - **Docs**: Sphinx + ReadTheDocs
 
 ## Version
-Current version: 5.0.1 (defined in `kingpin/version.py`)
+Current version: 5.0.2 (defined in `kingpin/version.py`)
 
 ## Entry Point
 `kingpin/bin/deploy.py` → CLI command `kingpin`
@@ -33,9 +33,6 @@ kingpin/
 │   ├── base.py           # BaseActor, EnsurableBaseActor
 │   ├── group.py          # Sync/Async group actors
 │   ├── misc.py           # Miscellaneous actors (Macro, etc.)
-│   ├── hipchat.py        # HipChat integration
-│   ├── librato.py        # Librato integration
-│   ├── rollbar.py        # Rollbar integration
 │   ├── aws/              # AWS actors
 │   │   ├── base.py       # AWS base actor
 │   │   ├── cloudformation.py

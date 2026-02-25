@@ -65,10 +65,7 @@ suites. See below for the list.
 *List of Built-In Integration Test Suites*
 
 * aws
-* librato
 * http
-* hipchat
-* rollbar
 
 
 Class/Object Architecture
@@ -90,17 +87,7 @@ Class/Object Architecture
         |       +-- WaitUntilEmpty
         |
         +-- actors.email
-        |   | Email Actor
-        |
-        +-- actors.hipchat
-        |   | Hipchat Actor
-        |   |
-        |   +-- Message
-        |
-        +-- actors.librato
-            | Librato Metric Actor
-            |
-            +-- Annotation
+            | Email Actor
 
 Actor Design
 ~~~~~~~~~~~~

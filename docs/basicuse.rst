@@ -96,13 +96,12 @@ The simplest JSON file could look like this:
 .. code-block:: json
 
     {
-      "actor": "hipchat.Message",
+      "actor": "misc.Note",
       "condition": true,
       "warn_on_failure": true,
       "timeout": 30,
       "options": {
-        "message": "Beginning release %RELEASE%",
-        "room": "Oncall"
+        "message": "Beginning release %RELEASE%"
       }
     }
 
@@ -110,13 +109,12 @@ Alternatively, a YAML file would look like this:
 
 .. code-block:: yaml
 
-    actor: hipchat.Message
+    actor: misc.Note
     condition: true
     warn_on_failure: true
     timeout: 30
     options:
       message: Beginning release %RELEASE%
-      room: Oncall
 
 To execute multiple actors in one script you should leverage one of grouping
 actors such as ``group.Sync`` or ``group.Async``. These actors have their own
@@ -126,10 +124,9 @@ There is an ``array`` short hand for ``group.Sync`` for trivial set of actors.
 
 .. code-block:: yaml
 
-    - actor: hipchat.Message
+    - actor: misc.Note
       options:
         message: Beginning release %RELEASE%
-        room: Oncall
     - actor: next.Actor
       options:
         release_version: version-%RELEASE%
@@ -159,12 +156,11 @@ Example usage:
 .. code-block:: json
 
     {
-      "actor": "hipchat.Message",
+      "actor": "misc.Note",
       "condition": "%SEND_MESSAGE%",
       "warn_on_failure": true,
       "options": {
-        "message": "Beginning release %RELEASE%",
-        "room": "Oncall"
+        "message": "Beginning release %RELEASE%"
       }
     }
 
@@ -312,8 +308,7 @@ For an example, take a look at the :download:`complex.json
     # Finally we set both variables and the code begins...
     $ OLD_RELEASE=0000a RELEASE=0001a kingpin -s examples/complex.json -d
     2014-09-01 21:30:03,886 INFO      [Main (DRY Mode)] Beginning
-    2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Beginning
-    2014-09-01 21:30:03,886 INFO      [Hipchat: Notify Oncall Room (DRY Mode)] Sending message "Beginning release 0001a" to Hipchat room "Oncall"
+    2014-09-01 21:30:03,886 INFO      [Note: Notify Oncall (DRY Mode)] Beginning release 0001a
     ...
 
 *Default values for variables*
@@ -455,19 +450,18 @@ ability to define usable tokens, but any actor can then reference these tokens.
 .. code-block:: json
 
     {
-      "desc": "Send out hipchat notifications",
+      "desc": "Send out notifications",
       "actor": "group.Sync",
       "options": {
         "contexts": [
-          { "ROOM": "Systems" }
+          { "TEAM": "Systems" }
         ],
         "acts": [
           {
-            "desc": "Notify {ROOM}",
-            "actor": "hipchat.Message",
+            "desc": "Notify {TEAM}",
+            "actor": "misc.Note",
             "options": {
-              "room": "{ROOM}",
-                "message": "Hey room .. I'm done with something"
+              "message": "Hey {TEAM} .. I'm done with something"
             }
           }
         ]
@@ -476,8 +470,8 @@ ability to define usable tokens, but any actor can then reference these tokens.
 
 .. code-block:: console
 
-    2015-01-14 15:03:16,840 INFO      [DRY: Send out hipchat notifications] Beginning 1 actions
-    2015-01-14 15:03:16,840 INFO      [DRY: Notify Systems] Sending message "Hey room .. I'm done with something" to Hipchat room "Systems"
+    2015-01-14 15:03:16,840 INFO      [DRY: Send out notifications] Beginning 1 actions
+    2015-01-14 15:03:16,840 INFO      [DRY: Notify Systems] Hey Systems .. I'm done with something
 
 *Contextual tokens used for iteration*
 
@@ -487,16 +481,15 @@ ability to define usable tokens, but any actor can then reference these tokens.
       "actor": "group.Async",
       "options": {
         "contexts": [
-          { "ROOM": "Engineering", "WISDOM": "Get back to work" },
-          { "ROOM": "Cust Service", "WISDOM": "Have a nice day" }
+          { "TEAM": "Engineering", "WISDOM": "Get back to work" },
+          { "TEAM": "Cust Service", "WISDOM": "Have a nice day" }
         ],
         "acts": [
           {
-            "desc": "Notify {ROOM}",
-            "actor": "hipchat.Message",
+            "desc": "Notify {TEAM}",
+            "actor": "misc.Note",
             "options": {
-                "room": "{ROOM}",
-                "message": "Hey room .. I'm done with the release. {WISDOM}"
+              "message": "Hey {TEAM} .. I'm done with the release. {WISDOM}"
             }
           }
         ]
@@ -506,8 +499,8 @@ ability to define usable tokens, but any actor can then reference these tokens.
 .. code-block:: console
 
     2015-01-14 15:02:22,165 INFO      [DRY: kingpin.actor.group.Async] Beginning 2 actions
-    2015-01-14 15:02:22,165 INFO      [DRY: Notify Engineering] Sending message "Hey room .. I'm done with the release. Get back to work" to Hipchat room "Engineering"
-    2015-01-14 15:02:22,239 INFO      [DRY: Notify Cust Service] Sending message "Hey room .. I'm done with the release. Have a nice day" to Hipchat room "Cust Service"
+    2015-01-14 15:02:22,165 INFO      [DRY: Notify Engineering] Hey Engineering .. I'm done with the release. Get back to work
+    2015-01-14 15:02:22,239 INFO      [DRY: Notify Cust Service] Hey Cust Service .. I'm done with the release. Have a nice day
 
 Contextual tokens stored in separate file
 '''''''''''''''''''''''''''''''''''''''''
@@ -525,27 +518,26 @@ then reference that file. Context files support `token-replacement`_ just like
       "desc": "Send ending notifications...",
       "actor": "group.Async",
       "options": {
-        "contexts": "data/notification-rooms.json",
+        "contexts": "data/notification-teams.json",
         "acts": [
           {
-            "desc": "Notify {ROOM}",
-            "actor": "hipchat.Message",
+            "desc": "Notify {TEAM}",
+            "actor": "misc.Note",
             "options": {
-                "room": "{ROOM}",
-                "message": "Hey room .. I'm done with the release. {WISDOM}"
+              "message": "Hey {TEAM} .. I'm done with the release. {WISDOM}"
             }
           }
         ]
       }
     }
 
-*data/notification-rooms.json*
+*data/notification-teams.json*
 
 .. code-block:: json
 
     [
-      { "ROOM": "Engineering", "WISDOM": "%USER% says: Get back to work" },
-      { "ROOM": "Cust Service", "WISDOM": "%USER% says: Have a nice day" }
+      { "TEAM": "Engineering", "WISDOM": "%USER% says: Get back to work" },
+      { "TEAM": "Cust Service", "WISDOM": "%USER% says: Have a nice day" }
     ]
 
 Early Actor Instantiation

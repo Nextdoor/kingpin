@@ -72,8 +72,8 @@ class BaseActor(object):
     #
     # Example:
     # {
-    #    'room': (str, REQUIRED, 'Hipchat room to notify'),
-    #    'from': (str, 'Kingpin', 'User that sends the message')
+    #    'name': (str, REQUIRED, 'Name of the resource'),
+    #    'timeout': (int, 300, 'Timeout in seconds')
     # }
     all_options = {}
 

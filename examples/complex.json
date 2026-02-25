@@ -2,7 +2,7 @@
   "actor": "group.Sync",
   "options": {
     "acts": [
-      { "desc": "Hipchat: Notify Oncall Room", "actor": "hipchat.Message", "options": { "message": "Beginning release %RELEASE%", "room": "Oncall" } },
+      { "desc": "Note: Notify Oncall", "actor": "misc.Note", "options": { "message": "Beginning release %RELEASE%" } },
 
       { "desc": "Clone and Patch Arrays",
         "actor": "group.Sync",
