@@ -1,11 +1,12 @@
 HERE = $(shell pwd)
 
-VENV_CMD    := python3 -m venv
-VENV_DIR    := $(HERE)/.venv
-PYTHON      := $(VENV_DIR)/bin/python
-PYTEST      := $(VENV_DIR)/bin/pytest
-PYFLAKES    := $(VENV_DIR)/bin/pyflakes
-PYBLACK     := $(VENV_DIR)/bin/black
+UV_VERSION  := 0.7.12
+UV_BIN      := $(or $(shell command -v uv 2>/dev/null),$(HOME)/.local/bin/uv)
+
+PYTHON      := $(UV_BIN) run python
+PYTEST      := $(UV_BIN) run pytest
+PYFLAKES    := $(UV_BIN) run pyflakes
+PYBLACK     := $(UV_BIN) run black
 
 BUILD_DIRS = bin .build build include lib lib64 man share package *.egg dist *.egg-info .coverage .pytest_cache
 
@@ -14,23 +15,26 @@ ifneq ($(DRY),false)
 PYBLACK_OPTS := --diff --check
 endif
 
+$(UV_BIN):
+	@echo "Installing uv $(UV_VERSION)..."
+	curl -LsSf https://astral.sh/uv/$(UV_VERSION)/install.sh | sh
+
 .PHONY: build
-build: $(VENV_DIR)
-	$(PYTHON) -m build
+build: $(UV_BIN)
+	$(UV_BIN) build
 
 .PHONY: clean
-clean: $(VENV_DIR)
+clean:
 	find kingpin -type f -name '*.pyc' -exec rm "{}" \;
 	rm -f kingpin.zip
-	rm -rf $(BUILD_DIRS)
-	PATH=$(VENV_DIR)/bin:$(PATH) $(MAKE) -C docs clean
+	rm -rf $(BUILD_DIRS) .venv
 
 .PHONY: lint
-lint: $(VENV_DIR)
+lint: $(UV_BIN)
 	$(PYBLACK) $(PYBLACK_OPTS) kingpin
 
 .PHONY: test
-test: $(VENV_DIR)
+test: $(UV_BIN)
 	PYTHONPATH=$(HERE) $(PYTEST) --cov=kingpin -v
 	PYTHONPATH=$(HERE) $(PYFLAKES) kingpin
 	PYTHONPATH=$(HERE) $(PYTHON) kingpin/bin/deploy.py --dry --script examples/test/sleep.json
@@ -40,10 +44,10 @@ test: $(VENV_DIR)
 pack: kingpin.zip
 	$(PYTHON) kingpin.zip --help 2>&1 >/dev/null && echo Success || echo Fail
 
-kingpin.zip: $(VENV_DIR)
+kingpin.zip: $(UV_BIN)
 	rm -rf zip
 	mkdir -p zip
-	$(PYTHON) -m pip install -r requirements.txt --target ./zip ./
+	$(UV_BIN) run pip install --target ./zip ./
 	find ./zip -name '*.pyc' -delete
 	find ./zip -name '*.egg-info' | xargs rm -rf
 	cd zip; ln -sf kingpin/bin/deploy.py ./__main__.py
@@ -51,15 +55,9 @@ kingpin.zip: $(VENV_DIR)
 	rm -rf zip
 
 .PHONY: docs
-docs: $(VENV_DIR)
-	PATH=$(VENV_DIR)/bin:$(PATH) $(MAKE) -C docs html
+docs: $(UV_BIN)
+	$(UV_BIN) run --group docs $(MAKE) -C docs html
 
 .PHONY: venv
-venv: $(VENV_DIR)
-
-$(VENV_DIR): requirements.txt requirements.test.txt
-	$(VENV_CMD) $(VENV_DIR)
-	$(PYTHON) -m pip install -U pip setuptools wheel
-	$(PYTHON) -m pip install -r requirements.test.txt
-	$(PYTHON) -m pip install -r requirements.txt
-	touch $(VENV_DIR)
+venv: $(UV_BIN)
+	$(UV_BIN) sync
