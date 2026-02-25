@@ -9,7 +9,7 @@ from kingpin import schema
 
 class TestSchema(unittest.TestCase):
     def setUp(self, *args, **kwargs):
-        super(TestSchema, self).setUp(*args, **kwargs)
+        super().setUp(*args, **kwargs)
 
         dirname, filename = os.path.split(os.path.abspath(__file__))
         self.examples = "%s/../../examples" % dirname

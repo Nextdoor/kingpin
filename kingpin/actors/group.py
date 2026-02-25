@@ -70,7 +70,7 @@ class BaseGroupActor(base.BaseActor):
           See `Token-replacement <basicuse.html#token-replacement>` for more
           info.
         """
-        super(BaseGroupActor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Pre-initialize all of our actions!
         self._actions = self._build_actions()
@@ -78,7 +78,7 @@ class BaseGroupActor(base.BaseActor):
     def get_orgchart(self, parent=""):
         """Generate an orgchart for all the `acts` specified."""
 
-        ret = super(BaseGroupActor, self).get_orgchart(parent=parent)
+        ret = super().get_orgchart(parent=parent)
         group_id = str(id(self))
         for act in self._actions:
             ret = ret + act.get_orgchart(parent=group_id)
@@ -108,7 +108,7 @@ class BaseGroupActor(base.BaseActor):
 
         # If the data passed into the 'contexts' is a list of dicts, we take it
         # as is and do nothing to it.
-        if type(contexts) == list:
+        if isinstance(contexts, list):
             context_data = self.option("contexts")
         # If the data passed in is a string, it must be a pointer to a file
         # with contexts in it. We read that file, and we parse it for any
@@ -123,12 +123,10 @@ class BaseGroupActor(base.BaseActor):
 
         actions = []
         for context in context_data:
-            combined_context = dict(
-                list(self._init_context.items()) + list(context.items())
-            )
-            self.log.debug("Inherited context %s" % list(self._init_context.items()))
-            self.log.debug("Specified context %s" % list(context.items()))
-            self.log.debug("Building acts with parameters: %s" % combined_context)
+            combined_context = {**self._init_context, **context}
+            self.log.debug(f"Inherited context {self._init_context}")
+            self.log.debug(f"Specified context {context}")
+            self.log.debug(f"Building acts with parameters: {combined_context}")
             for action in self._build_action_group(context=combined_context):
                 actions.append(action)
 
@@ -145,13 +143,13 @@ class BaseGroupActor(base.BaseActor):
             A list of references to <actor objects>.
         """
         actions = []
-        self.log.debug("Building %s actors" % len(self.option("acts")))
+        self.log.debug(f"Building {len(self.option('acts'))} actors")
         for act in self.option("acts"):
             act["init_context"] = context.copy()
             act["init_tokens"] = self._init_tokens.copy()
             actor = utils.get_actor(act, dry=self._dry)
             actions.append(actor)
-            self.log.debug("Actor %s built" % actor)
+            self.log.debug(f"Actor {actor} built")
         return actions
 
     def _get_exc_type(self, exc_list):
@@ -185,7 +183,7 @@ class BaseGroupActor(base.BaseActor):
         If an actor execution fails in ``_run_actions()``, then that exception
         is raised up the stack.
         """
-        self.log.info("Beginning %s actions" % len(self._actions))
+        self.log.info(f"Beginning {len(self._actions)} actions")
         yield self._run_actions()
         raise gen.Return()
 
@@ -308,18 +306,18 @@ class Sync(BaseGroupActor):
         errors = []
 
         for act in self._actions:
-            self.log.debug('Beginning "%s"..' % act._desc)
+            self.log.debug(f'Beginning "{act._desc}"..')
             try:
                 yield act.execute()
             except exceptions.ActorException as e:
                 if self._dry:
-                    self.log.error("%s failed: %s" % (act._desc, str(e)))
+                    self.log.error(f"{act._desc} failed: {e}")
                     self.log.warning("Continuing since this is a dry run.")
                     errors.append(e)
                 else:
                     self.log.error(
-                        "Aborting sequential execution because "
-                        '"%s" failed' % act._desc
+                        f"Aborting sequential execution because "
+                        f'"{act._desc}" failed'
                     )
                     raise
 
@@ -429,7 +427,7 @@ class Async(BaseGroupActor):
         tasks = []
 
         if self.option("concurrency"):
-            self.log.info("Concurrency set to %s" % self.option("concurrency"))
+            self.log.info(f"Concurrency set to {self.option('concurrency')}")
 
         for act in self._actions:
             tasks.append(act.execute())

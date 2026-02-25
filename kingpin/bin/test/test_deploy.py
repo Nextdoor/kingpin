@@ -9,7 +9,7 @@ from kingpin.actors.misc import Macro, Sleep
 
 class TestDeploy(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        super(TestDeploy, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.kingpin_bin_deploy = None
 

@@ -3,11 +3,11 @@ import jsonschema
 from kingpin.actors import exceptions
 
 
-class REQUIRED(object):
+class REQUIRED:
     """Meta class to identify required arguments for actors."""
 
 
-class StringCompareBase(object):
+class StringCompareBase:
     """Meta class to identify the desired state for a resource.
 
     This basic type of constant allows someone to easily define a set of valid
@@ -20,9 +20,7 @@ class StringCompareBase(object):
     @classmethod
     def validate(self, option):
         if option not in self.valid:
-            raise exceptions.InvalidOptions(
-                "%s not valid, use: %s" % (option, self.valid)
-            )
+            raise exceptions.InvalidOptions(f"{option} not valid, use: {self.valid}")
 
 
 class STATE(StringCompareBase):
@@ -35,7 +33,7 @@ class STATE(StringCompareBase):
     valid = ("present", "absent")
 
 
-class SchemaCompareBase(object):
+class SchemaCompareBase:
     """Meta class that compares the schema of a dict against rules."""
 
     SCHEMA = None
@@ -46,5 +44,5 @@ class SchemaCompareBase(object):
             jsonschema.Draft4Validator(self.SCHEMA).validate(option)
         except jsonschema.exceptions.ValidationError as e:
             raise exceptions.InvalidOptions(
-                "Supplied parameter does not match schema: %s" % e
+                f"Supplied parameter does not match schema: {e}"
             )

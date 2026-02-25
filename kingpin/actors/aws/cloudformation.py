@@ -328,7 +328,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
         if url is not None:
             cfg = {"TemplateURL": url}
-            self.log.info("Validating template (%s) with AWS..." % url)
+            self.log.info(f"Validating template ({url}) with AWS...")
             try:
                 yield self.api_call(self.cfn_conn.validate_template, **cfg)
             except ClientError as e:
@@ -366,8 +366,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         """
 
         new_params = [
-            {"ParameterKey": k, "ParameterValue": v}
-            for k, v in list(parameters.items())
+            {"ParameterKey": k, "ParameterValue": v} for k, v in parameters.items()
         ]
         sorted_params = sorted(new_params, key=lambda k: k["ParameterKey"])
         return sorted_params
@@ -438,29 +437,28 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             stack = yield self._get_stack(stack_name)
 
             if not stack:
-                msg = 'Stack "%s" not found.' % self.option("name")
+                msg = f'Stack "{self.option("name")}" not found.'
                 raise StackNotFound(msg)
 
             # First, lets see if the stack is still in progress (either
             # creation, deletion, or rollback .. doesn't really matter)
             if stack["StackStatus"] in IN_PROGRESS:
                 self.log.info(
-                    "Stack state is %s, waiting %s(s)..."
-                    % (stack["StackStatus"], sleep)
+                    f"Stack state is {stack['StackStatus']}, waiting {sleep}(s)..."
                 )
                 yield utils.tornado_sleep(sleep)
                 continue
 
             # If the stack is in the desired state, then return
             if stack["StackStatus"] in desired_states:
-                self.log.debug("Found Stack state: %s" % stack["StackStatus"])
+                self.log.debug(f"Found Stack state: {stack['StackStatus']}")
                 raise gen.Return()
 
             # Lastly, if we get here, then something is very wrong and we got
             # some funky status back. Throw an exception.
-            msg = "Unexpected Stack state (StackStatus) received (%s): %s" % (
-                stack["StackStatus"],
-                stack.get("StackStatusReason", "StackStatusReason not provided."),
+            msg = (
+                f"Unexpected Stack state (StackStatus) received ({stack['StackStatus']}): "
+                f"{stack.get('StackStatusReason', 'StackStatusReason not provided.')}"
             )
             raise StackFailed(msg)
 
@@ -528,7 +526,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             raise CloudFormationError(str(e))
 
         req_id = ret["ResponseMetadata"]["RequestId"]
-        self.log.info("Stack delete requested: %s" % req_id)
+        self.log.info(f"Stack delete requested: {req_id}")
 
         # Now wait until the stack creation has finished
         try:
@@ -546,7 +544,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
     def _create_stack(self, stack):
         """Executes the stack creation."""
         # Create the stack, and get its ID.
-        self.log.info("Creating stack %s" % stack)
+        self.log.info(f"Creating stack {stack}")
 
         cfg = dict()
         if self._template_url:
@@ -585,10 +583,10 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             events = yield self._get_stack_events(stack["StackId"])
             for e in events:
                 self.log.error(e)
-            msg = "Stack creation failed: %s" % events
+            msg = f"Stack creation failed: {events}"
             raise StackFailed(msg)
 
-        self.log.info("Stack created: %s" % stack["StackId"])
+        self.log.info(f"Stack created: {stack['StackId']}")
 
         raise gen.Return(stack["StackId"])
 
@@ -708,7 +706,7 @@ class Create(CloudFormationBaseActor):
 
     def __init__(self, *args, **kwargs):
         """Initialize our object variables."""
-        super(Create, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Convert our supplied parameters into a properly formatted list.
         self._parameters = self._create_parameters(self.option("parameters"))
@@ -730,7 +728,7 @@ class Create(CloudFormationBaseActor):
         # exception and let the end user decide whether this is bad or not.
         exists = yield self._get_stack(stack_name)
         if exists:
-            raise StackAlreadyExists("Stack %s already exists!" % stack_name)
+            raise StackAlreadyExists(f"Stack {stack_name} already exists!")
 
         # If we're in dry mode, exit at this point. We can't do anything further
         # to validate that the creation process will work.
@@ -944,7 +942,7 @@ class Stack(CloudFormationBaseActor):
 
     def __init__(self, *args, **kwargs):
         """Initialize our object variables."""
-        super(Stack, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Check if the supplied CFN template is a local file. If it is, read it
         # into memory.
@@ -968,8 +966,8 @@ class Stack(CloudFormationBaseActor):
         self._noecho_params = self._discover_noecho_params(self._template_body)
         for p in self._noecho_params:
             self.log.warning(
-                'Parameter "%s" has NoEcho set to True. '
-                "Will not use in parameter comparison." % p
+                f'Parameter "{p}" has NoEcho set to True. '
+                f"Will not use in parameter comparison."
             )
 
     @gen.coroutine
@@ -980,7 +978,7 @@ class Stack(CloudFormationBaseActor):
         # there was attempted to be deleted but failed. If it is, we have a
         # fatal error and we must raise an exception.
         if stack["StackStatus"] == "DELETE_FAILED":
-            msg = "Stack found in a deleted failed state: %s" % (stack["StackStatus"])
+            msg = f"Stack found in a deleted failed state: {stack['StackStatus']}"
             raise StackFailed(msg)
 
         # Upon a stack creation, there are two states the stack can be left in
@@ -988,7 +986,7 @@ class Stack(CloudFormationBaseActor):
         # both of these cases, the only possible option is to destroy the stack
         # and re-create it, you cannot fix a broken stack.
         if stack["StackStatus"] in ("CREATE_FAILED", "ROLLBACK_COMPLETE"):
-            self.log.warning("Stack found in a failed state: %s" % stack["StackStatus"])
+            self.log.warning(f"Stack found in a failed state: {stack['StackStatus']}")
             yield self._delete_stack(stack=stack["StackId"])
             yield self._create_stack(stack=stack["StackName"])
             raise gen.Return()
@@ -1027,7 +1025,7 @@ class Stack(CloudFormationBaseActor):
         if diff:
             self.log.warning("Stack templates do not match.")
             for line in diff.split("\n"):
-                self.log.info("Diff: %s" % line)
+                self.log.info(f"Diff: {line}")
 
             # Plan to make a change set!
             needs_update = True
@@ -1092,7 +1090,7 @@ class Stack(CloudFormationBaseActor):
         # certainly passwords. Therefore, we should simply skip them in the
         # diff.
         for p in self._noecho_params:
-            self.log.debug('Removing "%s" from parameters before comparison.' % p)
+            self.log.debug(f'Removing "{p}" from parameters before comparison.')
             remote = [pair for pair in remote if pair["ParameterKey"] != p]
             local = [pair for pair in local if pair["ParameterKey"] != p]
 
@@ -1101,7 +1099,7 @@ class Stack(CloudFormationBaseActor):
         filtered_remote = []
         for param in remote:
             filtered_param = {}
-            for k, v in list(param.items()):
+            for k, v in param.items():
                 if k != "ResolvedValue":
                     filtered_param[k] = v
             filtered_remote.append(filtered_param)
@@ -1112,7 +1110,7 @@ class Stack(CloudFormationBaseActor):
         if diff:
             self.log.warning("Stack parameters do not match.")
             for line in diff.split("\n"):
-                self.log.info("Diff: %s" % line)
+                self.log.info(f"Diff: {line}")
 
             return True
 
@@ -1154,7 +1152,7 @@ class Stack(CloudFormationBaseActor):
         change_opts = {
             "StackName": stack["StackId"],
             "Capabilities": self.option("capabilities"),
-            "ChangeSetName": "kingpin-%s" % uuid,
+            "ChangeSetName": f"kingpin-{uuid}",
             "Parameters": self._parameters,
             "UsePreviousTemplate": False,
         }
@@ -1200,7 +1198,7 @@ class Stack(CloudFormationBaseActor):
         Returns:
             The final completed change set dictionary
         """
-        self.log.info("Waiting for %s to reach %s" % (change_set_name, desired_state))
+        self.log.info(f"Waiting for {change_set_name} to reach {desired_state}")
         while True:
             try:
                 change = yield self.api_call(
@@ -1209,7 +1207,7 @@ class Stack(CloudFormationBaseActor):
             except ClientError as e:
                 # If we hit an intermittent error, lets just loop around and try
                 # again.
-                self.log.error("Error receiving Change Set state: %s" % e)
+                self.log.error(f"Error receiving Change Set state: {e}")
                 yield utils.tornado_sleep(sleep)
                 continue
 
@@ -1217,8 +1215,7 @@ class Stack(CloudFormationBaseActor):
             # either case, we loop and wait.
             if change[status_key] in (("AVAILABLE",) + IN_PROGRESS):
                 self.log.info(
-                    "Change Set state is %s, waiting %s(s)..."
-                    % (change[status_key], sleep)
+                    f"Change Set state is {change[status_key]}, waiting {sleep}(s)..."
                 )
                 yield utils.tornado_sleep(sleep)
                 continue
@@ -1226,16 +1223,15 @@ class Stack(CloudFormationBaseActor):
             # If the stack is in the desired state, then return
             if change[status_key] == desired_state:
                 self.log.debug(
-                    "Change Set reached desired state: %s" % change[status_key]
+                    f"Change Set reached desired state: {change[status_key]}"
                 )
                 raise gen.Return(change)
 
             # Lastly, if we get here, then something is very wrong and we got
             # some funky status back. Throw an exception.
-            msg = "Unexpected Change Set state (%s) received (%s): %s" % (
-                status_key,
-                change[status_key],
-                change.get("StatusReason", "StatusReason not provided."),
+            msg = (
+                f"Unexpected Change Set state ({status_key}) received ({change[status_key]}): "
+                f"{change.get('StatusReason', 'StatusReason not provided.')}"
             )
             raise StackFailed(msg)
 
@@ -1247,7 +1243,7 @@ class Stack(CloudFormationBaseActor):
         Args:
             change_set: Change Set Object
         """
-        self.log.debug("Parsing change set: %s" % change_set)
+        self.log.debug(f"Parsing change set: {change_set}")
 
         # Reverse the list, and iterate through the data
         for change in change_set["Changes"]:
@@ -1280,7 +1276,7 @@ class Stack(CloudFormationBaseActor):
         Args:
             change_set_name: The Change Set Name/ARN
         """
-        self.log.info("Executing change set %s" % change_set_name)
+        self.log.info(f"Executing change set {change_set_name}")
         try:
             yield self.api_call(
                 self.cfn_conn.execute_change_set, ChangeSetName=change_set_name
@@ -1324,7 +1320,7 @@ class Stack(CloudFormationBaseActor):
             stack: Boto3 Stack dict
             new: boolean of updated value for EnableTerminationProtection
         """
-        self.log.info("Updating EnableTerminationProtection to %s" % str(new))
+        self.log.info(f"Updating EnableTerminationProtection to {str(new)}")
 
         try:
             yield self.api_call(
@@ -1340,7 +1336,7 @@ class Stack(CloudFormationBaseActor):
         state = self.option("state")
         stack_name = self.option("name")
 
-        self.log.info("Ensuring that CFN Stack %s is %s" % (stack_name, state))
+        self.log.info(f"Ensuring that CFN Stack {stack_name} is {state}")
 
         # Figure out if the stack already exists or not. In this case, we
         # ignore DELETED stacks because they don't apply or block you from

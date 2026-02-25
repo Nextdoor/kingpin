@@ -25,7 +25,7 @@ from kingpin.actors.test.helper import mock_tornado
 from kingpin.constants import REQUIRED, STATE
 
 
-class FakeHTTPClientClass(object):
+class FakeHTTPClientClass:
     """Fake HTTPClient object for testing"""
 
     response_value = None
@@ -50,7 +50,7 @@ class FakeEnsurableBaseActor(base.EnsurableBaseActor):
     def _precache(self):
         # Call our parent class precache.. no real need here other than for
         # unit test coverage.
-        yield super(FakeEnsurableBaseActor, self)._precache()
+        yield super()._precache()
 
         # These do not match -- so we'll trigger the setters
         self.state = "absent"
@@ -112,7 +112,7 @@ class TestBaseActor(testing.AsyncTestCase):
         raise gen.Return(False)
 
     def setUp(self):
-        super(TestBaseActor, self).setUp()
+        super().setUp()
 
         # Create a BaseActor object
         self.actor = base.BaseActor("Unit Test Action", {})
@@ -290,7 +290,7 @@ class TestBaseActor(testing.AsyncTestCase):
             "False": False,
             "FALSE": False,
         }
-        for value, should_execute in list(conditions.items()):
+        for value, should_execute in conditions.items():
             self.actor._condition = value
             self.actor._execute = mock_tornado()
             yield self.actor.execute()
@@ -415,7 +415,7 @@ class TestBaseActor(testing.AsyncTestCase):
 
 class TestEnsurableBaseActor(testing.AsyncTestCase):
     def setUp(self):
-        super(TestEnsurableBaseActor, self).setUp()
+        super().setUp()
         self.actor = FakeEnsurableBaseActor(
             "Unit Test Actor",
             {
@@ -465,7 +465,7 @@ class TestEnsurableBaseActor(testing.AsyncTestCase):
 
 class TestHTTPBaseActor(testing.AsyncTestCase):
     def setUp(self):
-        super(TestHTTPBaseActor, self).setUp()
+        super().setUp()
         self.actor = base.HTTPBaseActor("Unit Test Action", {})
 
     @testing.gen_test
@@ -546,7 +546,7 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
 class TestActualEnsurableBaseActor(testing.AsyncTestCase):
     def setUp(self):
 
-        super(TestActualEnsurableBaseActor, self).setUp()
+        super().setUp()
         self.actor = base.EnsurableBaseActor(
             "Unit Test Actor",
             {

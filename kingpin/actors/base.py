@@ -58,10 +58,10 @@ class LogAdapter(logging.LoggerAdapter):
     """
 
     def process(self, msg, kwargs):
-        return ("[%s%s] %s" % (self.extra["dry"], self.extra["desc"], msg), kwargs)
+        return (f"[{self.extra['dry']}{self.extra['desc']}] {msg}", kwargs)
 
 
-class BaseActor(object):
+class BaseActor:
     """Abstract base class for Actor objects."""
 
     # {
@@ -129,7 +129,7 @@ class BaseActor(object):
             some custom tokens. Set generally by the misc.Macro actor.
             timeout: (Str/Int/Float) Timeout in seconds for the actor.
         """
-        self._type = "%s.%s" % (self.__module__, self.__class__.__name__)
+        self._type = f"{self.__module__}.{self.__class__.__name__}"
         self._options = options
         self._desc = desc
         self._dry = dry
@@ -156,10 +156,9 @@ class BaseActor(object):
 
         # Fill in any options with the supplied initialization context. Be
         self.log.debug(
-            "Initialized (warn_on_failure=%s, "
-            "strict_init_context=%s,"
-            "remove_escape_sequence=%s)"
-            % (warn_on_failure, self.strict_init_context, self.remove_escape_sequence)
+            f"Initialized (warn_on_failure={warn_on_failure}, "
+            f"strict_init_context={self.strict_init_context},"
+            f"remove_escape_sequence={self.remove_escape_sequence})"
         )
 
     def __repr__(self):
@@ -181,7 +180,7 @@ class BaseActor(object):
 
     def _setup_log(self):
         """Create a customized logging object based on the LogAdapter."""
-        name = "%s.%s" % (self.__module__, self.__class__.__name__)
+        name = f"{self.__module__}.{self.__class__.__name__}"
         logger = logging.getLogger(name)
         dry_str = "DRY: " if self._dry else ""
 
@@ -190,7 +189,7 @@ class BaseActor(object):
     def _setup_defaults(self):
         """Populate options with defaults if they aren't set."""
 
-        for option, definition in list(self.all_options.items()):
+        for option, definition in self.all_options.items():
             if option not in self._options:
                 default = definition[1]
                 if default is not REQUIRED:
@@ -209,30 +208,27 @@ class BaseActor(object):
         # Loop through all_options, and find the required ones
         required = [
             opt_name
-            for (opt_name, definition) in list(self.all_options.items())
+            for (opt_name, definition) in self.all_options.items()
             if definition[1] is REQUIRED
         ]
 
-        self.log.debug("Checking for required options: %s" % required)
+        self.log.debug(f"Checking for required options: {required}")
         option_errors = []
         option_warnings = []
         for opt in required:
             if opt not in self._options:
                 description = self.all_options[opt][2]
-                option_errors.append('Option "%s" is required: %s' % (opt, description))
+                option_errors.append(f'Option "{opt}" is required: {description}')
 
-        for opt, value in list(self._options.items()):
+        for opt, value in self._options.items():
             if opt not in self.all_options:
                 option_warnings.append(
-                    'Option "%s" is not expected by %s.'
-                    % (opt, self.__class__.__name__)
+                    f'Option "{opt}" is not expected by {self.__class__.__name__}.'
                 )
                 continue
 
             expected_type = self.all_options[opt][0]
 
-            # Unicode is not a `str` but it is a `basestring`
-            # Cast the passed value explicitly as a string
             if isinstance(value, str):
                 value = str(value)
 
@@ -256,10 +252,8 @@ class BaseActor(object):
                     self.log.warning(exceptions.InvalidOptions(e.args))
 
             if not (value is None or isinstance(value, expected_type)):
-                message = 'Option "%s" has to be %s and is %s.' % (
-                    opt,
-                    expected_type,
-                    type(value),
+                message = (
+                    f'Option "{opt}" has to be {expected_type} and is {type(value)}.'
                 )
                 option_errors.append(message)
 
@@ -270,7 +264,7 @@ class BaseActor(object):
             for e in option_errors:
                 self.log.critical(e)
             raise exceptions.InvalidOptions(
-                "Found %s issue(s) with passed options." % len(option_errors)
+                f"Found {len(option_errors)} issue(s) with passed options."
             )
 
     def option(self, name):
@@ -315,9 +309,7 @@ class BaseActor(object):
         """
 
         # Get our timeout setting, or fallback to the default
-        self.log.debug(
-            "%s.%s() deadline: %s(s)" % (self._type, f.__name__, self._timeout)
-        )
+        self.log.debug(f"{self._type}.{f.__name__}() deadline: {self._timeout}(s)")
 
         # Get our Future object but don't yield on it yet, This starts the
         # execution, but allows us to wrap it below with the
@@ -340,11 +332,7 @@ class BaseActor(object):
                 deadline, fut, quiet_exceptions=(exceptions.ActorTimedOut)
             )
         except gen.TimeoutError:
-            msg = "%s.%s() execution exceeded deadline: %ss" % (
-                self._type,
-                f.__name__,
-                self._timeout,
-            )
+            msg = f"{self._type}.{f.__name__}() execution exceeded deadline: {self._timeout}s"
             self.log.error(msg)
             raise exceptions.ActorTimedOut(msg)
 
@@ -359,7 +347,7 @@ class BaseActor(object):
         """
 
         check = utils.str2bool(self._condition)
-        self.log.debug("Condition %s evaluates to %s" % (self._condition, check))
+        self.log.debug(f"Condition {self._condition} evaluates to {check}")
         return check
 
     def _fill_in_contexts(self, context={}, strict=True, remove_escape_sequence=True):
@@ -388,7 +376,7 @@ class BaseActor(object):
                 remove_escape_sequence=remove_escape_sequence,
             )
         except LookupError as e:
-            msg = "Context for description failed: %s" % e
+            msg = f"Context for description failed: {e}"
             raise exceptions.InvalidOptions(msg)
 
         # Inject contexts into condition
@@ -402,7 +390,7 @@ class BaseActor(object):
                 remove_escape_sequence=remove_escape_sequence,
             )
         except LookupError as e:
-            msg = "Context for condition failed: %s" % e
+            msg = f"Context for condition failed: {e}"
             raise exceptions.InvalidOptions(msg)
 
         # Convert our self._options dict into a string for fast parsing
@@ -423,7 +411,7 @@ class BaseActor(object):
                 remove_escape_sequence=remove_escape_sequence,
             )
         except LookupError as e:
-            msg = "Context for options failed: %s" % e
+            msg = f"Context for options failed: {e}"
             raise exceptions.InvalidOptions(msg)
 
         # Finally, convert the string back into a dict and store it.
@@ -481,7 +469,7 @@ class BaseActor(object):
         result = None
 
         if not self._check_condition():
-            self.log.warning("Skipping execution. Condition: %s" % self._condition)
+            self.log.warning(f"Skipping execution. Condition: {self._condition}")
             raise gen.Return()
 
         try:
@@ -497,8 +485,8 @@ class BaseActor(object):
             # Otherwise - flag this failure as a warning, and continue
             self.log.warning(e)
             self.log.warning(
-                "Continuing execution even though a failure was "
-                "detected (warn_on_failure=%s)" % self._warn_on_failure
+                f"Continuing execution even though a failure was "
+                f"detected (warn_on_failure={self._warn_on_failure})"
             )
         except Exception as e:
             # We don't like general exception catch clauses like this, but
@@ -507,14 +495,14 @@ class BaseActor(object):
             # possible. This is a failsafe thats meant to throw a strong
             # warning.
             log.critical(
-                "Unexpected exception caught! "
-                "Please contact the author (%s) and provide them "
-                "with this stacktrace" % sys.modules[self.__module__].__author__
+                f"Unexpected exception caught! "
+                f"Please contact the author ({sys.modules[self.__module__].__author__}) and provide them "
+                f"with this stacktrace"
             )
             self.log.exception(e)
             raise exceptions.ActorException(e)
         else:
-            self.log.debug("Finished successfully, return value: %s" % result)
+            self.log.debug(f"Finished successfully, return value: {result}")
 
         # If we got here, we're exiting the actor cleanly and moving on.
         raise gen.Return(result)
@@ -593,7 +581,7 @@ class EnsurableBaseActor(BaseActor):
         )
 
         # Now go ahead and validate all of the user inputs the normal way
-        super(EnsurableBaseActor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Generate a list of options that will be ensured ...
         self._ensurable_options = list(self.all_options.keys())
@@ -616,15 +604,14 @@ class EnsurableBaseActor(BaseActor):
         self.getters = {}
         self.comparers = {}
         for option in self._ensurable_options:
-            setter = "_set_%s" % option
-            getter = "_get_%s" % option
-            comparer = "_compare_%s" % option
+            setter = f"_set_{option}"
+            getter = f"_get_{option}"
+            comparer = f"_compare_{option}"
 
             if not self._is_method(getter) or not self._is_method(setter):
                 raise exceptions.UnrecoverableActorFailure(
-                    "Invalid Actor Code Detected in %s: "
-                    "Unable to find required methods: %s, %s"
-                    % (self.__class__.__name__, setter, getter)
+                    f"Invalid Actor Code Detected in {self.__class__.__name__}: "
+                    f"Unable to find required methods: {setter}, {getter}"
                 )
 
             if not self._is_method(comparer):
@@ -678,10 +665,10 @@ class EnsurableBaseActor(BaseActor):
         equals = yield self.comparers[option]()
 
         if equals:
-            self.log.debug('Option "%s" matches' % option)
+            self.log.debug(f'Option "{option}" matches')
             raise gen.Return()
 
-        self.log.debug('Option "%s" DOES NOT match, calling setter' % option)
+        self.log.debug(f'Option "{option}" DOES NOT match, calling setter')
         yield self.setters[option]()
 
     @gen.coroutine
@@ -759,16 +746,16 @@ class HTTPBaseActor(BaseActor):
         """
 
         # Remove keys from the arguments where the value is None
-        args = dict((k, v) for k, v in list(args.items()) if v)
+        args = dict((k, v) for k, v in args.items() if v)
 
         # Convert all Bool values to lowercase strings
-        for key, value in list(args.items()):
-            if type(value) is bool:
+        for key, value in args.items():
+            if isinstance(value, bool):
                 args[key] = str(value).lower()
 
         # Now generate the URL
         full_url = httputil.url_concat(url, sorted(args.items()))
-        self.log.debug("Generated URL: %s" % full_url)
+        self.log.debug(f"Generated URL: {full_url}")
 
         return full_url
 
@@ -787,7 +774,7 @@ class HTTPBaseActor(BaseActor):
         """
 
         # Generate the full request URL and log out what we're doing...
-        self.log.debug("Making HTTP request to %s with data: %s" % (url, post))
+        self.log.debug(f"Making HTTP request to {url} with data: {post}")
 
         # Create the http_request object
         http_client = self._get_http_client()
@@ -811,7 +798,7 @@ class HTTPBaseActor(BaseActor):
             body = json.loads(http_response.body)
         except ValueError as e:
             raise exceptions.UnparseableResponseFromEndpoint(
-                "Unable to parse response from remote API as JSON: %s" % e
+                f"Unable to parse response from remote API as JSON: {e}"
             )
 
         # Receive a successful return

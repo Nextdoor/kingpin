@@ -601,7 +601,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     unmanaged_options = ["name", "region"]
 
     def __init__(self, *args, **kwargs):
-        super(Bucket, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # If the policy is None, or '', we simply set it to self.policy. If its
         # anything else, we parse it.
@@ -644,9 +644,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         if isinstance(data, list):
             return [self._snake_to_camel(v) for v in data]
         elif isinstance(data, dict):
-            return dict(
-                (camelize(k), self._snake_to_camel(v)) for k, v in list(data.items())
-            )
+            return dict((camelize(k), self._snake_to_camel(v)) for k, v in data.items())
         else:
             return data
 
@@ -669,7 +667,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         # Generate a fresh Lifecycle configuration object
         rules = []
         for c in config:
-            self.log.debug("Generating lifecycle rule from foo: %s" % c)
+            self.log.debug(f"Generating lifecycle rule from foo: {c}")
 
             # Convert the snake_case into CamelCase.
             c = self._snake_to_camel(c)
@@ -760,7 +758,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         if len(keys["Contents"]) > 0:
             raise exceptions.RecoverableActorFailure(
-                "Cannot delete bucket with keys: %s files found" % len(keys)
+                f"Cannot delete bucket with keys: {len(keys)} files found"
             )
 
     @gen.coroutine
@@ -768,12 +766,10 @@ class Bucket(base.EnsurableAWSBaseActor):
     def _delete_bucket(self):
         bucket = self.option("name")
         try:
-            self.log.info("Deleting bucket %s" % bucket)
+            self.log.info(f"Deleting bucket {bucket}")
             yield self.api_call(self.s3_conn.delete_bucket, Bucket=bucket)
         except ClientError as e:
-            raise exceptions.RecoverableActorFailure(
-                "Cannot delete bucket: %s" % str(e)
-            )
+            raise exceptions.RecoverableActorFailure(f"Cannot delete bucket: {str(e)}")
 
     @gen.coroutine
     def _get_policy(self):
@@ -811,7 +807,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         # Now, print out the diff..
         self.log.info("Bucket policy differs from Amazons:")
         for line in diff.split("\n"):
-            self.log.info("Diff: %s" % line)
+            self.log.info(f"Diff: {line}")
 
         raise gen.Return(False)
 
@@ -825,8 +821,8 @@ class Bucket(base.EnsurableAWSBaseActor):
     @gen.coroutine
     @dry("Would have pushed bucket policy")
     def _push_policy(self):
-        self.log.info("Pushing bucket policy %s" % self.option("policy"))
-        self.log.debug("Policy doc: %s" % self.policy)
+        self.log.info(f"Pushing bucket policy {self.option('policy')}")
+        self.log.debug(f"Policy doc: {self.policy}")
 
         try:
             yield self.api_call(
@@ -839,7 +835,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 raise base.InvalidPolicy(str(e))
 
             raise exceptions.RecoverableActorFailure(
-                "An unexpected error occurred: %s" % e
+                f"An unexpected error occurred: {e}"
             )
 
     @gen.coroutine
@@ -864,11 +860,9 @@ class Bucket(base.EnsurableAWSBaseActor):
             raise gen.Return({"target": "", "prefix": ""})
 
         self.log.debug(
-            "Logging is set to s3://%s/%s"
-            % (
-                data["LoggingEnabled"]["TargetBucket"],
-                data["LoggingEnabled"]["TargetPrefix"],
-            )
+            f"Logging is set to"
+            f" s3://{data['LoggingEnabled']['TargetBucket']}"
+            f"/{data['LoggingEnabled']['TargetPrefix']}"
         )
         raise gen.Return(
             {
@@ -916,8 +910,8 @@ class Bucket(base.EnsurableAWSBaseActor):
             target: Target S3 bucket
             prefix: Target S3 bucket prefix
         """
-        target_str = "s3://%s/%s" % (target, prefix.lstrip("/"))
-        self.log.info("Updating Bucket logging config to %s" % target_str)
+        target_str = f"s3://{target}/{prefix.lstrip('/')}"
+        self.log.info(f"Updating Bucket logging config to {target_str}")
 
         try:
             yield self.api_call(
@@ -963,7 +957,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     @gen.coroutine
     @dry("Bucket versioning would set to: {0}")
     def _put_versioning(self, state):
-        self.log.info("Setting bucket object versioning to: %s" % state)
+        self.log.info(f"Setting bucket object versioning to: {state}")
         yield self.api_call(
             self.s3_conn.put_bucket_versioning,
             Bucket=self.option("name"),
@@ -1008,7 +1002,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         self.log.info("Lifecycle configurations do not match. Updating.")
         for line in diff.split("\n"):
-            self.log.info("Diff: %s" % line)
+            self.log.info(f"Diff: {line}")
         raise gen.Return(False)
 
     @gen.coroutine
@@ -1029,7 +1023,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     @gen.coroutine
     @dry("Would have pushed a new lifecycle configuration")
     def _push_lifecycle(self):
-        self.log.debug("Lifecycle config: %s" % jsonpickle.encode(self.lifecycle))
+        self.log.debug(f"Lifecycle config: {jsonpickle.encode(self.lifecycle)}")
 
         self.log.info("Updating the Bucket Lifecycle config")
         try:
@@ -1039,7 +1033,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 LifecycleConfiguration={"Rules": self.lifecycle},
             )
         except (ParamValidationError, ClientError) as e:
-            raise InvalidBucketConfig("Invalid Lifecycle Configuration: %s" % str(e))
+            raise InvalidBucketConfig(f"Invalid Lifecycle Configuration: {e}")
 
     @gen.coroutine
     def _get_public_access_block_configuration(self):
@@ -1078,7 +1072,7 @@ class Bucket(base.EnsurableAWSBaseActor):
     @dry("Would have pushed a new public access block config")
     def _push_public_access_block_configuration(self):
         self.log.debug(
-            "Public Access Block Config: %s" % jsonpickle.encode(self.access_block)
+            f"Public Access Block Config: {jsonpickle.encode(self.access_block)}"
         )
 
         self.log.info("Updating the Bucket Public Access Block Config")
@@ -1089,7 +1083,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 PublicAccessBlockConfiguration=self.access_block,
             )
         except (ParamValidationError, ClientError) as e:
-            raise InvalidBucketConfig("Invalid Public Access Block Config: %s" % str(e))
+            raise InvalidBucketConfig(f"Invalid Public Access Block Config: {e}")
 
     @gen.coroutine
     def _compare_public_access_block_configuration(self):
@@ -1112,7 +1106,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         self.log.info("Public Access Block Configurations do not match. Updating.")
         for line in diff.split("\n"):
-            self.log.info("Diff: %s" % line)
+            self.log.info(f"Diff: {line}")
         raise gen.Return(False)
 
     @gen.coroutine
@@ -1137,7 +1131,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         # returning them so that they are compared properly.
         tagset = []
         for tag in raw["TagSet"]:
-            tag = {k.lower(): v for k, v in list(tag.items())}
+            tag = {k.lower(): v for k, v in tag.items()}
             tagset.append(tag)
 
         raise gen.Return(tagset)
@@ -1158,7 +1152,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         self.log.info("Bucket tags differs from Amazons:")
         for line in diff.split("\n"):
-            self.log.info("Diff: %s" % line)
+            self.log.info(f"Diff: {line}")
 
         raise gen.Return(False)
 
@@ -1218,7 +1212,7 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         self.log.info("Bucket Notification Configuration differs:")
         for line in diff.split("\n"):
-            self.log.info("Diff: %s" % line)
+            self.log.info(f"Diff: {line}")
 
         raise gen.Return(False)
 

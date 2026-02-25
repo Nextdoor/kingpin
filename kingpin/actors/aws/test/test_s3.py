@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 class TestBucket(testing.AsyncTestCase):
     def setUp(self):
-        super(TestBucket, self).setUp()
+        super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"

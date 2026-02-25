@@ -65,7 +65,7 @@ class AWSBaseActor(base.BaseActor):
     def __init__(self, *args, **kwargs):
         """Check for required settings."""
 
-        super(AWSBaseActor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # By default, we will try to let Boto handle discovering its
         # credentials at instantiation time. This _can_ result in synchronous
@@ -168,7 +168,7 @@ class AWSBaseActor(base.BaseActor):
 
     def _wrap_boto_exception(self, e):
         if isinstance(e, boto3_exceptions.Boto3Error):
-            return exceptions.RecoverableActorFailure("Boto3 had a failure: %s" % e)
+            return exceptions.RecoverableActorFailure(f"Boto3 had a failure: {e}")
         return e
 
     def _parse_json(self, file_path):
@@ -189,7 +189,7 @@ class AWSBaseActor(base.BaseActor):
 
         # Run through any supplied JSON files and verify that they're
         # not corrupt very early on.
-        self.log.debug("Parsing and validating %s" % file_path)
+        self.log.debug(f"Parsing and validating {file_path}")
 
         try:
             p_doc = utils.load_json_with_tokens(
@@ -198,7 +198,7 @@ class AWSBaseActor(base.BaseActor):
             assert isinstance(p_doc, dict), f"Expected dict but got {type(p_doc)}"
         except kingpin_exceptions.InvalidScript as e:
             raise exceptions.UnrecoverableActorFailure(
-                "Error parsing %s: %s" % (file_path, e)
+                f"Error parsing {file_path}: {e}"
             )
 
         return p_doc

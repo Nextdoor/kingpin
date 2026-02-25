@@ -51,7 +51,7 @@ def create_fake_stack_event(name, resource, status, reason=None):
 
 class TestCloudFormationBaseActor(testing.AsyncTestCase):
     def setUp(self):
-        super(TestCloudFormationBaseActor, self).setUp()
+        super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
@@ -401,7 +401,7 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
 
 class TestCreate(testing.AsyncTestCase):
     def setUp(self):
-        super(TestCreate, self).setUp()
+        super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
@@ -690,7 +690,7 @@ class TestCreate(testing.AsyncTestCase):
 
 class TestDelete(testing.AsyncTestCase):
     def setUp(self):
-        super(TestDelete, self).setUp()
+        super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
@@ -796,7 +796,7 @@ class TestDelete(testing.AsyncTestCase):
 
 class TestStack(testing.AsyncTestCase):
     def setUp(self):
-        super(TestStack, self).setUp()
+        super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"

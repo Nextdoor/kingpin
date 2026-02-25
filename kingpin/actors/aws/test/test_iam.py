@@ -23,7 +23,7 @@ def tornado_value(*args):
 
 class TestIAMBaseActor(testing.AsyncTestCase):
     def setUp(self):
-        super(TestIAMBaseActor, self).setUp()
+        super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
@@ -496,7 +496,7 @@ class TestIAMBaseActor(testing.AsyncTestCase):
 
 class TestUser(testing.AsyncTestCase):
     def setUp(self):
-        super(TestUser, self).setUp()
+        super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
@@ -686,7 +686,7 @@ class TestUser(testing.AsyncTestCase):
 
 class TestGroup(testing.AsyncTestCase):
     def setUp(self):
-        super(TestGroup, self).setUp()
+        super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
@@ -846,7 +846,7 @@ class TestGroup(testing.AsyncTestCase):
 
 class TestRole(testing.AsyncTestCase):
     def setUp(self):
-        super(TestRole, self).setUp()
+        super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"
@@ -1057,7 +1057,7 @@ class TestRole(testing.AsyncTestCase):
 
 class TestInstanceProfile(testing.AsyncTestCase):
     def setUp(self):
-        super(TestInstanceProfile, self).setUp()
+        super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
         settings.AWS_SECRET_ACCESS_KEY = "unit-test"
         settings.AWS_SESSION_TOKEN = "unit-test"

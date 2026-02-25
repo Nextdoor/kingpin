@@ -17,7 +17,7 @@ class FakeActor(base.BaseActor):
     """Fake Actor use for Unit Tests"""
 
     def __init__(self, *args, **kwargs):
-        super(FakeActor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.conn = mock.MagicMock()
         self.conn.call.return_value = helper.tornado_value(None)
         self.conn.call.__name__ = "test_call"
