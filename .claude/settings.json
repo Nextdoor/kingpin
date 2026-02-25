@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(yarn:*)",
+      "Bash(npm:*)",
+      "Bash(nodenv:*)",
+      "Bash(git:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(tree:*)",
+      "Bash(echo:*)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(tee:*)",
+      "Bash(curl:*)",
+      "mcp__serena__*"
+    ]
+  }
+}
