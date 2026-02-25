@@ -62,3 +62,20 @@ docs: $(UV_BIN)
 .PHONY: venv
 venv: $(UV_BIN)
 	$(UV_BIN) sync
+
+.PHONY: bump
+bump: $(UV_BIN)
+ifndef VERSION
+	$(error VERSION is required. Usage: make bump VERSION=<major|minor|patch>)
+endif
+	@output=$$($(PYTHON) scripts/bump_version.py $(VERSION)) || exit 1; \
+	OLD_VERSION=$$(echo "$$output" | grep OLD_VERSION | cut -d= -f2); \
+	NEW_VERSION=$$(echo "$$output" | grep NEW_VERSION | cut -d= -f2); \
+	echo "Bumped $$OLD_VERSION -> $$NEW_VERSION"; \
+	git checkout -b "chore/bump-v$$NEW_VERSION" && \
+	git add kingpin/version.py && \
+	git commit -m "chore(release): bump version to $$NEW_VERSION" && \
+	git push -u origin "chore/bump-v$$NEW_VERSION" && \
+	gh pr create --draft \
+		--title "chore(release): bump version to $$NEW_VERSION" \
+		--body "$$(printf '## Summary\n- Bump kingpin version from %s to %s\n\n## Release Checklist\n- [ ] Tests pass (CI will verify)\n- [ ] Merge this PR, then publish a GitHub Release tagged `v%s` to trigger PyPI publish' "$$OLD_VERSION" "$$NEW_VERSION" "$$NEW_VERSION")"
