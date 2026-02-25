@@ -17,13 +17,7 @@ Full Module Docs
    :members:
 .. automodule:: kingpin.actors.group
    :members:
-.. automodule:: kingpin.actors.hipchat
-   :members:
-.. automodule:: kingpin.actors.librato
-   :members:
 .. automodule:: kingpin.actors.misc
-   :members:
-.. automodule:: kingpin.actors.rollbar
    :members:
 .. automodule:: kingpin.actors.utils
    :members:
