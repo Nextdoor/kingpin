@@ -1,7 +1,7 @@
 """Vanity test"""
 
-import unittest
 import importlib
+import unittest
 
 
 class TestVersion(unittest.TestCase):

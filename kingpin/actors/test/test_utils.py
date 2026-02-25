@@ -1,13 +1,9 @@
 import logging
 from unittest import mock
 
-from tornado import gen
-from tornado import testing
+from tornado import gen, testing
 
-from kingpin.actors import base
-from kingpin.actors import exceptions
-from kingpin.actors import utils
-from kingpin.actors import misc
+from kingpin.actors import base, exceptions, misc, utils
 from kingpin.actors.test import helper
 
 log = logging.getLogger(__name__)

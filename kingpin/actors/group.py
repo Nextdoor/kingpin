@@ -11,9 +11,7 @@ import logging
 from tornado import gen
 
 from kingpin import utils as kp_utils
-from kingpin.actors import base
-from kingpin.actors import exceptions
-from kingpin.actors import utils
+from kingpin.actors import base, exceptions, utils
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -324,8 +322,7 @@ class Sync(BaseGroupActor):
         if errors:
             ExcType = self._get_exc_type(errors)
             raise ExcType(
-                'Exceptions raised by %s of %s actors in "%s".'
-                % (len(errors), len(self._actions), self._desc)
+                f'Exceptions raised by {len(errors)} of {len(self._actions)} actors in "{self._desc}".'
             )
 
 
@@ -448,8 +445,9 @@ class Async(BaseGroupActor):
                 running_tasks = len([t for t in tasks if not t.done()])
 
             self.log.debug(
-                "Concurrency desaturated: %s<%s. Continuing."
-                % (running_tasks, self.option("concurrency"))
+                "Concurrency desaturated: {}<{}. Continuing.".format(
+                    running_tasks, self.option("concurrency")
+                )
             )
 
         # Now that we've fired them off, we walk through them one-by-one and
@@ -470,6 +468,5 @@ class Async(BaseGroupActor):
         if errors:
             ExcType = self._get_exc_type(errors)
             raise ExcType(
-                'Exceptions raised by %s of %s actors in "%s".'
-                % (len(errors), len(self._actions), self._desc)
+                f'Exceptions raised by {len(errors)} of {len(self._actions)} actors in "{self._desc}".'
             )

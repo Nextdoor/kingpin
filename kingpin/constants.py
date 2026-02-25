@@ -45,4 +45,4 @@ class SchemaCompareBase:
         except jsonschema.exceptions.ValidationError as e:
             raise exceptions.InvalidOptions(
                 f"Supplied parameter does not match schema: {e}"
-            )
+            ) from e

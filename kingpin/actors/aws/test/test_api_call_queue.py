@@ -2,9 +2,7 @@ import logging
 import time
 
 from botocore import exceptions as botocore_exceptions
-from tornado import concurrent
-from tornado import gen
-from tornado import testing
+from tornado import concurrent, gen, testing
 
 from kingpin.actors.aws import api_call_queue
 

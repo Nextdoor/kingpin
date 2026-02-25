@@ -26,18 +26,15 @@ below for using each actor.
 
 import logging
 
-from boto3 import exceptions as boto3_exceptions
-from botocore import exceptions as botocore_exceptions
-from botocore import config as botocore_config
-from tornado import concurrent
-from tornado import gen
-from tornado import ioloop
 import boto3
+from boto3 import exceptions as boto3_exceptions
+from botocore import config as botocore_config
+from botocore import exceptions as botocore_exceptions
+from tornado import concurrent, gen, ioloop
 
-from kingpin import utils
 from kingpin import exceptions as kingpin_exceptions
-from kingpin.actors import base
-from kingpin.actors import exceptions
+from kingpin import utils
+from kingpin.actors import base, exceptions
 from kingpin.actors.aws import api_call_queue
 from kingpin.actors.aws import settings as aws_settings
 
@@ -131,7 +128,7 @@ class AWSBaseActor(base.BaseActor):
         try:
             return api_function(*args, **kwargs)
         except boto3_exceptions.Boto3Error as e:
-            raise self._wrap_boto_exception(e)
+            raise self._wrap_boto_exception(e) from e
 
     @gen.coroutine
     @utils.exception_logger
@@ -162,7 +159,7 @@ class AWSBaseActor(base.BaseActor):
         try:
             result = yield queue.call(api_function, *args, **kwargs)
         except botocore_exceptions.ClientError as e:
-            raise self._wrap_boto_exception(e)
+            raise self._wrap_boto_exception(e) from e
         else:
             raise gen.Return(result)
 
@@ -199,7 +196,7 @@ class AWSBaseActor(base.BaseActor):
         except kingpin_exceptions.InvalidScript as e:
             raise exceptions.UnrecoverableActorFailure(
                 f"Error parsing {file_path}: {e}"
-            )
+            ) from e
 
         return p_doc
 

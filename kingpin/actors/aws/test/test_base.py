@@ -1,15 +1,14 @@
+import importlib
 import logging
+from unittest import mock
 
+import botocore.exceptions
 from boto3 import exceptions as boto3_exceptions
 from botocore import stub
 from tornado import testing
-import botocore.exceptions
-from unittest import mock
 
 from kingpin.actors import exceptions
-from kingpin.actors.aws import base
-from kingpin.actors.aws import settings
-import importlib
+from kingpin.actors.aws import base, settings
 
 log = logging.getLogger(__name__)
 

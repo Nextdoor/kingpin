@@ -2,13 +2,10 @@ import logging
 import time
 from unittest import mock
 
-from tornado import gen
-from tornado import testing
+from tornado import gen, testing
 
 from kingpin import utils
-from kingpin.actors import base
-from kingpin.actors import exceptions
-from kingpin.actors import group
+from kingpin.actors import base, exceptions, group
 
 log = logging.getLogger(__name__)
 

@@ -1,19 +1,17 @@
+import importlib
 import io
 import logging
 import os
 import time
-
-from tornado import gen
-from tornado import testing
-from tornado.testing import unittest
 from unittest import mock
+
 import rainbow_logging_handler
 import requests
+from tornado import gen, testing
+from tornado.testing import unittest
 
-from kingpin import exceptions
-from kingpin import utils
+from kingpin import exceptions, utils
 from kingpin.actors import misc
-import importlib
 
 
 class TestUtils(unittest.TestCase):
@@ -121,31 +119,31 @@ class TestUtils(unittest.TestCase):
     def test_load_json_with_tokens(self):
         # Should work with string path to a file
         dirname, filename = os.path.split(os.path.abspath(__file__))
-        examples = "%s/../../examples" % dirname
-        simple = "%s/simple.json" % examples
+        examples = f"{dirname}/../../examples"
+        simple = f"{examples}/simple.json"
         ret = utils.load_json_with_tokens(simple, {})
         self.assertIsInstance(ret, dict)
 
         # Should work with file instance also
         dirname, filename = os.path.split(os.path.abspath(__file__))
-        examples = "%s/../../examples" % dirname
-        simple = "%s/simple.json" % examples
+        examples = f"{dirname}/../../examples"
+        simple = f"{examples}/simple.json"
         instance = open(simple)
         ret = utils.load_json_with_tokens(instance, {})
         self.assertIsInstance(ret, dict)
 
         # Should definitely support YAML as well
         dirname, filename = os.path.split(os.path.abspath(__file__))
-        examples = "%s/../../examples" % dirname
-        simple = "%s/simple.yaml" % examples
+        examples = f"{dirname}/../../examples"
+        simple = f"{examples}/simple.yaml"
         instance = open(simple)
         ret = utils.load_json_with_tokens(instance, {})
         self.assertIsInstance(ret, dict)
 
         # Should definitely support YAML with anchors
         dirname, filename = os.path.split(os.path.abspath(__file__))
-        examples = "%s/../../examples" % dirname
-        simple = "%s/anchors.yaml" % examples
+        examples = f"{dirname}/../../examples"
+        simple = f"{examples}/anchors.yaml"
         instance = open(simple)
         ret = utils.load_json_with_tokens(instance, {})
         self.assertIsInstance(ret, dict)

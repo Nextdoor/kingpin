@@ -1,9 +1,7 @@
-import logging
 import importlib
 import json
-
+import logging
 from datetime import datetime
-
 from unittest import mock
 
 from botocore.stub import Stubber

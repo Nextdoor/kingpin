@@ -3,6 +3,7 @@ import os
 import sys
 import unittest
 from unittest import mock
+
 from kingpin.actors.exceptions import ActorException
 from kingpin.actors.misc import Macro, Sleep
 

@@ -19,20 +19,16 @@ dedicated packages. Things like sleep timers, loggers, etc.
 import io
 import json
 import logging
-import urllib.request
-import urllib.parse
 import urllib.error
+import urllib.parse
+import urllib.request
 
-from tornado import gen
-from tornado import httpclient
-from kingpin.actors import utils as actor_utils
-from kingpin.actors import group
+from tornado import gen, httpclient
+
 from kingpin import exceptions as kingpin_exceptions
-
-from kingpin import schema
-from kingpin import utils
-from kingpin.actors import base
-from kingpin.actors import exceptions
+from kingpin import schema, utils
+from kingpin.actors import base, exceptions, group
+from kingpin.actors import utils as actor_utils
 from kingpin.constants import REQUIRED
 
 log = logging.getLogger(__name__)
@@ -198,7 +194,7 @@ class Macro(base.BaseActor):
             try:
                 R = client.fetch(self.option("macro"))
             except Exception as e:
-                raise exceptions.UnrecoverableActorFailure(e)
+                raise exceptions.UnrecoverableActorFailure(e) from e
             finally:
                 client.close()
             buf = io.StringIO()
@@ -211,8 +207,8 @@ class Macro(base.BaseActor):
 
         try:
             instance = open(self.option("macro"))
-        except IOError as e:
-            raise exceptions.UnrecoverableActorFailure(e)
+        except OSError as e:
+            raise exceptions.UnrecoverableActorFailure(e) from e
         return instance
 
     def _get_config_from_script(self, script_file):
@@ -243,7 +239,7 @@ class Macro(base.BaseActor):
             ), f"Expected dict or list but got {type(config)}"
             return config
         except (kingpin_exceptions.InvalidScript, LookupError) as e:
-            raise exceptions.UnrecoverableActorFailure(e)
+            raise exceptions.UnrecoverableActorFailure(e) from e
 
     def _check_schema(self, config):
         # Run the dict through our schema validator quickly
@@ -252,7 +248,7 @@ class Macro(base.BaseActor):
             schema.validate(config)
         except kingpin_exceptions.InvalidScript as e:
             self.log.critical("Invalid Schema.")
-            raise exceptions.UnrecoverableActorFailure(e)
+            raise exceptions.UnrecoverableActorFailure(e) from e
 
     def get_orgchart(self, parent=""):
         """Return orgchart including the actor inside of the macro file."""
@@ -393,4 +389,4 @@ class GenericHTTP(base.HTTPBaseActor):
             )
         except httpclient.HTTPError as e:
             if e.code == 401:
-                raise exceptions.InvalidCredentials(e.message)
+                raise exceptions.InvalidCredentials(e.message) from e

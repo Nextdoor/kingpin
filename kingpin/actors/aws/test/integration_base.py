@@ -1,14 +1,13 @@
 """Simple integration tests for the AWS Base."""
 
-from nose.plugins.attrib import attr
+import importlib
 import logging
 
+from nose.plugins.attrib import attr
 from tornado import testing
 
 from kingpin.actors import exceptions
-from kingpin.actors.aws import base
-from kingpin.actors.aws import settings
-import importlib
+from kingpin.actors.aws import base, settings
 
 __author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 

@@ -4,11 +4,9 @@ import os
 import time
 
 from nose.plugins.attrib import attr
-
 from tornado import testing
 
-from kingpin.actors import exceptions
-from kingpin.actors import misc
+from kingpin.actors import exceptions, misc
 
 __author__ = "Mikhail Simin <mikhail@nextdoor.com>"
 

@@ -4,18 +4,16 @@
 """
 
 import json
-import os
 import logging
+import os
 
 from botocore.exceptions import ClientError
-from tornado import concurrent
-from tornado import gen
+from tornado import concurrent, gen
 
 from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
-from kingpin.constants import REQUIRED
-from kingpin.constants import STATE
+from kingpin.constants import REQUIRED, STATE
 
 log = logging.getLogger(__name__)
 
@@ -186,7 +184,7 @@ class IAMBaseActor(base.AWSBaseActor):
             else:
                 raise exceptions.RecoverableActorFailure(
                     f"An unexpected API error occurred: {e}"
-                )
+                ) from e
 
         # Iterate through all of the named policies and fire off
         # get-requests, but don't yield on them yet.
@@ -213,7 +211,7 @@ class IAMBaseActor(base.AWSBaseActor):
                 raise exceptions.RecoverableActorFailure(
                     f"An unexpected API error occurred downloading "
                     f"policy {p_name}: {e}"
-                )
+                ) from e
 
             # Convert the uuencoded doc string into a dict
             p_doc = raw.get("PolicyDocument", {})
@@ -296,7 +294,7 @@ class IAMBaseActor(base.AWSBaseActor):
             if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
                     f"An unexpected API error occurred: {e}"
-                )
+                ) from e
 
     @gen.coroutine
     def _put_entity_policy(self, name, policy_name, policy_doc):
@@ -328,7 +326,7 @@ class IAMBaseActor(base.AWSBaseActor):
         except ClientError as e:
             raise exceptions.RecoverableActorFailure(
                 f"An unexpected API error occurred: {e}"
-            )
+            ) from e
 
     @gen.coroutine
     def _get_entity(self, name):
@@ -347,10 +345,10 @@ class IAMBaseActor(base.AWSBaseActor):
             ret = yield self.api_call(self.get_entity, **{self.entity_kwarg_name: name})
         except ClientError as e:
             if "NoSuchEntity" in str(e):
-                raise gen.Return()
+                raise gen.Return() from e
             raise exceptions.RecoverableActorFailure(
                 f"An unexpected API error occurred: {e}"
-            )
+            ) from e
 
         raise gen.Return(ret.get(self.entity_name))
 
@@ -403,10 +401,10 @@ class IAMBaseActor(base.AWSBaseActor):
                 self.log.warning(
                     f"{self.entity_name} {name} already exists, skipping creation."
                 )
-                raise gen.Return()
+                raise gen.Return() from e
             raise exceptions.RecoverableActorFailure(
                 f"An unexpected API error occurred: {e}"
-            )
+            ) from e
 
         self.log.info(f"{self.entity_name} {ret[self.entity_name]['Arn']} created")
 
@@ -439,10 +437,10 @@ class IAMBaseActor(base.AWSBaseActor):
         except ClientError as e:
             if "NoSuchEntity" in str(e):
                 self.log.warning(f"{self.entity_name} {name} doesn't exist")
-                raise gen.Return()
+                raise gen.Return() from e
             raise exceptions.RecoverableActorFailure(
                 f"An unexpected API error occurred: {e}"
-            )
+            ) from e
 
     @gen.coroutine
     def _add_user_to_group(self, name, group):
@@ -465,7 +463,7 @@ class IAMBaseActor(base.AWSBaseActor):
         except ClientError as e:
             raise exceptions.RecoverableActorFailure(
                 f"An unexpected API error occurred: {e}"
-            )
+            ) from e
 
     @gen.coroutine
     def _remove_user_from_group(self, name, group):
@@ -488,7 +486,7 @@ class IAMBaseActor(base.AWSBaseActor):
         except ClientError as e:
             raise exceptions.RecoverableActorFailure(
                 f"An unexpected API error occurred: {e}"
-            )
+            ) from e
 
 
 class User(IAMBaseActor):
@@ -597,7 +595,7 @@ class User(IAMBaseActor):
             if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
                     f"An unexpected API error occurred: {e}"
-                )
+                ) from e
 
         # Find any groups that we're not already a member of, and add us
         tasks = []
@@ -737,7 +735,7 @@ class Group(IAMBaseActor):
             if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
                     f"An unexpected API error occurred: {e}"
-                )
+                ) from e
 
         raise gen.Return(users)
 
@@ -757,11 +755,9 @@ class Group(IAMBaseActor):
 
         if not force and users:
             self.log.warning(
-                (
-                    "Will not be able to delete this group "
-                    "without first removing all of its members. "
-                    "Use the `force` option to purge all members."
-                )
+                "Will not be able to delete this group "
+                "without first removing all of its members. "
+                "Use the `force` option to purge all members."
             )
             self.log.warning(f"Group members: {', '.join(users)}")
 
@@ -1069,7 +1065,7 @@ class InstanceProfile(IAMBaseActor):
             if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
                     f"An unexpected API error occurred: {e}"
-                )
+                ) from e
 
     @gen.coroutine
     def _remove_role(self, name, role):
@@ -1094,7 +1090,7 @@ class InstanceProfile(IAMBaseActor):
             if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
                     f"An unexpected API error occurred: {e}"
-                )
+                ) from e
 
     @gen.coroutine
     def _ensure_role(self, name, role):
@@ -1117,7 +1113,7 @@ class InstanceProfile(IAMBaseActor):
             if "NoSuchEntity" not in str(e):
                 raise exceptions.RecoverableActorFailure(
                     f"An unexpected API error occurred: {e}"
-                )
+                ) from e
         except (IndexError, KeyError):
             # Profile is not a member of any roles
             pass

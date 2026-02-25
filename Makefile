@@ -6,6 +6,7 @@ PYTHON      := $(UV_BIN) run python
 PYTEST      := $(UV_BIN) run pytest
 PYFLAKES    := $(UV_BIN) run pyflakes
 PYBLACK     := $(UV_BIN) run black
+PYRUFF      := $(UV_BIN) run ruff
 
 BUILD_DIRS = bin .build build include lib lib64 man share package *.egg dist *.egg-info .coverage .pytest_cache
 
@@ -33,6 +34,18 @@ clean:
 .PHONY: lint
 lint: $(UV_BIN)
 	$(PYBLACK) $(PYBLACK_OPTS) kingpin
+
+.PHONY: ruff
+ruff: $(UV_BIN)
+	$(PYRUFF) check kingpin/
+
+.PHONY: ruff-fix
+ruff-fix: $(UV_BIN)
+	$(PYRUFF) check --fix kingpin/
+
+.PHONY: ruff-format
+ruff-format: $(UV_BIN)
+	$(PYRUFF) format kingpin/
 
 .PHONY: test
 test: $(UV_BIN)

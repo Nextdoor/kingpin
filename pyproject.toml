@@ -82,6 +82,8 @@ show_missing = true
 dev = [
     # formatting
     "black",
+    # linting (parallel to pyflakes during transition)
+    "ruff",
     # testing
     "pytest",
     "pytest-cov",
@@ -96,6 +98,55 @@ docs = [
     "Sphinx",
     "sphinx_rtd_theme",
 ]
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",       # pycodestyle errors
+    "F",       # pyflakes (superset of standalone pyflakes)
+    "W",       # pycodestyle warnings
+    "I",       # isort (import sorting)
+    "B",       # flake8-bugbear (common bug patterns)
+    "UP",      # pyupgrade (auto-modernize Python syntax)
+    "ASYNC",   # flake8-async (blocking calls in async functions)
+    "RUF006",  # asyncio-dangling-task
+]
+ignore = [
+    # --- Conflict resolution: existing CI tools take precedence ---
+    # TODO(ruff-primary): re-enable E501 after ruff replaces black.
+    # Black handles line length; ruff E501 flags string literals and comments
+    # that black intentionally leaves alone.
+    "E501",
+
+    # --- Intentional patterns (not tool conflicts) ---
+    # Module-level imports not at top — 3 intentional violations in
+    # test_base.py where imports follow os.environ manipulation.
+    "E402",
+    # Mutable argument defaults (B006) — BaseActor.__init__ uses `options={}`
+    # and `init_context={}` as defaults intentionally (copied immediately).
+    "B006",
+    # Function call in default argument (B008) — 1 instance in base.py, same
+    # pattern as B006. Intentional.
+    "B008",
+    # Ambiguous variable name (E741) — 1 instance using `e` as a variable
+    # in an except clause. Standard Python pattern.
+    "E741",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test files: suppress assert-raises-exception (B017) — tests legitimately
+# use `assertRaises(Exception)` for broad exception testing.
+"**/test/*.py" = ["B017"]
+
+[tool.ruff.format]
+# TODO(ruff-primary): ruff format is NOT used during the parallel-tools period.
+# Black remains the sole formatter. These settings exist only to keep ruff format
+# output close to black's for comparison, not for actual use.
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
 
 [tool.uv]
 python-preference = "only-managed"

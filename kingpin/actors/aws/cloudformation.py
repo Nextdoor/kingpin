@@ -3,15 +3,13 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 """
 
-from hashlib import md5
-import json
-from json import JSONEncoder
-
 import datetime
+import json
 import logging
 import re
 import uuid
-from typing import Optional
+from hashlib import md5
+from json import JSONEncoder
 
 import boto3
 from botocore.exceptions import ClientError
@@ -21,12 +19,11 @@ from kingpin import utils
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base
 from kingpin.actors.aws.settings import (
-    KINGPIN_CFN_HASH_OUTPUT_KEY,
     KINGPIN_CFN_DEFAULT_ROLE_ARN,
+    KINGPIN_CFN_HASH_OUTPUT_KEY,
 )
 from kingpin.actors.utils import dry
-from kingpin.constants import REQUIRED, STATE
-from kingpin.constants import SchemaCompareBase, StringCompareBase
+from kingpin.constants import REQUIRED, STATE, SchemaCompareBase, StringCompareBase
 
 log = logging.getLogger(__name__)
 
@@ -246,7 +243,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
     def _strip_hash_str(self, template: str) -> str:
         return json.dumps(self._strip_hash_dict(json.loads(template)))
 
-    def _get_template_body(self, template: str, s3_region: Optional[str]):
+    def _get_template_body(self, template: str, s3_region: str | None):
         """Reads in a local template file and returns the contents.
 
         If the template string supplied is a local file resource (has no URI
@@ -267,7 +264,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             return None, None
 
         ret_template: str = ""
-        ret_url: Optional[str] = None
+        ret_url: str | None = None
 
         if template.startswith("s3://"):
             match = S3_REGEX.match(template)
@@ -293,14 +290,14 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             try:
                 resp = s3.get_object(Bucket=bucket, Key=key)
             except ClientError as e:
-                raise InvalidTemplate(e)
+                raise InvalidTemplate(e) from e
             ret_template = resp["Body"].read()
         else:
             # The template is provided inline.
             try:
                 ret_template = json.dumps(self._parse_json(template), cls=DateEncoder)
             except exceptions.UnrecoverableActorFailure as e:
-                raise InvalidTemplate(e)
+                raise InvalidTemplate(e) from e
 
         return self._strip_hash_str(ret_template), ret_url
 
@@ -332,14 +329,14 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             try:
                 yield self.api_call(self.cfn_conn.validate_template, **cfg)
             except ClientError as e:
-                raise InvalidTemplate(e)
+                raise InvalidTemplate(e) from e
         elif body is not None:
             cfg = {"TemplateBody": body}
             self.log.info("Validating template with AWS...")
             try:
                 yield self.api_call(self.cfn_conn.validate_template, **cfg)
             except ClientError as e:
-                raise InvalidTemplate(e)
+                raise InvalidTemplate(e) from e
 
     def _create_parameters(self, parameters):
         """Converts a simple Key/Value dict into Amazon CFN Parameters.
@@ -393,9 +390,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             )
         except ClientError as e:
             if "does not exist" in str(e):
-                raise gen.Return(None)
+                raise gen.Return(None) from e
 
-            raise CloudFormationError(e)
+            raise CloudFormationError(e) from e
 
         raise gen.Return(stacks["Stacks"][0])
 
@@ -411,7 +408,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 self.cfn_conn.get_template, StackName=stack, TemplateStage="Original"
             )
         except ClientError as e:
-            raise CloudFormationError(e)
+            raise CloudFormationError(e) from e
 
         template_body: dict = ret["TemplateBody"]
         raise gen.Return(self._strip_hash_dict(template_body))
@@ -482,7 +479,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 self.cfn_conn.describe_stack_events, StackName=stack
             )
         except ClientError:
-            raise gen.Return([])
+            raise gen.Return([]) from None
 
         # Reverse the list, and iterate through the data
         events = []
@@ -523,7 +520,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 self.cfn_conn.delete_stack, StackName=stack, RoleARN=role_arn
             )
         except ClientError as e:
-            raise CloudFormationError(str(e))
+            raise CloudFormationError(str(e)) from e
 
         req_id = ret["ResponseMetadata"]["RequestId"]
         self.log.info(f"Stack delete requested: {req_id}")
@@ -573,18 +570,18 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 **cfg,
             )
         except ClientError as e:
-            raise CloudFormationError(str(e))
+            raise CloudFormationError(str(e)) from e
 
         # Now wait until the stack creation has finished. If the creation fails,
         # get the logs from Amazon for the user.
         try:
             yield self._wait_until_state(stack["StackId"], COMPLETE)
-        except StackFailed as e:
+        except StackFailed:
             events = yield self._get_stack_events(stack["StackId"])
             for e in events:
                 self.log.error(e)
             msg = f"Stack creation failed: {events}"
-            raise StackFailed(msg)
+            raise StackFailed(msg) from None
 
         self.log.info(f"Stack created: {stack['StackId']}")
 
@@ -1053,7 +1050,7 @@ class Stack(CloudFormationBaseActor):
         try:
             yield self._execute_change_set(change_set_name=change_set_req["Id"])
         except (ClientError, StackFailed) as e:
-            raise StackFailed(e)
+            raise StackFailed(e) from e
 
         # In dry mode, delete our change set so we don't leave it around as
         # cruft. THis isn't necessary in the real run, because the changeset
@@ -1173,7 +1170,7 @@ class Stack(CloudFormationBaseActor):
                 self.cfn_conn.create_change_set, **change_opts
             )
         except ClientError as e:
-            raise CloudFormationError(e)
+            raise CloudFormationError(e) from e
 
         raise gen.Return(change_set_req)
 
@@ -1282,7 +1279,7 @@ class Stack(CloudFormationBaseActor):
                 self.cfn_conn.execute_change_set, ChangeSetName=change_set_name
             )
         except ClientError as e:
-            raise StackFailed(e)
+            raise StackFailed(e) from e
 
         change_set = yield self._wait_until_change_set_ready(
             change_set_name, "ExecutionStatus", "EXECUTE_COMPLETE"
@@ -1329,7 +1326,7 @@ class Stack(CloudFormationBaseActor):
                 EnableTerminationProtection=new,
             )
         except ClientError as e:
-            raise StackFailed(e)
+            raise StackFailed(e) from e
 
     @gen.coroutine
     def _ensure_stack(self):

@@ -2,15 +2,12 @@
 
 import io
 import json
-import os
 import logging
+import os
 from importlib import reload
-
-from tornado import gen
-from tornado import httpclient
-from tornado import simple_httpclient
-from tornado import testing
 from unittest import mock
+
+from tornado import gen, httpclient, simple_httpclient, testing
 
 # Unusual placement -- but we override the environment so that we can test that
 # the urllib debugger works.
@@ -265,7 +262,7 @@ class TestBaseActor(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor.readfile("notfound")
 
-        open_patcher = mock.patch("%s.open" % self.actor.__module__, create=True)
+        open_patcher = mock.patch(f"{self.actor.__module__}.open", create=True)
         with open_patcher as mock_open:
             self.actor.readfile("somefile")
             self.assertEqual(mock_open.call_count, 1)
@@ -299,13 +296,13 @@ class TestBaseActor(testing.AsyncTestCase):
                 self.assertEqual(
                     self.actor._execute._call_count,
                     1,
-                    "Value `%s` should allow actor execution" % str_value,
+                    f"Value `{str_value}` should allow actor execution",
                 )
             else:
                 self.assertEqual(
                     self.actor._execute._call_count,
                     0,
-                    "Value `%s` should not allow actor execution" % str_value,
+                    f"Value `{str_value}` should not allow actor execution",
                 )
 
     @testing.gen_test

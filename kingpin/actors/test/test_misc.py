@@ -1,14 +1,12 @@
+import importlib
 import logging
-
-from tornado import httpclient
-from tornado import testing
 from unittest import mock
 
+from tornado import httpclient, testing
+
 from kingpin import exceptions as kingpin_exceptions
-from kingpin.actors import exceptions
-from kingpin.actors import misc
+from kingpin.actors import exceptions, misc
 from kingpin.actors.test.helper import mock_tornado
-import importlib
 
 log = logging.getLogger(__name__)
 

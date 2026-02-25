@@ -1,10 +1,8 @@
 import json
 import os
-
 import unittest
 
-from kingpin import exceptions
-from kingpin import schema
+from kingpin import exceptions, schema
 
 
 class TestSchema(unittest.TestCase):
@@ -12,15 +10,15 @@ class TestSchema(unittest.TestCase):
         super().setUp(*args, **kwargs)
 
         dirname, filename = os.path.split(os.path.abspath(__file__))
-        self.examples = "%s/../../examples" % dirname
+        self.examples = f"{dirname}/../../examples"
 
     def test_validate_with_simple_json(self):
-        j = json.loads(open("%s/simple.json" % self.examples).read())
+        j = json.loads(open(f"{self.examples}/simple.json").read())
         ret = schema.validate(j)
         self.assertEqual(None, ret)
 
     def test_validate_with_complex_json(self):
-        j = json.loads(open("%s/complex.json" % self.examples).read())
+        j = json.loads(open(f"{self.examples}/complex.json").read())
         ret = schema.validate(j)
         self.assertEqual(None, ret)
 

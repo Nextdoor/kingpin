@@ -1,8 +1,5 @@
 from botocore import exceptions as botocore_exceptions
-from tornado import concurrent
-from tornado import gen
-from tornado import queues
-from tornado import ioloop
+from tornado import concurrent, gen, ioloop, queues
 
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
