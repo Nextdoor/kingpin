@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 
-from tornado import gen, ioloop
+from tornado import ioloop
 
 from kingpin import utils
 from kingpin.actors import exceptions as actor_exceptions
@@ -142,8 +142,7 @@ def get_main_actor(dry: bool):
     )
 
 
-@gen.coroutine
-def main():
+async def main():
 
     if args.actor and args.explain:
         ActorClass = actor_utils.get_actor_class(args.actor)
@@ -165,7 +164,7 @@ def main():
                 log.critical(e)
                 sys.exit(2)
 
-            with open(args.orgchart, "w") as output:
+            with open(args.orgchart, "w") as output:  # noqa: ASYNC230
                 output.write(json.dumps(orgdata))
 
         sys.exit(0)
@@ -190,7 +189,7 @@ def main():
 
             try:
                 dry_actor = get_main_actor(dry=True)
-                yield dry_actor.execute()
+                await dry_actor.execute()
             except actor_exceptions.ActorException as e:
                 log.critical("Dry run failed. Reason:")
                 log.critical(e)
@@ -205,7 +204,7 @@ def main():
         log.info("")
         log.warning("Lights, camera ... action!")
         log.info("")
-        yield runner.execute()
+        await runner.execute()
     except actor_exceptions.ActorException as e:
         log.error("Kingpin encountered mistakes during the play.")
         log.error(e)

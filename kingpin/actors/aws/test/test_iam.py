@@ -5,7 +5,7 @@ from datetime import datetime
 from unittest import mock
 
 from botocore.stub import Stubber
-from tornado import gen, testing
+from tornado import testing
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import iam, settings
@@ -13,10 +13,9 @@ from kingpin.actors.aws import iam, settings
 log = logging.getLogger(__name__)
 
 
-@gen.coroutine
-def tornado_value(*args):
+async def tornado_value(*args):
     """Returns whatever is passed in. Used for testing."""
-    raise gen.Return(*args)
+    return args[0] if len(args) == 1 else args
 
 
 class TestIAMBaseActor(testing.AsyncTestCase):

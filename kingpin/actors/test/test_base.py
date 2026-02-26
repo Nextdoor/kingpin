@@ -1,5 +1,6 @@
 """Tests for the actors.base package."""
 
+import asyncio
 import io
 import json
 import logging
@@ -7,7 +8,7 @@ import os
 from importlib import reload
 from unittest import mock
 
-from tornado import gen, httpclient, simple_httpclient, testing
+from tornado import httpclient, simple_httpclient, testing
 
 # Unusual placement -- but we override the environment so that we can test that
 # the urllib debugger works.
@@ -27,10 +28,9 @@ class FakeHTTPClientClass:
 
     response_value = None
 
-    @gen.coroutine
-    def fetch(self, *args, **kwargs):
+    async def fetch(self, *args, **kwargs):
         self.request = args[0]
-        raise gen.Return(self.response_value)
+        return self.response_value
 
 
 class FakeEnsurableBaseActor(base.EnsurableBaseActor):
@@ -43,11 +43,10 @@ class FakeEnsurableBaseActor(base.EnsurableBaseActor):
 
     unmanaged_options = ["unmanaged"]
 
-    @gen.coroutine
-    def _precache(self):
+    async def _precache(self):
         # Call our parent class precache.. no real need here other than for
         # unit test coverage.
-        yield super()._precache()
+        await super()._precache()
 
         # These do not match -- so we'll trigger the setters
         self.state = "absent"
@@ -64,49 +63,40 @@ class FakeEnsurableBaseActor(base.EnsurableBaseActor):
         # Make it easy to check that this was called
         self._precache_called = True
 
-    @gen.coroutine
-    def _set_state(self):
+    async def _set_state(self):
         self.state = True
         self.set_state_called = True
 
-    @gen.coroutine
-    def _get_state(self):
-        raise gen.Return(self.state)
+    async def _get_state(self):
+        return self.state
 
-    @gen.coroutine
-    def _set_name(self):
+    async def _set_name(self):
         self.name = self.option("name")
         self.set_name_called = True
 
-    @gen.coroutine
-    def _get_name(self):
-        raise gen.Return(self.name)
+    async def _get_name(self):
+        return self.name
 
-    @gen.coroutine
-    def _compare_name(self):
-        exist = yield self._get_name()
+    async def _compare_name(self):
+        exist = await self._get_name()
         new = self.option("name")
-        raise gen.Return(exist == new)
+        return exist == new
 
-    @gen.coroutine
-    def _set_description(self):
+    async def _set_description(self):
         self.set_description_called = True
 
-    @gen.coroutine
-    def _get_description(self):
-        raise gen.Return(self.description)
+    async def _get_description(self):
+        return self.description
 
 
 class TestBaseActor(testing.AsyncTestCase):
-    @gen.coroutine
-    def true(self):
-        yield utils.tornado_sleep(0.01)
-        raise gen.Return(True)
+    async def true(self):
+        await utils.tornado_sleep(0.01)
+        return True
 
-    @gen.coroutine
-    def false(self):
-        yield utils.tornado_sleep(0.01)
-        raise gen.Return(False)
+    async def false(self):
+        await utils.tornado_sleep(0.01)
+        return False
 
     def setUp(self):
         super().setUp()
@@ -154,10 +144,9 @@ class TestBaseActor(testing.AsyncTestCase):
         tracker = mock.MagicMock(name="tracker")
 
         # Create a function and wrap it in our timeout
-        @gen.coroutine
-        def _execute():
+        async def _execute():
             tracker.reset_mock()
-            yield gen.sleep(0.2)
+            await asyncio.sleep(0.2)
             tracker.call_me()
 
         self.actor._execute = _execute
@@ -313,8 +302,7 @@ class TestBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_catches_expected_exception(self):
-        @gen.coroutine
-        def raise_exc():
+        async def raise_exc():
             raise exceptions.ActorException("Test")
 
         self.actor._execute = raise_exc
@@ -323,8 +311,7 @@ class TestBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_catches_unexpected_exception(self):
-        @gen.coroutine
-        def raise_exc():
+        async def raise_exc():
             raise Exception("Test")
 
         self.actor._execute = raise_exc
@@ -333,8 +320,7 @@ class TestBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_execute_with_warn_on_failure(self):
-        @gen.coroutine
-        def raise_exc():
+        async def raise_exc():
             raise exceptions.RecoverableActorFailure("should just warn")
 
         self.actor._execute = raise_exc

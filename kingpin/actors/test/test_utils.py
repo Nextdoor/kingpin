@@ -1,7 +1,7 @@
 import logging
 from unittest import mock
 
-from tornado import gen, testing
+from tornado import testing
 
 from kingpin.actors import base, exceptions, misc, utils
 from kingpin.actors.test import helper
@@ -18,14 +18,12 @@ class FakeActor(base.BaseActor):
         self.conn.call.return_value = helper.tornado_value(None)
         self.conn.call.__name__ = "test_call"
 
-    @gen.coroutine
     @utils.dry("Would have done {0}")
-    def do_thing(self, thing):
-        yield self.conn.call(thing)
+    async def do_thing(self, thing):
+        await self.conn.call(thing)
 
-    @gen.coroutine
-    def execute(self):
-        raise gen.Return(self.options["return_value"])
+    async def execute(self):
+        return self.options["return_value"]
 
 
 class TestUtils(testing.AsyncTestCase):
