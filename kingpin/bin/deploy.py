@@ -2,12 +2,11 @@
 """CLI Script Runner for Kingpin."""
 
 import argparse
+import asyncio
 import json
 import logging
 import os
 import sys
-
-from tornado import ioloop
 
 from kingpin import utils
 from kingpin.actors import exceptions as actor_exceptions
@@ -222,23 +221,14 @@ def begin():
     utils.setup_root_logger(level=args.level, color=args.color)
 
     try:
-        ioloop.IOLoop.current().run_sync(main)
+        asyncio.run(main())
     except KeyboardInterrupt:
         log.info("CTRL-C Caught, shutting down")
         sys.exit(130)  # Standard KeyboardInterrupt exit code.
     except Exception:
-        # Skip traceback that involves tornado's libraries.
         import traceback
 
-        trace_lines = traceback.format_exc().splitlines()
-        skip_next = False
-        for l in trace_lines:
-            if "tornado" in l:
-                skip_next = True
-                continue
-            if not skip_next:
-                print(l)
-            skip_next = False
+        traceback.print_exc()
         sys.exit(3)
 
 
