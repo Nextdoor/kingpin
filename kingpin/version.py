@@ -1,3 +1,3 @@
 """Kingpin version number. You must bump this when creating a new release."""
 
-__version__ = "6.1.0"
+__version__ = "7.0.0"
