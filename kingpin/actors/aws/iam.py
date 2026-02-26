@@ -240,7 +240,9 @@ class IAMBaseActor(base.AWSBaseActor):
         # First, push any policies that we have listed, but aren't in the
         # entity
         async with asyncio.TaskGroup() as tg:
-            for policy in set(self.inline_policies.keys()) - set(existing_policies.keys()):
+            for policy in set(self.inline_policies.keys()) - set(
+                existing_policies.keys()
+            ):
                 policy_doc = self.inline_policies[policy]
                 tg.create_task(self._put_entity_policy(name, policy, policy_doc))
 
@@ -248,7 +250,9 @@ class IAMBaseActor(base.AWSBaseActor):
         # already attached to the entity profile? Lets make sure each one of
         # those matches the policy we have here, and update it if necessary.
         async with asyncio.TaskGroup() as tg:
-            for policy in set(self.inline_policies.keys()) & set(existing_policies.keys()):
+            for policy in set(self.inline_policies.keys()) & set(
+                existing_policies.keys()
+            ):
                 new = self.inline_policies[policy]
                 exist = existing_policies[policy]
                 diff = utils.diff_dicts(exist, new)
@@ -261,7 +265,9 @@ class IAMBaseActor(base.AWSBaseActor):
 
         # Purge any policies we found in AWS that were not listed in our actor
         async with asyncio.TaskGroup() as tg:
-            for policy in set(existing_policies.keys()) - set(self.inline_policies.keys()):
+            for policy in set(existing_policies.keys()) - set(
+                self.inline_policies.keys()
+            ):
                 tg.create_task(self._delete_entity_policy(name, policy))
 
     async def _delete_entity_policy(self, name, policy_name):
