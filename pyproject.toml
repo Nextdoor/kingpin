@@ -25,9 +25,6 @@ classifiers = [
   "Topic :: Software Development",
 ]
 dependencies = [
-    # Async I/O engine, coroutines, HTTP client
-    # https://tornado.readthedocs.org/en/latest/gen.html#tornado.gen.with_timeout
-    "tornado==6.5.4",
     # JSON schema validation for the deployment DSL
     "jsonschema>=3.0.0,<5.0.0",
     "jsonpickle==4.1.1",
