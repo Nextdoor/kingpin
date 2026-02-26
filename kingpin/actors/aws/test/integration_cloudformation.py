@@ -1,10 +1,11 @@
+import unittest
+
 """Simple integration tests for the AWS CloudFormation actors."""
 
 import logging
 import uuid
 
 from nose.plugins.attrib import attr
-from tornado import testing
 
 from kingpin.actors.aws import cloudformation
 
@@ -16,7 +17,7 @@ logging.getLogger("boto").setLevel(logging.INFO)
 UUID = uuid.uuid4().hex
 
 
-class IntegrationCreate(testing.AsyncTestCase):
+class IntegrationCreate(unittest.IsolatedAsyncioTestCase):
     """High Level CloudFormation Testing.
 
     These tests will check two things:
@@ -45,7 +46,6 @@ class IntegrationCreate(testing.AsyncTestCase):
     bucket_name = f"kingpin-{UUID}"
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=600)
     def integration_01_create_stack(self):
         actor = cloudformation.Create(
             "Create Stack",
@@ -65,7 +65,6 @@ class IntegrationCreate(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_02_create_duplicate_stack_should_fail(self):
         actor = cloudformation.Create(
             "Create Stack",
@@ -85,7 +84,6 @@ class IntegrationCreate(testing.AsyncTestCase):
             yield actor.execute()
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=600)
     def integration_03_delete_stack(self):
         actor = cloudformation.Delete(
             "Delete Stack", {"region": self.region, "name": self.bucket_name}
@@ -95,7 +93,7 @@ class IntegrationCreate(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
 
-class IntegrationStack(testing.AsyncTestCase):
+class IntegrationStack(unittest.IsolatedAsyncioTestCase):
     """High Level CloudFormation Stack Testing.
 
     These tests will check two things:
@@ -125,7 +123,6 @@ class IntegrationStack(testing.AsyncTestCase):
     bucket_name = f"kingpin-stack-{UUID}"
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=600)
     def integration_01a_ensure_stack(self):
         actor = cloudformation.Stack(
             options={
@@ -145,7 +142,6 @@ class IntegrationStack(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=600)
     def integration_01b_ensure_stack_still_there(self):
         actor = cloudformation.Stack(
             options={
@@ -165,7 +161,6 @@ class IntegrationStack(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=600)
     def integration_02_changing_password_should_be_a_noop(self):
         #  This should pretty much do nothing.. if it did trigger a ChangeSet,
         #  we would actually fail because we're issuing a ChangeSet where no
@@ -189,7 +184,6 @@ class IntegrationStack(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=600)
     def integration_03_update_by_overriding_default(self):
         actor = cloudformation.Stack(
             options={
@@ -210,7 +204,6 @@ class IntegrationStack(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=600)
     def integration_04a_update_bucket_name(self):
         actor = cloudformation.Stack(
             options={
@@ -230,7 +223,6 @@ class IntegrationStack(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=600)
     def integration_04b_update_bucket_name_second_time_should_work(self):
         actor = cloudformation.Stack(
             options={
@@ -250,7 +242,6 @@ class IntegrationStack(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=600)
     def integration_05a_delete_stack(self):
         actor = cloudformation.Stack(
             options={
@@ -270,7 +261,6 @@ class IntegrationStack(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=600)
     def integration_05b_ensure_stack_absent(self):
         actor = cloudformation.Stack(
             options={

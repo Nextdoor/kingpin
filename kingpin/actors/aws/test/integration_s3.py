@@ -1,9 +1,10 @@
+import unittest
+
 """Simple integration tests for the AWS S3 actors."""
 
 import logging
 
 from nose.plugins.attrib import attr
-from tornado import testing
 
 # from kingpin import utils
 # from kingpin.actors import exceptions
@@ -15,7 +16,7 @@ log = logging.getLogger(__name__)
 logging.getLogger("boto").setLevel(logging.INFO)
 
 
-class IntegrationS3(testing.AsyncTestCase):
+class IntegrationS3(unittest.IsolatedAsyncioTestCase):
     """High level S3 Actor testing.
 
     These tests will check two things:
@@ -44,7 +45,6 @@ class IntegrationS3(testing.AsyncTestCase):
     region = "us-east-1"
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_01_create_bucket(self):
         actor = s3.Bucket(
             options={
@@ -59,7 +59,6 @@ class IntegrationS3(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_02a_set_bucket_policy(self):
         actor = s3.Bucket(
             options={
@@ -73,7 +72,6 @@ class IntegrationS3(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_02b_delete_bucket_policy(self):
         actor = s3.Bucket(
             options={
@@ -87,7 +85,6 @@ class IntegrationS3(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_03a_enable_versioning(self):
         actor = s3.Bucket(
             options={
@@ -101,7 +98,6 @@ class IntegrationS3(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_03b_disable_versioning(self):
         actor = s3.Bucket(
             options={
@@ -115,7 +111,6 @@ class IntegrationS3(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_04a_enable_lifecycle_management(self):
         actor = s3.Bucket(
             options={
@@ -137,7 +132,6 @@ class IntegrationS3(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_04b_update_lifecycle_management(self):
         actor = s3.Bucket(
             options={
@@ -159,7 +153,6 @@ class IntegrationS3(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_04c_disable_lifecycle_management(self):
         actor = s3.Bucket(
             options={
@@ -173,7 +166,6 @@ class IntegrationS3(testing.AsyncTestCase):
         self.assertEqual(done, None)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_09_delete_bucket(self):
         actor = s3.Bucket(
             options={
