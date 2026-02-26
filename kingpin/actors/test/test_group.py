@@ -1,9 +1,8 @@
 import asyncio
 import logging
 import time
+import unittest
 from unittest import mock
-
-from tornado import testing
 
 from kingpin import utils
 from kingpin.actors import base, exceptions, group
@@ -52,7 +51,7 @@ class FakeActorPopulate(base.BaseActor):
         return None
 
 
-class TestGroupActorBaseClass(testing.AsyncTestCase):
+class TestGroupActorBaseClass(unittest.IsolatedAsyncioTestCase):
     def setUp(self, *args, **kwargs):
         super().setUp(*args, **kwargs)
         FakeActor.last_value = None
@@ -158,8 +157,7 @@ class TestBaseGroupActor(TestGroupActorBaseClass):
         ret = actor._build_action_group({"TEST": "CONTEXT"})
         self.assertEqual(ret[0]._init_context, {"TEST": "CONTEXT"})
 
-    @testing.gen_test
-    def test_execute_success(self):
+    async def test_execute_success(self):
         actor = group.BaseGroupActor("Unit Test Action", {"acts": []})
 
         # Mock out the _run_actions method and make sure it just returns two
@@ -169,11 +167,10 @@ class TestBaseGroupActor(TestGroupActorBaseClass):
 
         actor._run_actions = run_actions_true
 
-        ret = yield actor._execute()
+        ret = await actor._execute()
         self.assertEqual(None, ret)
 
-    @testing.gen_test
-    def test_execute_failure(self):
+    async def test_execute_failure(self):
         actor = group.BaseGroupActor("Unit Test Action", {"acts": []})
 
         # Mock out the _run_actions method and make sure it just returns one
@@ -183,40 +180,36 @@ class TestBaseGroupActor(TestGroupActorBaseClass):
 
         actor._run_actions = run_actions_true
 
-        ret = yield actor._execute()
+        ret = await actor._execute()
         self.assertEqual(ret, None)
 
 
 class TestSyncGroupActor(TestGroupActorBaseClass):
-    @testing.gen_test
-    def test_run_actions_with_no_acts(self):
+    async def test_run_actions_with_no_acts(self):
         # Call the executor and test it out
         actor = group.Sync("Unit Test Action", {"acts": []})
 
-        res = yield actor._run_actions()
+        res = await actor._run_actions()
         self.assertEqual(res, None)
 
-    @testing.gen_test
-    def test_run_actions_with_one_act(self):
+    async def test_run_actions_with_one_act(self):
         # Call the executor and test it out
         actor = group.Sync("Unit Test Action", {"acts": [dict(self.actor_returns)]})
 
-        res = yield actor._run_actions()
+        res = await actor._run_actions()
         self.assertEqual(res, None)
 
-    @testing.gen_test
-    def test_run_actions_with_two_acts(self):
+    async def test_run_actions_with_two_acts(self):
         # Call the executor and test it out
         actor = group.Sync(
             "Unit Test Action",
             {"acts": [dict(self.actor_returns), dict(self.actor_returns)]},
         )
 
-        res = yield actor._run_actions()
+        res = await actor._run_actions()
         self.assertEqual(res, None)
 
-    @testing.gen_test
-    def test_run_actions_continue_on_dry(self):
+    async def test_run_actions_continue_on_dry(self):
         # Call the executor and test it out
         self.actor_returns["options"]["value"] = "123"
         actor = group.Sync(
@@ -230,13 +223,12 @@ class TestSyncGroupActor(TestGroupActorBaseClass):
             dry=True,
         )
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
-            yield actor._run_actions()
+            await actor._run_actions()
 
         # Even after the first actor fails, the second one should get executed.
         self.assertEqual(FakeActor.last_value, "123")
 
-    @testing.gen_test
-    def test_run_actions_with_two_acts_one_fails_unrecoverable(self):
+    async def test_run_actions_with_two_acts_one_fails_unrecoverable(self):
         # Call the executor and test it out
         self.actor_returns["options"]["value"] = "123"
         actor = group.Sync(
@@ -249,13 +241,12 @@ class TestSyncGroupActor(TestGroupActorBaseClass):
             },
         )
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
-            yield actor._run_actions()
+            await actor._run_actions()
 
         # If the second actor gets executed this value would be 123.
         self.assertEqual(FakeActor.last_value, None)
 
-    @testing.gen_test
-    def test_run_actions_with_two_acts_one_fails_recoverable(self):
+    async def test_run_actions_with_two_acts_one_fails_recoverable(self):
         # Call the executor and test it out
         actor = group.Sync(
             "Unit Test Action",
@@ -267,11 +258,10 @@ class TestSyncGroupActor(TestGroupActorBaseClass):
             },
         )
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield actor._run_actions()
+            await actor._run_actions()
 
 
 class TestAsyncGroupActor(TestGroupActorBaseClass):
-    @testing.gen_test
     def test_get_exc_type_with_only_unrecoverable(self):
         exc_list = [
             exceptions.UnrecoverableActorFailure(),
@@ -282,7 +272,6 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         ret = actor._get_exc_type(exc_list)
         self.assertEqual(ret, exceptions.UnrecoverableActorFailure)
 
-    @testing.gen_test
     def test_get_exc_type_with_only_recoverable(self):
         exc_list = [
             exceptions.RecoverableActorFailure(),
@@ -293,7 +282,6 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         ret = actor._get_exc_type(exc_list)
         self.assertEqual(ret, exceptions.RecoverableActorFailure)
 
-    @testing.gen_test
     def test_get_exc_type_with_both(self):
         exc_list = [
             exceptions.RecoverableActorFailure(),
@@ -304,24 +292,21 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         ret = actor._get_exc_type(exc_list)
         self.assertEqual(ret, exceptions.UnrecoverableActorFailure)
 
-    @testing.gen_test
-    def test_run_actions_with_no_acts(self):
+    async def test_run_actions_with_no_acts(self):
         # Call the executor and test it out
         actor = group.Async("Unit Test Action", {"acts": []})
 
-        res = yield actor._run_actions()
+        res = await actor._run_actions()
         self.assertEqual(res, None)
 
-    @testing.gen_test
-    def test_run_actions_with_one_act(self):
+    async def test_run_actions_with_one_act(self):
         # Call the executor and test it out
         actor = group.Async("Unit Test Action", {"acts": [dict(self.actor_returns)]})
 
-        res = yield actor._run_actions()
+        res = await actor._run_actions()
         self.assertEqual(res, None)
 
-    @testing.gen_test
-    def test_execute_async(self):
+    async def test_execute_async(self):
         """Make sure this actor starts all processes in parallel!"""
         check_order = []
         actor_1 = {
@@ -341,14 +326,13 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         actor._actions[0]._options["object"] = check_order
         actor._actions[1]._options["object"] = check_order
 
-        yield actor.execute()
+        await actor.execute()
 
         # if the actions above were executed sequentially then the resulting
         # list would be [1,1,2,2] and here we know it's hopping between actors
         self.assertEqual(check_order, [1, 2, 1, 2])
 
-    @testing.gen_test
-    def test_execute_concurrent(self):
+    async def test_execute_concurrent(self):
         sleeper = {"actor": "misc.Sleep", "desc": "Sleep", "options": {"sleep": 0.1}}
         actor = group.Async(
             "Unit Test Action",
@@ -356,24 +340,22 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         )
 
         start = time.time()
-        yield actor.execute()
+        await actor.execute()
         stop = time.time()
         exe_time = stop - start
         self.assertTrue(0.2 < exe_time < 0.4)
 
-    @testing.gen_test
-    def test_run_actions_with_two_acts(self):
+    async def test_run_actions_with_two_acts(self):
         # Call the executor and test it out
         actor = group.Async(
             "Unit Test Action",
             {"acts": [dict(self.actor_returns), dict(self.actor_returns)]},
         )
 
-        res = yield actor._run_actions()
+        res = await actor._run_actions()
         self.assertEqual(res, None)
 
-    @testing.gen_test
-    def test_run_actions_with_two_acts_one_fails_unrecoverable(self):
+    async def test_run_actions_with_two_acts_one_fails_unrecoverable(self):
         # Call the executor and test it out
         self.actor_returns["options"]["value"] = "123"
         actor = group.Async(
@@ -387,13 +369,12 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         )
 
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
-            yield actor._run_actions()
+            await actor._run_actions()
 
         # If the second actor does not get executed this value would be None
         self.assertEqual(FakeActor.last_value, "123")
 
-    @testing.gen_test
-    def test_run_actions_with_two_acts_one_fails_recoverable(self):
+    async def test_run_actions_with_two_acts_one_fails_recoverable(self):
         # Call the executor and test it out
         actor = group.Async(
             "Unit Test Action",
@@ -407,10 +388,9 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         )
 
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield actor._run_actions()
+            await actor._run_actions()
 
-    @testing.gen_test
-    def test_run_actions_with_two_acts_one_fails_with_both(self):
+    async def test_run_actions_with_two_acts_one_fails_with_both(self):
         # Call the executor and test it out
         actor = group.Async(
             "Unit Test Action",
@@ -424,4 +404,4 @@ class TestAsyncGroupActor(TestGroupActorBaseClass):
         )
 
         with self.assertRaises(exceptions.UnrecoverableActorFailure):
-            yield actor._run_actions()
+            await actor._run_actions()

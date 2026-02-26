@@ -4,12 +4,11 @@ import io
 import logging
 import os
 import time
+import unittest
 from unittest import mock
 
 import rainbow_logging_handler
 import requests
-from tornado import testing
-from tornado.testing import unittest
 
 from kingpin import exceptions, utils
 from kingpin.actors import misc
@@ -17,9 +16,9 @@ from kingpin.actors import misc
 
 class TestUtils(unittest.TestCase):
     def test_str_to_class(self):
-        class_string_name = "tornado.testing.AsyncTestCase"
+        class_string_name = "unittest.IsolatedAsyncioTestCase"
         returned_class = utils.str_to_class(class_string_name)
-        self.assertEqual(testing.AsyncTestCase, returned_class)
+        self.assertEqual(unittest.IsolatedAsyncioTestCase, returned_class)
 
         class_string_name = "kingpin.actors.misc.Sleep"
         returned_class = utils.str_to_class(class_string_name)
@@ -269,9 +268,8 @@ class TestSetupRootLoggerUtils(unittest.TestCase):
         self.assertEqual(ordered_d1, ordered_d2)
 
 
-class TestCoroutineHelpers(testing.AsyncTestCase):
-    @testing.gen_test
-    def test_retry_with_backoff(self):
+class TestCoroutineHelpers(unittest.IsolatedAsyncioTestCase):
+    async def test_retry_with_backoff(self):
 
         # Define a method that will fail every time
         @utils.retry(excs=(requests.exceptions.HTTPError), retries=3)
@@ -279,24 +277,22 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
             raise requests.exceptions.HTTPError("Failed")
 
         with self.assertRaises(requests.exceptions.HTTPError):
-            yield raise_exception()
+            await raise_exception()
 
         # Now a method that works
         @utils.retry(excs=(requests.exceptions.HTTPError), retries=3)
         async def work():
             return True
 
-        ret = yield work()
+        ret = await work()
         self.assertEqual(ret, True)
 
-    @testing.gen_test
-    def test_asyncio_sleep(self):
+    async def test_asyncio_sleep(self):
         start = time.time()
-        yield asyncio.sleep(0.1)
+        await asyncio.sleep(0.1)
         stop = time.time()
         self.assertTrue(stop - start > 0.1)
 
-    @testing.gen_test
     async def test_repeating_log(self):
         logger = mock.Mock()  # used for tracking
 
@@ -319,7 +315,6 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
         await asyncio.sleep(0)
         self.assertEqual(logger.info.call_count, 4)
 
-    @testing.gen_test
     def test_diff_dicts(self):
         p1 = {"a": "a", "b": "b"}
         p2 = {"a": "a", "c": "c"}

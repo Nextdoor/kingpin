@@ -1,7 +1,6 @@
 import logging
+import unittest
 from unittest import mock
-
-from tornado import testing
 
 from kingpin.actors import base, exceptions, misc, utils
 from kingpin.actors.test import helper
@@ -26,7 +25,7 @@ class FakeActor(base.BaseActor):
         return self.options["return_value"]
 
 
-class TestUtils(testing.AsyncTestCase):
+class TestUtils(unittest.IsolatedAsyncioTestCase):
     def test_get_actor(self):
         actor_return_true = {
             "desc": "returns true",
@@ -52,14 +51,12 @@ class TestUtils(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidActor):
             utils.get_actor_class(actor_string)
 
-    @testing.gen_test
-    def test_dry_decorator_with_dry_true(self):
+    async def test_dry_decorator_with_dry_true(self):
         actor = FakeActor("Fake", options={}, dry=True)
-        yield actor.do_thing("my thing string")
+        await actor.do_thing("my thing string")
         self.assertFalse(actor.conn.called)
 
-    @testing.gen_test
-    def test_dry_decorator_with_dry_false(self):
+    async def test_dry_decorator_with_dry_false(self):
         actor = FakeActor("Fake", options={}, dry=False)
-        yield actor.do_thing("my thing string")
+        await actor.do_thing("my thing string")
         actor.conn.call.assert_has_calls([mock.call("my thing string")])

@@ -1,3 +1,5 @@
+import unittest
+
 """Tests for the actors.base package."""
 
 import asyncio
@@ -6,8 +8,6 @@ import logging
 import os
 from importlib import reload
 from unittest import mock
-
-from tornado import testing
 
 # Unusual placement -- but we override the environment so that we can test that
 # the urllib debugger works.
@@ -77,7 +77,7 @@ class FakeEnsurableBaseActor(base.EnsurableBaseActor):
         return self.description
 
 
-class TestBaseActor(testing.AsyncTestCase):
+class TestBaseActor(unittest.IsolatedAsyncioTestCase):
     async def true(self):
         await asyncio.sleep(0.01)
         return True
@@ -96,17 +96,14 @@ class TestBaseActor(testing.AsyncTestCase):
         # test
         self.actor._execute = self.true
 
-    @testing.gen_test
     def test_user_defined_desc(self):
         self.assertEqual("Unit Test Action", str(self.actor))
 
-    @testing.gen_test
     def test_default_desc(self):
         self.actor._desc = None
         self.assertEqual("kingpin.actors.base.BaseActor", str(self.actor))
 
-    @testing.gen_test
-    def test_timer(self):
+    async def test_timer(self):
         # Create a function and wrap it in our timer
         self.actor._execute = self.true
 
@@ -114,7 +111,7 @@ class TestBaseActor(testing.AsyncTestCase):
         self.actor.log = mock.MagicMock()
 
         # Now call the execute() wrapper that leverages the @timer decorator.
-        yield self.actor.execute()
+        await self.actor.execute()
 
         # Search for a logged message. Don't explicitly set the execution time
         # because some computers and compilers are slow.
@@ -125,8 +122,7 @@ class TestBaseActor(testing.AsyncTestCase):
                 msg_is_in_calls = True
         self.assertEqual(msg_is_in_calls, True)
 
-    @testing.gen_test
-    def test_timeout(self):
+    async def test_timeout(self):
         # Create a quick mock.. so we can track whether or not API calls were
         # actually made.
         tracker = mock.MagicMock(name="tracker")
@@ -141,23 +137,22 @@ class TestBaseActor(testing.AsyncTestCase):
 
         # Set our timeout to 2s, test should work
         self.actor._timeout = 1
-        yield self.actor.timeout(_execute)
+        await self.actor.timeout(_execute)
         tracker.assert_has_calls([mock.call.call_me()])
 
         # Now set our timeout to 500ms. Exception should be raised, and the
         # tracker should NOT be called.
         self.actor._timeout = 0.1
         with self.assertRaises(exceptions.ActorTimedOut):
-            yield self.actor.timeout(_execute)
+            await self.actor.timeout(_execute)
 
         # Set the timeout to 0, which disables it. No exception should be
         # raised
         self.actor._timeout = 0
-        yield self.actor.timeout(_execute)
+        await self.actor.timeout(_execute)
         self.actor_timeout = None
-        yield self.actor.timeout(_execute)
+        await self.actor.timeout(_execute)
 
-    @testing.gen_test
     def test_httplib_debugging(self):
         # Get the logger now and validate that its level was set right
         requests_logger = logging.getLogger("requests.packages.urllib3")
@@ -229,7 +224,6 @@ class TestBaseActor(testing.AsyncTestCase):
         with self.assertRaises(exceptions.InvalidOptions):
             self.actor._validate_options()
 
-    @testing.gen_test
     def test_option(self):
         self.actor._options["foo"] = "bar"
         opt = self.actor.option("foo")
@@ -246,13 +240,11 @@ class TestBaseActor(testing.AsyncTestCase):
             # using __enter__ here because it's opened as a context manager.
             self.assertEqual(mock_open().__enter__().read.call_count, 1)
 
-    @testing.gen_test
-    def test_execute(self):
-        res = yield self.actor.execute()
+    async def test_execute(self):
+        res = await self.actor.execute()
         self.assertEqual(res, True)
 
-    @testing.gen_test
-    def test_check_condition(self):
+    async def test_check_condition(self):
         conditions = {
             "FOobar": True,
             "True": True,
@@ -267,7 +259,7 @@ class TestBaseActor(testing.AsyncTestCase):
         for value, should_execute in conditions.items():
             self.actor._condition = value
             self.actor._execute = mock_tornado()
-            yield self.actor.execute()
+            await self.actor.execute()
             str_value = json.dumps(value)
             if should_execute:
                 self.assertEqual(
@@ -282,32 +274,28 @@ class TestBaseActor(testing.AsyncTestCase):
                     f"Value `{str_value}` should not allow actor execution",
                 )
 
-    @testing.gen_test
-    def test_execute_fail(self):
+    async def test_execute_fail(self):
         self.actor._execute = self.false
-        res = yield self.actor.execute()
+        res = await self.actor.execute()
         self.assertEqual(res, False)
 
-    @testing.gen_test
-    def test_execute_catches_expected_exception(self):
+    async def test_execute_catches_expected_exception(self):
         async def raise_exc():
             raise exceptions.ActorException("Test")
 
         self.actor._execute = raise_exc
         with self.assertRaises(exceptions.ActorException):
-            yield self.actor.execute()
+            await self.actor.execute()
 
-    @testing.gen_test
-    def test_execute_catches_unexpected_exception(self):
+    async def test_execute_catches_unexpected_exception(self):
         async def raise_exc():
             raise Exception("Test")
 
         self.actor._execute = raise_exc
         with self.assertRaises(exceptions.ActorException):
-            yield self.actor.execute()
+            await self.actor.execute()
 
-    @testing.gen_test
-    def test_execute_with_warn_on_failure(self):
+    async def test_execute_with_warn_on_failure(self):
         async def raise_exc():
             raise exceptions.RecoverableActorFailure("should just warn")
 
@@ -315,11 +303,11 @@ class TestBaseActor(testing.AsyncTestCase):
 
         # First test, should raise an exc...
         with self.assertRaises(exceptions.RecoverableActorFailure):
-            yield self.actor.execute()
+            await self.actor.execute()
 
         # Second test, turn on 'warn_on_failure'
         self.actor._warn_on_failure = True
-        res = yield self.actor.execute()
+        res = await self.actor.execute()
         self.assertEqual(res, None)
 
     def test_fill_in_contexts_desc(self):
@@ -384,7 +372,7 @@ class TestBaseActor(testing.AsyncTestCase):
         base.BaseActor.all_options = {}
 
 
-class TestEnsurableBaseActor(testing.AsyncTestCase):
+class TestEnsurableBaseActor(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         super().setUp()
         self.actor = FakeEnsurableBaseActor(
@@ -397,13 +385,11 @@ class TestEnsurableBaseActor(testing.AsyncTestCase):
             },
         )
 
-    @testing.gen_test
-    def test_precache(self):
-        yield self.actor._precache()
+    async def test_precache(self):
+        await self.actor._precache()
 
-    @testing.gen_test
-    def test_execute(self):
-        yield self.actor._execute()
+    async def test_execute(self):
+        await self.actor._execute()
 
         # Did the precache execute?
         self.assertTrue(self.actor._precache_called)
@@ -417,16 +403,14 @@ class TestEnsurableBaseActor(testing.AsyncTestCase):
         self.assertTrue(self.actor.set_state_called)
         self.assertTrue(self.actor.set_name_called)
 
-    @testing.gen_test
-    def test_execute_absent(self):
+    async def test_execute_absent(self):
         self.actor._options["state"] = "absent"
-        yield self.actor._execute()
+        await self.actor._execute()
 
         # Make sure that the set_name and set_state were NOT called
         self.assertFalse(self.actor.set_state_called)
         self.assertFalse(self.actor.set_name_called)
 
-    @testing.gen_test
     def test_gather_methods_throws_exception(self):
         # Mock out the set_name method by replacing it with an attribute
         self.actor._set_name = False
@@ -434,7 +418,7 @@ class TestEnsurableBaseActor(testing.AsyncTestCase):
             self.actor._gather_methods()
 
 
-class TestHTTPBaseActor(testing.AsyncTestCase):
+class TestHTTPBaseActor(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         super().setUp()
         self.actor = base.HTTPBaseActor("Unit Test Action", {})
@@ -445,7 +429,6 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
         self.assertEqual("POST", self.actor._get_method(""))
         self.assertEqual("GET", self.actor._get_method(None))
 
-    @testing.gen_test
     def test_generate_escaped_url(self):
         result = self.actor._generate_escaped_url("http://unittest", {"foo": "bar"})
         self.assertEqual("http://unittest?foo=bar", result)
@@ -463,8 +446,7 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
         )
         self.assertEqual("http://unittest?foo=bar+baz&xyz=abc", result)
 
-    @testing.gen_test
-    def test_fetch(self):
+    async def test_fetch(self):
         response_dict = {"foo": "asdf"}
         response_body = json.dumps(response_dict).encode()
 
@@ -472,17 +454,16 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
         mock_response.read.return_value = response_body
 
         with mock.patch("urllib.request.urlopen", return_value=mock_response):
-            response = yield self.actor._fetch("http://example.com/")
+            response = await self.actor._fetch("http://example.com/")
             self.assertEqual(response_dict, response)
 
         mock_response.read.return_value = b"Something bad happened"
 
         with mock.patch("urllib.request.urlopen", return_value=mock_response):
             with self.assertRaises(exceptions.UnparseableResponseFromEndpoint):
-                yield self.actor._fetch("http://example.com/")
+                await self.actor._fetch("http://example.com/")
 
-    @testing.gen_test
-    def test_fetch_with_auth(self):
+    async def test_fetch_with_auth(self):
         response_dict = {"foo": "asdf"}
         response_body = json.dumps(response_dict).encode()
 
@@ -490,7 +471,7 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
         mock_response.read.return_value = response_body
 
         with mock.patch("urllib.request.urlopen", return_value=mock_response) as m:
-            yield self.actor._fetch(
+            await self.actor._fetch(
                 "http://example.com/",
                 auth_username="foo",
                 auth_password="bar",
@@ -500,7 +481,7 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
             self.assertTrue(req.headers["Authorization"].startswith("Basic "))
 
 
-class TestActualEnsurableBaseActor(testing.AsyncTestCase):
+class TestActualEnsurableBaseActor(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
 
         super().setUp()
@@ -514,12 +495,10 @@ class TestActualEnsurableBaseActor(testing.AsyncTestCase):
             },
         )
 
-    @testing.gen_test
-    def test_set_state(self):
+    async def test_set_state(self):
         with self.assertRaises(NotImplementedError):
-            yield self.actor._set_state()
+            await self.actor._set_state()
 
-    @testing.gen_test
-    def test_get_state(self):
+    async def test_get_state(self):
         with self.assertRaises(NotImplementedError):
-            yield self.actor._get_state()
+            await self.actor._get_state()
