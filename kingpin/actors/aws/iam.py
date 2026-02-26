@@ -3,12 +3,13 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 """
 
+import asyncio
 import json
 import logging
 import os
 
 from botocore.exceptions import ClientError
-from tornado import concurrent, gen
+from tornado import concurrent
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -150,8 +151,7 @@ class IAMBaseActor(base.AWSBaseActor):
 
             self.log.debug(f"Parsed policy {p_name}: {self.inline_policies[p_name]}")
 
-    @gen.coroutine
-    def _get_entity_policies(self, name):
+    async def _get_entity_policies(self, name):
         """Returns a dictionary of all the inline policies attached to a entity.
 
         Args:
@@ -172,7 +172,7 @@ class IAMBaseActor(base.AWSBaseActor):
         policy_names = []
         try:
             self.log.debug(f"Searching for any inline policies for {name}")
-            ret = yield self.api_call(
+            ret = await self.api_call(
                 self.list_entity_policies, **{self.entity_kwarg_name: name}
             )
             policy_names = ret.get("PolicyNames", [])
@@ -187,7 +187,7 @@ class IAMBaseActor(base.AWSBaseActor):
                 ) from e
 
         # Iterate through all of the named policies and fire off
-        # get-requests, but don't yield on them yet.
+        # get-requests, but don't await on them yet.
         tasks = []
         for p_name in policy_names:
             tasks.append(
@@ -200,13 +200,13 @@ class IAMBaseActor(base.AWSBaseActor):
                 )
             )
 
-        # Now that we've fired off all the calls, we walk through each yielded
+        # Now that we've fired off all the calls, we walk through each awaited
         # result, parse the returned policy, and append it to our policies
         # list. We also catch any raised exceptions here.
         for t in tasks:
             p_name, p_task = t
             try:
-                raw = yield p_task
+                raw = await p_task
             except ClientError as e:
                 raise exceptions.RecoverableActorFailure(
                     f"An unexpected API error occurred downloading "
@@ -220,10 +220,9 @@ class IAMBaseActor(base.AWSBaseActor):
             policies[p_name] = p_doc
             self.log.debug(f"Got policy {name}/{p_name}: {p_doc}")
 
-        raise gen.Return(policies)
+        return policies
 
-    @gen.coroutine
-    def _ensure_inline_policies(self, name):
+    async def _ensure_inline_policies(self, name):
         """Ensures that all of the inline IAM policies for a entity are managed
 
         This method has three stages.. first it ensures that any missing
@@ -236,7 +235,7 @@ class IAMBaseActor(base.AWSBaseActor):
             name: The entity to manage
         """
         # Get the list of current entity policies first
-        existing_policies = yield self._get_entity_policies(name)
+        existing_policies = await self._get_entity_policies(name)
 
         # First, push any policies that we have listed, but aren't in the
         # entity
@@ -244,7 +243,7 @@ class IAMBaseActor(base.AWSBaseActor):
         for policy in set(self.inline_policies.keys()) - set(existing_policies.keys()):
             policy_doc = self.inline_policies[policy]
             tasks.append(self._put_entity_policy(name, policy, policy_doc))
-        yield tasks
+        await asyncio.gather(*tasks)
 
         # Do we have matching policies that we're managing here, and are
         # already attached to the entity profile? Lets make sure each one of
@@ -260,16 +259,15 @@ class IAMBaseActor(base.AWSBaseActor):
                     self.log.info(f"Diff: {line}")
                 policy_doc = self.inline_policies[policy]
                 tasks.append(self._put_entity_policy(name, policy, policy_doc))
-        yield tasks
+        await asyncio.gather(*tasks)
 
         # Purge any policies we found in AWS that were not listed in our actor
         tasks = []
         for policy in set(existing_policies.keys()) - set(self.inline_policies.keys()):
             tasks.append(self._delete_entity_policy(name, policy))
-        yield tasks
+        await asyncio.gather(*tasks)
 
-    @gen.coroutine
-    def _delete_entity_policy(self, name, policy_name):
+    async def _delete_entity_policy(self, name, policy_name):
         """Optionally pushes a policy to an IAM entity.
 
         Args:
@@ -281,11 +279,11 @@ class IAMBaseActor(base.AWSBaseActor):
             self.log.warning(
                 f"Would delete policy {policy_name} from {self.entity_name} {name}"
             )
-            raise gen.Return()
+            return
 
         self.log.info(f"Deleting policy {policy_name} from {self.entity_name} {name}")
         try:
-            ret = yield self.api_call(
+            ret = await self.api_call(
                 self.delete_entity_policy,
                 **{self.entity_kwarg_name: name, "PolicyName": policy_name},
             )
@@ -296,8 +294,7 @@ class IAMBaseActor(base.AWSBaseActor):
                     f"An unexpected API error occurred: {e}"
                 ) from e
 
-    @gen.coroutine
-    def _put_entity_policy(self, name, policy_name, policy_doc):
+    async def _put_entity_policy(self, name, policy_name, policy_doc):
         """Optionally pushes a policy to an IAM Entity.
 
         Args:
@@ -310,11 +307,11 @@ class IAMBaseActor(base.AWSBaseActor):
             self.log.warning(
                 f"Would push policy {policy_name} to {self.entity_name} {name}"
             )
-            raise gen.Return()
+            return
 
         self.log.info(f"Pushing policy {policy_name} to {self.entity_name} {name}")
         try:
-            ret = yield self.api_call(
+            ret = await self.api_call(
                 self.put_entity_policy,
                 **{
                     self.entity_kwarg_name: name,
@@ -328,8 +325,7 @@ class IAMBaseActor(base.AWSBaseActor):
                 f"An unexpected API error occurred: {e}"
             ) from e
 
-    @gen.coroutine
-    def _get_entity(self, name):
+    async def _get_entity(self, name):
         """Returns an IAM Entity JSON Blob.
 
         Searches for an IAM Entity and either returns None, or a JSON blob that
@@ -342,18 +338,17 @@ class IAMBaseActor(base.AWSBaseActor):
         self.log.debug(f"Searching for {self.entity_name} {name}")
 
         try:
-            ret = yield self.api_call(self.get_entity, **{self.entity_kwarg_name: name})
+            ret = await self.api_call(self.get_entity, **{self.entity_kwarg_name: name})
         except ClientError as e:
             if "NoSuchEntity" in str(e):
-                raise gen.Return() from e
+                return None
             raise exceptions.RecoverableActorFailure(
                 f"An unexpected API error occurred: {e}"
             ) from e
 
-        raise gen.Return(ret.get(self.entity_name))
+        return ret.get(self.entity_name)
 
-    @gen.coroutine
-    def _ensure_entity(self, name, state):
+    async def _ensure_entity(self, name, state):
         """Ensures a entity is either present or absent.
 
         Looks up the entities current state and then makes a decision about
@@ -367,19 +362,18 @@ class IAMBaseActor(base.AWSBaseActor):
 
         self.log.info(f"Ensuring that {self.entity_name} {name} is {state}")
 
-        entity = yield self._get_entity(name)
+        entity = await self._get_entity(name)
 
         if entity and state == "present":
-            raise gen.Return()
+            return
         elif not entity and state == "present":
-            yield self._create_entity(name)
+            await self._create_entity(name)
         elif entity and state == "absent":
-            yield self._delete_entity(name)
+            await self._delete_entity(name)
         elif not entity and state == "absent":
-            raise gen.Return()
+            return
 
-    @gen.coroutine
-    def _create_entity(self, name, **kwargs):
+    async def _create_entity(self, name, **kwargs):
         """Creates an IAM Entity.
 
         If the entity exists, we just warn and move on.
@@ -390,10 +384,10 @@ class IAMBaseActor(base.AWSBaseActor):
 
         if self._dry:
             self.log.warning(f"Would create {self.entity_name} {name}")
-            raise gen.Return()
+            return
 
         try:
-            ret = yield self.api_call(
+            ret = await self.api_call(
                 self.create_entity, **{self.entity_kwarg_name: name, **kwargs}
             )
         except ClientError as e:
@@ -401,15 +395,14 @@ class IAMBaseActor(base.AWSBaseActor):
                 self.log.warning(
                     f"{self.entity_name} {name} already exists, skipping creation."
                 )
-                raise gen.Return() from e
+                return
             raise exceptions.RecoverableActorFailure(
                 f"An unexpected API error occurred: {e}"
             ) from e
 
         self.log.info(f"{self.entity_name} {ret[self.entity_name]['Arn']} created")
 
-    @gen.coroutine
-    def _delete_entity(self, name):
+    async def _delete_entity(self, name):
         """Deletes and IAM Entity.
 
         If the entity doesn't exist, we just warn and move on.
@@ -420,30 +413,29 @@ class IAMBaseActor(base.AWSBaseActor):
 
         if self._dry:
             self.log.warning(f"Would delete {self.entity_name} {name}")
-            raise gen.Return()
+            return
 
         try:
             # Get the entities policies. They have to be deleted before we can
             # possibly move forward and delete the entity.
-            existing_policies = yield self._get_entity_policies(name)
+            existing_policies = await self._get_entity_policies(name)
             tasks = []
             for policy in existing_policies:
                 tasks.append(self._delete_entity_policy(name, policy))
-            yield tasks
+            await asyncio.gather(*tasks)
 
             # Now delete the entity
-            yield self.api_call(self.delete_entity, **{self.entity_kwarg_name: name})
+            await self.api_call(self.delete_entity, **{self.entity_kwarg_name: name})
             self.log.info(f"{self.entity_name} {name} deleted")
         except ClientError as e:
             if "NoSuchEntity" in str(e):
                 self.log.warning(f"{self.entity_name} {name} doesn't exist")
-                raise gen.Return() from e
+                return
             raise exceptions.RecoverableActorFailure(
                 f"An unexpected API error occurred: {e}"
             ) from e
 
-    @gen.coroutine
-    def _add_user_to_group(self, name, group):
+    async def _add_user_to_group(self, name, group):
         """Quick helper method to add a user to a group.
 
         Args:
@@ -453,11 +445,11 @@ class IAMBaseActor(base.AWSBaseActor):
 
         if self._dry:
             self.log.warning(f"Would have added {name} to {group}")
-            raise gen.Return()
+            return
 
         try:
             self.log.info(f"Adding {name} to {group}")
-            yield self.api_call(
+            await self.api_call(
                 self.iam_conn.add_user_to_group, GroupName=group, UserName=name
             )
         except ClientError as e:
@@ -465,8 +457,7 @@ class IAMBaseActor(base.AWSBaseActor):
                 f"An unexpected API error occurred: {e}"
             ) from e
 
-    @gen.coroutine
-    def _remove_user_from_group(self, name, group):
+    async def _remove_user_from_group(self, name, group):
         """Quick helper method to remove a user from a group.
 
         Args:
@@ -476,11 +467,11 @@ class IAMBaseActor(base.AWSBaseActor):
 
         if self._dry:
             self.log.warning(f"Would have removed {name} from {group}")
-            raise gen.Return()
+            return
 
         try:
             self.log.info(f"Removing {name} from {group}")
-            yield self.api_call(
+            await self.api_call(
                 self.iam_conn.remove_user_from_group, GroupName=group, UserName=name
             )
         except ClientError as e:
@@ -570,8 +561,7 @@ class User(IAMBaseActor):
         # Parse the supplied inline policies
         self._parse_inline_policies(self.option("inline_policies"))
 
-    @gen.coroutine
-    def _ensure_groups(self, name, groups):
+    async def _ensure_groups(self, name, groups):
         """Ensure that this user is a member of specific groups.
 
         Args:
@@ -584,7 +574,7 @@ class User(IAMBaseActor):
 
         current_groups = set()
         try:
-            res = yield self.api_call(
+            res = await self.api_call(
                 self.iam_conn.list_groups_for_user, **{self.entity_kwarg_name: name}
             )
             current_groups = {g["GroupName"] for g in res.get("Groups", [])}
@@ -605,32 +595,31 @@ class User(IAMBaseActor):
         except StopIteration:
             pass  # pragma: no cover
 
-        yield tasks
+        await asyncio.gather(*tasks)
 
         # Find any group memberships we didn't know about, and purge them
         tasks = []
         for bad_group in current_groups - set(groups):
             tasks.append(self._remove_user_from_group(name, bad_group))
 
-        yield tasks
+        await asyncio.gather(*tasks)
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         name = self.option("name")
         state = self.option("state")
         groups = self.option("groups")
 
-        yield self._ensure_entity(name, state)
+        await self._ensure_entity(name, state)
         if state == "absent":
-            raise gen.Return()
+            return
 
         if self.option("inline_policies") is not None:
-            yield self._ensure_inline_policies(name)
+            await self._ensure_inline_policies(name)
 
         if groups is not None:
-            yield self._ensure_groups(name, groups)
+            await self._ensure_groups(name, groups)
 
-        raise gen.Return()
+        return
 
 
 class Group(IAMBaseActor):
@@ -714,8 +703,7 @@ class Group(IAMBaseActor):
         # Parse the supplied inline policies
         self._parse_inline_policies(self.option("inline_policies"))
 
-    @gen.coroutine
-    def _get_group_users(self, name):
+    async def _get_group_users(self, name):
         """Returns a list of users assigned to the group.
 
         Args:
@@ -727,7 +715,7 @@ class Group(IAMBaseActor):
 
         users = []
         try:
-            raw = yield self.api_call(
+            raw = await self.api_call(
                 self.iam_conn.get_group, **{self.entity_kwarg_name: name}
             )
             users = [user["UserName"] for user in raw.get("Users", [])]
@@ -737,10 +725,9 @@ class Group(IAMBaseActor):
                     f"An unexpected API error occurred: {e}"
                 ) from e
 
-        raise gen.Return(users)
+        return users
 
-    @gen.coroutine
-    def _purge_group_users(self, name, force):
+    async def _purge_group_users(self, name, force):
         """Forcefully purge all users from the group.
 
         This is used only if the group has users, is being deleted, and the
@@ -751,7 +738,7 @@ class Group(IAMBaseActor):
             force: boolean whether or not to actually force the removal
         """
 
-        users = yield self._get_group_users(name)
+        users = await self._get_group_users(name)
 
         if not force and users:
             self.log.warning(
@@ -762,30 +749,29 @@ class Group(IAMBaseActor):
             self.log.warning(f"Group members: {', '.join(users)}")
 
         if not force:
-            raise gen.Return()
+            return
 
         tasks = []
         for user in users:
             tasks.append(self._remove_user_from_group(user, name))
-        yield tasks
+        await asyncio.gather(*tasks)
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         name = self.option("name")
         state = self.option("state")
         force = self.option("force")
 
         if state == "absent":
-            yield self._purge_group_users(name, force)
+            await self._purge_group_users(name, force)
 
-        yield self._ensure_entity(name, state)
+        await self._ensure_entity(name, state)
         if state == "absent":
-            raise gen.Return()
+            return
 
         if self.option("inline_policies") is not None:
-            yield self._ensure_inline_policies(name)
+            await self._ensure_inline_policies(name)
 
-        raise gen.Return()
+        return
 
 
 class Role(IAMBaseActor):
@@ -905,8 +891,7 @@ class Role(IAMBaseActor):
                 self.option("assume_role_policy_document")
             )
 
-    @gen.coroutine
-    def _ensure_assume_role_doc(self, name):
+    async def _ensure_assume_role_doc(self, name):
         """Ensures that the Assume Role Policy for a Role is up to date.
 
         Downloads the existing Assume Role Policy for a given Role, then
@@ -917,12 +902,12 @@ class Role(IAMBaseActor):
             name: The role we're working with
         """
         # Get our existing role policy from the entity
-        entity = yield self._get_entity(name)
+        entity = await self._get_entity(name)
 
         # If the entity doesn't exist, then we must be in a Dry run and the
         # role hasn't been created yet. Just bail silently.
         if not entity:
-            raise gen.Return()
+            return
 
         # Parse the raw data into a dict we can compare
         exist = entity.get("AssumeRolePolicyDocument", {})
@@ -933,7 +918,7 @@ class Role(IAMBaseActor):
         diff = utils.diff_dicts(exist, new)
         if not diff:
             self.log.debug("Assume Role Policy documents match")
-            raise gen.Return()
+            return
 
         self.log.info("Assume Role Policy differs from Amazons:")
         for line in diff.split("\n"):
@@ -941,16 +926,15 @@ class Role(IAMBaseActor):
 
         if self._dry:
             self.log.warning("Would have updated the Assume Role Policy Doc")
-            raise gen.Return()
+            return
 
         self.log.info("Updating the Assume Role Policy Document")
-        yield self.api_call(
+        await self.api_call(
             self.iam_conn.update_assume_role_policy,
             **{self.entity_kwarg_name: name, "PolicyDocument": json.dumps(new)},
         )
 
-    @gen.coroutine
-    def _create_entity(self, name):
+    async def _create_entity(self, name):
         """Creates an IAM Role.
 
         If the entity exists, we just warn and move on.
@@ -959,26 +943,25 @@ class Role(IAMBaseActor):
             name: The IAM Entity Name
         """
 
-        yield super()._create_entity(
+        await super()._create_entity(
             name,
             AssumeRolePolicyDocument=json.dumps(self.assume_role_policy_doc),
         )
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         name = self.option("name")
         state = self.option("state")
 
-        yield self._ensure_entity(name, state)
+        await self._ensure_entity(name, state)
         if state == "absent":
-            raise gen.Return()
+            return
 
         if self.option("inline_policies") is not None:
-            yield self._ensure_inline_policies(name)
+            await self._ensure_inline_policies(name)
 
-        yield self._ensure_assume_role_doc(name)
+        await self._ensure_assume_role_doc(name)
 
-        raise gen.Return()
+        return
 
 
 class InstanceProfile(IAMBaseActor):
@@ -1042,8 +1025,7 @@ class InstanceProfile(IAMBaseActor):
     def entity_kwarg_name(self):
         return "InstanceProfileName"
 
-    @gen.coroutine
-    def _add_role(self, name, role):
+    async def _add_role(self, name, role):
         """Adds a role to an Instance Profile.
 
         Args:
@@ -1053,11 +1035,11 @@ class InstanceProfile(IAMBaseActor):
 
         if self._dry:
             self.log.warning(f"Would add role {role} from {name}")
-            raise gen.Return()
+            return
 
         try:
             self.log.info(f"Adding role {role} to {name}")
-            yield self.api_call(
+            await self.api_call(
                 self.iam_conn.add_role_to_instance_profile,
                 **{self.entity_kwarg_name: name, "RoleName": role},
             )
@@ -1067,8 +1049,7 @@ class InstanceProfile(IAMBaseActor):
                     f"An unexpected API error occurred: {e}"
                 ) from e
 
-    @gen.coroutine
-    def _remove_role(self, name, role):
+    async def _remove_role(self, name, role):
         """Removes a role assigned to an Instance Profile.
 
         Args:
@@ -1078,11 +1059,11 @@ class InstanceProfile(IAMBaseActor):
 
         if self._dry:
             self.log.warning(f"Would remove role {role} from {name}")
-            raise gen.Return()
+            return
 
         try:
             self.log.info(f"Removing role {role} from {name}")
-            yield self.api_call(
+            await self.api_call(
                 self.iam_conn.remove_role_from_instance_profile,
                 **{self.entity_kwarg_name: name, "RoleName": role},
             )
@@ -1092,8 +1073,7 @@ class InstanceProfile(IAMBaseActor):
                     f"An unexpected API error occurred: {e}"
                 ) from e
 
-    @gen.coroutine
-    def _ensure_role(self, name, role):
+    async def _ensure_role(self, name, role):
         """Ensures that an Instance Profile role is set correctly.
 
         Adds, Deletes or Changes the Role assigned to an Instance Profile.
@@ -1105,7 +1085,7 @@ class InstanceProfile(IAMBaseActor):
 
         existing = None
         try:
-            raw = yield self.api_call(
+            raw = await self.api_call(
                 self.iam_conn.get_instance_profile, InstanceProfileName=name
             )
             existing = raw["InstanceProfile"]["Roles"][0]["RoleName"]
@@ -1119,27 +1099,26 @@ class InstanceProfile(IAMBaseActor):
             pass
 
         if not existing and not role:
-            raise gen.Return()
+            return
         elif existing and not role:
             try:
-                yield self._remove_role(name, existing)
+                await self._remove_role(name, existing)
             except StopIteration:  # pragma: no cover
                 return  # pragma: no cover
         elif not existing and role:
-            yield self._add_role(name, role)
+            await self._add_role(name, role)
         elif existing != role:
-            yield self._remove_role(name, existing)
-            yield self._add_role(name, role)
+            await self._remove_role(name, existing)
+            await self._add_role(name, role)
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         name = self.option("name")
         state = self.option("state")
         role = self.option("role")
 
-        yield self._ensure_entity(name, state)
+        await self._ensure_entity(name, state)
         if state == "absent":
-            raise gen.Return()
+            return
 
         if role is not None:
-            yield self._ensure_role(name, role)
+            await self._ensure_role(name, role)

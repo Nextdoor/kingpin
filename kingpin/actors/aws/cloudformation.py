@@ -3,6 +3,7 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 """
 
+import asyncio
 import datetime
 import json
 import logging
@@ -13,7 +14,7 @@ from json import JSONEncoder
 
 import boto3
 from botocore.exceptions import ClientError
-from tornado import concurrent, gen, ioloop
+from tornado import concurrent, ioloop
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -310,8 +311,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         """
         return boto3.client("s3", region_name=region)
 
-    @gen.coroutine
-    def _validate_template(self, body=None, url=None):
+    async def _validate_template(self, body=None, url=None):
         """Validates the CloudFormation template.
 
         Args:
@@ -327,14 +327,14 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             cfg = {"TemplateURL": url}
             self.log.info(f"Validating template ({url}) with AWS...")
             try:
-                yield self.api_call(self.cfn_conn.validate_template, **cfg)
+                await self.api_call(self.cfn_conn.validate_template, **cfg)
             except ClientError as e:
                 raise InvalidTemplate(e) from e
         elif body is not None:
             cfg = {"TemplateBody": body}
             self.log.info("Validating template with AWS...")
             try:
-                yield self.api_call(self.cfn_conn.validate_template, **cfg)
+                await self.api_call(self.cfn_conn.validate_template, **cfg)
             except ClientError as e:
                 raise InvalidTemplate(e) from e
 
@@ -368,8 +368,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         sorted_params = sorted(new_params, key=lambda k: k["ParameterKey"])
         return sorted_params
 
-    @gen.coroutine
-    def _get_stack(self, stack):
+    async def _get_stack(self, stack):
         """Returns a cloudformation.Stack object of the requested stack.
 
         If a "stack name" is supplied, Amazon returns only stacks that are
@@ -383,38 +382,36 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             <Stack Dict> or <None>
         """
         try:
-            stacks = yield self.api_call_with_queueing(
+            stacks = await self.api_call_with_queueing(
                 self.cfn_conn.describe_stacks,
                 queue_name="describe_stacks",
                 StackName=stack,
             )
         except ClientError as e:
             if "does not exist" in str(e):
-                raise gen.Return(None) from e
+                return None
 
             raise CloudFormationError(e) from e
 
-        raise gen.Return(stacks["Stacks"][0])
+        return stacks["Stacks"][0]
 
-    @gen.coroutine
-    def _get_stack_template(self, stack: str):
+    async def _get_stack_template(self, stack: str):
         """Returns the live template used by the CFN Stack.
 
         Args:
             stack: (str) Stack name or stack ID
         """
         try:
-            ret = yield self.api_call(
+            ret = await self.api_call(
                 self.cfn_conn.get_template, StackName=stack, TemplateStage="Original"
             )
         except ClientError as e:
             raise CloudFormationError(e) from e
 
         template_body: dict = ret["TemplateBody"]
-        raise gen.Return(self._strip_hash_dict(template_body))
+        return self._strip_hash_dict(template_body)
 
-    @gen.coroutine
-    def _wait_until_state(self, stack_name: str, desired_states, sleep=15):
+    async def _wait_until_state(self, stack_name: str, desired_states, sleep=15):
         """Indefinite loop until a stack has finished creating/deleting.
 
         Whether the stack has failed, suceeded or been rolled back... this
@@ -431,7 +428,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             StackNotFound: If the stack doesn't exist.
         """
         while True:
-            stack = yield self._get_stack(stack_name)
+            stack = await self._get_stack(stack_name)
 
             if not stack:
                 msg = f'Stack "{self.option("name")}" not found.'
@@ -443,13 +440,13 @@ class CloudFormationBaseActor(base.AWSBaseActor):
                 self.log.info(
                     f"Stack state is {stack['StackStatus']}, waiting {sleep}(s)..."
                 )
-                yield utils.tornado_sleep(sleep)
+                await asyncio.sleep(sleep)
                 continue
 
             # If the stack is in the desired state, then return
             if stack["StackStatus"] in desired_states:
                 self.log.debug(f"Found Stack state: {stack['StackStatus']}")
-                raise gen.Return()
+                return
 
             # Lastly, if we get here, then something is very wrong and we got
             # some funky status back. Throw an exception.
@@ -459,8 +456,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             )
             raise StackFailed(msg)
 
-    @gen.coroutine
-    def _get_stack_events(self, stack: str):
+    async def _get_stack_events(self, stack: str):
         """Returns a list of human-readable CFN Events.
 
         Searches for all of the Stack events for a given CFN Stack and returns
@@ -475,11 +471,11 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             [<list of human readable strings>]
         """
         try:
-            raw = yield self.api_call(
+            raw = await self.api_call(
                 self.cfn_conn.describe_stack_events, StackName=stack
             )
         except ClientError:
-            raise gen.Return([]) from None
+            return []
 
         # Reverse the list, and iterate through the data
         events = []
@@ -496,14 +492,13 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
             events.append(log_string_fmt.format(**event))
 
-        raise gen.Return(events)
+        return events
 
-    @gen.coroutine
     @dry("Would have deleted stack {stack}")
-    def _delete_stack(self, stack):
+    async def _delete_stack(self, stack):
         """Executes the stack deletion."""
 
-        exists = yield self._get_stack(stack)
+        exists = await self._get_stack(stack)
         if not exists:
             raise StackNotFound("Stack does not exist!")
 
@@ -516,7 +511,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
         self.log.info("Deleting stack")
         try:
-            ret = yield self.api_call(
+            ret = await self.api_call(
                 self.cfn_conn.delete_stack, StackName=stack, RoleARN=role_arn
             )
         except ClientError as e:
@@ -527,7 +522,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
         # Now wait until the stack creation has finished
         try:
-            yield self._wait_until_state(exists["StackId"], DELETED)
+            await self._wait_until_state(exists["StackId"], DELETED)
         except StackNotFound:
             # Pass here because a stack not found exception is totally
             # reasonable since we're deleting the stack. Sometimes Amazon
@@ -536,9 +531,8 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             # Either case is fine.
             pass
 
-    @gen.coroutine
     @dry("Would have created stack {stack}")
-    def _create_stack(self, stack):
+    async def _create_stack(self, stack):
         """Executes the stack creation."""
         # Create the stack, and get its ID.
         self.log.info(f"Creating stack {stack}")
@@ -559,7 +553,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             enable_termination_protection = False
 
         try:
-            stack = yield self.api_call(
+            stack = await self.api_call(
                 self.cfn_conn.create_stack,
                 StackName=stack,
                 Parameters=self._parameters,
@@ -575,9 +569,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         # Now wait until the stack creation has finished. If the creation fails,
         # get the logs from Amazon for the user.
         try:
-            yield self._wait_until_state(stack["StackId"], COMPLETE)
+            await self._wait_until_state(stack["StackId"], COMPLETE)
         except StackFailed:
-            events = yield self._get_stack_events(stack["StackId"])
+            events = await self._get_stack_events(stack["StackId"])
             for e in events:
                 self.log.error(e)
             msg = f"Stack creation failed: {events}"
@@ -585,7 +579,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
         self.log.info(f"Stack created: {stack['StackId']}")
 
-        raise gen.Return(stack["StackId"])
+        return stack["StackId"]
 
 
 class Create(CloudFormationBaseActor):
@@ -715,15 +709,14 @@ class Create(CloudFormationBaseActor):
             self.option("template_s3_region"),
         )
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         stack_name = self.option("name")
 
-        yield self._validate_template(self._template_body, self._template_url)
+        await self._validate_template(self._template_body, self._template_url)
 
         # If a stack already exists, we cannot re-create it. Raise a recoverable
         # exception and let the end user decide whether this is bad or not.
-        exists = yield self._get_stack(stack_name)
+        exists = await self._get_stack(stack_name)
         if exists:
             raise StackAlreadyExists(f"Stack {stack_name} already exists!")
 
@@ -731,12 +724,12 @@ class Create(CloudFormationBaseActor):
         # to validate that the creation process will work.
         if self._dry:
             self.log.info("Skipping CloudFormation Stack creation.")
-            raise gen.Return()
+            return
 
         # Create the stack
-        yield self._create_stack(stack=stack_name)
+        await self._create_stack(stack=stack_name)
 
-        raise gen.Return()
+        return
 
 
 class Delete(CloudFormationBaseActor):
@@ -780,10 +773,9 @@ class Delete(CloudFormationBaseActor):
 
     desc = "Deleting CloudFormation Stack {name}"
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         stack_name = self.option("name")
-        yield self._delete_stack(stack=stack_name)
+        await self._delete_stack(stack=stack_name)
 
 
 class Stack(CloudFormationBaseActor):
@@ -967,8 +959,7 @@ class Stack(CloudFormationBaseActor):
                 f"Will not use in parameter comparison."
             )
 
-    @gen.coroutine
-    def _update_stack(self, stack):
+    async def _update_stack(self, stack):
         self.log.info("Verifying that stack is in desired state")
 
         # First, check that this stack isn't one that may have failed before and
@@ -984,20 +975,19 @@ class Stack(CloudFormationBaseActor):
         # and re-create it, you cannot fix a broken stack.
         if stack["StackStatus"] in ("CREATE_FAILED", "ROLLBACK_COMPLETE"):
             self.log.warning(f"Stack found in a failed state: {stack['StackStatus']}")
-            yield self._delete_stack(stack=stack["StackId"])
-            yield self._create_stack(stack=stack["StackName"])
-            raise gen.Return()
+            await self._delete_stack(stack=stack["StackId"])
+            await self._create_stack(stack=stack["StackName"])
+            return
 
         # Compare the live and new EnableTerminationProtection parameter and
         # update it if it is different.
-        yield self._ensure_termination_protection(stack)
+        await self._ensure_termination_protection(stack)
 
         # Pull down the live stack template and compare it to the one we have
         # locally.
-        yield self._ensure_template(stack)
+        await self._ensure_template(stack)
 
-    @gen.coroutine
-    def _ensure_template(self, stack):
+    async def _ensure_template(self, stack):
         """Compares and updates the state of a CFN Stack template
 
         Compares the current template body against the template body for the
@@ -1013,7 +1003,7 @@ class Stack(CloudFormationBaseActor):
 
         # Get the current template for the stack, and get our local template
         # body. Make sure they're in the same form (dict).
-        existing = yield self._get_stack_template(stack["StackId"])
+        existing = await self._get_stack_template(stack["StackId"])
         new = json.loads(self._template_body)
 
         # Compare the two templates. If they differ at all, log it out for the
@@ -1036,19 +1026,19 @@ class Stack(CloudFormationBaseActor):
         # bail!
         if not needs_update:
             self.log.debug("Stack matches configuration, no changes necessary")
-            raise gen.Return()
+            return
 
         # If we're here, the templates have diverged. Generate the change set,
         # log out the changes, and execute them.
-        change_set_req = yield self._create_change_set(stack)
-        change_set = yield self._wait_until_change_set_ready(
+        change_set_req = await self._create_change_set(stack)
+        change_set = await self._wait_until_change_set_ready(
             change_set_req["Id"], "Status", "CREATE_COMPLETE"
         )
         self._print_change_set(change_set)
 
         # Ok run the change set itself!
         try:
-            yield self._execute_change_set(change_set_name=change_set_req["Id"])
+            await self._execute_change_set(change_set_name=change_set_req["Id"])
         except (ClientError, StackFailed) as e:
             raise StackFailed(e) from e
 
@@ -1056,7 +1046,7 @@ class Stack(CloudFormationBaseActor):
         # cruft. THis isn't necessary in the real run, because the changeset
         # cannot be deleted once its been applied.
         if self._dry:
-            yield self.api_call(
+            await self.api_call(
                 self.cfn_conn.delete_change_set, ChangeSetName=change_set_req["Id"]
             )
 
@@ -1132,8 +1122,7 @@ class Stack(CloudFormationBaseActor):
 
         return json.dumps(template_obj)
 
-    @gen.coroutine
-    def _create_change_set(self, stack, uuid=uuid.uuid4().hex):
+    async def _create_change_set(self, stack, uuid=uuid.uuid4().hex):
         """Generates a Change Set.
 
         Takes the current settings (template, capabilities, etc) and generates
@@ -1166,16 +1155,15 @@ class Stack(CloudFormationBaseActor):
 
         self.log.info("Generating a stack Change Set...")
         try:
-            change_set_req = yield self.api_call(
+            change_set_req = await self.api_call(
                 self.cfn_conn.create_change_set, **change_opts
             )
         except ClientError as e:
             raise CloudFormationError(e) from e
 
-        raise gen.Return(change_set_req)
+        return change_set_req
 
-    @gen.coroutine
-    def _wait_until_change_set_ready(
+    async def _wait_until_change_set_ready(
         self, change_set_name, status_key, desired_state, sleep=5
     ):
         """Waits until a Change Set has hit the desired state.
@@ -1198,14 +1186,14 @@ class Stack(CloudFormationBaseActor):
         self.log.info(f"Waiting for {change_set_name} to reach {desired_state}")
         while True:
             try:
-                change = yield self.api_call(
+                change = await self.api_call(
                     self.cfn_conn.describe_change_set, ChangeSetName=change_set_name
                 )
             except ClientError as e:
                 # If we hit an intermittent error, lets just loop around and try
                 # again.
                 self.log.error(f"Error receiving Change Set state: {e}")
-                yield utils.tornado_sleep(sleep)
+                await asyncio.sleep(sleep)
                 continue
 
             # The Stack State can be 'AVAILABLE', or an IN_PROGRESS string. In
@@ -1214,7 +1202,7 @@ class Stack(CloudFormationBaseActor):
                 self.log.info(
                     f"Change Set state is {change[status_key]}, waiting {sleep}(s)..."
                 )
-                yield utils.tornado_sleep(sleep)
+                await asyncio.sleep(sleep)
                 continue
 
             # If the stack is in the desired state, then return
@@ -1222,7 +1210,7 @@ class Stack(CloudFormationBaseActor):
                 self.log.debug(
                     f"Change Set reached desired state: {change[status_key]}"
                 )
-                raise gen.Return(change)
+                return change
 
             # Lastly, if we get here, then something is very wrong and we got
             # some funky status back. Throw an exception.
@@ -1262,9 +1250,8 @@ class Stack(CloudFormationBaseActor):
             msg = log_string_fmt.format(**resource)
             self.log.warning(msg)
 
-    @gen.coroutine
     @dry("Would have executed Change Set {change_set_name}")
-    def _execute_change_set(self, change_set_name):
+    async def _execute_change_set(self, change_set_name):
         """Executes the Change Set and waits for completion.
 
         Takes a supplied Change Set name and Stack Name, executes the change
@@ -1275,21 +1262,20 @@ class Stack(CloudFormationBaseActor):
         """
         self.log.info(f"Executing change set {change_set_name}")
         try:
-            yield self.api_call(
+            await self.api_call(
                 self.cfn_conn.execute_change_set, ChangeSetName=change_set_name
             )
         except ClientError as e:
             raise StackFailed(e) from e
 
-        change_set = yield self._wait_until_change_set_ready(
+        change_set = await self._wait_until_change_set_ready(
             change_set_name, "ExecutionStatus", "EXECUTE_COMPLETE"
         )
-        yield self._wait_until_state(
+        await self._wait_until_state(
             change_set["StackId"], (COMPLETE + FAILED + DELETED)
         )
 
-    @gen.coroutine
-    def _ensure_termination_protection(self, stack):
+    async def _ensure_termination_protection(self, stack):
         """Ensures that the EnableTerminationProtection is set to the desired
         setting (either True or False).
 
@@ -1304,13 +1290,12 @@ class Stack(CloudFormationBaseActor):
         new = self.option("enable_termination_protection")
 
         if new == "UNCHANGED" or existing == new:
-            raise gen.Return()
+            return
 
-        yield self._update_termination_protection(stack, new)
+        await self._update_termination_protection(stack, new)
 
-    @gen.coroutine
     @dry("Would have updated EnableTerminationProtection")
-    def _update_termination_protection(self, stack, new):
+    async def _update_termination_protection(self, stack, new):
         """Updates the EnableTerminationProtection to the new setting.
 
         Args:
@@ -1320,7 +1305,7 @@ class Stack(CloudFormationBaseActor):
         self.log.info(f"Updating EnableTerminationProtection to {str(new)}")
 
         try:
-            yield self.api_call(
+            await self.api_call(
                 self.cfn_conn.update_termination_protection,
                 StackName=stack["StackName"],
                 EnableTerminationProtection=new,
@@ -1328,8 +1313,7 @@ class Stack(CloudFormationBaseActor):
         except ClientError as e:
             raise StackFailed(e) from e
 
-    @gen.coroutine
-    def _ensure_stack(self):
+    async def _ensure_stack(self):
         state = self.option("state")
         stack_name = self.option("name")
 
@@ -1338,12 +1322,12 @@ class Stack(CloudFormationBaseActor):
         # Figure out if the stack already exists or not. In this case, we
         # ignore DELETED stacks because they don't apply or block you from
         # creating a new stack.
-        stack = yield self._get_stack(stack_name)
+        stack = await self._get_stack(stack_name)
 
         # Before we figure out what to do, lets make sure the stack isn't in a
         # mutating state.
         if stack:
-            yield self._wait_until_state(
+            await self._wait_until_state(
                 stack["StackId"], (COMPLETE + FAILED + DELETED)
             )
 
@@ -1351,20 +1335,19 @@ class Stack(CloudFormationBaseActor):
         if state == "absent" and stack is None:
             self.log.debug("Stack does not exist")
         elif state == "absent" and stack:
-            yield self._delete_stack(stack=stack_name)
+            await self._delete_stack(stack=stack_name)
         elif state == "present" and stack is None:
-            stack = yield self._create_stack(stack=stack_name)
+            stack = await self._create_stack(stack=stack_name)
         elif state == "present" and stack:
-            stack = yield self._update_stack(stack)
+            stack = await self._update_stack(stack)
 
-        raise gen.Return(stack)
+        return stack
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         # Before we do anything, validate that the supplied template body or
         # url is valid. If its not, an exception is raised.
-        yield self._validate_template(self._template_body, self._template_url)
+        await self._validate_template(self._template_body, self._template_url)
 
         # This main method triggers the creation, deletion or update of the
         # stack as necessary.
-        yield self._ensure_stack()
+        await self._ensure_stack()

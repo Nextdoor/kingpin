@@ -30,7 +30,7 @@ import boto3
 from boto3 import exceptions as boto3_exceptions
 from botocore import config as botocore_config
 from botocore import exceptions as botocore_exceptions
-from tornado import concurrent, gen, ioloop
+from tornado import concurrent, ioloop
 
 from kingpin import exceptions as kingpin_exceptions
 from kingpin import utils
@@ -130,9 +130,8 @@ class AWSBaseActor(base.BaseActor):
         except boto3_exceptions.Boto3Error as e:
             raise self._wrap_boto_exception(e) from e
 
-    @gen.coroutine
     @utils.exception_logger
-    def api_call_with_queueing(self, api_function, queue_name, *args, **kwargs):
+    async def api_call_with_queueing(self, api_function, queue_name, *args, **kwargs):
         """
         Execute `api_function` in a serialized queue.
 
@@ -157,11 +156,11 @@ class AWSBaseActor(base.BaseActor):
             NAMED_API_CALL_QUEUES[queue_name] = api_call_queue.ApiCallQueue()
         queue = NAMED_API_CALL_QUEUES[queue_name]
         try:
-            result = yield queue.call(api_function, *args, **kwargs)
+            result = await queue.call(api_function, *args, **kwargs)
         except botocore_exceptions.ClientError as e:
             raise self._wrap_boto_exception(e) from e
         else:
-            raise gen.Return(result)
+            return result
 
     def _wrap_boto_exception(self, e):
         if isinstance(e, boto3_exceptions.Boto3Error):

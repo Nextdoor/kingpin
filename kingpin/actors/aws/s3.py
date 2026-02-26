@@ -9,7 +9,7 @@ import logging
 import jsonpickle
 from botocore.exceptions import ClientError, ParamValidationError
 from inflection import camelize
-from tornado import concurrent, gen
+from tornado import concurrent
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -699,35 +699,31 @@ class Bucket(base.EnsurableAWSBaseActor):
 
         return rules
 
-    @gen.coroutine
-    def _precache(self):
+    async def _precache(self):
         # Store a quick reference to whether or not the bucket exists or not.
         # This allows the rest of the getter-methods to know whether or not the
         # bucket exists and not make bogus API calls when the bucket doesn't
         # exist.
-        buckets = yield self.api_call(self.s3_conn.list_buckets)
+        buckets = await self.api_call(self.s3_conn.list_buckets)
         matching = [b for b in buckets["Buckets"] if b["Name"] == self.option("name")]
         if len(matching) == 1:
             self._bucket_exists = True
 
-    @gen.coroutine
-    def _get_state(self):
+    async def _get_state(self):
         if not self._bucket_exists:
-            raise gen.Return("absent")
+            return "absent"
 
-        raise gen.Return("present")
+        return "present"
 
-    @gen.coroutine
-    def _set_state(self):
+    async def _set_state(self):
         if self.option("state") == "absent":
-            yield self._verify_can_delete_bucket()
-            yield self._delete_bucket()
+            await self._verify_can_delete_bucket()
+            await self._delete_bucket()
         else:
-            yield self._create_bucket()
+            await self._create_bucket()
 
-    @gen.coroutine
     @dry("Would have created the bucket")
-    def _create_bucket(self):
+    async def _create_bucket(self):
         """Creates an S3 bucket if its missing.
 
         returns:
@@ -741,90 +737,84 @@ class Bucket(base.EnsurableAWSBaseActor):
             }
 
         self.log.info("Creating bucket")
-        yield self.api_call(self.s3_conn.create_bucket, **params)
+        await self.api_call(self.s3_conn.create_bucket, **params)
 
-    @gen.coroutine
-    def _verify_can_delete_bucket(self):
+    async def _verify_can_delete_bucket(self):
         # Find out if there are any files in the bucket before we go to delete
         # it. We cannot delete a bucket with files in it -- nor do we want to.
         bucket = self.option("name")
-        keys = yield self.api_call(self.s3_conn.list_objects, Bucket=bucket)
+        keys = await self.api_call(self.s3_conn.list_objects, Bucket=bucket)
 
         if "Contents" not in keys:
-            raise gen.Return()
+            return
 
         if len(keys["Contents"]) > 0:
             raise exceptions.RecoverableActorFailure(
                 f"Cannot delete bucket with keys: {len(keys)} files found"
             )
 
-    @gen.coroutine
     @dry("Would have deleted bucket")
-    def _delete_bucket(self):
+    async def _delete_bucket(self):
         bucket = self.option("name")
         try:
             self.log.info(f"Deleting bucket {bucket}")
-            yield self.api_call(self.s3_conn.delete_bucket, Bucket=bucket)
+            await self.api_call(self.s3_conn.delete_bucket, Bucket=bucket)
         except ClientError as e:
             raise exceptions.RecoverableActorFailure(
                 f"Cannot delete bucket: {str(e)}"
             ) from e
 
-    @gen.coroutine
-    def _get_policy(self):
+    async def _get_policy(self):
         if not self._bucket_exists:
-            raise gen.Return(None)
+            return None
 
         try:
-            raw = yield self.api_call(
+            raw = await self.api_call(
                 self.s3_conn.get_bucket_policy, Bucket=self.option("name")
             )
             exist = json.loads(raw["Policy"])
         except ClientError as e:
             if "NoSuchBucketPolicy" in str(e):
-                raise gen.Return("") from e
+                return ""
             raise
 
-        raise gen.Return(exist)
+        return exist
 
-    @gen.coroutine
-    def _compare_policy(self):
+    async def _compare_policy(self):
         new = self.policy
         if self.policy is None:
             self.log.debug("Not managing policy")
-            raise gen.Return(True)
+            return True
 
-        exist = yield self._get_policy()
+        exist = await self._get_policy()
 
         # Now, diff our new policy from the existing policy. If there is no
         # difference, then we bail out of the method.
         diff = utils.diff_dicts(exist, new)
         if not diff:
             self.log.debug("Bucket policy matches")
-            raise gen.Return(True)
+            return True
 
         # Now, print out the diff..
         self.log.info("Bucket policy differs from Amazons:")
         for line in diff.split("\n"):
             self.log.info(f"Diff: {line}")
 
-        raise gen.Return(False)
+        return False
 
-    @gen.coroutine
-    def _set_policy(self):
+    async def _set_policy(self):
         if self.policy == "":
-            yield self._delete_policy()
+            await self._delete_policy()
         else:
-            yield self._push_policy()
+            await self._push_policy()
 
-    @gen.coroutine
     @dry("Would have pushed bucket policy")
-    def _push_policy(self):
+    async def _push_policy(self):
         self.log.info(f"Pushing bucket policy {self.option('policy')}")
         self.log.debug(f"Policy doc: {self.policy}")
 
         try:
-            yield self.api_call(
+            await self.api_call(
                 self.s3_conn.put_bucket_policy,
                 Bucket=self.option("name"),
                 Policy=json.dumps(self.policy),
@@ -837,72 +827,65 @@ class Bucket(base.EnsurableAWSBaseActor):
                 f"An unexpected error occurred: {e}"
             ) from e
 
-    @gen.coroutine
     @dry("Would delete bucket policy")
-    def _delete_policy(self):
+    async def _delete_policy(self):
         self.log.info("Deleting bucket policy")
-        yield self.api_call(
+        await self.api_call(
             self.s3_conn.delete_bucket_policy, Bucket=self.option("name")
         )
 
-    @gen.coroutine
-    def _get_logging(self):
+    async def _get_logging(self):
         if not self._bucket_exists:
-            raise gen.Return(None)
+            return None
 
-        data = yield self.api_call(
+        data = await self.api_call(
             self.s3_conn.get_bucket_logging, Bucket=self.option("name")
         )
 
         if "LoggingEnabled" not in data:
             self.log.debug("Logging is disabled")
-            raise gen.Return({"target": "", "prefix": ""})
+            return {"target": "", "prefix": ""}
 
         self.log.debug(
             f"Logging is set to"
             f" s3://{data['LoggingEnabled']['TargetBucket']}"
             f"/{data['LoggingEnabled']['TargetPrefix']}"
         )
-        raise gen.Return(
-            {
-                "target": data["LoggingEnabled"]["TargetBucket"],
-                "prefix": data["LoggingEnabled"]["TargetPrefix"],
-            }
-        )
+        return {
+            "target": data["LoggingEnabled"]["TargetBucket"],
+            "prefix": data["LoggingEnabled"]["TargetPrefix"],
+        }
 
-    @gen.coroutine
-    def _set_logging(self):
+    async def _set_logging(self):
         desired = self.option("logging")
 
         if desired is None:
             self.log.debug("Not managing logging")
-            raise gen.Return()
+            return
 
         # If desired is False, check the state, potentially disable it, and
         # then bail out. Note, we check explicitly for 'target' to be set to
         # ''. Setting it to None, or setting the entire logging config to None
         # should not destroy any existing logging configs.
         if desired["target"] == "":
-            yield self._disable_logging()
-            raise gen.Return()
+            await self._disable_logging()
+            return
 
         # If desired has a logging or prefix config, check each one and
         # validate that they are correct.
-        yield self._enable_logging(**desired)
+        await self._enable_logging(**desired)
 
-    @gen.coroutine
     @dry("Bucket logging would have been disabled")
-    def _disable_logging(self):
+    async def _disable_logging(self):
         self.log.info("Deleting Bucket logging configuration")
-        yield self.api_call(
+        await self.api_call(
             self.s3_conn.put_bucket_logging,
             Bucket=self.option("name"),
             BucketLoggingStatus={},
         )
 
-    @gen.coroutine
     @dry("Bucket logging config would be updated to {target}/{prefix}")
-    def _enable_logging(self, target, prefix):
+    async def _enable_logging(self, target, prefix):
         """Enables logging on a bucket.
 
         Args:
@@ -913,7 +896,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         self.log.info(f"Updating Bucket logging config to {target_str}")
 
         try:
-            yield self.api_call(
+            await self.api_call(
                 self.s3_conn.put_bucket_logging,
                 Bucket=self.option("name"),
                 BucketLoggingStatus={
@@ -926,68 +909,63 @@ class Bucket(base.EnsurableAWSBaseActor):
         except ClientError as e:
             raise InvalidBucketConfig(str(e)) from e
 
-    @gen.coroutine
-    def _get_versioning(self):
+    async def _get_versioning(self):
         if not self._bucket_exists:
-            raise gen.Return(None)
+            return None
 
-        existing = yield self.api_call(
+        existing = await self.api_call(
             self.s3_conn.get_bucket_versioning, Bucket=self.option("name")
         )
 
         if "Status" not in existing or existing["Status"] == "Suspended":
             self.log.debug("Versioning is disabled/suspended")
-            raise gen.Return(False)
+            return False
 
         self.log.debug("Versioning is enabled")
-        raise gen.Return(True)
+        return True
 
-    @gen.coroutine
-    def _set_versioning(self):
+    async def _set_versioning(self):
         if self.option("versioning") is None:
             self.log.debug("Not managing versioning")
-            raise gen.Return()
+            return
 
         if self.option("versioning") is False:
-            yield self._put_versioning("Suspended")
+            await self._put_versioning("Suspended")
         else:
-            yield self._put_versioning("Enabled")
+            await self._put_versioning("Enabled")
 
-    @gen.coroutine
     @dry("Bucket versioning would set to: {0}")
-    def _put_versioning(self, state):
+    async def _put_versioning(self, state):
         self.log.info(f"Setting bucket object versioning to: {state}")
-        yield self.api_call(
+        await self.api_call(
             self.s3_conn.put_bucket_versioning,
             Bucket=self.option("name"),
             VersioningConfiguration={"Status": state},
         )
 
-    @gen.coroutine
-    def _get_lifecycle(self):
+    async def _get_lifecycle(self):
         if not self._bucket_exists:
-            raise gen.Return(None)
+            return None
 
         try:
-            raw = yield self.api_call(
+            raw = await self.api_call(
                 self.s3_conn.get_bucket_lifecycle_configuration,
                 Bucket=self.option("name"),
             )
         except ClientError as e:
             if "NoSuchLifecycleConfiguration" in str(e):
-                raise gen.Return([]) from e
+                return []
             raise
 
-        raise gen.Return(raw["Rules"])
+        return raw["Rules"]
 
-    @gen.coroutine
-    def _compare_lifecycle(self):
-        existing = yield self._get_lifecycle()
+    async def _compare_lifecycle(self):
+        existing = await self._get_lifecycle()
         new = self.lifecycle
 
         if new is None:
             self.log.debug("Not managing lifecycle")
-            raise gen.Return(True)
+            return True
 
         # Now sort through the existing Lifecycle configuration and the one
         # that we've built locally. If there are any differences, we're going
@@ -997,36 +975,33 @@ class Bucket(base.EnsurableAWSBaseActor):
         )
 
         if not diff:
-            raise gen.Return(True)
+            return True
 
         self.log.info("Lifecycle configurations do not match. Updating.")
         for line in diff.split("\n"):
             self.log.info(f"Diff: {line}")
-        raise gen.Return(False)
+        return False
 
-    @gen.coroutine
-    def _set_lifecycle(self):
+    async def _set_lifecycle(self):
         if self.lifecycle == []:
-            yield self._delete_lifecycle()
+            await self._delete_lifecycle()
         else:
-            yield self._push_lifecycle()
+            await self._push_lifecycle()
 
-    @gen.coroutine
     @dry("Would have deleted the existing lifecycle configuration")
-    def _delete_lifecycle(self):
+    async def _delete_lifecycle(self):
         self.log.info("Deleting the existing lifecycle configuration.")
-        yield self.api_call(
+        await self.api_call(
             self.s3_conn.delete_bucket_lifecycle, Bucket=self.option("name")
         )
 
-    @gen.coroutine
     @dry("Would have pushed a new lifecycle configuration")
-    def _push_lifecycle(self):
+    async def _push_lifecycle(self):
         self.log.debug(f"Lifecycle config: {jsonpickle.encode(self.lifecycle)}")
 
         self.log.info("Updating the Bucket Lifecycle config")
         try:
-            yield self.api_call(
+            await self.api_call(
                 self.s3_conn.put_bucket_lifecycle_configuration,
                 Bucket=self.option("name"),
                 LifecycleConfiguration={"Rules": self.lifecycle},
@@ -1034,49 +1009,45 @@ class Bucket(base.EnsurableAWSBaseActor):
         except (ParamValidationError, ClientError) as e:
             raise InvalidBucketConfig(f"Invalid Lifecycle Configuration: {e}") from e
 
-    @gen.coroutine
-    def _get_public_access_block_configuration(self):
+    async def _get_public_access_block_configuration(self):
         if not self._bucket_exists:
-            raise gen.Return(None)
+            return None
 
         try:
-            raw = yield self.api_call(
+            raw = await self.api_call(
                 self.s3_conn.get_public_access_block, Bucket=self.option("name")
             )
         except ClientError as e:
             if "NoSuchPublicAccessBlockConfiguration" in str(e):
-                raise gen.Return([]) from e
+                return []
             raise
 
-        raise gen.Return(raw["PublicAccessBlockConfiguration"])
+        return raw["PublicAccessBlockConfiguration"]
 
-    @gen.coroutine
-    def _set_public_access_block_configuration(self):
+    async def _set_public_access_block_configuration(self):
         if self.access_block == {}:
-            yield self._delete_public_access_block_configuration()
+            await self._delete_public_access_block_configuration()
         else:
-            yield self._push_public_access_block_configuration()
+            await self._push_public_access_block_configuration()
 
-        raise gen.Return()
+        return
 
-    @gen.coroutine
     @dry("Would have deleted the existing public access block config")
-    def _delete_public_access_block_configuration(self):
+    async def _delete_public_access_block_configuration(self):
         self.log.info("Deleting the existing public access block config.")
-        yield self.api_call(
+        await self.api_call(
             self.s3_conn.delete_public_access_block, Bucket=self.option("name")
         )
 
-    @gen.coroutine
     @dry("Would have pushed a new public access block config")
-    def _push_public_access_block_configuration(self):
+    async def _push_public_access_block_configuration(self):
         self.log.debug(
             f"Public Access Block Config: {jsonpickle.encode(self.access_block)}"
         )
 
         self.log.info("Updating the Bucket Public Access Block Config")
         try:
-            yield self.api_call(
+            await self.api_call(
                 self.s3_conn.put_public_access_block,
                 Bucket=self.option("name"),
                 PublicAccessBlockConfiguration=self.access_block,
@@ -1084,14 +1055,13 @@ class Bucket(base.EnsurableAWSBaseActor):
         except (ParamValidationError, ClientError) as e:
             raise InvalidBucketConfig(f"Invalid Public Access Block Config: {e}") from e
 
-    @gen.coroutine
-    def _compare_public_access_block_configuration(self):
-        existing = yield self._get_public_access_block_configuration()
+    async def _compare_public_access_block_configuration(self):
+        existing = await self._get_public_access_block_configuration()
         new = self.access_block
 
         if new is None:
             self.log.debug("Not managing public access block config")
-            raise gen.Return(True)
+            return True
 
         # Now sort through the existing Lifecycle configuration and the one
         # that we've built locally. If there are any differences, we're going
@@ -1101,28 +1071,27 @@ class Bucket(base.EnsurableAWSBaseActor):
         )
 
         if not diff:
-            raise gen.Return(True)
+            return True
 
         self.log.info("Public Access Block Configurations do not match. Updating.")
         for line in diff.split("\n"):
             self.log.info(f"Diff: {line}")
-        raise gen.Return(False)
+        return False
 
-    @gen.coroutine
-    def _get_tags(self):
+    async def _get_tags(self):
         if self.option("tags") is None:
-            raise gen.Return(None)
+            return None
 
         if not self._bucket_exists:
-            raise gen.Return(None)
+            return None
 
         try:
-            raw = yield self.api_call(
+            raw = await self.api_call(
                 self.s3_conn.get_bucket_tagging, Bucket=self.option("name")
             )
         except ClientError as e:
             if "NoSuchTagSet" in str(e):
-                raise gen.Return([]) from e
+                return []
             raise
 
         # The keys in the sets returned always are capitalized (Key, Value) ...
@@ -1133,54 +1102,51 @@ class Bucket(base.EnsurableAWSBaseActor):
             tag = {k.lower(): v for k, v in tag.items()}
             tagset.append(tag)
 
-        raise gen.Return(tagset)
+        return tagset
 
-    @gen.coroutine
-    def _compare_tags(self):
+    async def _compare_tags(self):
         new = self.option("tags")
         if new is None:
             self.log.debug("Not managing Tags")
-            raise gen.Return(True)
+            return True
 
-        exist = yield self._get_tags()
+        exist = await self._get_tags()
 
         diff = utils.diff_dicts(exist, new)
         if not diff:
             self.log.debug("Bucket tags match")
-            raise gen.Return(True)
+            return True
 
         self.log.info("Bucket tags differs from Amazons:")
         for line in diff.split("\n"):
             self.log.info(f"Diff: {line}")
 
-        raise gen.Return(False)
+        return False
 
-    @gen.coroutine
     @dry("Would have pushed tags")
-    def _set_tags(self):
+    async def _set_tags(self):
         tags = self.option("tags")
 
         if tags is None:
             self.log.debug("Not managing tags")
-            raise gen.Return(None)
+            return None
 
         tagset = self._snake_to_camel(self.option("tags"))
         self.log.info("Updating the Bucket Tags")
-        yield self.api_call(
+        await self.api_call(
             self.s3_conn.put_bucket_tagging,
             Bucket=self.option("name"),
             Tagging={"TagSet": tagset},
         )
 
-    @gen.coroutine
-    def _get_notification_configuration(self):
+    async def _get_notification_configuration(self):
         if self.notification_configuration is None:
-            raise gen.Return(None)
+            return None
 
         if not self._bucket_exists:
-            raise gen.Return(None)
+            return None
 
-        raw = yield self.api_call(
+        raw = await self.api_call(
             self.s3_conn.get_bucket_notification_configuration,
             Bucket=self.option("name"),
         )
@@ -1193,37 +1159,35 @@ class Bucket(base.EnsurableAWSBaseActor):
         ]:
             if configuration in raw:
                 existing_configurations[configuration] = raw[configuration]
-        raise gen.Return(existing_configurations)
+        return existing_configurations
 
-    @gen.coroutine
-    def _compare_notification_configuration(self):
+    async def _compare_notification_configuration(self):
         new = self.notification_configuration
         if new is None:
             self.log.debug("No Notification Configuration")
-            raise gen.Return(True)
+            return True
 
-        exist = yield self._get_notification_configuration()
+        exist = await self._get_notification_configuration()
         diff = utils.diff_dicts(exist, new)
 
         if not diff:
             self.log.debug("Notification Configurations match")
-            raise gen.Return(True)
+            return True
 
         self.log.info("Bucket Notification Configuration differs:")
         for line in diff.split("\n"):
             self.log.info(f"Diff: {line}")
 
-        raise gen.Return(False)
+        return False
 
-    @gen.coroutine
     @dry("Would have added notification configurations")
-    def _set_notification_configuration(self):
+    async def _set_notification_configuration(self):
         if self.notification_configuration is None:
             self.log.debug("No Notification Configurations")
-            raise gen.Return(None)
+            return None
 
         self.log.info("Updating Bucket Notification Configuration")
-        yield self.api_call(
+        await self.api_call(
             self.s3_conn.put_bucket_notification_configuration,
             Bucket=self.option("name"),
             NotificationConfiguration=self.notification_configuration,
