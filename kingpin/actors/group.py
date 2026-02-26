@@ -413,10 +413,6 @@ class Async(BaseGroupActor):
         failed (False).
         """
 
-        # This is an interesting tornado-ism. Here we generate and fire off
-        # each of the acts asynchronously into the IOLoop, and we record
-        # references to those tasks. However, we don't yield (wait) on them to
-        # finish.
         tasks = []
 
         if self.option("concurrency"):
