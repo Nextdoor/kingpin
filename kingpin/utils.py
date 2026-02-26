@@ -5,6 +5,7 @@
 Common package for utility functions.
 """
 
+import asyncio
 import datetime
 import difflib
 import functools
@@ -24,7 +25,7 @@ import cfn_tools
 import rainbow_logging_handler
 from cfn_tools.yaml_loader import CfnYamlLoader
 from cfn_tools.yaml_loader import construct_mapping as aws_construct_mapping
-from tornado import gen, ioloop
+from tornado import ioloop
 
 from kingpin import exceptions
 
@@ -191,17 +192,11 @@ def exception_logger(func):
 
 
 def retry(excs, retries=3, delay=0.25):
-    """Coroutine-compatible Retry Decorator.
+    """Async-compatible Retry Decorator.
 
     This decorator provides a simple retry mechanism that looks for a
     particular set of exceptions and retries async tasks in the event that
     those exceptions were caught.
-
-    Example usage:
-        >>> @gen.coroutine
-        ... @retry(excs=(Exception), retries=3)
-        ... def login(self):
-        ...     raise gen.Return()
 
     Args:
         excs: A single (or tuple) exception type to catch.
@@ -210,16 +205,15 @@ def retry(excs, retries=3, delay=0.25):
     """
 
     def _retry_on_exc(f):
-        def wrapper(*args, **kwargs):
+        async def wrapper(*args, **kwargs):
             i = 1
             while True:
                 try:
-                    # Don't log the first time..
                     if i > 1:
                         log.debug(f"Try ({i}/{retries}) of {f}({args}, {kwargs})")
-                    ret = yield gen.coroutine(f)(*args, **kwargs)
+                    ret = await f(*args, **kwargs)
                     log.debug(f"Result: {ret}")
-                    raise gen.Return(ret)
+                    return ret
                 except excs as e:
                     log.error(f"Exception raised on try {i}: {e}")
 
@@ -229,7 +223,7 @@ def retry(excs, retries=3, delay=0.25):
 
                     i += 1
                     log.debug(f"Retrying in {delay}...")
-                    yield tornado_sleep(delay)
+                    await asyncio.sleep(delay)
                 log.debug("Retrying..")
 
         return wrapper
@@ -237,14 +231,13 @@ def retry(excs, retries=3, delay=0.25):
     return _retry_on_exc
 
 
-@gen.coroutine
-def tornado_sleep(seconds=1.0):
-    """Async method equivalent to sleeping.
+async def tornado_sleep(seconds=1.0):
+    """Async sleep. Legacy name kept for compatibility during migration.
 
     Args:
         seconds: Float seconds. Default 1.0
     """
-    yield gen.sleep(seconds)
+    await asyncio.sleep(seconds)
 
 
 def populate_with_tokens(

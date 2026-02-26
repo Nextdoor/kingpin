@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 import os
 import sys
@@ -91,7 +92,7 @@ class TestDeploy(unittest.TestCase):
         self._import_kingpin_bin_deploy()
         with mock.patch("kingpin.bin.deploy.get_main_actor") as mock_get_main_actor:
             mock_get_main_actor.return_value = Sleep(options={"sleep": 0.1}, dry=True)
-            self.kingpin_bin_deploy.main()
+            asyncio.run(self.kingpin_bin_deploy.main())
             mock_get_main_actor.assert_called()
 
     @mock.patch("sys.argv", ["kingpin"])
@@ -100,7 +101,7 @@ class TestDeploy(unittest.TestCase):
         self._import_kingpin_bin_deploy()
         with mock.patch("kingpin.bin.deploy.get_main_actor") as mock_get_main_actor:
             mock_get_main_actor.return_value = Sleep(options={"sleep": 0.1}, dry=True)
-            self.kingpin_bin_deploy.main()
+            asyncio.run(self.kingpin_bin_deploy.main())
             mock_get_main_actor.assert_called()
 
     @mock.patch("sys.argv", ["kingpin"])
@@ -109,7 +110,7 @@ class TestDeploy(unittest.TestCase):
         self._import_kingpin_bin_deploy()
         with mock.patch("kingpin.bin.deploy.get_main_actor") as mock_get_main_actor:
             mock_get_main_actor.return_value = Sleep(options={"sleep": 0.1}, dry=True)
-            self.kingpin_bin_deploy.main()
+            asyncio.run(self.kingpin_bin_deploy.main())
             mock_get_main_actor.assert_called()
 
     @mock.patch("sys.argv", ["kingpin"])
@@ -118,7 +119,7 @@ class TestDeploy(unittest.TestCase):
         with mock.patch("kingpin.bin.deploy.get_main_actor") as mock_get_main_actor:
             mock_get_main_actor.side_effect = ActorException("testing")
             with self.assertRaises(SystemExit) as cm:
-                self.kingpin_bin_deploy.main()
+                asyncio.run(self.kingpin_bin_deploy.main())
                 self.assertEqual(cm.exception.code, 2)
             mock_get_main_actor.assert_called()
 
@@ -128,7 +129,7 @@ class TestDeploy(unittest.TestCase):
         with mock.patch("kingpin.bin.deploy.get_main_actor") as mock_get_main_actor:
             mock_get_main_actor.side_effect = ActorException("testing")
             with self.assertRaises(SystemExit) as cm:
-                self.kingpin_bin_deploy.main()
+                asyncio.run(self.kingpin_bin_deploy.main())
                 self.assertEqual(cm.exception.code, 2)
             mock_get_main_actor.assert_called()
 
@@ -136,7 +137,7 @@ class TestDeploy(unittest.TestCase):
     def test_main_with_actor_and_explain(self):
         self._import_kingpin_bin_deploy()
         with self.assertRaises(SystemExit) as cm:
-            self.kingpin_bin_deploy.main()
+            asyncio.run(self.kingpin_bin_deploy.main())
             self.assertEqual(cm.exception.code, 0)
 
     @mock.patch(
@@ -146,7 +147,7 @@ class TestDeploy(unittest.TestCase):
     def test_main_with_build_only_good_actor(self):
         self._import_kingpin_bin_deploy()
         with self.assertRaises(SystemExit) as cm:
-            self.kingpin_bin_deploy.main()
+            asyncio.run(self.kingpin_bin_deploy.main())
             self.assertEqual(cm.exception.code, 0)
 
     @mock.patch(
@@ -156,7 +157,7 @@ class TestDeploy(unittest.TestCase):
     def test_main_with_build_only_bad_actor(self):
         self._import_kingpin_bin_deploy()
         with self.assertRaises(SystemExit) as cm:
-            self.kingpin_bin_deploy.main()
+            asyncio.run(self.kingpin_bin_deploy.main())
             self.assertEqual(cm.exception.code, 1)
 
     @mock.patch(
@@ -175,7 +176,7 @@ class TestDeploy(unittest.TestCase):
     def test_main_with_build_only_and_org_chart(self):
         self._import_kingpin_bin_deploy()
         with self.assertRaises(SystemExit) as cm:
-            self.kingpin_bin_deploy.main()
+            asyncio.run(self.kingpin_bin_deploy.main())
             self.assertEqual(cm.exception.code, 0)
 
     @mock.patch(
@@ -198,7 +199,7 @@ class TestDeploy(unittest.TestCase):
         with mock.patch("kingpin.bin.deploy.get_main_actor") as mock_get_main_actor:
             mock_get_main_actor.return_value = actor
             with self.assertRaises(SystemExit) as cm:
-                self.kingpin_bin_deploy.main()
+                asyncio.run(self.kingpin_bin_deploy.main())
                 self.assertEqual(cm.exception.code, 2)
 
     ############################################################################
@@ -210,10 +211,8 @@ class TestDeploy(unittest.TestCase):
     )
     def test_begin(self):
         self._import_kingpin_bin_deploy()
-        with mock.patch("kingpin.bin.deploy.main"):
-            with self.assertRaises(SystemExit) as cm:
-                self.kingpin_bin_deploy.begin()
-                self.assertEqual(cm.exception.code, 0)
+        with mock.patch("kingpin.bin.deploy.main", new_callable=mock.AsyncMock):
+            self.kingpin_bin_deploy.begin()
 
     @mock.patch(
         "sys.argv",
@@ -221,11 +220,8 @@ class TestDeploy(unittest.TestCase):
     )
     def test_begin_with_debug(self):
         self._import_kingpin_bin_deploy()
-        with mock.patch("kingpin.bin.deploy.main"):
-            with self.assertRaises(SystemExit) as cm:
-                self.kingpin_bin_deploy.begin()
-                self.assertEqual(cm.exception.code, 0)
-                self.assertEqual(self.kingpin_bin_deploy.log.level, 10)
+        with mock.patch("kingpin.bin.deploy.main", new_callable=mock.AsyncMock):
+            self.kingpin_bin_deploy.begin()
 
     @mock.patch(
         "sys.argv", ["kingpin", "--actor", "misc.Sleep", "--option", "sleep=0.1"]

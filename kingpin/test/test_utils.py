@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 import io
 import logging
@@ -7,7 +8,7 @@ from unittest import mock
 
 import rainbow_logging_handler
 import requests
-from tornado import gen, testing
+from tornado import testing
 from tornado.testing import unittest
 
 from kingpin import exceptions, utils
@@ -273,19 +274,17 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
     def test_retry_with_backoff(self):
 
         # Define a method that will fail every time
-        @gen.coroutine
         @utils.retry(excs=(requests.exceptions.HTTPError), retries=3)
-        def raise_exception():
+        async def raise_exception():
             raise requests.exceptions.HTTPError("Failed")
 
         with self.assertRaises(requests.exceptions.HTTPError):
             yield raise_exception()
 
         # Now a method that works
-        @gen.coroutine
         @utils.retry(excs=(requests.exceptions.HTTPError), retries=3)
-        def work():
-            raise gen.Return(True)
+        async def work():
+            return True
 
         ret = yield work()
         self.assertEqual(ret, True)
@@ -298,7 +297,7 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
         self.assertTrue(stop - start > 0.1)
 
     @testing.gen_test
-    def test_repeating_log(self):
+    async def test_repeating_log(self):
         logger = mock.Mock()  # used for tracking
 
         # Repeat this message 10 times per second
@@ -306,18 +305,18 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
         # Below we yield gen.moment to allow IO loop iterations.
         # We do N+1 loops and check N count.
         logid = utils.create_repeating_log(logger.info, "test", seconds=0)
-        yield gen.moment
-        yield gen.moment
-        yield gen.moment
-        yield gen.moment
-        yield gen.moment
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
 
         utils.clear_repeating_log(logid)
         self.assertEqual(logger.info.call_count, 4)
 
         # Let's make sure that we don't keep looping our log message.
-        yield gen.moment
-        yield gen.moment
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
         self.assertEqual(logger.info.call_count, 4)
 
     @testing.gen_test

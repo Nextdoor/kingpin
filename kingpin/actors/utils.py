@@ -8,8 +8,6 @@ Misc methods for dealing with Actors.
 import logging
 import time
 
-from tornado import gen
-
 from kingpin import utils
 from kingpin.actors import exceptions
 
@@ -20,20 +18,11 @@ __author__ = "Matt Wise <matt@nextdoor.com>"
 
 
 def dry(dry_message):
-    """Coroutine-compatible decorator to dry-run a method.
+    """Async-compatible decorator to dry-run a method.
 
     .. note::
 
         This must act on a :py:mod:`~kingpin.actors.base.BaseActor` object.
-
-    Example usage as decorator:
-
-        >>> @gen.coroutine
-        ... @dry('Would have done that {thing}')
-        ... def do_thing(self, thing):
-        ...     yield api.do_thing(thing)
-        ...
-        >>> yield do_thing(thing="yeah man, that thing")
 
     Args:
         dry_message: The message to print out instead of doing the actual
@@ -41,14 +30,9 @@ def dry(dry_message):
         variables you'd like can be substituted as long as they're passed to
         the method being wrapped.
     """
-    # TODO: Bring these back when we have log.trace
-    # log.debug('Creating _skip_on_dry decorator with "%s"' % dry_message)
 
     def _skip_on_dry(f):
-        # TODO: Bring these back when we have log.trace
-        # log.debug('Decorating function "%s" with _skip_on_dry' % f)
-
-        def wrapper(self, *args, **kwargs):
+        async def wrapper(self, *args, **kwargs):
             # _Always_ compile the message we'd use in the event of a Dry run.
             # This ensures that our test cases catch any time invalid **kwargs
             # are passed in.
@@ -56,9 +40,8 @@ def dry(dry_message):
 
             if self._dry:
                 self.log.warning(msg)
-                raise gen.Return()
-            ret = yield gen.coroutine(f)(self, *args, **kwargs)
-            raise gen.Return(ret)
+                return
+            return await f(self, *args, **kwargs)
 
         return wrapper
 
@@ -66,7 +49,7 @@ def dry(dry_message):
 
 
 def timer(f):
-    """Coroutine-compatible function timer.
+    """Async-compatible function timer.
 
     Records statistics about how long a given function took, and logs them
     out in debug statements. Used primarily for tracking Actor execute()
@@ -75,29 +58,14 @@ def timer(f):
     .. note::
 
         This must act on a :py:mod:`~kingpin.actors.base.BaseActor` object.
-
-    Example usage:
-
-    .. code-block:: python
-
-        @gen.coroutine
-        @timer()
-        def execute(self):
-            raise gen.Return()
     """
 
-    def _wrap_in_timer(self, *args, **kwargs):
-        # Log the start time
+    async def _wrap_in_timer(self, *args, **kwargs):
         start_time = time.time()
-
-        # Begin the execution
-        ret = yield gen.coroutine(f)(self, *args, **kwargs)
-
-        # Log the finished execution time
+        ret = await f(self, *args, **kwargs)
         exec_time = f"{time.time() - start_time:.2f}"
         self.log.debug(f"{self._type}.{f.__name__}() execution time: {exec_time}s")
-
-        raise gen.Return(ret)
+        return ret
 
     return _wrap_in_timer
 

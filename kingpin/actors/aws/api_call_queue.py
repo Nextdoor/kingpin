@@ -1,5 +1,7 @@
+import asyncio
+
 from botocore import exceptions as botocore_exceptions
-from tornado import concurrent, gen, ioloop, queues
+from tornado import concurrent, ioloop, queues
 
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
@@ -25,8 +27,7 @@ class ApiCallQueue:
         # We don't have a delay until we first get throttled.
         self.delay = 0
 
-    @gen.coroutine
-    def call(self, api_function, *args, **kwargs):
+    async def call(self, api_function, *args, **kwargs):
         """Call a boto3 api function.
 
         Simply invoke this with an api method and its args and kwargs.
@@ -52,14 +53,13 @@ class ApiCallQueue:
         will bubble up immediately and won't be retried here.
         """
         result_queue = queues.Queue(maxsize=1)
-        yield self._queue.put((result_queue, api_function, args, kwargs))
-        result = yield result_queue.get()
+        await self._queue.put((result_queue, api_function, args, kwargs))
+        result = await result_queue.get()
         if isinstance(result, Exception):
             raise result
-        raise gen.Return(result)
+        return result
 
-    @gen.coroutine
-    def _process_queue(self):
+    async def _process_queue(self):
         """Queue consumer.
 
         Reads the api functions to call from the internal queue
@@ -70,16 +70,15 @@ class ApiCallQueue:
         This sleeps between API calls based on `delay`.
         """
         while True:
-            result_queue, api_function, args, kwargs = yield self._queue.get()
+            result_queue, api_function, args, kwargs = await self._queue.get()
             try:
-                result = yield self._call(api_function, *args, **kwargs)
+                result = await self._call(api_function, *args, **kwargs)
             except Exception as e:
                 result = e
-            yield result_queue.put(result)
-            yield gen.sleep(self.delay)
+            await result_queue.put(result)
+            await asyncio.sleep(self.delay)
 
-    @gen.coroutine
-    def _call(self, api_function, *args, **kwargs):
+    async def _call(self, api_function, *args, **kwargs):
         """Calls the provided api_function in a background thread.
 
         If the api function returns a response cleanly, this will return it.
@@ -90,14 +89,14 @@ class ApiCallQueue:
         """
         while True:
             try:
-                result = yield self._thread(api_function, *args, **kwargs)
+                result = await self._thread(api_function, *args, **kwargs)
                 self._decrease_delay()
-                raise gen.Return(result)
+                return result
             except botocore_exceptions.ClientError as e:
                 # Boto3 exception.
                 if e.response["Error"]["Code"] == "Throttling":
                     self._increase_delay()
-                    yield gen.sleep(self.delay)
+                    await asyncio.sleep(self.delay)
                 else:
                     self._decrease_delay()
                     raise e

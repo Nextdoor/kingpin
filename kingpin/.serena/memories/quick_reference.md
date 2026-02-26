@@ -8,19 +8,19 @@ Kingpin is a **Deployment Automation Engine** built by Nextdoor Engineering. It 
 
 ## Tech Stack
 - **Language**: Python 3.11+ (currently targeting 3.13)
-- **Async framework**: Tornado 6.x (`tornado.gen` coroutines)
+- **Async framework**: Tornado 6.x (native `async`/`await`, migrated from `@gen.coroutine` in #655)
 - **AWS SDK**: boto3
 - **JSON schema validation**: jsonschema
 - **CloudFormation YAML**: cfn-flip
 - **Build system**: setuptools (via `pyproject.toml`)
 - **Package/dependency manager**: uv (replaces pip/venv)
-- **Testing**: pytest + pytest-cov, mock, tornado.testing
-- **Linting**: pyflakes
+- **Testing**: pytest + pytest-cov, unittest.mock, tornado.testing
+- **Linting**: ruff + pyflakes (ruff added Feb 2026; parallel period)
 - **Formatting**: black
 - **Docs**: Sphinx + ReadTheDocs
 
 ## Version
-Current version: 5.0.2 (defined in `kingpin/version.py`)
+Current version: 7.0.0 (defined in `kingpin/version.py`)
 
 ## Entry Point
 `kingpin/bin/deploy.py` → CLI command `kingpin`

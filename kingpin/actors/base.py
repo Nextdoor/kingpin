@@ -17,14 +17,14 @@ any live changes. It is up to the developer of the Actor to define what
 'dry' mode looks like for that particular action.
 """
 
+import asyncio
 import inspect
 import json
 import logging
 import os
 import sys
-import time
 
-from tornado import gen, httpclient, httputil
+from tornado import httpclient, httputil
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -285,8 +285,7 @@ class BaseActor:
 
         return contents
 
-    @gen.coroutine
-    def timeout(self, f, *args, **kwargs):
+    async def timeout(self, f, *args, **kwargs):
         """Wraps a Coroutine method in a timeout.
 
         Used to wrap the self.execute() method in a timeout that will raise an
@@ -294,47 +293,36 @@ class BaseActor:
 
         .. note::
 
-            Tornado 4+ does not allow you to actually kill a task on the IOLoop.
-            This means that all we are doing here is notifying the caller
-            (through the raised exception) that a problem has happened.
-
-        Fairly simple Actors should actually 'stop executing' when this
-        exception is raised. Complex actors with very unique behaviors though
-        (like the rightsacle.server_array.Execute actor) have the ability to
-        continue to execute in the background until the Kingpin application
-        quits. It is not the job of this method to try to kill these actors,
-        but just to let the user know that a failure has happened.
+            This method intentionally does NOT cancel the underlying task on
+            timeout. The coroutine continues running in the background — we
+            only notify the caller (via ActorTimedOut) that the deadline was
+            exceeded. This preserves the original gen.with_timeout() contract
+            and is important for long-running actors (e.g. CloudFormation
+            stack operations) that should be allowed to finish even after the
+            caller has moved on. asyncio.shield() prevents asyncio.wait_for()
+            from cancelling the inner future.
         """
 
         # Get our timeout setting, or fallback to the default
         self.log.debug(f"{self._type}.{f.__name__}() deadline: {self._timeout}(s)")
 
-        # Get our Future object but don't yield on it yet, This starts the
-        # execution, but allows us to wrap it below with the
-        # 'gen.with_timeout' function.
         fut = f(*args, **kwargs)
 
-        # If no timeout is set (none, or 0), then we just yield the Future and
-        # return its results.
+        # If no timeout is set (none, or 0), just await directly.
         if not self._timeout:
-            ret = yield fut
-            raise gen.Return(ret)
+            ret = await fut
+            return ret
 
-        # Generate a timestamp in the future at which point we will raise
-        # an alarm if the actor is still executing
-        deadline = time.time() + float(self._timeout)
-
-        # Now we yield on the gen_with_timeout function
         try:
-            ret = yield gen.with_timeout(
-                deadline, fut, quiet_exceptions=(exceptions.ActorTimedOut)
+            ret = await asyncio.wait_for(
+                asyncio.shield(fut), timeout=float(self._timeout)
             )
-        except gen.TimeoutError:
+        except TimeoutError:
             msg = f"{self._type}.{f.__name__}() execution exceeded deadline: {self._timeout}s"
             self.log.error(msg)
             raise exceptions.ActorTimedOut(msg) from None
 
-        raise gen.Return(ret)
+        return ret
 
     def _check_condition(self):
         """Check if specified condition allows this actor to run.
@@ -439,13 +427,12 @@ class BaseActor:
             }
         ]
 
-    @gen.coroutine
     @timer
-    def execute(self):
-        """Executes an actor and yields the results when its finished.
+    async def execute(self):
+        """Executes an actor and returns the results when its finished.
 
         Calls an actors private _execute() method and either returns the result
-        (through gen.Return) or handles any exceptions that are raised.
+        or handles any exceptions that are raised.
 
         RecoverableActorFailure exceptions are potentially swallowed up (and
         warned) if the self._warn_on_failure flag is set. Otherwise, they're
@@ -457,8 +444,8 @@ class BaseActor:
         exceptions. This block is mainly here to prevent the entire app from
         failing due to a poorly written Actor.
 
-        Raises:
-            gen.Return(result)
+        Returns:
+            The result from _execute(), or None if skipped/warned.
         """
         self.log.debug("Beginning")
 
@@ -468,10 +455,10 @@ class BaseActor:
 
         if not self._check_condition():
             self.log.warning(f"Skipping execution. Condition: {self._condition}")
-            raise gen.Return()
+            return
 
         try:
-            result = yield self.timeout(self._execute)
+            result = await self.timeout(self._execute)
         except exceptions.ActorException as e:
             # If exception is not RecoverableActorFailure
             # or if warn_on_failure is not set, then escalate.
@@ -486,6 +473,26 @@ class BaseActor:
                 f"Continuing execution even though a failure was "
                 f"detected (warn_on_failure={self._warn_on_failure})"
             )
+        except ExceptionGroup as eg:
+            # asyncio.TaskGroup wraps child task exceptions in ExceptionGroup.
+            # Log all errors for full observability, then unwrap and apply the
+            # same recovery logic as the ActorException handler above so that
+            # warn_on_failure is respected.
+            for i, exc in enumerate(eg.exceptions):
+                if i == 0:
+                    self.log.critical(exc)
+                else:
+                    self.log.error(f"Additional concurrent failure: {exc}")
+
+            first = eg.exceptions[0]
+            recover = isinstance(first, exceptions.RecoverableActorFailure)
+            if recover and self._warn_on_failure:
+                self.log.warning(
+                    f"Continuing execution even though a failure was "
+                    f"detected (warn_on_failure={self._warn_on_failure})"
+                )
+            else:
+                raise first from eg
         except Exception as e:
             # We don't like general exception catch clauses like this, but
             # because actors can be written by third parties and automatically
@@ -503,7 +510,7 @@ class BaseActor:
             self.log.debug(f"Finished successfully, return value: {result}")
 
         # If we got here, we're exiting the actor cleanly and moving on.
-        raise gen.Return(result)
+        return result
 
 
 class EnsurableBaseActor(BaseActor):
@@ -543,25 +550,22 @@ class EnsurableBaseActor(BaseActor):
 
             unmanaged_options = ['name']
 
-            @gen.coroutine
-            def _set_state(self):
+            async def _set_state(self):
                 if self.option('state') == 'absent':
-                    yield self.conn.delete_resource(
+                    await self.conn.delete_resource(
                         name=self.option('name'))
                 else:
-                    yield self.conn.create_resource(
+                    await self.conn.create_resource(
                         name=self.option('name'),
                         desc=self.option('description'))
 
-            @gen.coroutine
-            def _set_description(self):
-                yield self.conn.set_desc_of_resource(
+            async def _set_description(self):
+                await self.conn.set_desc_of_resource(
                     name=self.option('name'),
                     desc=self.option('description'))
 
-            @gen.coroutine
-            def _get_description(self):
-                yield self.conn.get_desc_of_resource(
+            async def _get_description(self):
+                await self.conn.get_desc_of_resource(
                     name=self.option('name'))
     """
 
@@ -614,11 +618,10 @@ class EnsurableBaseActor(BaseActor):
 
             if not self._is_method(comparer):
 
-                @gen.coroutine
-                def _comparer(option=option):
-                    existing = yield self.getters[option]()
+                async def _comparer(option=option):
+                    existing = await self.getters[option]()
                     new = self.option(option)
-                    raise gen.Return(existing == new)
+                    return existing == new
 
                 setattr(self, comparer, _comparer)
                 # self.log.debug('Creating dynamic method %s' % comparer)
@@ -630,8 +633,7 @@ class EnsurableBaseActor(BaseActor):
     def _is_method(self, name):
         return hasattr(self, name) and inspect.ismethod(getattr(self, name))
 
-    @gen.coroutine
-    def _precache(self):
+    async def _precache(self):
         """Override this method to pre-cache data in your actor.
 
         This method can be overridden to go off and pre-fetch data for your
@@ -639,18 +641,15 @@ class EnsurableBaseActor(BaseActor):
         API call that gets most of the data you need, before any of the actual
         get/set operations take place.
         """
-        raise gen.Return()
+        return
 
-    @gen.coroutine
-    def _get_state(self):
+    async def _get_state(self):
         raise NotImplementedError("_get_state is required for Ensurable")
 
-    @gen.coroutine
-    def _set_state(self):
+    async def _set_state(self):
         raise NotImplementedError("_set_state is required for Ensurable")
 
-    @gen.coroutine
-    def _ensure(self, option):
+    async def _ensure(self, option):
         """Compares the desired state with the actual state of a resource.
 
         Uses the getter for a resource option to determine its current state,
@@ -660,17 +659,16 @@ class EnsurableBaseActor(BaseActor):
 
         If the states do not match, then the setter method is called.
         """
-        equals = yield self.comparers[option]()
+        equals = await self.comparers[option]()
 
         if equals:
             self.log.debug(f'Option "{option}" matches')
-            raise gen.Return()
+            return
 
         self.log.debug(f'Option "{option}" DOES NOT match, calling setter')
-        yield self.setters[option]()
+        await self.setters[option]()
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         """A pretty simple execution pipeline for the actor.
 
         .. note::
@@ -678,18 +676,18 @@ class EnsurableBaseActor(BaseActor):
             An OrderedDict can be used instead of a plain dict when order
             actually matters for the option setting.
         """
-        yield self._precache()
+        await self._precache()
 
-        yield self._ensure("state")
+        await self._ensure("state")
 
         if self.option("state") == "absent":
-            raise gen.Return()
+            return
 
         for option in self._ensurable_options:
             # We've already managed state .. so make sure we skip the state
             # option and only manage the others.
             if option != "state":
-                yield self._ensure(option)
+                await self._ensure(option)
 
 
 class HTTPBaseActor(BaseActor):
@@ -760,8 +758,7 @@ class HTTPBaseActor(BaseActor):
     # TODO: Add a retry/backoff timer here. If the remote endpoint returns
     # garbled data (ie, maybe a 500 errror or something else thats not in
     # JSON format, we should back off and try again.
-    @gen.coroutine
-    def _fetch(self, url, post=None, auth_username=None, auth_password=None):
+    async def _fetch(self, url, post=None, auth_username=None, auth_password=None):
         """Executes a web request asynchronously and yields the body.
 
         Args:
@@ -790,7 +787,7 @@ class HTTPBaseActor(BaseActor):
         # Execute the request and raise any exception. Exceptions are not
         # caught here because they are unique to the API endpoints, and thus
         # should be handled by the individual Actor that called this method.
-        http_response = yield http_client.fetch(http_request)
+        http_response = await http_client.fetch(http_request)
 
         try:
             body = json.loads(http_response.body)
@@ -800,4 +797,4 @@ class HTTPBaseActor(BaseActor):
             ) from e
 
         # Receive a successful return
-        raise gen.Return(body)
+        return body

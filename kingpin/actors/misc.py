@@ -16,6 +16,7 @@ dedicated packages. Things like sleep timers, loggers, etc.
         This is very insecure as headers/cookies/etc. are exposed*
 """
 
+import asyncio
 import io
 import json
 import logging
@@ -23,7 +24,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from tornado import gen, httpclient
+from tornado import httpclient
 
 from kingpin import exceptions as kingpin_exceptions
 from kingpin import schema, utils
@@ -43,8 +44,7 @@ class Note(base.BaseActor):
 
     desc = "Info Log"
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         self.log.info(self.option("message"))
 
 
@@ -256,11 +256,10 @@ class Macro(base.BaseActor):
         macro = self.initial_actor.get_orgchart(parent=str(id(self)))
         return ret + macro
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         # initial_actor is configured with same dry parameter as this actor.
         # Just execute it and the rest will be handled internally.
-        yield self.initial_actor.execute()
+        await self.initial_actor.execute()
 
 
 class Sleep(base.BaseActor):
@@ -293,8 +292,7 @@ class Sleep(base.BaseActor):
 
     desc = "Sleep {sleep}s"
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         """Executes an actor and yields the results when its finished."""
 
         self.log.debug(f"Sleeping for {self.option('sleep')} seconds")
@@ -305,7 +303,7 @@ class Sleep(base.BaseActor):
             sleep = float(sleep)
 
         if not self._dry:
-            yield utils.tornado_sleep(seconds=sleep)
+            await asyncio.sleep(sleep)
 
 
 class GenericHTTP(base.HTTPBaseActor):
@@ -358,19 +356,17 @@ class GenericHTTP(base.HTTPBaseActor):
         "password": (str, "", "HTTPAuth password"),
     }
 
-    @gen.coroutine
-    def _execute_dry(self):
+    async def _execute_dry(self):
         is_post = bool(self.option("data"))
         method = ["GET", "POST"][is_post]
 
         self.log.info(f"Would do a {method} request to {self.option('url')}")
-        raise gen.Return()
+        return
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
 
         if self._dry:
-            raise gen.Return(self._execute_dry())
+            return await self._execute_dry()
 
         # Only generate a JSON text string if a populated dict was passed to
         # data-json.
@@ -381,7 +377,7 @@ class GenericHTTP(base.HTTPBaseActor):
         escaped_post = urllib.parse.urlencode(self.option("data")) or datajson or None
 
         try:
-            yield self._fetch(
+            await self._fetch(
                 self.option("url"),
                 post=escaped_post,
                 auth_username=self.option("username"),

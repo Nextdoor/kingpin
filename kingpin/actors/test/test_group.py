@@ -1,8 +1,9 @@
+import asyncio
 import logging
 import time
 from unittest import mock
 
-from tornado import gen, testing
+from tornado import testing
 
 from kingpin import utils
 from kingpin.actors import base, exceptions, group
@@ -19,10 +20,9 @@ class FakeActor(base.BaseActor):
 
     last_value = None
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         FakeActor.last_value = self.option("value")
-        raise gen.Return(None)
+        return None
 
 
 class FakeActorRaises(base.BaseActor):
@@ -30,8 +30,7 @@ class FakeActorRaises(base.BaseActor):
 
     all_options = {"exception": (object, True, "What this actor will return")}
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         exc = utils.str_to_class(self.option("exception"))
         raise exc
 
@@ -46,12 +45,11 @@ class FakeActorPopulate(base.BaseActor):
 
     last_value = None
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         self.option("object").append(self.option("value"))
-        yield gen.moment
+        await asyncio.sleep(0)
         self.option("object").append(self.option("value"))
-        raise gen.Return(None)
+        return None
 
 
 class TestGroupActorBaseClass(testing.AsyncTestCase):
@@ -166,9 +164,8 @@ class TestBaseGroupActor(TestGroupActorBaseClass):
 
         # Mock out the _run_actions method and make sure it just returns two
         # True results.
-        @gen.coroutine
-        def run_actions_true(*args, **kwargs):
-            raise gen.Return([True, True])
+        async def run_actions_true(*args, **kwargs):
+            return [True, True]
 
         actor._run_actions = run_actions_true
 
@@ -181,9 +178,8 @@ class TestBaseGroupActor(TestGroupActorBaseClass):
 
         # Mock out the _run_actions method and make sure it just returns one
         # True and one False results.
-        @gen.coroutine
-        def run_actions_true(*args, **kwargs):
-            raise gen.Return([True, False])
+        async def run_actions_true(*args, **kwargs):
+            return [True, False]
 
         actor._run_actions = run_actions_true
 

@@ -1,8 +1,9 @@
+import asyncio
 import logging
 import time
 
 from botocore import exceptions as botocore_exceptions
-from tornado import concurrent, gen, testing
+from tornado import concurrent, testing
 
 from kingpin.actors.aws import api_call_queue
 
@@ -26,13 +27,13 @@ class TestApiCallQueue(testing.AsyncTestCase):
         self.executor = concurrent.futures.ThreadPoolExecutor(10)
 
     @testing.gen_test
-    def test_plain_call(self):
+    async def test_plain_call(self):
         """Test that a single api call through the queue works."""
-        result = yield self.api_call_queue.call(self._mock_api_function_sync)
+        result = await self.api_call_queue.call(self._mock_api_function_sync)
         self.assertEqual(result, "OK")
 
     @testing.gen_test
-    def test_concurrent_calls_with_delay(self):
+    async def test_concurrent_calls_with_delay(self):
         """
         Test concurrent calls with some latency run serially
         and return independent results.
@@ -58,7 +59,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
         ]
 
         start = time.time()
-        results = yield gen.multi(api_call_queue_calls)
+        results = await asyncio.gather(*api_call_queue_calls)
         stop = time.time()
         run_time = stop - start
 
@@ -66,7 +67,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
         self.assertEqual(results, [1, 2, 3, 4, 5])
 
     @testing.gen_test
-    def test_api_call_queue_future_is_nonblocking(self):
+    async def test_api_call_queue_future_is_nonblocking(self):
         """
         Test that the api call queue future is nonblocking for other futures.
         It needs to execute in a different thread because of the synchronous
@@ -83,7 +84,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
         ]
 
         start = time.time()
-        results = yield gen.multi(futures)
+        results = await asyncio.gather(*futures)
         stop = time.time()
         run_time = stop - start
 
@@ -91,40 +92,37 @@ class TestApiCallQueue(testing.AsyncTestCase):
         self.assertEqual(results, [1, 2, 3, 4, 5])
 
     @testing.gen_test
-    def test_api_call_queue_raises_exceptions(self):
+    async def test_api_call_queue_raises_exceptions(self):
         """
         Test that the api call queue raises exceptions and proceeds to execute
         other queued api calls.
         """
 
-        @gen.coroutine
-        def _call_without_exception():
-            result = yield self.api_call_queue.call(
+        async def _call_without_exception():
+            result = await self.api_call_queue.call(
                 self._mock_api_function_sync, delay=0.05
             )
             self.assertEqual(result, "OK")
-            raise gen.Return("no exception")
+            return "no exception"
 
-        @gen.coroutine
-        def _call_with_exception():
+        async def _call_with_exception():
             err = ValueError("test exception")
             try:
-                yield self.api_call_queue.call(
+                await self.api_call_queue.call(
                     self._mock_api_function_sync, exception=err, delay=0.05
                 )
             except Exception as e:
                 self.assertEqual(err, e)
-            raise gen.Return("exception")
+            return "exception"
 
-        @gen.coroutine
-        def _call_with_exception_after_boto3_rate_limit():
+        async def _call_with_exception_after_boto3_rate_limit():
             """
             First rate limit, then raise an exception.
             This should take:
                 call delay * 2 + min rate limiting delay * 1
             """
             try:
-                yield self.api_call_queue.call(
+                await self.api_call_queue.call(
                     self._mock_api_function_sync,
                     exception=[self.boto3_throttle_exception, self.boto3_exception],
                     delay=0.05,
@@ -132,7 +130,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
             except Exception as e:
                 self.assertEqual(self.boto3_exception, e)
 
-            raise gen.Return("exception")
+            return "exception"
 
         call_wrappers = [
             # Should take 0.05s.
@@ -146,7 +144,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
         ]
 
         start = time.time()
-        results = yield gen.multi_future(call_wrappers)
+        results = await asyncio.gather(*call_wrappers)
         stop = time.time()
         run_time = stop - start
 
@@ -156,7 +154,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
         )
 
     @testing.gen_test
-    def test_rate_limiting_boto3(self):
+    async def test_rate_limiting_boto3(self):
         """
         Test that rate limiting with boto3 works.
         """
@@ -182,7 +180,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
         ]
 
         start = time.time()
-        results = yield gen.multi(api_call_queue_calls)
+        results = await asyncio.gather(*api_call_queue_calls)
         stop = time.time()
         run_time = stop - start
 
@@ -190,7 +188,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
         self.assertEqual(results, [1, 2, 3])
 
     @testing.gen_test
-    def test_rate_limit_stepping(self):
+    async def test_rate_limit_stepping(self):
         """
         Test that rate limiting steps delay up and down.
         """
@@ -217,7 +215,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
         ]
 
         start = time.time()
-        results = yield gen.multi(api_call_queue_calls)
+        results = await asyncio.gather(*api_call_queue_calls)
         stop = time.time()
         run_time = stop - start
 
@@ -234,7 +232,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
         ]
 
         start = time.time()
-        results = yield gen.multi(api_call_queue_calls)
+        results = await asyncio.gather(*api_call_queue_calls)
         stop = time.time()
         run_time = stop - start
 
@@ -251,7 +249,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
         ]
 
         start = time.time()
-        results = yield gen.multi(api_call_queue_calls)
+        results = await asyncio.gather(*api_call_queue_calls)
         stop = time.time()
         run_time = stop - start
 
@@ -273,7 +271,7 @@ class TestApiCallQueue(testing.AsyncTestCase):
         ]
 
         start = time.time()
-        results = yield gen.multi(api_call_queue_calls)
+        results = await asyncio.gather(*api_call_queue_calls)
         stop = time.time()
         run_time = stop - start
 

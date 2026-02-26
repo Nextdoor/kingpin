@@ -6,9 +6,8 @@ Group a series of other `BaseActor` into either synchronous
 or asynchronous stages.
 """
 
+import asyncio
 import logging
-
-from tornado import gen
 
 from kingpin import utils as kp_utils
 from kingpin.actors import base, exceptions, utils
@@ -170,8 +169,7 @@ class BaseGroupActor(base.BaseActor):
                 wrapper_base = exceptions.UnrecoverableActorFailure
         return wrapper_base
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         """Executes the actions configured, and returns.
 
         .. note::
@@ -182,8 +180,8 @@ class BaseGroupActor(base.BaseActor):
         is raised up the stack.
         """
         self.log.info(f"Beginning {len(self._actions)} actions")
-        yield self._run_actions()
-        raise gen.Return()
+        await self._run_actions()
+        return
 
 
 class Sync(BaseGroupActor):
@@ -289,8 +287,7 @@ class Sync(BaseGroupActor):
     The behavior is different in the dry run (read above.)
     """
 
-    @gen.coroutine
-    def _run_actions(self):
+    async def _run_actions(self):
         """Synchronously executes all of the Actor.execute() methods.
 
         If any one actor fails, we prevent execution of the rest of the actors.
@@ -306,7 +303,7 @@ class Sync(BaseGroupActor):
         for act in self._actions:
             self.log.debug(f'Beginning "{act._desc}"..')
             try:
-                yield act.execute()
+                await act.execute()
             except exceptions.ActorException as e:
                 if self._dry:
                     self.log.error(f"{act._desc} failed: {e}")
@@ -407,8 +404,7 @@ class Async(BaseGroupActor):
         "acts": (list, REQUIRED, "Array of actor definitions."),
     }
 
-    @gen.coroutine
-    def _run_actions(self):
+    async def _run_actions(self):
         """Asynchronously executes all of the Actor.execute() methods.
 
         All actors execute asynchronously, so we don't bother checking whether
@@ -427,7 +423,7 @@ class Async(BaseGroupActor):
             self.log.info(f"Concurrency set to {self.option('concurrency')}")
 
         for act in self._actions:
-            tasks.append(act.execute())
+            tasks.append(asyncio.ensure_future(act.execute()))
 
             if not self.option("concurrency"):
                 # No concurrency limit - continue the loop without checks.
@@ -441,7 +437,7 @@ class Async(BaseGroupActor):
 
             self.log.debug("Concurrency saturated. Waiting...")
             while running_tasks >= self.option("concurrency"):
-                yield gen.moment
+                await asyncio.sleep(0)
                 running_tasks = len([t for t in tasks if not t.done()])
 
             self.log.debug(
@@ -456,7 +452,7 @@ class Async(BaseGroupActor):
         errors = []
         for t in tasks:
             try:
-                yield t
+                await t
             except exceptions.ActorException as e:
                 errors.append(e)
 
