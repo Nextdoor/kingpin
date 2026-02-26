@@ -743,9 +743,7 @@ class HTTPBaseActor(BaseActor):
                 args[key] = str(value).lower()
 
         parsed = urllib.parse.urlsplit(url)
-        existing_params = urllib.parse.parse_qsl(
-            parsed.query, keep_blank_values=True
-        )
+        existing_params = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
         existing_params.extend(sorted(args.items()))
         query = urllib.parse.urlencode(existing_params)
         full_url = urllib.parse.urlunsplit(

@@ -256,8 +256,11 @@ class TestGenericHTTP(unittest.IsolatedAsyncioTestCase):
     async def test_execute_fail(self):
         actor = misc.GenericHTTP("Unit Test Action", {"url": "http://example.com"})
         error = urllib.error.HTTPError(
-            url="http://example.com", code=401, msg="Unauthorized",
-            hdrs={}, fp=None,
+            url="http://example.com",
+            code=401,
+            msg="Unauthorized",
+            hdrs={},
+            fp=None,
         )
         actor._fetch = mock_tornado(exc=error)
 

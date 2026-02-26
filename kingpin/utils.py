@@ -230,7 +230,6 @@ def retry(excs, retries=3, delay=0.25):
     return _retry_on_exc
 
 
-
 def populate_with_tokens(
     string,
     tokens,
