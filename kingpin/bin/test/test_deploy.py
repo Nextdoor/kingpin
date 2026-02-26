@@ -228,8 +228,7 @@ class TestDeploy(unittest.TestCase):
     )
     def test_begin_keyboard_interrupt(self):
         self._import_kingpin_bin_deploy()
-        with mock.patch("tornado.ioloop.IOLoop.current") as mock_ioloop_current:
-            mock_ioloop_current.side_effect = KeyboardInterrupt()
+        with mock.patch("asyncio.run", side_effect=KeyboardInterrupt()):
             with self.assertRaises(SystemExit) as cm:
                 self.kingpin_bin_deploy.begin()
                 self.assertEqual(cm.exception.code, 130)
