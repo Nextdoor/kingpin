@@ -9,7 +9,6 @@ import logging
 import os
 
 from botocore.exceptions import ClientError
-from tornado import concurrent
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -20,12 +19,6 @@ log = logging.getLogger(__name__)
 
 __author__ = "Matt Wise <matt@nextdoor.com>"
 
-
-# This executor is used by the tornado.concurrent.run_on_executor()
-# decorator. We would like this to be a class variable so its shared
-# across RightScale objects, but we see testing IO errors when we
-# do this.
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 # The maximum number of items returned to us in a get_all_*/list_* api call.
 # Defaults to 100, but setting to 1000 to reduce the number of API calls we

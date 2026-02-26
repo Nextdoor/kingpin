@@ -9,7 +9,6 @@ import logging
 import jsonpickle
 from botocore.exceptions import ClientError, ParamValidationError
 from inflection import camelize
-from tornado import concurrent
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -20,12 +19,6 @@ from kingpin.constants import REQUIRED, STATE, SchemaCompareBase
 log = logging.getLogger(__name__)
 
 __author__ = "Matt Wise <matt@nextdoor.com"
-
-
-# This executor is used by the tornado.concurrent.run_on_executor()
-# decorator. We would like this to be a class variable so its shared
-# across objects, but we see testing IO errors when we do this.
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
 
 
 class InvalidBucketConfig(exceptions.RecoverableActorFailure):
