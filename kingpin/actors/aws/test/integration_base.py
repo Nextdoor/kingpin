@@ -1,10 +1,11 @@
+import unittest
+
 """Simple integration tests for the AWS Base."""
 
 import importlib
 import logging
 
 from nose.plugins.attrib import attr
-from tornado import testing
 
 from kingpin.actors import exceptions
 from kingpin.actors.aws import base, settings
@@ -15,7 +16,7 @@ log = logging.getLogger(__name__)
 logging.getLogger("boto").setLevel(logging.INFO)
 
 
-class IntegrationBase(testing.AsyncTestCase):
+class IntegrationBase(unittest.IsolatedAsyncioTestCase):
     """High level AWS Base testing."""
 
     integration = True
@@ -24,7 +25,6 @@ class IntegrationBase(testing.AsyncTestCase):
     elb_name = "kingpin-integration-test"
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_01a_check_credentials(self):
 
         settings.AWS_ACCESS_KEY_ID = "fake"
@@ -40,7 +40,6 @@ class IntegrationBase(testing.AsyncTestCase):
         importlib.reload(settings)
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_02a_find_elb(self):
 
         actor = base.AWSBaseActor("Test", {"region": self.region})

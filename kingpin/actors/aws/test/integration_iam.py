@@ -1,9 +1,10 @@
+import unittest
+
 """Simple integration tests for the AWS IAM actors."""
 
 import logging
 
 from nose.plugins.attrib import attr
-from tornado import testing
 
 from kingpin.actors.aws import iam
 
@@ -13,7 +14,7 @@ log = logging.getLogger(__name__)
 logging.getLogger("boto").setLevel(logging.INFO)
 
 
-class IntegrationIAMUsers(testing.AsyncTestCase):
+class IntegrationIAMUsers(unittest.IsolatedAsyncioTestCase):
 
     integration = True
 
@@ -22,13 +23,11 @@ class IntegrationIAMUsers(testing.AsyncTestCase):
     region = "us-east-1"
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_01_ensure_user_absent(self):
         actor = iam.User("Test", {"name": self.name, "state": "absent"}, dry=False)
         yield actor.execute()
 
     @attr("aws", "integration", "dry")
-    @testing.gen_test(timeout=60)
     def integration_02a_create_user_dry(self):
         actor = iam.User(
             "Test",
@@ -44,7 +43,6 @@ class IntegrationIAMUsers(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_02b_create_user(self):
         actor = iam.User(
             "Test",
@@ -60,13 +58,12 @@ class IntegrationIAMUsers(testing.AsyncTestCase):
 
     # Final cleanup -- delete our test user!
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_09_ensure_user_absent(self):
         actor = iam.User("Test", {"name": self.name, "state": "absent"}, dry=False)
         yield actor.execute()
 
 
-class IntegrationIAMGroups(testing.AsyncTestCase):
+class IntegrationIAMGroups(unittest.IsolatedAsyncioTestCase):
 
     integration = True
 
@@ -75,13 +72,11 @@ class IntegrationIAMGroups(testing.AsyncTestCase):
     region = "us-east-1"
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_01_ensure_group_absent(self):
         actor = iam.Group("Test", {"name": self.name, "state": "absent"}, dry=False)
         yield actor.execute()
 
     @attr("aws", "integration", "dry")
-    @testing.gen_test(timeout=60)
     def integration_02a_create_group_dry(self):
         actor = iam.Group(
             "Test",
@@ -97,7 +92,6 @@ class IntegrationIAMGroups(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_02b_create_group(self):
         actor = iam.Group(
             "Test",
@@ -113,13 +107,12 @@ class IntegrationIAMGroups(testing.AsyncTestCase):
 
     # Final cleanup -- delete our test group!
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_09_ensure_group_absent(self):
         actor = iam.Group("Test", {"name": self.name, "state": "absent"}, dry=False)
         yield actor.execute()
 
 
-class IntegrationIAMRoles(testing.AsyncTestCase):
+class IntegrationIAMRoles(unittest.IsolatedAsyncioTestCase):
 
     integration = True
 
@@ -128,13 +121,11 @@ class IntegrationIAMRoles(testing.AsyncTestCase):
     region = "us-east-1"
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_01_ensure_role_absent(self):
         actor = iam.Role("Test", {"name": self.name, "state": "absent"}, dry=False)
         yield actor.execute()
 
     @attr("aws", "integration", "dry")
-    @testing.gen_test(timeout=60)
     def integration_02a_create_role_dry(self):
         actor = iam.Role(
             "Test",
@@ -150,7 +141,6 @@ class IntegrationIAMRoles(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_02b_create_role(self):
         actor = iam.Role(
             "Test",
@@ -166,13 +156,12 @@ class IntegrationIAMRoles(testing.AsyncTestCase):
 
     # Final cleanup -- delete our test role!
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_09_ensure_role_absent(self):
         actor = iam.Role("Test", {"name": self.name, "state": "absent"}, dry=False)
         yield actor.execute()
 
 
-class IntegrationIAMInstanceProfiles(testing.AsyncTestCase):
+class IntegrationIAMInstanceProfiles(unittest.IsolatedAsyncioTestCase):
 
     integration = True
 
@@ -181,7 +170,6 @@ class IntegrationIAMInstanceProfiles(testing.AsyncTestCase):
     region = "us-east-1"
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_01_ensure_profile_absent(self):
         actor = iam.InstanceProfile(
             "Test", {"name": self.name, "state": "absent"}, dry=False
@@ -189,7 +177,6 @@ class IntegrationIAMInstanceProfiles(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr("aws", "integration", "dry")
-    @testing.gen_test(timeout=60)
     def integration_02a_create_profile_dry(self):
         actor = iam.InstanceProfile(
             "Test",
@@ -205,7 +192,6 @@ class IntegrationIAMInstanceProfiles(testing.AsyncTestCase):
         yield actor.execute()
 
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_02b_create_profile(self):
         actor = iam.InstanceProfile(
             "Test",
@@ -221,7 +207,6 @@ class IntegrationIAMInstanceProfiles(testing.AsyncTestCase):
 
     # Final cleanup -- delete our test profile!
     @attr("aws", "integration")
-    @testing.gen_test(timeout=60)
     def integration_09_ensure_profile_absent(self):
         actor = iam.InstanceProfile(
             "Test", {"name": self.name, "state": "absent"}, dry=False
