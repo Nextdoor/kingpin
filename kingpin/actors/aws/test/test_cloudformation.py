@@ -2,11 +2,11 @@ import datetime
 import importlib
 import json
 import logging
+import unittest
 from unittest import mock
 
 import boto3
 from botocore.exceptions import ClientError
-from tornado import testing
 
 from kingpin.actors.aws import base, cloudformation, settings
 from kingpin.actors.test.helper import tornado_value
@@ -47,7 +47,7 @@ def create_fake_stack_event(name, resource, status, reason=None):
     return fake_event
 
 
-class TestCloudFormationBaseActor(testing.AsyncTestCase):
+class TestCloudFormationBaseActor(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
@@ -132,22 +132,19 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
     def test_get_s3_client(self):
         self.actor.get_s3_client("us-east-1")
 
-    @testing.gen_test
-    def test_validate_template_body(self):
-        yield self.actor._validate_template(body="test body")
+    async def test_validate_template_body(self):
+        await self.actor._validate_template(body="test body")
         self.actor.cfn_conn.validate_template.assert_called_with(
             TemplateBody="test body"
         )
 
-    @testing.gen_test
-    def test_validate_template_url(self):
-        yield self.actor._validate_template(url="http://foobar.json")
+    async def test_validate_template_url(self):
+        await self.actor._validate_template(url="http://foobar.json")
         self.actor.cfn_conn.validate_template.assert_called_with(
             TemplateURL="http://foobar.json"
         )
 
-    @testing.gen_test
-    def test_validate_template_raises_boto_error(self):
+    async def test_validate_template_raises_boto_error(self):
         fake_exc = {
             "ResponseMetadata": {
                 "HTTPStatusCode": 400,
@@ -164,10 +161,10 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             fake_exc, "FakeOperation"
         )
         with self.assertRaises(cloudformation.InvalidTemplate):
-            yield self.actor._validate_template(url="junk")
+            await self.actor._validate_template(url="junk")
 
         with self.assertRaises(cloudformation.InvalidTemplate):
-            yield self.actor._validate_template(body="junk")
+            await self.actor._validate_template(body="junk")
 
     def test_create_parameters(self):
         params = {
@@ -187,17 +184,15 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         ret = actor._create_parameters(params)
         self.assertEqual(ret, expected)
 
-    @testing.gen_test
-    def test_get_stack(self):
+    async def test_get_stack(self):
         self.actor.cfn_conn.describe_stacks.return_value = {
             "Stacks": [create_fake_stack("s1", "UPDATE_COMPLETE")]
         }
 
-        ret = yield self.actor._get_stack("s1")
+        ret = await self.actor._get_stack("s1")
         self.assertEqual(ret["StackName"], "s1")
 
-    @testing.gen_test
-    def test_get_stack_not_found(self):
+    async def test_get_stack_not_found(self):
         fake_exc = {
             "ResponseMetadata": {
                 "HTTPStatusCode": 400,
@@ -213,11 +208,10 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             fake_exc, "Failure"
         )
 
-        ret = yield self.actor._get_stack("s1")
+        ret = await self.actor._get_stack("s1")
         self.assertEqual(ret, None)
 
-    @testing.gen_test
-    def test_get_stack_exc(self):
+    async def test_get_stack_exc(self):
         fake_exc = {
             "ResponseMetadata": {
                 "HTTPStatusCode": 400,
@@ -234,10 +228,9 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         )
 
         with self.assertRaises(cloudformation.CloudFormationError):
-            yield self.actor._get_stack("s1")
+            await self.actor._get_stack("s1")
 
-    @testing.gen_test
-    def test_get_stack_template(self):
+    async def test_get_stack_template(self):
         fake_stack_template = {
             "ResponseMetadata": {
                 "HTTPStatusCode": 200,
@@ -247,15 +240,14 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         }
         self.actor.cfn_conn.get_template.return_value = fake_stack_template
 
-        ret = yield self.actor._get_stack_template("test")
+        ret = await self.actor._get_stack_template("test")
 
         self.actor.cfn_conn.get_template.assert_has_calls(
             [mock.call(StackName="test", TemplateStage="Original")]
         )
         self.assertEqual(ret, {"Fake": "Stack"})
 
-    @testing.gen_test
-    def test_get_stack_template_exc(self):
+    async def test_get_stack_template_exc(self):
         fake_exc = {
             "ResponseMetadata": {
                 "HTTPStatusCode": 400,
@@ -269,14 +261,13 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         }
         self.actor.cfn_conn.get_template.side_effect = ClientError(fake_exc, "Failure")
         with self.assertRaises(cloudformation.CloudFormationError):
-            yield self.actor._get_stack_template("test")
+            await self.actor._get_stack_template("test")
 
-    @testing.gen_test
-    def test_wait_until_state_complete(self):
+    async def test_wait_until_state_complete(self):
         create_in_progress = create_fake_stack("test", "CREATE_IN_PROGRESS")
         create_complete = create_fake_stack("test", "CREATE_COMPLETE")
 
-        # Make _get_stack() yield back 2 in-progress states, then yield a
+        # Make _get_stack() await back 2 in-progress states, then await a
         # successfull execution.
         self.actor._get_stack = mock.MagicMock(name="FakeStack")
         self.actor._get_stack.side_effect = [
@@ -284,13 +275,12 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             tornado_value(create_in_progress),
             tornado_value(create_complete),
         ]
-        yield self.actor._wait_until_state("test", cloudformation.COMPLETE, sleep=0.01)
+        await self.actor._wait_until_state("test", cloudformation.COMPLETE, sleep=0.01)
         self.actor._get_stack.assert_has_calls(
             [mock.call("test"), mock.call("test"), mock.call("test")]
         )
 
-    @testing.gen_test
-    def test_wait_until_state_stack_failed(self):
+    async def test_wait_until_state_stack_failed(self):
         create_in_progress = create_fake_stack("test", "CREATE_IN_PROGRESS")
         create_complete = create_fake_stack("test", "CREATE_COMPLETE")
 
@@ -303,23 +293,21 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             tornado_value(create_complete),
         ]
         with self.assertRaises(cloudformation.StackFailed):
-            yield self.actor._wait_until_state(
+            await self.actor._wait_until_state(
                 "test", cloudformation.DELETED, sleep=0.1
             )
 
-    @testing.gen_test
-    def test_wait_until_state_stack_not_found(self):
+    async def test_wait_until_state_stack_not_found(self):
         # Lastly, test that if wait_until_state returns no actor, we bail
         # appropriately.
         self.actor._get_stack = mock.MagicMock(name="FakeStack")
         self.actor._get_stack.return_value = tornado_value(None)
         with self.assertRaises(cloudformation.StackNotFound):
-            yield self.actor._wait_until_state(
+            await self.actor._wait_until_state(
                 "test", cloudformation.COMPLETE, sleep=0.1
             )
 
-    @testing.gen_test
-    def test_get_stack_events(self):
+    async def test_get_stack_events(self):
         fake_events = {
             "StackEvents": [
                 create_fake_stack_event("test", "test", "DELETE_COMPLETE"),
@@ -339,12 +327,11 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
             "AWS::CloudFormation::Stack test (DELETE_COMPLETE): ",
         ]
         self.actor.cfn_conn.describe_stack_events.return_value = fake_events
-        ret = yield self.actor._get_stack_events("test")
+        ret = await self.actor._get_stack_events("test")
 
         self.assertEqual(ret, expected)
 
-    @testing.gen_test
-    def test_get_stack_events_exc(self):
+    async def test_get_stack_events_exc(self):
         fake_exc = {
             "ResponseMetadata": {
                 "HTTPStatusCode": 400,
@@ -359,11 +346,10 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         self.actor.cfn_conn.describe_stack_events.side_effect = ClientError(
             fake_exc, "Failure"
         )
-        ret = yield self.actor._get_stack_events("test")
+        ret = await self.actor._get_stack_events("test")
         self.assertEqual(ret, [])
 
-    @testing.gen_test
-    def test_delete_stack(self):
+    async def test_delete_stack(self):
         self.actor.cfn_conn.delete_stack.return_value = {
             "ResponseMetadata": {"RequestId": "req-id-1"}
         }
@@ -371,13 +357,12 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
         exc = cloudformation.StackNotFound()
         self.actor._wait_until_state.side_effect = exc
 
-        yield self.actor._delete_stack(stack="stack")
+        await self.actor._delete_stack(stack="stack")
 
         self.assertTrue(self.actor.cfn_conn.delete_stack.called)
         self.assertTrue(self.actor._wait_until_state.called)
 
-    @testing.gen_test
-    def test_delete_stack_raises_boto_error(self):
+    async def test_delete_stack_raises_boto_error(self):
         self.actor.cfn_conn.delete_stack = mock.MagicMock(name="delete_stack")
 
         fake_exc = {
@@ -394,10 +379,10 @@ class TestCloudFormationBaseActor(testing.AsyncTestCase):
 
         self.actor.cfn_conn.delete_stack.side_effect = ClientError(fake_exc, "Error")
         with self.assertRaises(cloudformation.CloudFormationError):
-            yield self.actor._delete_stack(stack="stack")
+            await self.actor._delete_stack(stack="stack")
 
 
-class TestCreate(testing.AsyncTestCase):
+class TestCreate(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
@@ -409,8 +394,7 @@ class TestCreate(testing.AsyncTestCase):
         # because nose creates a new ioloop per test run.
         base.NAMED_API_CALL_QUEUES = {}
 
-    @testing.gen_test
-    def test_create_stack_file(self):
+    async def test_create_stack_file(self):
         actor = cloudformation.Create(
             "Unit Test Action",
             {
@@ -423,11 +407,10 @@ class TestCreate(testing.AsyncTestCase):
         actor._wait_until_state.side_effect = [tornado_value(None)]
         actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
         actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
-        ret = yield actor._create_stack(stack="test")
+        ret = await actor._create_stack(stack="test")
         self.assertEqual(ret, "arn:123")
 
-    @testing.gen_test
-    def test_create_stack_file_with_role(self):
+    async def test_create_stack_file_with_role(self):
         stack = "examples/test/aws.cloudformation/cfn.integration.json"
         actor = cloudformation.Create(
             "Unit Test Action",
@@ -442,7 +425,7 @@ class TestCreate(testing.AsyncTestCase):
         actor._wait_until_state.side_effect = [tornado_value(None)]
         actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
         actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
-        ret = yield actor._create_stack(stack="test")
+        ret = await actor._create_stack(stack="test")
         self.assertEqual(ret, "arn:123")
         actor.cfn_conn.create_stack.assert_called_with(
             TemplateBody=mock.ANY,
@@ -455,8 +438,7 @@ class TestCreate(testing.AsyncTestCase):
             OnFailure="DELETE",
         )
 
-    @testing.gen_test
-    def test_create_stack_file_with_default_role(self):
+    async def test_create_stack_file_with_default_role(self):
         settings.KINGPIN_CFN_DEFAULT_ROLE_ARN = "test-default-role-arn"
         importlib.reload(cloudformation)
 
@@ -473,7 +455,7 @@ class TestCreate(testing.AsyncTestCase):
         actor._wait_until_state.side_effect = [tornado_value(None)]
         actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
         actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
-        ret = yield actor._create_stack(stack="test")
+        ret = await actor._create_stack(stack="test")
         self.assertEqual(ret, "arn:123")
         actor.cfn_conn.create_stack.assert_called_with(
             TemplateBody=mock.ANY,
@@ -486,8 +468,7 @@ class TestCreate(testing.AsyncTestCase):
             OnFailure="DELETE",
         )
 
-    @testing.gen_test
-    def test_create_stack_file_with_role_yaml(self):
+    async def test_create_stack_file_with_role_yaml(self):
         stack = "examples/test/aws.cloudformation/cfn.integration.yaml"
         actor = cloudformation.Create(
             "Unit Test Action",
@@ -502,7 +483,7 @@ class TestCreate(testing.AsyncTestCase):
         actor._wait_until_state.side_effect = [tornado_value(None)]
         actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
         actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
-        ret = yield actor._create_stack(stack="test")
+        ret = await actor._create_stack(stack="test")
         self.assertEqual(ret, "arn:123")
         actor.cfn_conn.create_stack.assert_called_with(
             TemplateBody=mock.ANY,
@@ -515,8 +496,7 @@ class TestCreate(testing.AsyncTestCase):
             OnFailure="DELETE",
         )
 
-    @testing.gen_test
-    def test_create_stack_file_with_termination_protection_true(self):
+    async def test_create_stack_file_with_termination_protection_true(self):
         stack = "examples/test/aws.cloudformation/cfn.integration.json"
         actor = cloudformation.Create(
             "Unit Test Action",
@@ -532,7 +512,7 @@ class TestCreate(testing.AsyncTestCase):
         actor._wait_until_state.side_effect = [tornado_value(None)]
         actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
         actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
-        ret = yield actor._create_stack(stack="test")
+        ret = await actor._create_stack(stack="test")
         self.assertEqual(ret, "arn:123")
         actor.cfn_conn.create_stack.assert_called_with(
             TemplateBody=mock.ANY,
@@ -545,8 +525,7 @@ class TestCreate(testing.AsyncTestCase):
             OnFailure="DELETE",
         )
 
-    @testing.gen_test
-    def test_create_stack_url(self):
+    async def test_create_stack_url(self):
         with mock.patch.object(boto3, "client"):
             with mock.patch.object(
                 cloudformation.CloudFormationBaseActor,
@@ -568,11 +547,10 @@ class TestCreate(testing.AsyncTestCase):
         actor._wait_until_state.side_effect = [tornado_value(None)]
         actor.cfn_conn.create_stack = mock.MagicMock(name="create_stack_mock")
         actor.cfn_conn.create_stack.return_value = {"StackId": "arn:123"}
-        ret = yield actor._create_stack(stack="unit-test-cfn")
+        ret = await actor._create_stack(stack="unit-test-cfn")
         self.assertEqual(ret, "arn:123")
 
-    @testing.gen_test
-    def test_create_stack_raises_boto_error(self):
+    async def test_create_stack_raises_boto_error(self):
         actor = cloudformation.Create(
             "Unit Test Action",
             {
@@ -597,10 +575,9 @@ class TestCreate(testing.AsyncTestCase):
 
         actor.cfn_conn.create_stack.side_effect = ClientError(fake_exc, "Failure")
         with self.assertRaises(cloudformation.CloudFormationError):
-            yield actor._create_stack(stack="test")
+            await actor._create_stack(stack="test")
 
-    @testing.gen_test
-    def test_create_stack_wait_until_raises_boto_error(self):
+    async def test_create_stack_wait_until_raises_boto_error(self):
         actor = cloudformation.Create(
             "Unit Test Action",
             {
@@ -619,10 +596,9 @@ class TestCreate(testing.AsyncTestCase):
         actor._get_stack_events.return_value = tornado_value(["Log Message"])
 
         with self.assertRaises(cloudformation.StackFailed):
-            yield actor._create_stack(stack="test")
+            await actor._create_stack(stack="test")
 
-    @testing.gen_test
-    def test_execute(self):
+    async def test_execute(self):
         actor = cloudformation.Create(
             "Unit Test Action",
             {
@@ -643,10 +619,9 @@ class TestCreate(testing.AsyncTestCase):
 
         actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
         actor._wait_until_state.return_value = tornado_value(None)
-        yield actor._execute()
+        await actor._execute()
 
-    @testing.gen_test
-    def test_execute_exists(self):
+    async def test_execute_exists(self):
         actor = cloudformation.Create(
             "Unit Test Action",
             {
@@ -663,10 +638,9 @@ class TestCreate(testing.AsyncTestCase):
         actor._get_stack.return_value = tornado_value(True)
 
         with self.assertRaises(cloudformation.StackAlreadyExists):
-            yield actor._execute()
+            await actor._execute()
 
-    @testing.gen_test
-    def test_execute_dry(self):
+    async def test_execute_dry(self):
         actor = cloudformation.Create(
             "Unit Test Action",
             {
@@ -683,10 +657,10 @@ class TestCreate(testing.AsyncTestCase):
         actor._get_stack = mock.MagicMock(name="_get_stack")
         actor._get_stack.return_value = tornado_value(None)
 
-        yield actor._execute()
+        await actor._execute()
 
 
-class TestDelete(testing.AsyncTestCase):
+class TestDelete(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
@@ -697,8 +671,7 @@ class TestDelete(testing.AsyncTestCase):
         # because nose creates a new ioloop per test run.
         base.NAMED_API_CALL_QUEUES = {}
 
-    @testing.gen_test
-    def test_execute(self):
+    async def test_execute(self):
         actor = cloudformation.Delete(
             "Unit Test Action", {"name": "unit-test-cfn", "region": "us-west-2"}
         )
@@ -708,10 +681,9 @@ class TestDelete(testing.AsyncTestCase):
         actor._delete_stack.return_value = tornado_value(None)
         actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
         actor._wait_until_state.side_effect = cloudformation.StackNotFound()
-        yield actor._execute()
+        await actor._execute()
 
-    @testing.gen_test
-    def test_execute_dry(self):
+    async def test_execute_dry(self):
         actor = cloudformation.Delete(
             "Unit Test Action",
             {"name": "unit-test-cfn", "region": "us-west-2"},
@@ -719,20 +691,18 @@ class TestDelete(testing.AsyncTestCase):
         )
         actor._get_stack = mock.MagicMock(name="_get_stack")
         actor._get_stack.return_value = tornado_value(True)
-        yield actor._execute()
+        await actor._execute()
 
-    @testing.gen_test
-    def test_execute_not_exists(self):
+    async def test_execute_not_exists(self):
         actor = cloudformation.Delete(
             "Unit Test Action", {"name": "unit-test-cfn", "region": "us-west-2"}
         )
         actor._get_stack = mock.MagicMock(name="_get_stack")
         actor._get_stack.return_value = tornado_value(None)
         with self.assertRaises(cloudformation.StackNotFound):
-            yield actor._execute()
+            await actor._execute()
 
-    @testing.gen_test
-    def test_delete_stack_file_with_role(self):
+    async def test_delete_stack_file_with_role(self):
         stack = "examples/test/aws.cloudformation/cfn.integration.json"
         actor = cloudformation.Delete(
             "Unit Test Action",
@@ -754,14 +724,13 @@ class TestDelete(testing.AsyncTestCase):
         actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
         actor._wait_until_state.side_effect = [tornado_value(None)]
 
-        yield actor._delete_stack(stack="test")
+        await actor._delete_stack(stack="test")
         actor.cfn_conn.delete_stack.assert_called_with(
             RoleARN="test_role_arn",
             StackName="test",
         )
 
-    @testing.gen_test
-    def test_delete_stack_file_with_default_role(self):
+    async def test_delete_stack_file_with_default_role(self):
         settings.KINGPIN_CFN_DEFAULT_ROLE_ARN = "test-default-role-arn"
         importlib.reload(cloudformation)
 
@@ -785,14 +754,14 @@ class TestDelete(testing.AsyncTestCase):
         actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
         actor._wait_until_state.side_effect = [tornado_value(None)]
 
-        yield actor._delete_stack(stack="test")
+        await actor._delete_stack(stack="test")
         actor.cfn_conn.delete_stack.assert_called_with(
             RoleARN="test-default-role-arn",
             StackName="test",
         )
 
 
-class TestStack(testing.AsyncTestCase):
+class TestStack(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         super().setUp()
         settings.AWS_ACCESS_KEY_ID = "unit-test"
@@ -893,8 +862,7 @@ class TestStack(testing.AsyncTestCase):
         ret = self.actor._diff_params_safely(remote, self.actor._parameters)
         self.assertEqual(True, ret)
 
-    @testing.gen_test
-    def test_update_stack_in_failed_state(self):
+    async def test_update_stack_in_failed_state(self):
         fake_stack = create_fake_stack("fake", "CREATE_FAILED")
         self.actor._get_stack = mock.MagicMock(name="_get_stack")
         self.actor._get_stack.return_value = tornado_value(fake_stack)
@@ -902,29 +870,26 @@ class TestStack(testing.AsyncTestCase):
         self.actor._delete_stack.return_value = tornado_value(fake_stack)
         self.actor._create_stack = mock.MagicMock(name="_create_stack")
         self.actor._create_stack.return_value = tornado_value(fake_stack)
-        yield self.actor._update_stack(fake_stack)
+        await self.actor._update_stack(fake_stack)
         self.actor._delete_stack.assert_called_with(
             stack="arn:aws:cloudformation:us-east-1:xxxx:stack/fake/x"
         )
         self.actor._create_stack.assert_called_with(stack="fake")
 
-    @testing.gen_test
-    def test_update_stack_in_delete_failed_state(self):
+    async def test_update_stack_in_delete_failed_state(self):
         fake_stack = create_fake_stack("fake", "DELETE_FAILED")
         self.actor._get_stack = mock.MagicMock(name="_get_stack")
         with self.assertRaises(cloudformation.StackFailed):
-            yield self.actor._update_stack(fake_stack)
+            await self.actor._update_stack(fake_stack)
 
-    @testing.gen_test
-    def test_update_stack_ensure_template(self):
+    async def test_update_stack_ensure_template(self):
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
         self.actor._ensure_template = mock.MagicMock(name="_ensure_stack")
         self.actor._ensure_template.return_value = tornado_value(None)
-        yield self.actor._update_stack(fake_stack)
+        await self.actor._update_stack(fake_stack)
         self.actor._ensure_template.assert_called_with(fake_stack)
 
-    @testing.gen_test
-    def test_update_stack_ensure_termination_protection_default_to_true(self):
+    async def test_update_stack_ensure_termination_protection_default_to_true(self):
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
         self.actor._options["enable_termination_protection"] = True
 
@@ -936,11 +901,10 @@ class TestStack(testing.AsyncTestCase):
         self.actor._ensure_template = mock.MagicMock(name="_ensure_stack")
         self.actor._ensure_template.return_value = tornado_value(None)
 
-        yield self.actor._update_stack(fake_stack)
+        await self.actor._update_stack(fake_stack)
         self.actor._update_termination_protection.assert_called_with(fake_stack, True)
 
-    @testing.gen_test
-    def test_update_stack_ensure_termination_protection_true_to_false(self):
+    async def test_update_stack_ensure_termination_protection_true_to_false(self):
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
         fake_stack["EnableTerminationProtection"] = True
         self.actor._options["enable_termination_protection"] = False
@@ -953,11 +917,10 @@ class TestStack(testing.AsyncTestCase):
         self.actor._ensure_template = mock.MagicMock(name="_ensure_stack")
         self.actor._ensure_template.return_value = tornado_value(None)
 
-        yield self.actor._update_stack(fake_stack)
+        await self.actor._update_stack(fake_stack)
         self.actor._update_termination_protection.assert_called_with(fake_stack, False)
 
-    @testing.gen_test
-    def test_update_stack_ensure_termination_protection_true_to_true(self):
+    async def test_update_stack_ensure_termination_protection_true_to_true(self):
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
         fake_stack["EnableTerminationProtection"] = True
         self.actor._options["enable_termination_protection"] = True
@@ -970,11 +933,10 @@ class TestStack(testing.AsyncTestCase):
         self.actor._ensure_template = mock.MagicMock(name="_ensure_stack")
         self.actor._ensure_template.return_value = tornado_value(None)
 
-        yield self.actor._update_stack(fake_stack)
+        await self.actor._update_stack(fake_stack)
         self.assertFalse(self.actor._update_termination_protection.called)
 
-    @testing.gen_test
-    def test_update_stack_update_termination_protection(self):
+    async def test_update_stack_update_termination_protection(self):
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
         self.actor._options["enable_termination_protection"] = True
 
@@ -985,13 +947,12 @@ class TestStack(testing.AsyncTestCase):
         self.actor._ensure_template = mock.MagicMock(name="_ensure_stack")
         self.actor._ensure_template.return_value = tornado_value(None)
 
-        yield self.actor._update_stack(fake_stack)
+        await self.actor._update_stack(fake_stack)
         self.actor.cfn_conn.update_termination_protection.assert_has_calls(
             [mock.call(StackName="fake", EnableTerminationProtection=True)]
         )
 
-    @testing.gen_test
-    def test_update_stack_update_termination_protection_error(self):
+    async def test_update_stack_update_termination_protection_error(self):
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
         self.actor._options["enable_termination_protection"] = True
 
@@ -1011,10 +972,9 @@ class TestStack(testing.AsyncTestCase):
             fake_update, "FakeOperation"
         )
         with self.assertRaises(cloudformation.StackFailed):
-            yield self.actor._update_stack(fake_stack)
+            await self.actor._update_stack(fake_stack)
 
-    @testing.gen_test
-    def test_ensure_template_with_url_works(self):
+    async def test_ensure_template_with_url_works(self):
         self.actor._template_body = json.dumps({})
         self.actor._template_url = "s3://some.bucket.name/template.json"
         expected_body = (
@@ -1051,7 +1011,7 @@ class TestStack(testing.AsyncTestCase):
 
         # We run three tests in here because the setup takes so many lines
         # (above). First test is a normal execution with changes detected.
-        ret = yield self.actor._ensure_template(fake_stack)
+        ret = await self.actor._ensure_template(fake_stack)
         self.assertEqual(None, ret)
         self.actor._create_change_set.assert_has_calls([mock.call(fake_stack)])
         self.actor._wait_until_change_set_ready.assert_has_calls(
@@ -1062,13 +1022,12 @@ class TestStack(testing.AsyncTestCase):
         # Quick second execution with _dry set. In this case, we SHOULD call
         # the delete changset function.
         self.actor._dry = True
-        yield self.actor._ensure_template(fake_stack)
+        await self.actor._ensure_template(fake_stack)
         self.actor.cfn_conn.delete_change_set.assert_has_calls(
             [mock.call(ChangeSetName="abcd")]
         )
 
-    @testing.gen_test
-    def test_ensure_template_no_diff(self):
+    async def test_ensure_template_no_diff(self):
         self.actor._create_change_set = mock.MagicMock(name="_create_change")
         self.actor._wait_until_change_set_ready = mock.MagicMock(name="_wait")
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
@@ -1081,14 +1040,13 @@ class TestStack(testing.AsyncTestCase):
         self.actor._get_stack_template = get_temp_mock
         self.actor._get_stack_template.return_value = tornado_value(template)
 
-        ret = yield self.actor._ensure_template(fake_stack)
+        ret = await self.actor._ensure_template(fake_stack)
         self.assertEqual(None, ret)
 
         self.assertFalse(self.actor._create_change_set.called)
         self.assertFalse(self.actor._wait_until_change_set_ready.called)
 
-    @testing.gen_test
-    def test_ensure_template_different(self):
+    async def test_ensure_template_different(self):
         self.actor._create_change_set = mock.MagicMock(name="_create_change")
         self.actor._create_change_set.return_value = tornado_value({"Id": "abcd"})
         self.actor._wait_until_change_set_ready = mock.MagicMock(name="_wait")
@@ -1115,7 +1073,7 @@ class TestStack(testing.AsyncTestCase):
 
         # We run three tests in here because the setup takes so many lines
         # (above). First test is a normal execution with changes detected.
-        ret = yield self.actor._ensure_template(fake_stack)
+        ret = await self.actor._ensure_template(fake_stack)
         self.assertEqual(None, ret)
         self.actor._create_change_set.assert_has_calls([mock.call(fake_stack)])
         self.actor._wait_until_change_set_ready.assert_has_calls(
@@ -1126,13 +1084,12 @@ class TestStack(testing.AsyncTestCase):
         # Quick second execution with _dry set. In this case, we SHOULD call
         # the delete changset function.
         self.actor._dry = True
-        yield self.actor._ensure_template(fake_stack)
+        await self.actor._ensure_template(fake_stack)
         self.actor.cfn_conn.delete_change_set.assert_has_calls(
             [mock.call(ChangeSetName="abcd")]
         )
 
-    @testing.gen_test
-    def test_ensure_template_exc(self):
+    async def test_ensure_template_exc(self):
         self.actor._create_change_set = mock.MagicMock(name="_create_change")
         self.actor._create_change_set.return_value = tornado_value({"Id": "abcd"})
         self.actor._wait_until_change_set_ready = mock.MagicMock(name="_wait")
@@ -1167,7 +1124,7 @@ class TestStack(testing.AsyncTestCase):
 
         # Ensure we raise an exception if something bad happens
         with self.assertRaises(cloudformation.StackFailed):
-            yield self.actor._ensure_template(fake_stack)
+            await self.actor._ensure_template(fake_stack)
 
     def test_hash_feature_disabled(self):
         settings.KINGPIN_CFN_HASH_OUTPUT_KEY = ""
@@ -1203,11 +1160,10 @@ class TestStack(testing.AsyncTestCase):
 
         self.assertEqual(ret, json.dumps({"blank": "json"}))
 
-    @testing.gen_test
-    def test_create_change_set_body(self):
+    async def test_create_change_set_body(self):
         self.actor.cfn_conn.create_change_set.return_value = {"Id": "abcd"}
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
-        ret = yield self.actor._create_change_set(fake_stack, "uuid")
+        ret = await self.actor._create_change_set(fake_stack, "uuid")
         self.assertEqual(ret, {"Id": "abcd"})
         self.actor.cfn_conn.create_change_set.assert_has_calls(
             [
@@ -1222,12 +1178,11 @@ class TestStack(testing.AsyncTestCase):
             ]
         )
 
-    @testing.gen_test
-    def test_create_change_set_body_with_role(self):
+    async def test_create_change_set_body_with_role(self):
         self.actor.cfn_conn.create_change_set.return_value = {"Id": "abcd"}
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
         self.actor._options["role_arn"] = "test_role_arn"
-        ret = yield self.actor._create_change_set(fake_stack, "uuid")
+        ret = await self.actor._create_change_set(fake_stack, "uuid")
         self.assertEqual(ret, {"Id": "abcd"})
         self.actor.cfn_conn.create_change_set.assert_has_calls(
             [
@@ -1243,15 +1198,14 @@ class TestStack(testing.AsyncTestCase):
             ]
         )
 
-    @testing.gen_test
-    def test_create_change_set_body_with_default_role(self):
+    async def test_create_change_set_body_with_default_role(self):
         self.actor.cfn_conn.create_change_set.return_value = {"Id": "abcd"}
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
 
         settings.KINGPIN_CFN_DEFAULT_ROLE_ARN = "test_default_role_arn"
         importlib.reload(cloudformation)
 
-        ret = yield self.actor._create_change_set(fake_stack, "uuid")
+        ret = await self.actor._create_change_set(fake_stack, "uuid")
         self.assertEqual(ret, {"Id": "abcd"})
         self.actor.cfn_conn.create_change_set.assert_has_calls(
             [
@@ -1267,14 +1221,13 @@ class TestStack(testing.AsyncTestCase):
             ]
         )
 
-    @testing.gen_test
-    def test_create_change_set_url(self):
+    async def test_create_change_set_url(self):
         self.actor.cfn_conn.create_change_set.return_value = {"Id": "abcd"}
         template_body = json.dumps({})
         self.actor._template_body = template_body
         self.actor._template_url = "https://foobar.s3.us-east-1.amazonaws.com/bin"
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
-        ret = yield self.actor._create_change_set(fake_stack, "uuid")
+        ret = await self.actor._create_change_set(fake_stack, "uuid")
         self.assertEqual(ret, {"Id": "abcd"})
         self.actor.cfn_conn.create_change_set.assert_has_calls(
             [
@@ -1289,8 +1242,7 @@ class TestStack(testing.AsyncTestCase):
             ]
         )
 
-    @testing.gen_test
-    def test_create_change_set_exc(self):
+    async def test_create_change_set_exc(self):
         self.actor.cfn_conn.create_change_set.return_value = {"Id": "abcd"}
         fake_exc = {
             "ResponseMetadata": {
@@ -1308,10 +1260,9 @@ class TestStack(testing.AsyncTestCase):
         )
         fake_stack = create_fake_stack("fake", "CREATE_COMPLETE")
         with self.assertRaises(cloudformation.CloudFormationError):
-            yield self.actor._create_change_set(fake_stack, "uuid")
+            await self.actor._create_change_set(fake_stack, "uuid")
 
-    @testing.gen_test
-    def test_wait_until_change_set_ready_complete(self):
+    async def test_wait_until_change_set_ready_complete(self):
         available = {"Status": "AVAILABLE"}
         update_in_progress = {"Status": "UPDATE_IN_PROGRESS"}
         update_complete = {"Status": "UPDATE_COMPLETE"}
@@ -1333,7 +1284,7 @@ class TestStack(testing.AsyncTestCase):
             ClientError(fake_exc, "Failure"),
             update_complete,
         ]
-        yield self.actor._wait_until_change_set_ready(
+        await self.actor._wait_until_change_set_ready(
             "test", "Status", "UPDATE_COMPLETE", sleep=0.01
         )
         self.actor.cfn_conn.describe_change_set.assert_has_calls(
@@ -1345,8 +1296,7 @@ class TestStack(testing.AsyncTestCase):
             ]
         )
 
-    @testing.gen_test
-    def test_wait_until_change_set_ready_failed_status(self):
+    async def test_wait_until_change_set_ready_failed_status(self):
         available = {"Status": "AVAILABLE"}
         update_in_progress = {"Status": "UPDATE_IN_PROGRESS"}
         update_failed = {"Status": "UPDATE_FAILED", "StatusReason": "Template error"}
@@ -1357,12 +1307,11 @@ class TestStack(testing.AsyncTestCase):
             update_failed,
         ]
         with self.assertRaises(cloudformation.StackFailed):
-            yield self.actor._wait_until_change_set_ready(
+            await self.actor._wait_until_change_set_ready(
                 "test", "Status", "UPDATE_COMPLETE", sleep=0.01
             )
 
-    @testing.gen_test
-    def test_wait_until_change_set_ready_failed_status_no_reason(self):
+    async def test_wait_until_change_set_ready_failed_status_no_reason(self):
         available = {"Status": "AVAILABLE"}
         update_in_progress = {"Status": "UPDATE_IN_PROGRESS"}
         update_failed = {"Status": "UPDATE_FAILED"}
@@ -1373,7 +1322,7 @@ class TestStack(testing.AsyncTestCase):
             update_failed,
         ]
         with self.assertRaises(cloudformation.StackFailed):
-            yield self.actor._wait_until_change_set_ready(
+            await self.actor._wait_until_change_set_ready(
                 "test", "Status", "UPDATE_COMPLETE", sleep=0.01
             )
 
@@ -1412,15 +1361,14 @@ class TestStack(testing.AsyncTestCase):
             ]
         )
 
-    @testing.gen_test
-    def test_execute_change_set(self):
+    async def test_execute_change_set(self):
         fake = {"StackId": "arn::fake_set"}
         self.actor._wait_until_change_set_ready = mock.MagicMock(name="_wait")
         self.actor._wait_until_change_set_ready.return_value = tornado_value(fake)
         self.actor._wait_until_state = mock.MagicMock(name="_wait_until_state")
         self.actor._wait_until_state.return_value = tornado_value(None)
 
-        yield self.actor._execute_change_set(change_set_name="fake_set")
+        await self.actor._execute_change_set(change_set_name="fake_set")
 
         self.actor.cfn_conn.execute_change_set.assert_has_calls(
             [mock.call(ChangeSetName="fake_set")]
@@ -1442,8 +1390,7 @@ class TestStack(testing.AsyncTestCase):
             ]
         )
 
-    @testing.gen_test
-    def test_execute_change_set_exc(self):
+    async def test_execute_change_set_exc(self):
         fake_exc = {
             "ResponseMetadata": {
                 "HTTPStatusCode": 400,
@@ -1462,10 +1409,9 @@ class TestStack(testing.AsyncTestCase):
         )
 
         with self.assertRaises(cloudformation.StackFailed):
-            yield self.actor._execute_change_set(change_set_name="fake_set")
+            await self.actor._execute_change_set(change_set_name="fake_set")
 
-    @testing.gen_test
-    def test_ensure_stack_is_absent_and_wants_absent(self):
+    async def test_ensure_stack_is_absent_and_wants_absent(self):
         self.actor._options["state"] = "absent"
         self.actor._get_stack = mock.MagicMock(name="_get_stack")
         self.actor._get_stack.return_value = tornado_value(None)
@@ -1474,13 +1420,12 @@ class TestStack(testing.AsyncTestCase):
         self.actor._create_stack = mock.MagicMock(name="_create_stack")
         self.actor._create_stack.return_value = tornado_value(None)
 
-        yield self.actor._ensure_stack()
+        await self.actor._ensure_stack()
 
         self.assertFalse(self.actor._create_stack.called)
         self.assertFalse(self.actor._delete_stack.called)
 
-    @testing.gen_test
-    def test_ensure_stack_is_present_and_wants_absent(self):
+    async def test_ensure_stack_is_present_and_wants_absent(self):
         self.actor._options["state"] = "absent"
         fake_stack = create_fake_stack("unit-test-cfn", "CREATE_COMPLETE")
         self.actor._get_stack = mock.MagicMock(name="_get_stack")
@@ -1490,13 +1435,12 @@ class TestStack(testing.AsyncTestCase):
         self.actor._create_stack = mock.MagicMock(name="_create_stack")
         self.actor._create_stack.return_value = tornado_value(None)
 
-        yield self.actor._ensure_stack()
+        await self.actor._ensure_stack()
 
         self.assertTrue(self.actor._delete_stack.called)
         self.assertFalse(self.actor._create_stack.called)
 
-    @testing.gen_test
-    def test_ensure_stack_is_absent_and_wants_present(self):
+    async def test_ensure_stack_is_absent_and_wants_present(self):
         self.actor._options["state"] = "present"
         self.actor._get_stack = mock.MagicMock(name="_get_stack")
         self.actor._get_stack.return_value = tornado_value(None)
@@ -1505,13 +1449,12 @@ class TestStack(testing.AsyncTestCase):
         self.actor._create_stack = mock.MagicMock(name="_create_stack")
         self.actor._create_stack.return_value = tornado_value(None)
 
-        yield self.actor._ensure_stack()
+        await self.actor._ensure_stack()
 
         self.assertFalse(self.actor._delete_stack.called)
         self.assertTrue(self.actor._create_stack.called)
 
-    @testing.gen_test
-    def test_ensure_stack_is_present_and_wants_update_create_failed(self):
+    async def test_ensure_stack_is_present_and_wants_update_create_failed(self):
         self.actor._options["state"] = "present"
         fake_stack = create_fake_stack("fake", "CREATE_FAILED")
         self.actor._get_stack = mock.MagicMock(name="_get_stack")
@@ -1523,16 +1466,15 @@ class TestStack(testing.AsyncTestCase):
         self.actor._update_stack = mock.MagicMock(name="_update_stack")
         self.actor._update_stack.return_value = tornado_value(None)
 
-        yield self.actor._ensure_stack()
+        await self.actor._ensure_stack()
 
         self.assertFalse(self.actor._delete_stack.called)
         self.assertFalse(self.actor._create_stack.called)
         self.assertTrue(self.actor._update_stack.called)
 
-    @testing.gen_test
-    def test_execute(self):
+    async def test_execute(self):
         self.actor._validate_template = mock.MagicMock()
         self.actor._validate_template.return_value = tornado_value(None)
         self.actor._ensure_stack = mock.MagicMock()
         self.actor._ensure_stack.return_value = tornado_value(None)
-        yield self.actor._execute()
+        await self.actor._execute()
