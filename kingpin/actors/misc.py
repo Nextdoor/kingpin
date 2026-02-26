@@ -24,8 +24,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from tornado import httpclient
-
 from kingpin import exceptions as kingpin_exceptions
 from kingpin import schema, utils
 from kingpin.actors import base, exceptions, group
@@ -190,19 +188,14 @@ class Macro(base.BaseActor):
 
         remote = ("http://", "https://")
         if self.option("macro").startswith(remote):
-            client = httpclient.HTTPClient()
             try:
-                R = client.fetch(self.option("macro"))
+                response = urllib.request.urlopen(self.option("macro"))
             except Exception as e:
                 raise exceptions.UnrecoverableActorFailure(e) from e
-            finally:
-                client.close()
             buf = io.StringIO()
-            # Set buffer representation for debug printing.
             buf.__repr__ = lambda: (f"In-memory file from: {self.option('macro')}")
-            buf.write(R.body)
+            buf.write(response.read().decode("utf-8"))
             buf.seek(0)
-            client.close()
             return buf
 
         try:
@@ -383,6 +376,6 @@ class GenericHTTP(base.HTTPBaseActor):
                 auth_username=self.option("username"),
                 auth_password=self.option("password"),
             )
-        except httpclient.HTTPError as e:
+        except urllib.error.HTTPError as e:
             if e.code == 401:
-                raise exceptions.InvalidCredentials(e.message) from e
+                raise exceptions.InvalidCredentials(str(e)) from e
