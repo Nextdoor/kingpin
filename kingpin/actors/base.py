@@ -18,13 +18,17 @@ any live changes. It is up to the developer of the Actor to define what
 """
 
 import asyncio
+import base64
+import functools
 import inspect
 import json
 import logging
 import os
 import sys
-
-from tornado import httpclient, httputil
+import urllib.error
+import urllib.parse
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -702,13 +706,7 @@ class HTTPBaseActor(BaseActor):
     """
 
     headers = None
-
-    def _get_http_client(self):
-        """Returns an asynchronous web client object
-
-        The object is actually of type SimpleAsyncHTTPClient
-        """
-        return httpclient.AsyncHTTPClient()
+    _http_executor = ThreadPoolExecutor(10)
 
     def _get_method(self, post):
         """Returns the appropriate HTTP Method based on the supplied Post data.
@@ -729,9 +727,7 @@ class HTTPBaseActor(BaseActor):
         """Takes in a dictionary of arguments and returns a URL line.
 
         Sorts the arguments so that the returned string is predictable and in
-        alphabetical order. Effectively wraps the tornado.httputil.url_concat
-        method and properly strips out None values, as well as lowercases
-        Bool values.
+        alphabetical order. Strips out None values and lowercases Bool values.
 
         Args:
             url: (Str) The URL to append the arguments to
@@ -740,26 +736,27 @@ class HTTPBaseActor(BaseActor):
         Returns:
             A URL encoded string like this: <url>?foo=bar&abc=xyz
         """
+        args = {k: v for k, v in args.items() if v}
 
-        # Remove keys from the arguments where the value is None
-        args = dict((k, v) for k, v in args.items() if v)
-
-        # Convert all Bool values to lowercase strings
         for key, value in args.items():
             if isinstance(value, bool):
                 args[key] = str(value).lower()
 
-        # Now generate the URL
-        full_url = httputil.url_concat(url, sorted(args.items()))
+        parsed = urllib.parse.urlsplit(url)
+        existing_params = urllib.parse.parse_qsl(
+            parsed.query, keep_blank_values=True
+        )
+        existing_params.extend(sorted(args.items()))
+        query = urllib.parse.urlencode(existing_params)
+        full_url = urllib.parse.urlunsplit(
+            (parsed.scheme, parsed.netloc, parsed.path, query, parsed.fragment)
+        )
         self.log.debug(f"Generated URL: {full_url}")
 
         return full_url
 
-    # TODO: Add a retry/backoff timer here. If the remote endpoint returns
-    # garbled data (ie, maybe a 500 errror or something else thats not in
-    # JSON format, we should back off and try again.
     async def _fetch(self, url, post=None, auth_username=None, auth_password=None):
-        """Executes a web request asynchronously and yields the body.
+        """Executes a web request asynchronously and returns the parsed body.
 
         Args:
             url: (Str) The full url path of the API call
@@ -767,34 +764,33 @@ class HTTPBaseActor(BaseActor):
             auth_username: (str) HTTP auth username
             auth_password: (str) HTTP auth password
         """
-
-        # Generate the full request URL and log out what we're doing...
         self.log.debug(f"Making HTTP request to {url} with data: {post}")
 
-        # Create the http_request object
-        http_client = self._get_http_client()
-        http_request = httpclient.HTTPRequest(
-            url=url,
-            method=self._get_method(post),
-            body=post,
-            headers=self.headers,
-            auth_username=auth_username,
-            auth_password=auth_password,
-            follow_redirects=True,
-            max_redirects=10,
+        method = self._get_method(post)
+        data = post.encode("utf-8") if post else None
+        req = urllib.request.Request(url, data=data, method=method)
+
+        if self.headers:
+            for k, v in self.headers.items():
+                req.add_header(k, v)
+
+        if auth_username and auth_password:
+            credentials = base64.b64encode(
+                f"{auth_username}:{auth_password}".encode()
+            ).decode()
+            req.add_header("Authorization", f"Basic {credentials}")
+
+        loop = asyncio.get_event_loop()
+        http_response = await loop.run_in_executor(
+            self._http_executor,
+            functools.partial(urllib.request.urlopen, req),
         )
 
-        # Execute the request and raise any exception. Exceptions are not
-        # caught here because they are unique to the API endpoints, and thus
-        # should be handled by the individual Actor that called this method.
-        http_response = await http_client.fetch(http_request)
-
         try:
-            body = json.loads(http_response.body)
+            body = json.loads(http_response.read())
         except ValueError as e:
             raise exceptions.UnparseableResponseFromEndpoint(
                 f"Unable to parse response from remote API as JSON: {e}"
             ) from e
 
-        # Receive a successful return
         return body

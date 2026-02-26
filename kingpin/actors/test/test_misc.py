@@ -1,8 +1,9 @@
 import importlib
 import logging
+import urllib.error
 from unittest import mock
 
-from tornado import httpclient, testing
+from tornado import testing
 
 from kingpin import exceptions as kingpin_exceptions
 from kingpin.actors import exceptions, misc
@@ -113,8 +114,10 @@ class TestMacro(testing.AsyncTestCase):
         misc.Macro._get_config_from_script.return_value = {}
         misc.Macro._check_schema = mock.Mock()
         with mock.patch("kingpin.actors.utils.get_actor"):
-            with mock.patch.object(httpclient.HTTPClient, "fetch") as fetch:
-                fetch.return_value.body = "foo"
+            with mock.patch("urllib.request.urlopen") as mock_urlopen:
+                mock_resp = mock.Mock()
+                mock_resp.read.return_value = b"foo"
+                mock_urlopen.return_value = mock_resp
                 misc.Macro("Unit Test", {"macro": "http://test.json", "tokens": {}})
 
     def test_init_dry(self):
@@ -262,7 +265,10 @@ class TestGenericHTTP(testing.AsyncTestCase):
     @testing.gen_test
     def test_execute_fail(self):
         actor = misc.GenericHTTP("Unit Test Action", {"url": "http://example.com"})
-        error = httpclient.HTTPError(code=401, response={})
+        error = urllib.error.HTTPError(
+            url="http://example.com", code=401, msg="Unauthorized",
+            hdrs={}, fp=None,
+        )
         actor._fetch = mock_tornado(exc=error)
 
         with self.assertRaises(exceptions.InvalidCredentials):

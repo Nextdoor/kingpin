@@ -1,14 +1,13 @@
 """Tests for the actors.base package."""
 
 import asyncio
-import io
 import json
 import logging
 import os
 from importlib import reload
 from unittest import mock
 
-from tornado import httpclient, simple_httpclient, testing
+from tornado import testing
 
 # Unusual placement -- but we override the environment so that we can test that
 # the urllib debugger works.
@@ -21,16 +20,6 @@ reload(base)
 from kingpin.actors import exceptions
 from kingpin.actors.test.helper import mock_tornado
 from kingpin.constants import REQUIRED, STATE
-
-
-class FakeHTTPClientClass:
-    """Fake HTTPClient object for testing"""
-
-    response_value = None
-
-    async def fetch(self, *args, **kwargs):
-        self.request = args[0]
-        return self.response_value
 
 
 class FakeEnsurableBaseActor(base.EnsurableBaseActor):
@@ -451,11 +440,6 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
         super().setUp()
         self.actor = base.HTTPBaseActor("Unit Test Action", {})
 
-    @testing.gen_test
-    def test_get_http_client(self):
-        ret = self.actor._get_http_client()
-        self.assertEqual(simple_httpclient.SimpleAsyncHTTPClient, type(ret))
-
     def test_get_method(self):
         self.assertEqual("POST", self.actor._get_method("foobar"))
         self.assertEqual("POST", self.actor._get_method("True"))
@@ -482,48 +466,39 @@ class TestHTTPBaseActor(testing.AsyncTestCase):
 
     @testing.gen_test
     def test_fetch(self):
-        # Test with valid JSON
         response_dict = {"foo": "asdf"}
-        response_body = json.dumps(response_dict)
-        http_response = httpclient.HTTPResponse(
-            httpclient.HTTPRequest("/"), code=200, buffer=io.StringIO(response_body)
-        )
+        response_body = json.dumps(response_dict).encode()
 
-        with mock.patch.object(self.actor, "_get_http_client") as m:
-            m.return_value = FakeHTTPClientClass()
-            m.return_value.response_value = http_response
+        mock_response = mock.Mock()
+        mock_response.read.return_value = response_body
 
-            response = yield self.actor._fetch("/")
+        with mock.patch("urllib.request.urlopen", return_value=mock_response):
+            response = yield self.actor._fetch("http://example.com/")
             self.assertEqual(response_dict, response)
 
-        # Test with completely invalid JSON
-        response_body = "Something bad happened"
-        http_response = httpclient.HTTPResponse(
-            httpclient.HTTPRequest("/"), code=200, buffer=io.StringIO(response_body)
-        )
+        mock_response.read.return_value = b"Something bad happened"
 
-        with mock.patch.object(self.actor, "_get_http_client") as m:
-            m.return_value = FakeHTTPClientClass()
-            m.return_value.response_value = http_response
-
+        with mock.patch("urllib.request.urlopen", return_value=mock_response):
             with self.assertRaises(exceptions.UnparseableResponseFromEndpoint):
-                yield self.actor._fetch("/")
+                yield self.actor._fetch("http://example.com/")
 
     @testing.gen_test
     def test_fetch_with_auth(self):
         response_dict = {"foo": "asdf"}
-        response_body = json.dumps(response_dict)
-        http_response = httpclient.HTTPResponse(
-            httpclient.HTTPRequest("/"), code=200, buffer=io.StringIO(response_body)
-        )
+        response_body = json.dumps(response_dict).encode()
 
-        with mock.patch.object(self.actor, "_get_http_client") as m:
-            m.return_value = FakeHTTPClientClass()
-            m.return_value.response_value = http_response
+        mock_response = mock.Mock()
+        mock_response.read.return_value = response_body
 
-            yield self.actor._fetch("/", auth_username="foo", auth_password="bar")
-            self.assertEqual(m.return_value.request.auth_username, "foo")
-            self.assertEqual(m.return_value.request.auth_password, "bar")
+        with mock.patch("urllib.request.urlopen", return_value=mock_response) as m:
+            yield self.actor._fetch(
+                "http://example.com/",
+                auth_username="foo",
+                auth_password="bar",
+            )
+            req = m.call_args[0][0]
+            self.assertIn("Authorization", req.headers)
+            self.assertTrue(req.headers["Authorization"].startswith("Basic "))
 
 
 class TestActualEnsurableBaseActor(testing.AsyncTestCase):
