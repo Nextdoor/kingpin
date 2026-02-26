@@ -1,9 +1,10 @@
 import asyncio
+import functools
+from concurrent.futures import ThreadPoolExecutor
 
 from botocore import exceptions as botocore_exceptions
-from tornado import concurrent, ioloop, queues
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
+EXECUTOR = ThreadPoolExecutor(10)
 
 
 class ApiCallQueue:
@@ -17,8 +18,8 @@ class ApiCallQueue:
     def __init__(self):
         self.executor = EXECUTOR
 
-        self._queue = queues.Queue()
-        ioloop.IOLoop.current().spawn_callback(self._process_queue)
+        self._queue = asyncio.Queue()
+        self._consumer_task = asyncio.ensure_future(self._process_queue())
 
         # Used for controlling how fast the work queue is processed,
         # with exponential delay on throttling errors.
@@ -52,7 +53,7 @@ class ApiCallQueue:
         Any other failures, like connection timeouts or read timeouts,
         will bubble up immediately and won't be retried here.
         """
-        result_queue = queues.Queue(maxsize=1)
+        result_queue = asyncio.Queue(maxsize=1)
         await self._queue.put((result_queue, api_function, args, kwargs))
         result = await result_queue.get()
         if isinstance(result, Exception):
@@ -132,11 +133,8 @@ class ApiCallQueue:
         self.delay *= 2
         self.delay = min(self.delay, self.delay_max)
 
-    @concurrent.run_on_executor
-    def _thread(self, function, *args, **kwargs):
-        """Execute `function` in a concurrent thread.
-
-        This allows execution of any function in a thread without having
-        to write a wrapper method that is decorated with run_on_executor().
-        """
-        return function(*args, **kwargs)
+    async def _thread(self, function, *args, **kwargs):
+        """Execute `function` in a background thread."""
+        loop = asyncio.get_event_loop()
+        fn = functools.partial(function, *args, **kwargs)
+        return await loop.run_in_executor(self.executor, fn)
