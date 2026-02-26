@@ -142,6 +142,11 @@ def get_main_actor(dry: bool):
     )
 
 
+def _write_orgchart(path, data):
+    with open(path, "w") as output:
+        output.write(json.dumps(data))
+
+
 async def main():
 
     if args.actor and args.explain:
@@ -164,8 +169,7 @@ async def main():
                 log.critical(e)
                 sys.exit(2)
 
-            with open(args.orgchart, "w") as output:  # noqa: ASYNC230
-                output.write(json.dumps(orgdata))
+            _write_orgchart(args.orgchart, orgdata)
 
         sys.exit(0)
 

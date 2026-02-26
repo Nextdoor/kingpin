@@ -293,35 +293,30 @@ class BaseActor:
 
         .. note::
 
-            Tornado 4+ does not allow you to actually kill a task on the IOLoop.
-            This means that all we are doing here is notifying the caller
-            (through the raised exception) that a problem has happened.
-
-        Fairly simple Actors should actually 'stop executing' when this
-        exception is raised. Complex actors with very unique behaviors though
-        (like the rightsacle.server_array.Execute actor) have the ability to
-        continue to execute in the background until the Kingpin application
-        quits. It is not the job of this method to try to kill these actors,
-        but just to let the user know that a failure has happened.
+            This method intentionally does NOT cancel the underlying task on
+            timeout. The coroutine continues running in the background — we
+            only notify the caller (via ActorTimedOut) that the deadline was
+            exceeded. This preserves the original gen.with_timeout() contract
+            and is important for long-running actors (e.g. CloudFormation
+            stack operations) that should be allowed to finish even after the
+            caller has moved on. asyncio.shield() prevents asyncio.wait_for()
+            from cancelling the inner future.
         """
 
         # Get our timeout setting, or fallback to the default
         self.log.debug(f"{self._type}.{f.__name__}() deadline: {self._timeout}(s)")
 
-        # Get our Future object but don't yield on it yet, This starts the
-        # execution, but allows us to wrap it below with the
-        # 'gen.with_timeout' function.
         fut = f(*args, **kwargs)
 
-        # If no timeout is set (none, or 0), then we just yield the Future and
-        # return its results.
+        # If no timeout is set (none, or 0), just await directly.
         if not self._timeout:
             ret = await fut
             return ret
 
-        # Now we yield on the gen_with_timeout function
         try:
-            ret = await asyncio.wait_for(fut, timeout=float(self._timeout))
+            ret = await asyncio.wait_for(
+                asyncio.shield(fut), timeout=float(self._timeout)
+            )
         except TimeoutError:
             msg = f"{self._type}.{f.__name__}() execution exceeded deadline: {self._timeout}s"
             self.log.error(msg)
@@ -478,6 +473,26 @@ class BaseActor:
                 f"Continuing execution even though a failure was "
                 f"detected (warn_on_failure={self._warn_on_failure})"
             )
+        except ExceptionGroup as eg:
+            # asyncio.TaskGroup wraps child task exceptions in ExceptionGroup.
+            # Log all errors for full observability, then unwrap and apply the
+            # same recovery logic as the ActorException handler above so that
+            # warn_on_failure is respected.
+            for i, exc in enumerate(eg.exceptions):
+                if i == 0:
+                    self.log.critical(exc)
+                else:
+                    self.log.error(f"Additional concurrent failure: {exc}")
+
+            first = eg.exceptions[0]
+            recover = isinstance(first, exceptions.RecoverableActorFailure)
+            if recover and self._warn_on_failure:
+                self.log.warning(
+                    f"Continuing execution even though a failure was "
+                    f"detected (warn_on_failure={self._warn_on_failure})"
+                )
+            else:
+                raise first from eg
         except Exception as e:
             # We don't like general exception catch clauses like this, but
             # because actors can be written by third parties and automatically

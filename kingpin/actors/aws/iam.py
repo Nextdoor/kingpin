@@ -239,33 +239,30 @@ class IAMBaseActor(base.AWSBaseActor):
 
         # First, push any policies that we have listed, but aren't in the
         # entity
-        tasks = []
-        for policy in set(self.inline_policies.keys()) - set(existing_policies.keys()):
-            policy_doc = self.inline_policies[policy]
-            tasks.append(self._put_entity_policy(name, policy, policy_doc))
-        await asyncio.gather(*tasks)
+        async with asyncio.TaskGroup() as tg:
+            for policy in set(self.inline_policies.keys()) - set(existing_policies.keys()):
+                policy_doc = self.inline_policies[policy]
+                tg.create_task(self._put_entity_policy(name, policy, policy_doc))
 
         # Do we have matching policies that we're managing here, and are
         # already attached to the entity profile? Lets make sure each one of
         # those matches the policy we have here, and update it if necessary.
-        tasks = []
-        for policy in set(self.inline_policies.keys()) & set(existing_policies.keys()):
-            new = self.inline_policies[policy]
-            exist = existing_policies[policy]
-            diff = utils.diff_dicts(exist, new)
-            if diff:
-                self.log.info(f"Policy {policy} differs from Amazons:")
-                for line in diff.split("\n"):
-                    self.log.info(f"Diff: {line}")
-                policy_doc = self.inline_policies[policy]
-                tasks.append(self._put_entity_policy(name, policy, policy_doc))
-        await asyncio.gather(*tasks)
+        async with asyncio.TaskGroup() as tg:
+            for policy in set(self.inline_policies.keys()) & set(existing_policies.keys()):
+                new = self.inline_policies[policy]
+                exist = existing_policies[policy]
+                diff = utils.diff_dicts(exist, new)
+                if diff:
+                    self.log.info(f"Policy {policy} differs from Amazons:")
+                    for line in diff.split("\n"):
+                        self.log.info(f"Diff: {line}")
+                    policy_doc = self.inline_policies[policy]
+                    tg.create_task(self._put_entity_policy(name, policy, policy_doc))
 
         # Purge any policies we found in AWS that were not listed in our actor
-        tasks = []
-        for policy in set(existing_policies.keys()) - set(self.inline_policies.keys()):
-            tasks.append(self._delete_entity_policy(name, policy))
-        await asyncio.gather(*tasks)
+        async with asyncio.TaskGroup() as tg:
+            for policy in set(existing_policies.keys()) - set(self.inline_policies.keys()):
+                tg.create_task(self._delete_entity_policy(name, policy))
 
     async def _delete_entity_policy(self, name, policy_name):
         """Optionally pushes a policy to an IAM entity.
@@ -419,10 +416,9 @@ class IAMBaseActor(base.AWSBaseActor):
             # Get the entities policies. They have to be deleted before we can
             # possibly move forward and delete the entity.
             existing_policies = await self._get_entity_policies(name)
-            tasks = []
-            for policy in existing_policies:
-                tasks.append(self._delete_entity_policy(name, policy))
-            await asyncio.gather(*tasks)
+            async with asyncio.TaskGroup() as tg:
+                for policy in existing_policies:
+                    tg.create_task(self._delete_entity_policy(name, policy))
 
             # Now delete the entity
             await self.api_call(self.delete_entity, **{self.entity_kwarg_name: name})
@@ -588,21 +584,17 @@ class User(IAMBaseActor):
                 ) from e
 
         # Find any groups that we're not already a member of, and add us
-        tasks = []
-        try:
-            for new_group in set(groups) - current_groups:
-                tasks.append(self._add_user_to_group(name, new_group))
-        except StopIteration:
-            pass  # pragma: no cover
-
-        await asyncio.gather(*tasks)
+        async with asyncio.TaskGroup() as tg:
+            try:
+                for new_group in set(groups) - current_groups:
+                    tg.create_task(self._add_user_to_group(name, new_group))
+            except StopIteration:
+                pass  # pragma: no cover
 
         # Find any group memberships we didn't know about, and purge them
-        tasks = []
-        for bad_group in current_groups - set(groups):
-            tasks.append(self._remove_user_from_group(name, bad_group))
-
-        await asyncio.gather(*tasks)
+        async with asyncio.TaskGroup() as tg:
+            for bad_group in current_groups - set(groups):
+                tg.create_task(self._remove_user_from_group(name, bad_group))
 
     async def _execute(self):
         name = self.option("name")
@@ -751,10 +743,9 @@ class Group(IAMBaseActor):
         if not force:
             return
 
-        tasks = []
-        for user in users:
-            tasks.append(self._remove_user_from_group(user, name))
-        await asyncio.gather(*tasks)
+        async with asyncio.TaskGroup() as tg:
+            for user in users:
+                tg.create_task(self._remove_user_from_group(user, name))
 
     async def _execute(self):
         name = self.option("name")

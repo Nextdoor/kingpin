@@ -26,8 +26,8 @@ class _ReusableAwaitable:
         self._value = value
 
     def __await__(self):
-        yield
         return self._value
+        yield  # pragma: no cover — unreachable; makes this a generator
 
 
 def tornado_value(value=None):
