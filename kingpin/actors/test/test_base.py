@@ -13,7 +13,6 @@ from tornado import testing
 # the urllib debugger works.
 os.environ["URLLIB_DEBUG"] = "1"
 
-from kingpin import utils
 from kingpin.actors import base
 
 reload(base)
@@ -80,11 +79,11 @@ class FakeEnsurableBaseActor(base.EnsurableBaseActor):
 
 class TestBaseActor(testing.AsyncTestCase):
     async def true(self):
-        await utils.tornado_sleep(0.01)
+        await asyncio.sleep(0.01)
         return True
 
     async def false(self):
-        await utils.tornado_sleep(0.01)
+        await asyncio.sleep(0.01)
         return False
 
     def setUp(self):

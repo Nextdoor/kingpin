@@ -25,7 +25,6 @@ import cfn_tools
 import rainbow_logging_handler
 from cfn_tools.yaml_loader import CfnYamlLoader
 from cfn_tools.yaml_loader import construct_mapping as aws_construct_mapping
-from tornado import ioloop
 
 from kingpin import exceptions
 
@@ -231,14 +230,6 @@ def retry(excs, retries=3, delay=0.25):
     return _retry_on_exc
 
 
-async def tornado_sleep(seconds=1.0):
-    """Async sleep. Legacy name kept for compatibility during migration.
-
-    Args:
-        seconds: Float seconds. Default 1.0
-    """
-    await asyncio.sleep(seconds)
-
 
 def populate_with_tokens(
     string,
@@ -401,31 +392,18 @@ def order_dict(obj):
 def create_repeating_log(logger, message, handle=None, **kwargs):
     """Create a repeating log message.
 
-    This function sets up tornado to repeatedly log a message in a way that does
-    not need to be `yield`-ed.
-
-    Example::
-
-        >>> yield do_tornado_stuff(1)
-        >>> log_handle = create_repeating_log('Computing...')
-        >>> yield do_slow_computation_with_insufficient_logging()
-        >>> clear_repeating_log(log_handle)
-
-    This is similar to javascript's setInterval() and clearInterval().
+    Similar to JavaScript's setInterval() / clearInterval().
+    Must be cleared via clear_repeating_log().
 
     Args:
-        message: String to pass to log.info()
-        kwargs: values accepted by datetime.timedelta namely seconds, and milliseconds.
-
-    Must be cleared via clear_repeating_log() Only handles one interval per
-    actor.
+        logger: Callable to invoke with message (e.g. log.info)
+        message: String to pass to logger
+        kwargs: values accepted by datetime.timedelta (seconds, milliseconds)
     """
 
     class OpaqueHandle:
-        """Tornado async io handler."""
-
         def __init__(self):
-            self.timeout_id = None
+            self.timer_handle = None
 
     if not handle:
         handle = OpaqueHandle()
@@ -434,17 +412,16 @@ def create_repeating_log(logger, message, handle=None, **kwargs):
         logger(message)
         create_repeating_log(logger, message, handle, **kwargs)
 
-    deadline = datetime.timedelta(**kwargs)
-    # Here we only queue the call, we don't want to wait on it!
-    timeout_id = ioloop.IOLoop.current().add_timeout(deadline, log_and_queue)
-    handle.timeout_id = timeout_id
+    delay = datetime.timedelta(**kwargs).total_seconds()
+    loop = asyncio.get_event_loop()
+    handle.timer_handle = loop.call_later(delay, log_and_queue)
 
     return handle
 
 
 def clear_repeating_log(handle):
-    """Stops the timeout function from being called."""
-    ioloop.IOLoop.current().remove_timeout(handle.timeout_id)
+    """Stops the repeating log message."""
+    handle.timer_handle.cancel()
 
 
 def diff_dicts(dict1, dict2):
