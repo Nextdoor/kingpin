@@ -9,12 +9,12 @@ import json
 import logging
 import re
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from hashlib import md5
 from json import JSONEncoder
 
 import boto3
 from botocore.exceptions import ClientError
-from tornado import concurrent, ioloop
 
 from kingpin import utils
 from kingpin.actors import exceptions
@@ -37,10 +37,7 @@ class DateEncoder(JSONEncoder):
             return obj.isoformat()
 
 
-# This executor is used by the tornado.concurrent.run_on_executor() decorator.
-# We would like this to be a class variable so its shared across objects, but we
-# see testing IO errors when we do this.
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
+EXECUTOR = ThreadPoolExecutor(10)
 
 
 S3_REGEX = re.compile(r"s3://(?P<bucket>[a-z0-9.-]+)/(?P<key>.*)")
@@ -158,10 +155,6 @@ FAILED = (
 
 class CloudFormationBaseActor(base.AWSBaseActor):
     """Base Actor for CloudFormation tasks"""
-
-    # Get references to existing objects that are used by the
-    # tornado.concurrent.run_on_executor() decorator.
-    ioloop = ioloop.IOLoop.current()
 
     executor = EXECUTOR
 

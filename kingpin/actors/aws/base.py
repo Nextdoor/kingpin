@@ -24,13 +24,14 @@ below for using each actor.
     credentials
 """
 
+import asyncio
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 import boto3
 from boto3 import exceptions as boto3_exceptions
 from botocore import config as botocore_config
 from botocore import exceptions as botocore_exceptions
-from tornado import concurrent, ioloop
 
 from kingpin import exceptions as kingpin_exceptions
 from kingpin import utils
@@ -42,7 +43,7 @@ log = logging.getLogger(__name__)
 
 __author__ = "Matt Wise <matt@nextdoor.com>"
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(10)
+EXECUTOR = ThreadPoolExecutor(10)
 
 NAMED_API_CALL_QUEUES = {}
 
@@ -52,9 +53,6 @@ class InvalidPolicy(exceptions.RecoverableActorFailure):
 
 
 class AWSBaseActor(base.BaseActor):
-    # Get references to existing objects that are used by the
-    # tornado.concurrent.run_on_executor() decorator.
-    ioloop = ioloop.IOLoop.current()
     executor = EXECUTOR
 
     all_options = {"region": (str, None, "AWS Region (or zone) to connect to.")}
@@ -114,19 +112,19 @@ class AWSBaseActor(base.BaseActor):
             service_name="s3", config=boto_config, **boto3_client_kwargs
         )
 
-    @concurrent.run_on_executor
-    @utils.exception_logger
-    def api_call(self, api_function, *args, **kwargs):
-        """Execute `api_function` in a concurrent thread.
+    async def api_call(self, api_function, *args, **kwargs):
+        """Execute `api_function` in a background thread.
 
-        Example:
-            >>> zones = yield thread(ec2_conn.get_all_zones)
-
-        This allows execution of any function in a thread without having
-        to write a wrapper method that is decorated with run_on_executor()
+        Wraps a synchronous boto3 call so it doesn't block the event loop.
         """
-        try:
+
+        @utils.exception_logger
+        def _call():
             return api_function(*args, **kwargs)
+
+        loop = asyncio.get_event_loop()
+        try:
+            return await loop.run_in_executor(self.executor, _call)
         except boto3_exceptions.Boto3Error as e:
             raise self._wrap_boto_exception(e) from e
 
