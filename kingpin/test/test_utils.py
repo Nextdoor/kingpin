@@ -290,9 +290,9 @@ class TestCoroutineHelpers(testing.AsyncTestCase):
         self.assertEqual(ret, True)
 
     @testing.gen_test
-    def testTornadoSleep(self):
+    def test_asyncio_sleep(self):
         start = time.time()
-        yield utils.tornado_sleep(0.1)
+        yield asyncio.sleep(0.1)
         stop = time.time()
         self.assertTrue(stop - start > 0.1)
 
