@@ -1,16 +1,17 @@
 import asyncio
 import logging
 import time
+import unittest
+from concurrent.futures import ThreadPoolExecutor
 
 from botocore import exceptions as botocore_exceptions
-from tornado import concurrent, testing
 
 from kingpin.actors.aws import api_call_queue
 
 log = logging.getLogger(__name__)
 
 
-class TestApiCallQueue(testing.AsyncTestCase):
+class TestApiCallQueue(unittest.IsolatedAsyncioTestCase):
     boto3_exception = botocore_exceptions.ClientError(
         {"Error": {"Code": "Bad request"}}, "Test"
     )
@@ -24,15 +25,13 @@ class TestApiCallQueue(testing.AsyncTestCase):
         self.api_call_queue.delay_min = 0.05
         self.api_call_queue.delay_max = 0.2
 
-        self.executor = concurrent.futures.ThreadPoolExecutor(10)
+        self.executor = ThreadPoolExecutor(10)
 
-    @testing.gen_test
     async def test_plain_call(self):
         """Test that a single api call through the queue works."""
         result = await self.api_call_queue.call(self._mock_api_function_sync)
         self.assertEqual(result, "OK")
 
-    @testing.gen_test
     async def test_concurrent_calls_with_delay(self):
         """
         Test concurrent calls with some latency run serially
@@ -66,7 +65,6 @@ class TestApiCallQueue(testing.AsyncTestCase):
         self.assertTrue(0.25 <= run_time < 0.35)
         self.assertEqual(results, [1, 2, 3, 4, 5])
 
-    @testing.gen_test
     async def test_api_call_queue_future_is_nonblocking(self):
         """
         Test that the api call queue future is nonblocking for other futures.
@@ -91,7 +89,6 @@ class TestApiCallQueue(testing.AsyncTestCase):
         self.assertTrue(0.05 <= run_time < 0.15)
         self.assertEqual(results, [1, 2, 3, 4, 5])
 
-    @testing.gen_test
     async def test_api_call_queue_raises_exceptions(self):
         """
         Test that the api call queue raises exceptions and proceeds to execute
@@ -153,7 +150,6 @@ class TestApiCallQueue(testing.AsyncTestCase):
             ["no exception", "exception", "no exception", "exception"], results
         )
 
-    @testing.gen_test
     async def test_rate_limiting_boto3(self):
         """
         Test that rate limiting with boto3 works.
@@ -187,7 +183,6 @@ class TestApiCallQueue(testing.AsyncTestCase):
         self.assertTrue(0.15 <= run_time < 0.25)
         self.assertEqual(results, [1, 2, 3])
 
-    @testing.gen_test
     async def test_rate_limit_stepping(self):
         """
         Test that rate limiting steps delay up and down.
@@ -316,9 +311,10 @@ class TestApiCallQueue(testing.AsyncTestCase):
 
         return result
 
-    @concurrent.run_on_executor
-    def _mock_api_function_async(self, *args, **kwargs):
-        """
-        Wrapper around _mock_api_function_sync that runs it on another thread.
-        """
-        return self._mock_api_function_sync(*args, **kwargs)
+    async def _mock_api_function_async(self, *args, **kwargs):
+        """Wrapper around _mock_api_function_sync that runs it on another thread."""
+        import functools
+
+        loop = asyncio.get_event_loop()
+        fn = functools.partial(self._mock_api_function_sync, *args, **kwargs)
+        return await loop.run_in_executor(self.executor, fn)
