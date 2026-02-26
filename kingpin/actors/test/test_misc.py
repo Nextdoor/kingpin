@@ -1,9 +1,8 @@
 import importlib
 import logging
+import unittest
 import urllib.error
 from unittest import mock
-
-from tornado import testing
 
 from kingpin import exceptions as kingpin_exceptions
 from kingpin.actors import exceptions, misc
@@ -12,16 +11,15 @@ from kingpin.actors.test.helper import mock_tornado
 log = logging.getLogger(__name__)
 
 
-class TestNote(testing.AsyncTestCase):
-    @testing.gen_test
-    def test_log(self):
+class TestNote(unittest.IsolatedAsyncioTestCase):
+    async def test_log(self):
         note = misc.Note("Test", {"message": "Hello World"})
         note.log = mock.Mock()
-        yield note._execute()
+        await note._execute()
         self.assertEqual(note.log.info.call_count, 1)
 
 
-class TestMacro(testing.AsyncTestCase):
+class TestMacro(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         super().setUp()
         importlib.reload(misc)
@@ -180,8 +178,7 @@ class TestMacro(testing.AsyncTestCase):
             with self.assertRaises(exceptions.UnrecoverableActorFailure):
                 misc.Macro("Unit Test", {"macro": "test.json", "tokens": {}})
 
-    @testing.gen_test
-    def test_execute(self):
+    async def test_execute(self):
 
         misc.Macro._check_macro = mock.Mock()
         misc.Macro._get_macro = mock.Mock()
@@ -195,11 +192,10 @@ class TestMacro(testing.AsyncTestCase):
             )
 
             get_actor().execute = mock_tornado()
-            yield actor._execute()
+            await actor._execute()
 
             self.assertEqual(get_actor().execute._call_count, 1)
 
-    @testing.gen_test
     def test_orgchart(self):
 
         misc.Macro._get_macro = mock.Mock(name="unittestmacro")
@@ -212,58 +208,52 @@ class TestMacro(testing.AsyncTestCase):
         self.assertEqual(type(actor.get_orgchart()[0]), dict)
 
 
-class TestSleep(testing.AsyncTestCase):
-    @testing.gen_test
-    def test_execute(self):
+class TestSleep(unittest.IsolatedAsyncioTestCase):
+    async def test_execute(self):
         # Call the executor and test it out
         actor = misc.Sleep("Unit Test Action", {"sleep": 0.1})
-        res = yield actor.execute()
+        res = await actor.execute()
 
         # Make sure we fired off an alert.
         self.assertEqual(res, None)
 
-    @testing.gen_test
-    def test_execute_with_str(self):
+    async def test_execute_with_str(self):
         # Call the executor and test it out
         actor = misc.Sleep("Unit Test Action", {"sleep": "0.5"})
-        res = yield actor.execute()
+        res = await actor.execute()
 
         # Make sure we fired off an alert.
         self.assertEqual(res, None)
 
 
-class TestGenericHTTP(testing.AsyncTestCase):
-    @testing.gen_test
-    def test_execute_dry(self):
+class TestGenericHTTP(unittest.IsolatedAsyncioTestCase):
+    async def test_execute_dry(self):
         actor = misc.GenericHTTP(
             "Unit Test Action", {"url": "http://example.com"}, dry=True
         )
 
         actor._fetch = mock_tornado()
 
-        yield actor.execute()
+        await actor.execute()
 
         self.assertEqual(actor._fetch._call_count, 0)
 
-    @testing.gen_test
-    def test_execute(self):
+    async def test_execute(self):
         actor = misc.GenericHTTP("Unit Test Action", {"url": "http://example.com"})
         actor._fetch = mock_tornado({"success": {"code": 200}})
 
-        yield actor.execute()
+        await actor.execute()
 
-    @testing.gen_test
-    def test_execute_data_json(self):
+    async def test_execute_data_json(self):
         actor = misc.GenericHTTP(
             "Unit Test Action",
             {"url": "http://example.com", "data-json": {"foo": "bar"}},
         )
         actor._fetch = mock_tornado({"success": {"code": 200}})
 
-        yield actor.execute()
+        await actor.execute()
 
-    @testing.gen_test
-    def test_execute_fail(self):
+    async def test_execute_fail(self):
         actor = misc.GenericHTTP("Unit Test Action", {"url": "http://example.com"})
         error = urllib.error.HTTPError(
             url="http://example.com", code=401, msg="Unauthorized",
@@ -272,4 +262,4 @@ class TestGenericHTTP(testing.AsyncTestCase):
         actor._fetch = mock_tornado(exc=error)
 
         with self.assertRaises(exceptions.InvalidCredentials):
-            yield actor.execute()
+            await actor.execute()
