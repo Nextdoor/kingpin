@@ -3,10 +3,10 @@ import logging
 import unittest
 import urllib.error
 from unittest import mock
+from unittest.mock import AsyncMock
 
 from kingpin import exceptions as kingpin_exceptions
 from kingpin.actors import exceptions, misc
-from kingpin.actors.test.helper import mock_tornado
 
 log = logging.getLogger(__name__)
 
@@ -191,10 +191,10 @@ class TestMacro(unittest.IsolatedAsyncioTestCase):
                 "Unit Test", {"macro": "test.json", "tokens": {}}, dry=True
             )
 
-            get_actor().execute = mock_tornado()
+            get_actor().execute = AsyncMock()
             await actor._execute()
 
-            self.assertEqual(get_actor().execute._call_count, 1)
+            get_actor().execute.assert_awaited_once()
 
     def test_orgchart(self):
 
@@ -232,15 +232,15 @@ class TestGenericHTTP(unittest.IsolatedAsyncioTestCase):
             "Unit Test Action", {"url": "http://example.com"}, dry=True
         )
 
-        actor._fetch = mock_tornado()
+        actor._fetch = AsyncMock()
 
         await actor.execute()
 
-        self.assertEqual(actor._fetch._call_count, 0)
+        actor._fetch.assert_not_awaited()
 
     async def test_execute(self):
         actor = misc.GenericHTTP("Unit Test Action", {"url": "http://example.com"})
-        actor._fetch = mock_tornado({"success": {"code": 200}})
+        actor._fetch = AsyncMock(return_value={"success": {"code": 200}})
 
         await actor.execute()
 
@@ -249,7 +249,7 @@ class TestGenericHTTP(unittest.IsolatedAsyncioTestCase):
             "Unit Test Action",
             {"url": "http://example.com", "data-json": {"foo": "bar"}},
         )
-        actor._fetch = mock_tornado({"success": {"code": 200}})
+        actor._fetch = AsyncMock(return_value={"success": {"code": 200}})
 
         await actor.execute()
 
@@ -262,7 +262,7 @@ class TestGenericHTTP(unittest.IsolatedAsyncioTestCase):
             hdrs={},
             fp=None,
         )
-        actor._fetch = mock_tornado(exc=error)
+        actor._fetch = AsyncMock(side_effect=error)
 
         with self.assertRaises(exceptions.InvalidCredentials):
             await actor.execute()

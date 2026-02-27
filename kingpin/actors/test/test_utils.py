@@ -1,9 +1,9 @@
 import logging
 import unittest
 from unittest import mock
+from unittest.mock import AsyncMock
 
 from kingpin.actors import base, exceptions, misc, utils
-from kingpin.actors.test import helper
 
 log = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class FakeActor(base.BaseActor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.conn = mock.MagicMock()
-        self.conn.call.return_value = helper.tornado_value(None)
+        self.conn.call = AsyncMock(return_value=None)
         self.conn.call.__name__ = "test_call"
 
     @utils.dry("Would have done {0}")
