@@ -4,6 +4,7 @@ import logging
 import unittest
 from datetime import datetime
 from unittest import mock
+from unittest.mock import AsyncMock
 
 from botocore.stub import Stubber
 
@@ -11,11 +12,6 @@ from kingpin.actors import exceptions
 from kingpin.actors.aws import iam, settings
 
 log = logging.getLogger(__name__)
-
-
-async def tornado_value(*args):
-    """Returns whatever is passed in. Used for testing."""
-    return args[0] if len(args) == 1 else args
 
 
 class TestIAMBaseActor(unittest.IsolatedAsyncioTestCase):
@@ -161,17 +157,17 @@ class TestIAMBaseActor(unittest.IsolatedAsyncioTestCase):
             "Policy1": {"junk": "policy"},
             "Policy2": {"more": "junk"},
         }
-        self.actor._get_entity_policies = mock.MagicMock()
-        self.actor._get_entity_policies.side_effect = [tornado_value(fake_pol)]
+        self.actor._get_entity_policies = AsyncMock()
+        self.actor._get_entity_policies.side_effect = [fake_pol]
 
         # Mock out the delete_entity_policy and put_entity_policy methods
-        self.actor._delete_entity_policy = mock.MagicMock()
+        self.actor._delete_entity_policy = AsyncMock()
         self.actor._delete_entity_policy.side_effect = [
-            tornado_value(None),
-            tornado_value(None),
+            None,
+            None,
         ]
-        self.actor._put_entity_policy = mock.MagicMock()
-        self.actor._put_entity_policy.side_effect = [tornado_value(None)]
+        self.actor._put_entity_policy = AsyncMock()
+        self.actor._put_entity_policy.side_effect = [None]
 
         # Ensure that the new policy was pushed, and the old policies were
         # deleted
@@ -192,10 +188,10 @@ class TestIAMBaseActor(unittest.IsolatedAsyncioTestCase):
             "Policy1": {"junk": "policy"},
             "examples-aws.iam.user-s3_example": {"more": "junk"},
         }
-        self.actor._get_entity_policies = mock.MagicMock()
-        self.actor._get_entity_policies.side_effect = [tornado_value(fake_pol)]
-        self.actor._put_entity_policy = mock.MagicMock()
-        self.actor._put_entity_policy.side_effect = [tornado_value(None)]
+        self.actor._get_entity_policies = AsyncMock()
+        self.actor._get_entity_policies.side_effect = [fake_pol]
+        self.actor._put_entity_policy = AsyncMock()
+        self.actor._put_entity_policy.side_effect = [None]
 
         self.iam_stubber.add_response(
             # API Call
@@ -298,18 +294,18 @@ class TestIAMBaseActor(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ret["UserName"], "test")
 
     async def test_ensure_entity(self):
-        create_mock = mock.MagicMock(name="_create_entity")
-        delete_mock = mock.MagicMock(name="_delete_entity")
-        get_mock = mock.MagicMock(name="_get_entity")
+        create_mock = AsyncMock(name="_create_entity")
+        delete_mock = AsyncMock(name="_delete_entity")
+        get_mock = AsyncMock(name="_get_entity")
         self.actor._create_entity = create_mock
         self.actor._delete_entity = delete_mock
         self.actor._get_entity = get_mock
-        self.actor._create_entity.side_effect = [tornado_value(None)]
-        self.actor._delete_entity.side_effect = [tornado_value(None)]
-        self.actor._get_entity.side_effect = [tornado_value(None)]
+        self.actor._create_entity.side_effect = [None]
+        self.actor._delete_entity.side_effect = [None]
+        self.actor._get_entity.side_effect = [None]
 
         # Mock out that the entity doesn't exist, and we're creating it
-        self.actor._get_entity.side_effect = [tornado_value(None)]
+        self.actor._get_entity.side_effect = [None]
         await self.actor._ensure_entity("test", "present")
         create_mock.assert_called_with("test")
         self.assertFalse(delete_mock.called)
@@ -320,11 +316,11 @@ class TestIAMBaseActor(unittest.IsolatedAsyncioTestCase):
         entity = {
             "get_base_response": {"get_base_result": {"base": {"arn": "fake_arn"}}}
         }
-        self.actor._get_entity.side_effect = [tornado_value(entity)]
+        self.actor._get_entity.side_effect = [entity]
 
         # Now if we ask to create the entity, make sure we don't make those
         # calls since the entity already exists
-        self.actor._get_entity.side_effect = [tornado_value(entity)]
+        self.actor._get_entity.side_effect = [entity]
         await self.actor._ensure_entity("test", "present")
         self.assertFalse(create_mock.called)
         self.assertFalse(delete_mock.called)
@@ -333,7 +329,7 @@ class TestIAMBaseActor(unittest.IsolatedAsyncioTestCase):
 
         # Since the entity is there, lets test deleting them.. do they get
         # deleted?
-        self.actor._get_entity.side_effect = [tornado_value(entity)]
+        self.actor._get_entity.side_effect = [entity]
         await self.actor._ensure_entity("test", "absent")
         self.assertFalse(create_mock.called)
         delete_mock.assert_called_with("test")
@@ -341,7 +337,7 @@ class TestIAMBaseActor(unittest.IsolatedAsyncioTestCase):
         delete_mock.reset_mock()
 
         # If the entity doesn't exist, make sure we don't try to delete them
-        self.actor._get_entity.side_effect = [tornado_value(None)]
+        self.actor._get_entity.side_effect = [None]
         await self.actor._ensure_entity("test", "absent")
         self.assertFalse(create_mock.called)
         self.assertFalse(delete_mock.called)
@@ -399,8 +395,8 @@ class TestIAMBaseActor(unittest.IsolatedAsyncioTestCase):
 
     async def test_delete_entity_already_deleted(self):
         # Exception raised? Handle it!
-        self.actor._get_entity_policies = mock.MagicMock()
-        self.actor._get_entity_policies.side_effect = [tornado_value([])]
+        self.actor._get_entity_policies = AsyncMock()
+        self.actor._get_entity_policies.side_effect = [[]]
         self.iam_stubber.add_client_error("delete_user", 400, "NoSuchEntity")
         self.iam_stubber.activate()
         await self.actor._delete_entity("test")
@@ -408,8 +404,8 @@ class TestIAMBaseActor(unittest.IsolatedAsyncioTestCase):
 
     async def test_delete_entity_other_exception(self):
         # Exception raised? Handle it!
-        self.actor._get_entity_policies = mock.MagicMock()
-        self.actor._get_entity_policies.side_effect = [tornado_value([])]
+        self.actor._get_entity_policies = AsyncMock()
+        self.actor._get_entity_policies.side_effect = [[]]
         self.iam_stubber.add_client_error("delete_user", 500, "Yikes!")
         self.iam_stubber.activate()
         with self.assertRaises(exceptions.RecoverableActorFailure):
@@ -531,10 +527,8 @@ class TestUser(unittest.IsolatedAsyncioTestCase):
 
     async def test_ensure_groups_with_not_yet_created_user(self):
         # Create mocks for the add/remove user group methods
-        self.actor._add_user_to_group = mock.MagicMock()
-        self.actor._add_user_to_group.side_effect = [tornado_value(None)]
-        self.actor._remove_user_from_group = mock.MagicMock()
-        self.actor._remove_user_from_group.side_effect = [tornado_value(None)]
+        self.actor._add_user_to_group = AsyncMock(return_value=None)
+        self.actor._remove_user_from_group = AsyncMock(return_value=None)
 
         # The user doesn't exist? No problem.. we'll move forward anyways and
         # assume we're in a dry run and the user hasn't been created, and thus
@@ -608,18 +602,18 @@ class TestUser(unittest.IsolatedAsyncioTestCase):
 
     async def test_execute_absent(self):
         self.actor._options["state"] = "absent"
-        self.actor._ensure_entity = mock.MagicMock()
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._ensure_entity = AsyncMock()
+        self.actor._ensure_entity.side_effect = [None]
         await self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
 
     async def test_execute_present(self):
-        self.actor._ensure_entity = mock.MagicMock()
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
-        self.actor._ensure_inline_policies = mock.MagicMock()
-        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
-        self.actor._ensure_groups = mock.MagicMock()
-        self.actor._ensure_groups.side_effect = [tornado_value(None)]
+        self.actor._ensure_entity = AsyncMock()
+        self.actor._ensure_entity.side_effect = [None]
+        self.actor._ensure_inline_policies = AsyncMock()
+        self.actor._ensure_inline_policies.side_effect = [None]
+        self.actor._ensure_groups = AsyncMock()
+        self.actor._ensure_groups.side_effect = [None]
         await self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
         self.assertTrue(self.actor._ensure_inline_policies.called)
@@ -629,11 +623,11 @@ class TestUser(unittest.IsolatedAsyncioTestCase):
         self.actor._options["inline_policies"] = None
         self.actor._options["groups"] = None
 
-        self.actor._ensure_entity = mock.MagicMock()
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._ensure_entity = AsyncMock()
+        self.actor._ensure_entity.side_effect = [None]
 
-        self.actor._ensure_inline_policies = mock.MagicMock()
-        self.actor._ensure_groups = mock.MagicMock()
+        self.actor._ensure_inline_policies = AsyncMock()
+        self.actor._ensure_groups = AsyncMock()
 
         await self.actor._execute()
 
@@ -733,13 +727,13 @@ class TestGroup(unittest.IsolatedAsyncioTestCase):
 
     async def test_purge_group_users_false(self):
         users = ["user1", "user2"]
-        self.actor._get_group_users = mock.MagicMock()
-        self.actor._get_group_users.side_effect = [tornado_value(users)]
+        self.actor._get_group_users = AsyncMock()
+        self.actor._get_group_users.side_effect = [users]
 
-        self.actor._remove_user_from_group = mock.MagicMock()
+        self.actor._remove_user_from_group = AsyncMock()
         self.actor._remove_user_from_group.side_effect = [
-            tornado_value(None),
-            tornado_value(None),
+            None,
+            None,
         ]
 
         await self.actor._purge_group_users("test", False)
@@ -748,13 +742,13 @@ class TestGroup(unittest.IsolatedAsyncioTestCase):
 
     async def test_purge_group_users_true(self):
         users = ["user1", "user2"]
-        self.actor._get_group_users = mock.MagicMock()
-        self.actor._get_group_users.side_effect = [tornado_value(users)]
+        self.actor._get_group_users = AsyncMock()
+        self.actor._get_group_users.side_effect = [users]
 
-        self.actor._remove_user_from_group = mock.MagicMock()
+        self.actor._remove_user_from_group = AsyncMock()
         self.actor._remove_user_from_group.side_effect = [
-            tornado_value(None),
-            tornado_value(None),
+            None,
+            None,
         ]
 
         await self.actor._purge_group_users("test", True)
@@ -765,30 +759,30 @@ class TestGroup(unittest.IsolatedAsyncioTestCase):
 
     async def test_execute_absent(self):
         self.actor._options["state"] = "absent"
-        self.actor._purge_group_users = mock.MagicMock()
-        self.actor._purge_group_users.side_effect = [tornado_value(None)]
-        self.actor._ensure_entity = mock.MagicMock()
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._purge_group_users = AsyncMock()
+        self.actor._purge_group_users.side_effect = [None]
+        self.actor._ensure_entity = AsyncMock()
+        self.actor._ensure_entity.side_effect = [None]
         await self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
         self.assertTrue(self.actor._purge_group_users.called)
 
     async def test_execute_present(self):
-        self.actor._ensure_entity = mock.MagicMock()
-        self.actor._ensure_inline_policies = mock.MagicMock()
-        self.actor._purge_group_users = mock.MagicMock()
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
-        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
+        self.actor._ensure_entity = AsyncMock()
+        self.actor._ensure_inline_policies = AsyncMock()
+        self.actor._purge_group_users = AsyncMock()
+        self.actor._ensure_entity.side_effect = [None]
+        self.actor._ensure_inline_policies.side_effect = [None]
         await self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
         self.assertFalse(self.actor._purge_group_users.called)
 
     async def test_execute_present_no_policies_or_groups(self):
         self.actor._options["inline_policies"] = None
-        self.actor._ensure_entity = mock.MagicMock()
-        self.actor._ensure_inline_policies = mock.MagicMock()
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
-        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
+        self.actor._ensure_entity = AsyncMock()
+        self.actor._ensure_inline_policies = AsyncMock()
+        self.actor._ensure_entity.side_effect = [None]
+        self.actor._ensure_inline_policies.side_effect = [None]
         await self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
         self.assertFalse(self.actor._ensure_inline_policies.called)
@@ -818,8 +812,8 @@ class TestRole(unittest.IsolatedAsyncioTestCase):
 
     async def test_ensure_assume_role_doc_no_entity(self):
         fake_entity = None
-        self.actor._get_entity = mock.MagicMock()
-        self.actor._get_entity.side_effect = [tornado_value(fake_entity)]
+        self.actor._get_entity = AsyncMock()
+        self.actor._get_entity.side_effect = [fake_entity]
 
         await self.actor._ensure_assume_role_doc("test")
 
@@ -940,10 +934,10 @@ class TestRole(unittest.IsolatedAsyncioTestCase):
 
     async def test_execute_absent(self):
         self.actor._options["state"] = "absent"
-        self.actor._ensure_entity = mock.MagicMock()
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
-        self.actor._ensure_assume_role_doc = mock.MagicMock()
-        self.actor._ensure_assume_role_doc.side_effect = [tornado_value(None)]
+        self.actor._ensure_entity = AsyncMock()
+        self.actor._ensure_entity.side_effect = [None]
+        self.actor._ensure_assume_role_doc = AsyncMock()
+        self.actor._ensure_assume_role_doc.side_effect = [None]
         await self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
         self.assertFalse(self.actor._ensure_assume_role_doc.called)
@@ -952,22 +946,22 @@ class TestRole(unittest.IsolatedAsyncioTestCase):
         self.actor._options["assume_role_policy_document"] = None
         self.actor._options["inline_policies"] = None
         self.iam_stubber.activate()
-        self.actor._ensure_entity = mock.MagicMock()
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
-        self.actor._ensure_assume_role_doc = mock.MagicMock()
-        self.actor._ensure_assume_role_doc.side_effect = [tornado_value(None)]
+        self.actor._ensure_entity = AsyncMock()
+        self.actor._ensure_entity.side_effect = [None]
+        self.actor._ensure_assume_role_doc = AsyncMock()
+        self.actor._ensure_assume_role_doc.side_effect = [None]
         await self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
         self.assertTrue(self.actor._ensure_assume_role_doc.called)
         self.iam_stubber.assert_no_pending_responses()
 
     async def test_execute(self):
-        self.actor._ensure_entity = mock.MagicMock()
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
-        self.actor._ensure_inline_policies = mock.MagicMock()
-        self.actor._ensure_inline_policies.side_effect = [tornado_value(None)]
-        self.actor._ensure_assume_role_doc = mock.MagicMock()
-        self.actor._ensure_assume_role_doc.side_effect = [tornado_value(None)]
+        self.actor._ensure_entity = AsyncMock()
+        self.actor._ensure_entity.side_effect = [None]
+        self.actor._ensure_inline_policies = AsyncMock()
+        self.actor._ensure_inline_policies.side_effect = [None]
+        self.actor._ensure_assume_role_doc = AsyncMock()
+        self.actor._ensure_assume_role_doc.side_effect = [None]
         await self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
         self.assertTrue(self.actor._ensure_inline_policies.called)
@@ -1284,26 +1278,26 @@ class TestInstanceProfile(unittest.IsolatedAsyncioTestCase):
 
     async def test_execute_absent(self):
         self.actor._options["state"] = "absent"
-        self.actor._ensure_entity = mock.MagicMock()
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
+        self.actor._ensure_entity = AsyncMock()
+        self.actor._ensure_entity.side_effect = [None]
         await self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
 
     async def test_execute(self):
-        self.actor._ensure_entity = mock.MagicMock()
-        self.actor._ensure_role = mock.MagicMock()
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
-        self.actor._ensure_role.side_effect = [tornado_value(None)]
+        self.actor._ensure_entity = AsyncMock()
+        self.actor._ensure_role = AsyncMock()
+        self.actor._ensure_entity.side_effect = [None]
+        self.actor._ensure_role.side_effect = [None]
         await self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
         self.assertTrue(self.actor._ensure_role.called)
 
     async def test_execute_no_role(self):
         self.actor._options["role"] = None
-        self.actor._ensure_entity = mock.MagicMock()
-        self.actor._ensure_entity.side_effect = [tornado_value(None)]
-        self.actor._ensure_role = mock.MagicMock()
-        self.actor._ensure_role.side_effect = [tornado_value(None)]
+        self.actor._ensure_entity = AsyncMock()
+        self.actor._ensure_entity.side_effect = [None]
+        self.actor._ensure_role = AsyncMock()
+        self.actor._ensure_role.side_effect = [None]
         await self.actor._execute()
         self.assertTrue(self.actor._ensure_entity.called)
         self.assertFalse(self.actor._ensure_role.called)

@@ -16,8 +16,9 @@ os.environ["URLLIB_DEBUG"] = "1"
 from kingpin.actors import base
 
 reload(base)
+from unittest.mock import AsyncMock
+
 from kingpin.actors import exceptions
-from kingpin.actors.test.helper import mock_tornado
 from kingpin.constants import REQUIRED, STATE
 
 
@@ -258,18 +259,18 @@ class TestBaseActor(unittest.IsolatedAsyncioTestCase):
         }
         for value, should_execute in conditions.items():
             self.actor._condition = value
-            self.actor._execute = mock_tornado()
+            self.actor._execute = AsyncMock()
             await self.actor.execute()
             str_value = json.dumps(value)
             if should_execute:
                 self.assertEqual(
-                    self.actor._execute._call_count,
+                    self.actor._execute.await_count,
                     1,
                     f"Value `{str_value}` should allow actor execution",
                 )
             else:
                 self.assertEqual(
-                    self.actor._execute._call_count,
+                    self.actor._execute.await_count,
                     0,
                     f"Value `{str_value}` should not allow actor execution",
                 )
