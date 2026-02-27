@@ -1,5 +1,6 @@
 import asyncio
 import functools
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 
 from botocore import exceptions as botocore_exceptions
@@ -28,7 +29,9 @@ class ApiCallQueue:
         # We don't have a delay until we first get throttled.
         self.delay = 0
 
-    async def call(self, api_function, *args, **kwargs):
+    async def call(
+        self, api_function: Callable[..., object], *args: object, **kwargs: object
+    ) -> object:
         """Call a boto3 api function.
 
         Simply invoke this with an api method and its args and kwargs.

@@ -237,7 +237,9 @@ class CloudFormationBaseActor(base.AWSBaseActor):
     def _strip_hash_str(self, template: str) -> str:
         return json.dumps(self._strip_hash_dict(json.loads(template)))
 
-    def _get_template_body(self, template: str, s3_region: str | None):
+    def _get_template_body(
+        self, template: str, s3_region: str | None
+    ) -> tuple[str, str | None]:
         """Reads in a local template file and returns the contents.
 
         If the template string supplied is a local file resource (has no URI
@@ -361,7 +363,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
         sorted_params = sorted(new_params, key=lambda k: k["ParameterKey"])
         return sorted_params
 
-    async def _get_stack(self, stack):
+    async def _get_stack(self, stack: str) -> dict | None:
         """Returns a cloudformation.Stack object of the requested stack.
 
         If a "stack name" is supplied, Amazon returns only stacks that are
@@ -388,7 +390,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
 
         return stacks["Stacks"][0]
 
-    async def _get_stack_template(self, stack: str):
+    async def _get_stack_template(self, stack: str) -> dict:
         """Returns the live template used by the CFN Stack.
 
         Args:
@@ -449,7 +451,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             )
             raise StackFailed(msg)
 
-    async def _get_stack_events(self, stack: str):
+    async def _get_stack_events(self, stack: str) -> list[str]:
         """Returns a list of human-readable CFN Events.
 
         Searches for all of the Stack events for a given CFN Stack and returns
@@ -525,7 +527,7 @@ class CloudFormationBaseActor(base.AWSBaseActor):
             pass
 
     @dry("Would have created stack {stack}")
-    async def _create_stack(self, stack):
+    async def _create_stack(self, stack: str) -> str | None:
         """Executes the stack creation."""
         # Create the stack, and get its ID.
         self.log.info(f"Creating stack {stack}")

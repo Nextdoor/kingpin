@@ -28,6 +28,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 
 from kingpin import utils
@@ -104,15 +105,15 @@ class BaseActor:
 
     def __init__(
         self,
-        desc=None,
-        options={},
-        dry=False,
-        warn_on_failure=False,
-        condition=True,
-        init_context={},
-        init_tokens={},
-        timeout=None,
-    ):
+        desc: str | None = None,
+        options: dict[str, object] = {},
+        dry: bool = False,
+        warn_on_failure: bool = False,
+        condition: bool | str = True,
+        init_context: dict[str, str] = {},
+        init_tokens: dict[str, str] = {},
+        timeout: str | int | float | None = None,
+    ) -> None:
         """Initializes the Actor.
 
         Args:
@@ -289,7 +290,9 @@ class BaseActor:
 
         return contents
 
-    async def timeout(self, f, *args, **kwargs):
+    async def timeout(
+        self, f: Callable[..., object], *args: object, **kwargs: object
+    ) -> object:
         """Wraps a Coroutine method in a timeout.
 
         Used to wrap the self.execute() method in a timeout that will raise an
@@ -328,7 +331,7 @@ class BaseActor:
 
         return ret
 
-    def _check_condition(self):
+    def _check_condition(self) -> bool:
         """Check if specified condition allows this actor to run.
 
         Evaluate self._condition to figure out if this actor should run.
@@ -407,7 +410,7 @@ class BaseActor:
         # Finally, convert the string back into a dict and store it.
         self._options = json.loads(new_options_string)
 
-    def get_orgchart(self, parent=""):
+    def get_orgchart(self, parent: str = "") -> list[dict[str, str | None]]:
         """Construct organizational chart describing this actor.
 
         Return a list of actors handled by this actor. Most actors will return
@@ -432,7 +435,7 @@ class BaseActor:
         ]
 
     @timer
-    async def execute(self):
+    async def execute(self) -> object | None:
         """Executes an actor and returns the results when its finished.
 
         Calls an actors private _execute() method and either returns the result
@@ -647,10 +650,10 @@ class EnsurableBaseActor(BaseActor):
         """
         return
 
-    async def _get_state(self):
+    async def _get_state(self) -> str:
         raise NotImplementedError("_get_state is required for Ensurable")
 
-    async def _set_state(self):
+    async def _set_state(self) -> None:
         raise NotImplementedError("_set_state is required for Ensurable")
 
     async def _ensure(self, option):
@@ -723,7 +726,7 @@ class HTTPBaseActor(BaseActor):
         else:
             return "GET"
 
-    def _generate_escaped_url(self, url, args):
+    def _generate_escaped_url(self, url: str, args: dict[str, object]) -> str:
         """Takes in a dictionary of arguments and returns a URL line.
 
         Sorts the arguments so that the returned string is predictable and in
@@ -753,7 +756,13 @@ class HTTPBaseActor(BaseActor):
 
         return full_url
 
-    async def _fetch(self, url, post=None, auth_username=None, auth_password=None):
+    async def _fetch(
+        self,
+        url: str,
+        post: str | None = None,
+        auth_username: str | None = None,
+        auth_password: str | None = None,
+    ) -> dict:
         """Executes a web request asynchronously and returns the parsed body.
 
         Args:

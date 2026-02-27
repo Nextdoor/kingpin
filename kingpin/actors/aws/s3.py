@@ -702,7 +702,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         if len(matching) == 1:
             self._bucket_exists = True
 
-    async def _get_state(self):
+    async def _get_state(self) -> str:
         if not self._bucket_exists:
             return "absent"
 
@@ -757,7 +757,7 @@ class Bucket(base.EnsurableAWSBaseActor):
                 f"Cannot delete bucket: {str(e)}"
             ) from e
 
-    async def _get_policy(self):
+    async def _get_policy(self) -> dict | str | None:
         if not self._bucket_exists:
             return None
 
@@ -827,7 +827,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             self.s3_conn.delete_bucket_policy, Bucket=self.option("name")
         )
 
-    async def _get_logging(self):
+    async def _get_logging(self) -> dict[str, str] | None:
         if not self._bucket_exists:
             return None
 
@@ -902,7 +902,7 @@ class Bucket(base.EnsurableAWSBaseActor):
         except ClientError as e:
             raise InvalidBucketConfig(str(e)) from e
 
-    async def _get_versioning(self):
+    async def _get_versioning(self) -> bool | None:
         if not self._bucket_exists:
             return None
 
@@ -936,7 +936,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             VersioningConfiguration={"Status": state},
         )
 
-    async def _get_lifecycle(self):
+    async def _get_lifecycle(self) -> list | None:
         if not self._bucket_exists:
             return None
 
@@ -1071,7 +1071,7 @@ class Bucket(base.EnsurableAWSBaseActor):
             self.log.info(f"Diff: {line}")
         return False
 
-    async def _get_tags(self):
+    async def _get_tags(self) -> list[dict[str, str]] | None:
         if self.option("tags") is None:
             return None
 

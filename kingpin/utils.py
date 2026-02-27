@@ -60,7 +60,7 @@ def construct_mapping(self, node, deep=False):
 CfnYamlLoader.add_constructor("tag:yaml.org,2002:map", construct_mapping)
 
 
-def str_to_class(string):
+def str_to_class(string: str) -> type:
     """Method that converts a string name into a usable Class name
 
     This is used to take the 'actor' value from the JSON object and convert it
@@ -84,7 +84,9 @@ def str_to_class(string):
     return getattr(m, class_name)
 
 
-def setup_root_logger(level="warn", syslog=None, color=False):
+def setup_root_logger(
+    level: str = "warn", syslog: str | None = None, color: bool = False
+) -> logging.Logger:
     """Configures the root logger.
 
     Args:
@@ -231,14 +233,14 @@ def retry(excs, retries=3, delay=0.25):
 
 
 def populate_with_tokens(
-    string,
-    tokens,
-    left_wrapper="%",
-    right_wrapper="%",
-    strict=True,
-    escape_sequence="\\",
-    remove_escape_sequence=True,
-):
+    string: str,
+    tokens: dict[str, object],
+    left_wrapper: str = "%",
+    right_wrapper: str = "%",
+    strict: bool = True,
+    escape_sequence: str = "\\",
+    remove_escape_sequence: bool = True,
+) -> str:
     """Insert token variables into the string.
 
     Will match any token wrapped in '%'s and replace it with the value of that
@@ -312,7 +314,9 @@ def populate_with_tokens(
     return string
 
 
-def load_json_with_tokens(file_path, tokens):
+def load_json_with_tokens(
+    file_path: str | IOBase, tokens: dict[str, object]
+) -> dict | list:
     """Converts a JSON/YAML file to a Python object.
 
     Reads in a JSON/YAML file, swaps out any environment variables that
@@ -423,7 +427,7 @@ def clear_repeating_log(handle):
     handle.timer_handle.cancel()
 
 
-def diff_dicts(dict1, dict2):
+def diff_dicts(dict1: dict, dict2: dict) -> str | None:
     """Compares two dicts and returns the difference as a string, if there is
     any.
 
@@ -449,7 +453,7 @@ def diff_dicts(dict1, dict2):
     return "\n".join(difflib.unified_diff(dict1, dict2, n=2))
 
 
-def str2bool(v, strict=False) -> bool:
+def str2bool(v: str | bool | int, strict: bool = False) -> bool:
     """Returns a Boolean from a variety of inputs.
 
     Args:

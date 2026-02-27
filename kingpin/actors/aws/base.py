@@ -26,6 +26,7 @@ below for using each actor.
 
 import asyncio
 import logging
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 
 import boto3
@@ -112,7 +113,9 @@ class AWSBaseActor(base.BaseActor):
             service_name="s3", config=boto_config, **boto3_client_kwargs
         )
 
-    async def api_call(self, api_function, *args, **kwargs):
+    async def api_call(
+        self, api_function: Callable[..., object], *args: object, **kwargs: object
+    ) -> object:
         """Execute `api_function` in a background thread.
 
         Wraps a synchronous boto3 call so it doesn't block the event loop.
@@ -129,7 +132,13 @@ class AWSBaseActor(base.BaseActor):
             raise self._wrap_boto_exception(e) from e
 
     @utils.exception_logger
-    async def api_call_with_queueing(self, api_function, queue_name, *args, **kwargs):
+    async def api_call_with_queueing(
+        self,
+        api_function: Callable[..., object],
+        queue_name: str,
+        *args: object,
+        **kwargs: object,
+    ) -> object:
         """
         Execute `api_function` in a serialized queue.
 
@@ -165,7 +174,7 @@ class AWSBaseActor(base.BaseActor):
             return exceptions.RecoverableActorFailure(f"Boto3 had a failure: {e}")
         return e
 
-    def _parse_json(self, file_path):
+    def _parse_json(self, file_path: str | None) -> dict | None:
         """Parse a single JSON file.
 
         Validates that the JSON document can be parsed, strips out any

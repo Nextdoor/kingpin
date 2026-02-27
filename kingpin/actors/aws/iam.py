@@ -144,7 +144,7 @@ class IAMBaseActor(base.AWSBaseActor):
 
             self.log.debug(f"Parsed policy {p_name}: {self.inline_policies[p_name]}")
 
-    async def _get_entity_policies(self, name):
+    async def _get_entity_policies(self, name: str) -> dict[str, dict]:
         """Returns a dictionary of all the inline policies attached to a entity.
 
         Args:
@@ -321,7 +321,7 @@ class IAMBaseActor(base.AWSBaseActor):
                 f"An unexpected API error occurred: {e}"
             ) from e
 
-    async def _get_entity(self, name):
+    async def _get_entity(self, name: str) -> dict | None:
         """Returns an IAM Entity JSON Blob.
 
         Searches for an IAM Entity and either returns None, or a JSON blob that
@@ -694,7 +694,7 @@ class Group(IAMBaseActor):
         # Parse the supplied inline policies
         self._parse_inline_policies(self.option("inline_policies"))
 
-    async def _get_group_users(self, name):
+    async def _get_group_users(self, name: str) -> list[str]:
         """Returns a list of users assigned to the group.
 
         Args:

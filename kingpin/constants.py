@@ -18,7 +18,7 @@ class StringCompareBase:
     valid = None
 
     @classmethod
-    def validate(self, option):
+    def validate(self, option: object) -> None:
         if option not in self.valid:
             raise exceptions.InvalidOptions(f"{option} not valid, use: {self.valid}")
 
@@ -39,7 +39,7 @@ class SchemaCompareBase:
     SCHEMA = None
 
     @classmethod
-    def validate(self, option):
+    def validate(self, option: object) -> None:
         try:
             jsonschema.Draft202012Validator(self.SCHEMA).validate(option)
         except jsonschema.exceptions.ValidationError as e:
