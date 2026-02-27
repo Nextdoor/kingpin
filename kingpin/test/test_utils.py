@@ -297,8 +297,8 @@ class TestCoroutineHelpers(unittest.IsolatedAsyncioTestCase):
         logger = mock.Mock()  # used for tracking
 
         # Repeat this message 10 times per second
-        # seconds=0 instructs Tornado to invoke this log on every IO loop
-        # Below we yield gen.moment to allow IO loop iterations.
+        # seconds=0 schedules the log on every event loop iteration.
+        # Below we await asyncio.sleep(0) to allow event loop iterations.
         # We do N+1 loops and check N count.
         logid = utils.create_repeating_log(logger.info, "test", seconds=0)
         await asyncio.sleep(0)
