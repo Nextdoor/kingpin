@@ -105,8 +105,6 @@ This is the basic structure for an actor class.
 
     import os
 
-    from tornado import gen
-
     from kingpin.actors import base
     from kingpin.actors import exceptions
 
@@ -130,7 +128,7 @@ This is the basic structure for an actor class.
         # validation checks (for example, looking for an API token) you can do
         # them in the __init__. Do *not* put blocking code in here.
         def __init__(self, *args, **kwargs):
-            super(HelloWorld, self).__init__(*args, **kwargs)
+            super().__init__(*args, **kwargs)
             if not TOKEN:
                 raise exceptions.InvalidCredentials(
                     'Missing the "HELLO_WORLD_TOKEN" environment variable.')
@@ -141,49 +139,47 @@ This is the basic structure for an actor class.
         # Its nice to wrap some of your logic into separate methods. This
         # method handles sending the message, or pretends to send the
         # message if we're in a dry run.
-        @gen.coroutine
-        def _send_message(self, name, world):
+        async def _send_message(self, name, world):
             # Attempt to log into the API to sanity check our credentials
             try:
-                yield self._hello_world.login()
+                await self._hello_world.login()
             except Shoplifter:
                 msg = 'Could not log into the world!'
                 raise exceptions.UnrecoverableActorFailure(msg)
 
             # Make sure to support DRY mode all the time!
             if self._dry:
-                self.log.info('Would have said Hi to %s' % world)
-                raise gen.Return()
+                self.log.info(f'Would have said Hi to {world}')
+                return
 
             # Finally, send the message!
             try:
-                res = yield self._hello_world.send(
-                    from=name, to=world)
+                res = await self._hello_world.send(
+                    sender=name, to=world)
             except WalkingAlone as e:
                 # Lets say that this error is completely un-handleable exception,
                 # there's no one to say hello to!
                 self.log.critical('Some extra information about this error...')
 
-                # Now, raise an exception that is will stop execution of Kingpin,
+                # Now, raise an exception that will stop execution of Kingpin,
                 # regardless of the warn_on_failure setting.
-                raise exceptions.UnrecoverableActorException('Oh my: %s' % e)
+                raise exceptions.UnrecoverableActorFailure(f'Oh my: {e}')
 
             # Return the value back to the execute method
-            raise gen.Return(res)
+            return res
 
         # The meat of the work happens in the _execute() method. This method
         # is called by the BaseActor.execute() method. Your method must be
-        # wrapped in a gen.Coroutine wrapper.
+        # an async def.
         #
         # Note, the _execute() method takes no arguments, all arguments for the
-        # acter were passed in to the __init__() method.
-        @gen.coroutine
-        def _execute(self):
+        # actor were passed in to the __init__() method.
+        async def _execute(self):
             self.log.debug('Warming up the HelloWorld Actor')
 
-            # Fire off an async request to a our private method for sending
+            # Fire off an async request to our private method for sending
             # hello world messages. Get the response and evaluate
-            res = yield self._send_message(
+            res = await self._send_message(
                 self.option('name'), self.option('world'))
 
             # Got a response. Did our message really go through though?
@@ -196,10 +192,7 @@ This is the basic structure for an actor class.
                     'A shame, but I suppose they can listen to what they want')
 
             # We've been heard!
-            self.log.info('%s people have heard our message!' % res)
-
-            # Indicate to Tornado that we're done with our execution.
-            raise gen.Return()
+            self.log.info(f'{res} people have heard our message!')
 
 Actor Parameters
 ^^^^^^^^^^^^^^^^
@@ -245,14 +238,13 @@ These options are defined in your class's `all_options` dict. A simple example:
 
     from kingpin.constants import REQUIRED
 
-    class SayHi(object):
+    class SayHi(base.BaseActor):
         all_options = {
             'name': (str, REQUIRED, 'What is your name?')
         }
 
-        @gen.coroutine
-        def _execute(self):
-            self.log.info('Hi %s' % self.option('name'))
+        async def _execute(self):
+            self.log.info(f"Hi {self.option('name')}")
 
 
 For more complex user input validation, see :ref:`option_validation`.
@@ -275,15 +267,13 @@ Required Methods
 ''''''''''''''''''
 
 Your actor can execute any code you would like in the ``_execute()`` method. This
-method should make sure that it's a tornado-style generator (thus, can be
-yielded), and that it never calls any blocking operations.
+method must be an ``async def`` and should never call any blocking operations.
 
 Actors must *not*:
 
 -  Call a blocking operation ever
 -  Call an async operation from inside the **init**\ () method
 -  Bypass normal logging methods
--  ``return`` a result (should ``raise gen.Return(...)``)
 
 Actors must:
 
@@ -310,11 +300,10 @@ Actors can:
 
 .. code-block:: python
 
-    @gen.coroutine
-    def _execute(self):
+    async def _execute(self):
         self.log.info('Making that web call')
-        res = yield self._post_web_call(URL)
-        raise gen.Return(res)
+        res = await self._post_web_call(URL)
+        return res
 
 Recommended Design Patterns
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -411,7 +400,7 @@ actor wants to supply its own default description, it can be done like this:
     09:55:08   DEBUG    33688 [kingpin.actors.misc.Sleep               ] [execute             ] [DRY: Sleeping for 10s] Finished successfully, return value: None
     09:55:08   DEBUG    33688 [kingpin.actors.misc.Sleep               ] [_wrap_in_timer      ] [DRY: Sleeping for 10s] kingpin.actors.misc.Sleep.execute() execution time: 0.00s
 
-The `format() <https://docs.python.org/2/library/stdtypes.html#str.format>`__
+The `format() <https://docs.python.org/3/library/stdtypes.html#str.format>`__
 is called with the following key/values as possible variables that can be
 parsed at runtime:
 
@@ -471,16 +460,16 @@ only accepts words that start with the letter `X`.
 
     from kingpin.actors.exceptions import InvalidOptions
 
-    class OnlyStartsWithX(object):
+    class OnlyStartsWithX:
         @classmethod
         def validate(self, option):
             if not option.startswith('X'):
-                raise InvalidOptions('Must start with X: %s' % option)
+                raise InvalidOptions(f'Must start with X: {option}')
 
 
-    class MyActor(object):
+    class MyActor(base.BaseActor):
         all_options = {
-            (OnlyStartsWithX, REQUIRED, 'Any string that starts with an X')
+            'value': (OnlyStartsWithX, REQUIRED, 'Any string that starts with an X')
         }
 
 Pre-Built Option Validators
@@ -542,19 +531,16 @@ HTTPBin Actor with the RestConsumer
 
     class HTTPBinGetThenPost(base.BaseActor):
         def __init__(self, \*args, \**kwargs):
-            super(HTTPBinGetThenPost, self).__init__(\*args, \**kwargs)
+            super().__init__(\*args, \**kwargs)
             self._api = HTTPBinRestClient()
 
-        @gen.coroutine
-        def _execute(self):
-            yield self._api.get().http_get()
+        async def _execute(self):
+            await self._api.get().http_get()
 
-            if self._dry
-                raise gen.Return()
+            if self._dry:
+                return
 
-            yield self._api.post().http_post(foo='bar')
-
-            raise gen.Return()
+            await self._api.post().http_post(foo='bar')
 
 Exception Handling in HTTP Requests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
