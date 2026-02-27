@@ -70,7 +70,7 @@ def timer(f):
     return _wrap_in_timer
 
 
-def get_actor(config, dry):
+def get_actor(config: dict[str, object], dry: bool) -> object:
     """Returns an initialized Actor object.
 
     Args:
@@ -110,7 +110,7 @@ def get_actor(config, dry):
     return ActorClass(dry=dry, **config)
 
 
-def get_actor_class(actor):
+def get_actor_class(actor: str) -> type:
     """Returns a Class Reference to an Actor by string name.
 
     Args:

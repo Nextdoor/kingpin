@@ -50,7 +50,7 @@ SCHEMA_1_0 = {
 }
 
 
-def validate(config):
+def validate(config: dict | list) -> None:
     """Validates the JSON against our schemas.
 
     TODO: Support multiple schema versions

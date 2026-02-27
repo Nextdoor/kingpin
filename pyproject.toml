@@ -14,15 +14,15 @@ keywords = [
     "cloudformation"
 ]
 classifiers = [
-  "Development Status :: 4 - Beta",
-  "Intended Audience :: Developers",
-  "Natural Language :: English",
-  "Operating System :: POSIX",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
-  "Topic :: Software Development",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
 ]
 dependencies = [
     # JSON schema validation for the deployment DSL
@@ -81,6 +81,8 @@ dev = [
     "black",
     # linting (parallel to pyflakes during transition)
     "ruff",
+    # type checking
+    "mypy",
     # testing
     "pytest",
     "pytest-cov",
@@ -144,6 +146,14 @@ ignore = [
 quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+ignore_missing_imports = true
 
 [tool.uv]
 python-preference = "only-managed"

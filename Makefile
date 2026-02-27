@@ -7,6 +7,7 @@ PYTEST      := $(UV_BIN) run pytest
 PYFLAKES    := $(UV_BIN) run pyflakes
 PYBLACK     := $(UV_BIN) run black
 PYRUFF      := $(UV_BIN) run ruff
+PYMYPY      := $(UV_BIN) run mypy
 
 BUILD_DIRS = bin .build build include lib lib64 man share package *.egg dist *.egg-info .coverage .pytest_cache
 
@@ -46,6 +47,10 @@ ruff-fix: $(UV_BIN)
 .PHONY: ruff-format
 ruff-format: $(UV_BIN)
 	$(PYRUFF) format kingpin/
+
+.PHONY: mypy
+mypy: $(UV_BIN)
+	$(PYMYPY) kingpin/ --exclude 'test/'
 
 .PHONY: test
 test: $(UV_BIN)
