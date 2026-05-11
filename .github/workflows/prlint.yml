@@ -22,7 +22,7 @@ jobs:
       pull-requests: write
     steps:
       # Magic Cache
-      - uses: runs-on/action@v2.1.0
+      - uses: runs-on/action@v2.1.2
 
       # Check out the repo so that we can dynamically discover the available charts in the repo.
       - name: Checkout
