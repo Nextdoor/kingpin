@@ -6,8 +6,22 @@ on:
 jobs:
   publish-release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
     - uses: actions/checkout@v7
+    - name: AWS CodeArtifact login
+      id: aws-login
+      uses: Nextdoor/actions/aws-login@main
+      with:
+        ecr: false
+        codeartifactPip: true
+    - name: Configure uv CodeArtifact auth
+      shell: bash
+      run: |
+        echo "UV_INDEX_CODEARTIFACT_USERNAME=aws" >> "$GITHUB_ENV"
+        echo "UV_INDEX_CODEARTIFACT_PASSWORD=${{ steps.aws-login.outputs.codeartifactToken }}" >> "$GITHUB_ENV"
     - name: Install uv
       uses: astral-sh/setup-uv@v9.0.0
       with:

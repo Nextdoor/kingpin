@@ -157,3 +157,11 @@ ignore_missing_imports = true
 
 [tool.uv]
 python-preference = "only-managed"
+
+# All package installs route through Nextdoor's AWS CodeArtifact (go/migrate-to-ca).
+# Auth is required even for reads: ~/.netrc locally (populated by dotfiles'
+# aws_codeartifact_token) or UV_INDEX_CODEARTIFACT_USERNAME/PASSWORD in CI.
+[[tool.uv.index]]
+name = "codeartifact"
+url = "https://nextdoor-364942603424.d.codeartifact.us-west-2.amazonaws.com/pypi/kingpin.git/simple/"
+default = true

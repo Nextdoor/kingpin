@@ -25,6 +25,15 @@ Create your VirtualEnvironment
     $ make venv
     $ source .venv/bin/activate
 
+Package Registry (Nextdoor CodeArtifact)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Package installs route through Nextdoor's AWS CodeArtifact repository (see
+``[[tool.uv.index]]`` in ``pyproject.toml``), which requires authentication
+even for reads. ``uv`` picks up credentials from ``~/.netrc``; Nextdoor
+engineers can populate it with the ``aws_codeartifact_token`` helper from
+dotfiles.
+
 Testing
 ~~~~~~~
 
