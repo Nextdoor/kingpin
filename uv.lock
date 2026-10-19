@@ -401,11 +401,11 @@ wheels = [
 
 [[package]]
 name = "jsonpickle"
-version = "4.1.3"
+version = "4.1.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d7/65/8b589546fe473fd262aebdfead994c7ba237caaa8fa4ca8855d0888933b7/jsonpickle-4.1.3.tar.gz", hash = "sha256:de234c1d1ed2c5313833e608e2a2467202f48ae24ea7a2afa2d238d8999aa4b5", size = 317678, upload-time = "2026-10-02T15:47:07.496Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/37/95fb728a57b0b17864041daea006bbedd9765e8030755e4ca84ba20ae137/jsonpickle-4.1.4.tar.gz", hash = "sha256:8adf24cca611809b55ff5ed2ace850e1a3e4370dad5d363df71569b8f46c9645", size = 317936, upload-time = "2026-10-15T15:16:53.184Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/00/8e/20ccb39e89f350a11bfb3e43728bdb4614fd9f3e69058036218e403566e8/jsonpickle-4.1.3-py3-none-any.whl", hash = "sha256:99822e77b593462c1f67361b0571e54323db43f1285706a63da5b5759714c9df", size = 49180, upload-time = "2026-10-02T15:47:06.189Z" },
+    { url = "https://files.pythonhosted.org/packages/c9/25/7fc775e2c25d5484a1333bb2d3d59adf024438dee1ff416675293fb6ea75/jsonpickle-4.1.4-py3-none-any.whl", hash = "sha256:c46024ba4acd8adb9a8b8485d074e141cbfacafe334c2aa982e5b32efabc2f0e", size = 47763, upload-time = "2026-10-15T15:16:51.794Z" },
 ]
 
 [[package]]
@@ -477,7 +477,7 @@ requires-dist = [
     { name = "boto3", specifier = "==1.43.2" },
     { name = "cfn-flip", specifier = "==1.3.0" },
     { name = "inflection", specifier = "==0.5.1" },
-    { name = "jsonpickle", specifier = "==4.1.3" },
+    { name = "jsonpickle", specifier = "==4.1.4" },
     { name = "jsonschema", specifier = ">=3.0.0,<5.0.0" },
     { name = "rainbow-logging-handler", specifier = "==2.2.2" },
     { name = "sphinx", marker = "extra == 'docs'" },
